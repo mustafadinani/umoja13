@@ -22,6 +22,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ddf3e5f7-077c-4ace-8d2f-36b27fccc3c7"
+      }
+    },
+    "owner": "umoja-outreach-foundation"
   }
 }

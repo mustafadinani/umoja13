@@ -40,7 +40,10 @@
     "production": {
       "ios": {
         "appleId": "games@umojaoutreach.org",
-        "appleTeamId": "W4YKXW4536"
+        "appleTeamId": "W4YKXW4536",
+        "ascApiKeyPath": "./AuthKey_3D22798SVP.p8",
+        "ascApiKeyId": "3D22798SVP",
+        "ascApiKeyIssuerId": "d7ce9133-bbb9-405e-ac41-f093a7e1e028"
       }
     }
   }
