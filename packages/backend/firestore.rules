@@ -1,0 +1,145 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && role in me().roles;
+    }
+
+    function isStaff() {
+      return hasRole('admin') || hasRole('commissioner');
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ---- users ----
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isStaff();
+      allow create: if isOwner(uid);
+      // Self-serve join-a-team (no admin registration/invite system exists yet) may
+      // promote a user to 'player'/'captain', but never to referee/commissioner/admin —
+      // those privileged roles are only ever granted via the setUserRole Cloud Function
+      // (Admin SDK, bypasses rules).
+      allow update: if isOwner(uid) &&
+        request.resource.data.roles.hasOnly(['fan', 'player', 'captain']) &&
+        request.resource.data.primaryRole in ['fan', 'player', 'captain'];
+      allow update: if isStaff();
+    }
+
+    // ---- reference data: public read, staff write ----
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /sponsors/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /huntMissions/{id} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---- teams ----
+    // Aggregate `stats` is written only by a Cloud Function trigger on game finalize.
+    // Any signed-in user may touch only the `roster` field (self-serve join, and
+    // captain jersey-number edits) — no admin-invite/import flow exists yet.
+    match /teams/{teamId} {
+      allow read: if true;
+      allow update: if isStaff() ||
+        (isSignedIn() &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roster']));
+      allow create, delete: if isStaff();
+    }
+
+    // ---- games ----
+    // Referee assigned to a game may update gate-check/events/motm/gameCard/status;
+    // commissioner/admin may update anything (score corrections, ref assignment, forfeits).
+    match /games/{gameId} {
+      allow read: if true;
+      allow create: if isStaff();
+      allow update: if isStaff() ||
+        (isSignedIn() && resource.data.refereeUid == request.auth.uid);
+      allow delete: if isStaff();
+    }
+
+    // ---- check-ins & tournament passes: sensitive PII (selfie, gov ID, DOB) ----
+    // Only the player themselves, or admin/commissioner, may read/write these.
+    // Captains/referees see only derived status via teams/{id}.roster, never the docs.
+    match /checkIns/{checkInId} {
+      // `resource == null` covers listening on a check-in that hasn't been created
+      // yet (Firestore still evaluates read rules against a non-existent doc) —
+      // must be allowed or the client gets a hard permission-denied error instead
+      // of a normal "not found" snapshot.
+      allow read: if isStaff() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['not_started', 'rejected']);
+      allow delete: if isStaff();
+    }
+    match /tournamentPasses/{passId} {
+      allow read: if isStaff() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
+      allow write: if isStaff();
+    }
+
+    // ---- moments ----
+    match /moments/{momentId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.postedBy == request.auth.uid;
+      allow update: if isStaff() ||
+        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeUids']));
+      allow delete: if isStaff() || (isSignedIn() && resource.data.postedBy == request.auth.uid);
+    }
+
+    // ---- incidents (unified complaint/flag/forfeit-notice/fan-message inbox) ----
+    match /incidents/{incidentId} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid;
+      allow update: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['thread']));
+    }
+
+    // ---- The Hunt ----
+    match /huntCrews/{crewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.leadUserId == request.auth.uid;
+      allow update: if isStaff() || (isSignedIn() && !resource.data.locked &&
+        request.auth.uid in resource.data.memberUids);
+    }
+    match /huntSubmissions/{submissionId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isStaff();
+    }
+
+    // ---- notifications & chat escalations: written only by Cloud Functions ----
+    match /notifications/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /chatEscalations/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.userUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userUid == request.auth.uid;
+      allow update: if isStaff();
+    }
+
+    // ---- server-only sequence counters (case numbers, pass ids) ----
+    match /counters/{id} {
+      allow read, write: if false;
+    }
+  }
+}

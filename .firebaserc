@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "umoja-app"
+  },
+  "targets": {
+    "umoja-app": {
+      "hosting": {
+        "umoja-games-site": ["umoja-games-proto"]
+      }
+    }
+  }
+}

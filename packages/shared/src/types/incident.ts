@@ -1,0 +1,44 @@
+/**
+ * Unified inbox model for the commissioner desk. Captain complaints, referee
+ * flags, forfeit notices, and fan "still stuck" messages all land here with
+ * a `source` discriminator, sharing one status lifecycle and one threaded
+ * conversation — matching how the prototype's commissioner queue treats them.
+ */
+export type IncidentSource = "captain_complaint" | "referee_flag" | "forfeit" | "fan_message";
+
+export type IncidentStatus = "submitted" | "under_review" | "resolved" | "denied";
+
+export type ComplaintType = "ineligible_player" | "game_related" | "other";
+
+export interface IncidentMessage {
+  id: string;
+  from: "commissioner" | "filer";
+  authorUid: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface Incident {
+  id: string;
+  caseNumber: string; // "UG-114" style
+  source: IncidentSource;
+  filedByUid: string;
+  filedByName: string;
+  filedByRole: string; // e.g. "captain, Queens United"
+  complaintType?: ComplaintType; // captain_complaint only
+  gameId?: string;
+  /** fan_message only: links to the full chat transcript that led to this escalation. */
+  chatEscalationId?: string;
+  text: string;
+  status: IncidentStatus;
+  thread: IncidentMessage[];
+  /** Captain complaints only: $35 review fee, refunded if upheld. */
+  fee?: {
+    amountCents: number;
+    stripeCheckoutSessionId?: string;
+    paid: boolean;
+    refunded: boolean;
+  };
+  createdAt: number;
+  updatedAt: number;
+}

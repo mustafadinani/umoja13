@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F0EEE9;font-family:'Barlow',system-ui,sans-serif}
+@keyframes umPulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.4}100%{transform:scale(1);opacity:1}}
+@keyframes umPop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes umSpin{to{transform:rotate(360deg)}}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 6px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-note{margin:0 0 24px;max-width:640px;font:400 12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Umoja Games — mobile app</span></div>
+<p class="dv-note">Design intent: personal-first ("my team, my games, my moments"), big touch targets, plain friendly language, match-day energy from the logo's gradient palette. <a class="dv-oid" href="#1a">1a</a> is the fully interactive prototype — tap tabs, open the live game, cheer, vote, upload a moment, run check-in to get your Tournament Pass, and try the captain's roster view. <a class="dv-oid" href="#1b">1b</a> and <a class="dv-oid" href="#1c">1c</a> are two alternate visual directions of the home screen.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Match Day — interactive prototype (light, gradient energy)</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="393px,830px">
+<div style="position:relative;height:100%;display:flex;flex-direction:column;background:#F7F6F3;font-family:'Barlow',sans-serif;color:#211A33;overflow:hidden" data-screen-label="Mobile app">
+
+  <!-- ============ HOME TAB ============ -->
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+  <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column" data-screen-label="Home">
+    <div style="background:linear-gradient(120deg,#7B3FA4 0%,#2E6BC0 100%);padding:62px 20px 22px;color:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;letter-spacing:1px">UMOJA GAMES</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:12px;font-weight:600;background:rgba(255,255,255,.18);padding:5px 10px;border-radius:99px">Day 1 · Seeding</div>
+          <div onClick="{{ openNotifs }}" style="position:relative;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px">🔔
+            <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:2px;right:2px;width:9px;height:9px;border-radius:50%;background:#F2B95B;border:2px solid #5A55A8"></span></sc-if>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-family:'Barlow Condensed';font-weight:700;font-size:30px;line-height:1.05">Good morning, Kwame.</div>
+      <div style="margin-top:4px;font-size:14px;opacity:.85">Your game is at 10:40 AM on Field 3.</div>
+    </div>
+
+    <sc-if value="{{ showCheckinBanner }}" hint-placeholder-val="{{ true }}">
+    <div onClick="{{ startCheckin }}" style="margin:-12px 16px 0;background:#fff;border-radius:14px;box-shadow:0 4px 14px rgba(33,26,51,.12);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:12px;background:#FBEEDC;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#B97514">!</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:15px">Finish your check-in</div>
+        <div style="font-size:13px;color:#6F6981">Selfie + ID — about 2 minutes, then admins approve your Pass</div>
+      </div>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:16px;color:#7B3FA4">GO</div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ showPendingBanner }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ goMe }}" style="margin:-12px 16px 0;background:#fff;border-radius:14px;box-shadow:0 4px 14px rgba(33,26,51,.12);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:12px;background:#FBEEDC;display:flex;align-items:center;justify-content:center"><span style="width:12px;height:12px;border-radius:50%;background:#F2A93B;animation:umPulse 1.6s infinite"></span></div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:15px">Check-in submitted</div>
+        <div style="font-size:13px;color:#6F6981">We'll ping you when an admin approves your Pass</div>
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ showPassBanner }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ goMe }}" style="margin:-12px 16px 0;background:#fff;border-radius:14px;box-shadow:0 4px 14px rgba(33,26,51,.12);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+      <div style="width:42px;height:42px;border-radius:12px;background:#E2F2EF;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#2C9C90">✓</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:15px">You're checked in ✓</div>
+        <div style="font-size:13px;color:#6F6981">Approved — your Tournament Pass is in My Umoja</div>
+      </div>
+    </div>
+    </sc-if>
+
+    <div style="padding:20px 16px 8px;display:flex;align-items:baseline;justify-content:space-between">
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.5px">HAPPENING NOW</div>
+      <div onClick="{{ goGames }}" style="font-size:13px;font-weight:600;color:#2E6BC0;cursor:pointer">All games</div>
+    </div>
+    <div onClick="{{ openLiveGame }}" style="margin:0 16px;background:#fff;border-radius:16px;border:1px solid #EAE7F0;padding:16px;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#D8365D;animation:umPulse 1.6s infinite"></span>
+        <span style="font-size:12px;font-weight:700;color:#D8365D;letter-spacing:.5px">LIVE · 38'</span>
+        <span style="margin-left:auto;font-size:12px;color:#6F6981">Men's Open · Field 1</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
+        <div style="text-align:center">
+          <div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#7B3FA4;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">UF</div>
+          <div style="font-weight:600;font-size:13px">Umoja FC</div>
+        </div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:38px;letter-spacing:2px">2–1</div>
+        <div style="text-align:center">
+          <div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#2C9C90;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">HS</div>
+          <div style="font-weight:600;font-size:13px">Harambee SC</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:20px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.5px">YOUR NEXT GAME</div>
+    <div onClick="{{ openTeam }}" style="margin:0 16px;background:#211A33;color:#fff;border-radius:16px;padding:16px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;font-size:12px;opacity:.75;margin-bottom:10px"><span>Men's Open · Seeding R2</span><span>Field 3</span></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:50%;background:#EF5A4C;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:15px">DU</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:15px">DMV United vs Lagos Legends</div>
+          <div style="font-size:13px;opacity:.75">Today · 10:40 AM · warm-up 10:20</div>
+        </div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:#F2B95B">10:40</div>
+      </div>
+    </div>
+
+    <div style="padding:20px 16px 0;">
+      <div onClick="{{ openHunt }}" style="background:#211A33;border-radius:16px;padding:16px;color:#fff;display:flex;align-items:center;gap:14px;cursor:pointer">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F2B95B,#EF5A4C);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#211A33">$</div>
+        <div style="flex:1">
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:.5px;color:#F2B95B">THE HUNT · WIN $500</div>
+          <div style="font-size:13px;opacity:.8">{{ huntTeaser }}</div>
+        </div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:20px;color:#F2B95B">›</div>
+      </div>
+    </div>
+
+    <div style="padding:20px 16px 8px;display:flex;align-items:baseline;justify-content:space-between">
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.5px">FRESH MOMENTS</div>
+      <div onClick="{{ goMoments }}" style="font-size:13px;font-weight:600;color:#2E6BC0;cursor:pointer">See all</div>
+    </div>
+    <div style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 20px">
+      <sc-for list="{{ homeMoments }}" as="m" hint-placeholder-count="3">
+        <div style="flex:none;width:150px;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #EAE7F0">
+          <div style="height:96px;background:{{ m.bg }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:14px;letter-spacing:1px;position:relative">{{ m.tag }}
+            <span style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.45);font-family:'Barlow';font-weight:700;font-size:9px;padding:3px 7px;border-radius:99px;letter-spacing:.5px">{{ m.src }}</span>
+          </div>
+          <div style="padding:9px 10px">
+            <div style="font-size:12.5px;font-weight:600">{{ m.caption }}</div>
+            <div style="font-size:11.5px;color:#6F6981;margin-top:2px">{{ m.by }} · {{ m.when }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ GAMES TAB ============ -->
+  <sc-if value="{{ isGames }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="Games">
+    <div style="padding:62px 20px 10px;font-family:'Barlow Condensed';font-weight:800;font-size:28px">Game Day</div>
+    <div style="display:flex;gap:8px;padding:0 16px 12px">
+      <sc-for list="{{ gamesSegs }}" as="s" hint-placeholder-count="2">
+        <div onClick="{{ s.pick }}" style="flex:1;text-align:center;padding:11px 0;border-radius:12px;font-family:'Barlow Condensed';font-weight:800;font-size:15px;letter-spacing:.8px;cursor:pointer;background:{{ s.bg }};color:{{ s.fg }};border:1px solid #EAE7F0">{{ s.label }}</div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ gamesSchedule }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;gap:8px;padding:0 16px 14px">
+      <sc-for list="{{ dayChips }}" as="d" hint-placeholder-count="3">
+        <div onClick="{{ d.pick }}" style="padding:9px 14px;border-radius:99px;font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap;background:{{ d.bg }};color:{{ d.fg }};border:1px solid #EAE7F0">{{ d.label }}</div>
+      </sc-for>
+    </div>
+    <sc-for list="{{ dayGames }}" as="g" hint-placeholder-count="4">
+      <div onClick="{{ g.open }}" style="margin:0 16px 10px;background:#fff;border-radius:14px;border:1px solid #EAE7F0;padding:13px 14px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#6F6981;margin-bottom:8px"><span>{{ g.cat }} · {{ g.field }}</span><span style="font-weight:700;color:{{ g.stColor }}">{{ g.stLabel }}</span></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1;font-weight:600;font-size:14.5px">{{ g.home }}</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:20px;min-width:52px;text-align:center">{{ g.mid }}</div>
+          <div style="flex:1;text-align:right;font-weight:600;font-size:14.5px">{{ g.away }}</div>
+        </div>
+      </div>
+    </sc-for>
+    </sc-if>
+
+    <sc-if value="{{ gamesStandings }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:2px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:17px;color:#6F6981">MEN'S OPEN · GROUP B</div>
+    <div style="margin:0 16px;background:#fff;border:1px solid #EAE7F0;border-radius:14px;overflow:hidden">
+      <div style="display:grid;grid-template-columns:34px 1fr 56px 40px 44px;padding:10px 14px;background:#F1EFF5;font-size:11px;font-weight:700;color:#6F6981;letter-spacing:.5px"><span>#</span><span>TEAM</span><span>W-D-L</span><span>GD</span><span>PTS</span></div>
+      <sc-for list="{{ standings }}" as="s" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:34px 1fr 56px 40px 44px;padding:12px 14px;border-top:1px solid #F1EFF5;font-size:13.5px;background:{{ s.bg }};align-items:center">
+          <span style="font-family:'Barlow Condensed';font-weight:800;color:#7B3FA4">{{ s.rank }}</span>
+          <span style="font-weight:{{ s.w }}">{{ s.team }}</span>
+          <span style="color:#6F6981">{{ s.rec }}</span><span style="color:#6F6981">{{ s.gd }}</span>
+          <span style="font-family:'Barlow Condensed';font-weight:800;font-size:15px">{{ s.pts }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="padding:6px 16px 0;font-size:12px;color:#6F6981">Top 2 seed into Saturday's championship bracket.</div>
+
+    <div style="padding:18px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:17px;color:#6F6981">ROAD TO THE FINAL</div>
+    <div style="margin:0 16px;display:flex;flex-direction:column;gap:8px">
+      <sc-for list="{{ bracketRows }}" as="b" hint-placeholder-count="3">
+        <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:13px;color:{{ b.c }};min-width:44px;letter-spacing:.5px">{{ b.tag }}</div>
+          <div style="flex:1;font-weight:600;font-size:13.5px;color:{{ b.tc }}">{{ b.match }}</div>
+          <div style="font-size:12px;color:#6F6981">{{ b.when }}</div>
+        </div>
+      </sc-for>
+    </div>
+    </sc-if>
+    <div style="height:14px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ MOMENTS TAB ============ -->
+  <sc-if value="{{ isMoments }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="Moments">
+    <div style="padding:62px 20px 4px;font-family:'Barlow Condensed';font-weight:800;font-size:28px">Moments</div>
+    <div style="padding:0 20px 14px;font-size:13.5px;color:#6F6981">From the games, The Hunt, and the community — all in one feed</div>
+    <div style="margin:0 16px 14px;background:linear-gradient(120deg,#D8365D,#EF5A4C);border-radius:14px;padding:14px 16px;color:#fff;display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:.5px">HIGHLIGHT OF THE DAY</div>
+        <div style="font-size:13px;opacity:.9">Voting closes 6:00 PM — pick your favorite</div>
+      </div>
+      <div style="background:#fff;color:#D8365D;font-weight:700;font-size:13px;padding:8px 14px;border-radius:99px">Vote</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px">
+      <sc-for list="{{ allMoments }}" as="m" hint-placeholder-count="6">
+        <div style="border-radius:14px;overflow:hidden;background:#fff;border:1px solid #EAE7F0">
+          <div style="height:104px;background:{{ m.bg }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:13px;letter-spacing:1px;position:relative">{{ m.tag }}
+            <sc-if value="{{ m.pending }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.45);font-family:'Barlow';font-weight:600;font-size:10px;padding:3px 7px;border-radius:99px">In review</span></sc-if>
+            <span style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.45);font-family:'Barlow';font-weight:700;font-size:9px;padding:3px 7px;border-radius:99px;letter-spacing:.5px">{{ m.src }}</span>
+          </div>
+          <div style="padding:9px 10px">
+            <div style="font-size:12.5px;font-weight:600">{{ m.caption }}</div>
+            <div style="font-size:11.5px;color:#6F6981;margin-top:2px">{{ m.by }} · {{ m.when }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ MY UMOJA TAB ============ -->
+  <sc-if value="{{ isMe }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="My Umoja">
+    <div style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);padding:62px 20px 20px;color:#fff">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:58px;height:58px;border-radius:50%;background:#fff;color:#7B3FA4;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:22px">KM</div>
+        <div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px">Kwame Mensah</div>
+          <div style="font-size:13px;opacity:.85">#10 · Forward · DMV United · Men's Open</div>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ ciApproved }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:16px;background:#211A33;border-radius:18px;padding:18px;color:#fff;text-align:center">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:2px;color:#F2B95B">TOURNAMENT PASS</div>
+        <div style="width:64px;height:64px;margin:12px auto 0;border-radius:50%;background:linear-gradient(135deg,#7B3FA4,#2E6BC0);border:3px solid #F2B95B;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:24px">KM</div>
+        <div style="margin:10px auto 12px;width:150px;height:150px;background:#fff;border-radius:12px;padding:12px;box-sizing:border-box;display:grid;grid-template-columns:repeat(13,1fr);grid-template-rows:repeat(13,1fr);gap:1px">
+          <sc-for list="{{ qrCells }}" as="c" hint-placeholder-count="30"><div style="background:{{ c.bg }}"></div></sc-for>
+        </div>
+        <div style="font-weight:700;font-size:15px">Kwame Mensah · DMV United</div>
+        <div style="font-size:12.5px;opacity:.7;margin-top:2px">Approved ✓ · Show this at the gate · Maryland SoccerPlex</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ ciPendingMe }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:16px;background:#211A33;border-radius:18px;padding:18px;color:#fff;text-align:center">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:2px;color:#F2B95B">TOURNAMENT PASS</div>
+        <div style="margin:12px auto;width:150px;height:150px;background:#fff;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+          <span style="width:12px;height:12px;border-radius:50%;background:#F2A93B;animation:umPulse 1.6s infinite"></span>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:15px;letter-spacing:2px;color:#B97514">PENDING REVIEW</div>
+        </div>
+        <div style="font-weight:700;font-size:15px">Kwame Mensah · DMV United</div>
+        <div style="font-size:12.5px;opacity:.7;margin-top:2px">Your QR code appears once an admin approves your check-in</div>
+        <div onClick="{{ approveDemo }}" style="margin-top:10px;font-size:11.5px;color:#8B85A0;cursor:pointer;font-family:ui-monospace,monospace">prototype: simulate admin approval →</div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ notCheckedIn }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ startCheckin }}" style="margin:16px;background:#fff;border:1px solid #EAE7F0;border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer">
+        <div style="width:42px;height:42px;border-radius:12px;background:#FBEEDC;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#B97514">!</div>
+        <div style="flex:1"><div style="font-weight:700;font-size:15px">Check in to get your Pass</div><div style="font-size:13px;color:#6F6981">Takes about 2 minutes</div></div>
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:16px;color:#7B3FA4">GO</div>
+      </div>
+    </sc-if>
+    <div style="padding:4px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">MY SCHEDULE</div>
+    <sc-for list="{{ mySchedule }}" as="s" hint-placeholder-count="3">
+      <div style="margin:0 16px 8px;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#7B3FA4;min-width:52px">{{ s.time }}</div>
+        <div style="flex:1"><div style="font-weight:600;font-size:14px">{{ s.vs }}</div><div style="font-size:12px;color:#6F6981">{{ s.meta }}</div></div>
+      </div>
+    </sc-for>
+    <div style="padding:12px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">MY SEASON SO FAR</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 12px">
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:26px;color:#7B3FA4">3</div><div style="font-size:12px;color:#6F6981">Goals</div></div>
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:26px;color:#2E6BC0">2</div><div style="font-size:12px;color:#6F6981">Assists</div></div>
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:26px;color:#2C9C90">1</div><div style="font-size:12px;color:#6F6981">POTM</div></div>
+    </div>
+    <div onClick="{{ openTeam }}" style="margin:0 16px 10px;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer"><span style="font-weight:600;font-size:14.5px">My team — DMV United</span><span style="color:#6F6981">›</span></div>
+    <div onClick="{{ openComplaint }}" style="margin:0 16px 8px;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer"><span style="font-weight:600;font-size:14.5px">Report an issue to the commissioner</span><span style="color:#6F6981">›</span></div>
+    <sc-if value="{{ complaintFiled }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:0 16px 8px;background:#FBEEDC;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:10px">
+        <span style="width:9px;height:9px;border-radius:50%;background:#B97514"></span>
+        <div style="flex:1"><div style="font-weight:700;font-size:13.5px;color:#8A5A0F">{{ complaintTypeLabel }} — under review</div><div style="font-size:12px;color:#8A5A0F">Case #UG-114 · Commissioner Osei is on it</div></div>
+      </div>
+    </sc-if>
+    <div style="height:12px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ GAME PAGE ============ -->
+  <sc-if value="{{ isGamePage }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto;background:#F7F6F3" data-screen-label="Game page">
+    <div style="background:#211A33;color:#fff;padding:58px 16px 20px">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;opacity:.8;cursor:pointer;margin-bottom:12px">‹ Back</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#EF5A4C;animation:umPulse 1.6s infinite"></span>
+        <span style="font-size:12px;font-weight:700;color:#F2B95B;letter-spacing:.5px">LIVE · 38' · SECOND SEEDING GAME</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
+        <div style="text-align:center">
+          <div style="width:52px;height:52px;margin:0 auto 6px;border-radius:50%;background:#7B3FA4;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:19px">UF</div>
+          <div style="font-weight:600;font-size:13.5px">Umoja FC</div>
+        </div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:52px;letter-spacing:3px">2–1</div>
+        <div style="text-align:center">
+          <div style="width:52px;height:52px;margin:0 auto 6px;border-radius:50%;background:#2C9C90;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:19px">HS</div>
+          <div style="font-weight:600;font-size:13.5px">Harambee SC</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:12px;opacity:.7;margin-top:8px">Men's Open · Field 1 · Ref: J. Carter</div>
+    </div>
+
+    <div style="padding:14px 16px">
+      <div onClick="{{ openUpload }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);border-radius:14px;padding:14px;text-align:center;color:#fff;cursor:pointer">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:20px">+ SHARE A MOMENT</div>
+        <div style="font-size:12.5px;font-weight:600;opacity:.85">Post a photo or clip from this game</div>
+      </div>
+    </div>
+
+    <div style="padding:6px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">PLAYER OF THE MATCH</div>
+    <div style="margin:0 16px;background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:6px 14px 14px">
+      <sc-for list="{{ voteCands }}" as="v" hint-placeholder-count="3">
+        <div onClick="{{ v.pick }}" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F1EFF5;cursor:pointer">
+          <div style="width:36px;height:36px;border-radius:50%;background:{{ v.c }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:14px">{{ v.ini }}</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">{{ v.name }} <span style="color:#6F6981;font-weight:400">· {{ v.team }}</span></div>
+            <div style="height:6px;background:#F1EFF5;border-radius:99px;margin-top:6px;overflow:hidden"><div style="height:100%;width:{{ v.pctW }};background:{{ v.barBg }};border-radius:99px;transition:width .4s"></div></div>
+          </div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:16px;min-width:38px;text-align:right;color:{{ v.pctColor }}">{{ v.pct }}</div>
+        </div>
+      </sc-for>
+      <div style="font-size:12px;color:#6F6981;padding-top:10px">{{ voteHint }}</div>
+    </div>
+
+    <div style="padding:16px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">WHAT'S HAPPENED</div>
+    <div style="margin:0 16px 12px;background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:4px 14px">
+      <sc-for list="{{ gameEvents }}" as="e" hint-placeholder-count="4">
+        <div style="display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #F1EFF5">
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:15px;color:#6F6981;min-width:30px">{{ e.min }}</div>
+          <div style="width:9px;height:9px;border-radius:50%;background:{{ e.dot }}"></div>
+          <div style="font-size:13.5px;font-weight:500">{{ e.txt }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding:4px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">MOMENTS FROM THIS GAME</div>
+    <div style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 20px">
+      <sc-for list="{{ gameMoments }}" as="m" hint-placeholder-count="3">
+        <div style="flex:none;width:140px;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #EAE7F0">
+          <div style="height:90px;background:{{ m.bg }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:13px;letter-spacing:1px;position:relative">{{ m.tag }}
+            <sc-if value="{{ m.pending }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.45);font-family:'Barlow';font-weight:600;font-size:10px;padding:3px 7px;border-radius:99px">In review</span></sc-if>
+          </div>
+          <div style="padding:8px 10px"><div style="font-size:12px;font-weight:600">{{ m.caption }}</div><div style="font-size:11px;color:#6F6981">{{ m.by }}</div></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ TEAM PAGE ============ -->
+  <sc-if value="{{ isTeamPage }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="Team page">
+    <div style="background:linear-gradient(120deg,#EF5A4C,#D8365D);color:#fff;padding:58px 16px 18px">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;opacity:.85;cursor:pointer;margin-bottom:10px">‹ Back</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:54px;height:54px;border-radius:50%;background:#fff;color:#EF5A4C;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:20px">DU</div>
+        <div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:26px">DMV United</div>
+          <div style="font-size:13px;opacity:.9">Men's Open · 9v9 · Captain: Deji Okafor</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:14px;font-size:13px">
+        <span><b>2nd</b> in Group B</span><span><b>1W 1D</b> record</span><span><b>+3</b> goal diff</span>
+      </div>
+    </div>
+
+    <div onClick="{{ toggleCaptain }}" style="margin:14px 16px 0;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer">
+      <div style="flex:1"><div style="font-weight:700;font-size:14px">Captain view</div><div style="font-size:12.5px;color:#6F6981">Check-in tracker &amp; reminders</div></div>
+      <div style="width:44px;height:26px;border-radius:99px;background:{{ capToggleBg }};position:relative;transition:background .2s"><div style="position:absolute;top:3px;left:{{ capKnobLeft }};width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)"></div></div>
+    </div>
+
+    <sc-if value="{{ captainView }}" hint-placeholder-val="{{ false }}">
+      <div style="margin:12px 16px 0;background:#211A33;color:#fff;border-radius:14px;padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:.5px">TEAM CHECK-IN</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:#F2B95B">{{ teamPct }}</div>
+        </div>
+        <div style="height:8px;background:rgba(255,255,255,.15);border-radius:99px;margin:10px 0 8px;overflow:hidden"><div style="height:100%;width:{{ teamPct }};background:linear-gradient(90deg,#F2B95B,#EF5A4C);border-radius:99px"></div></div>
+        <div style="font-size:12.5px;opacity:.8">{{ teamSummary }}</div>
+      </div>
+    </sc-if>
+
+    <div style="padding:16px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">ROSTER</div>
+    <div style="margin:0 16px 14px;background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:2px 14px">
+      <sc-for list="{{ roster }}" as="p" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F1EFF5">
+          <div onClick="{{ p.openPlayer }}" style="width:38px;height:38px;border-radius:50%;background:{{ p.c }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:14px;cursor:pointer">{{ p.ini }}</div>
+          <div onClick="{{ p.openPlayer }}" style="flex:1;cursor:pointer">
+            <div style="font-weight:600;font-size:14px">{{ p.n }} <span style="color:#6F6981;font-weight:400">#{{ p.num }}</span></div>
+            <div style="font-size:12px;color:#6F6981">{{ p.pos }}</div>
+          </div>
+          <sc-if value="{{ captainView }}" hint-placeholder-val="{{ false }}">
+            <sc-if value="{{ p.needsNudge }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ p.remind }}" style="font-size:12px;font-weight:700;color:#fff;background:{{ p.nudgeBg }};padding:6px 11px;border-radius:99px;cursor:pointer">{{ p.nudgeLabel }}</div>
+            </sc-if>
+          </sc-if>
+          <div style="font-size:11.5px;font-weight:700;color:{{ p.stColor }};background:{{ p.stBg }};padding:4px 9px;border-radius:99px">{{ p.stLabel }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="padding:0 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">SCHEDULE &amp; RESULTS</div>
+    <sc-for list="{{ teamGames }}" as="s" hint-placeholder-count="3">
+      <div style="margin:0 16px 8px;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:16px;color:{{ s.tc }};min-width:52px">{{ s.time }}</div>
+        <div style="flex:1"><div style="font-weight:600;font-size:14px">{{ s.vs }}</div><div style="font-size:12px;color:#6F6981">{{ s.meta }}</div></div>
+      </div>
+    </sc-for>
+    <div style="height:16px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ PLAYER PAGE ============ -->
+  <sc-if value="{{ isPlayerPage }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="Player page">
+    <div style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;padding:58px 16px 20px">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;opacity:.85;cursor:pointer;margin-bottom:12px">‹ Back</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:66px;height:66px;border-radius:50%;background:#fff;color:{{ viewPlayer.c }};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:24px">{{ viewPlayer.ini }}</div>
+        <div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px">{{ viewPlayer.n }}</div>
+          <div style="font-size:13.5px;opacity:.9">#{{ viewPlayer.num }} · {{ viewPlayer.pos }} · DMV United</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:13.5px;opacity:.9;line-height:1.45">"{{ viewPlayer.bio }}"</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px 4px">
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px;color:#7B3FA4">{{ viewPlayer.g }}</div><div style="font-size:12px;color:#6F6981">Goals</div></div>
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px;color:#2E6BC0">{{ viewPlayer.a }}</div><div style="font-size:12px;color:#6F6981">Assists</div></div>
+      <div style="background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:12px;text-align:center"><div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px;color:#2C9C90">{{ viewPlayer.hl }}</div><div style="font-size:12px;color:#6F6981">Highlights</div></div>
+    </div>
+    <div style="padding:14px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">BADGES</div>
+    <div style="display:flex;gap:8px;padding:0 16px;flex-wrap:wrap">
+      <sc-for list="{{ viewPlayer.badges }}" as="b" hint-placeholder-count="2">
+        <div style="background:#FBEEDC;color:#B97514;font-weight:700;font-size:12.5px;padding:8px 13px;border-radius:99px">{{ b }}</div>
+      </sc-for>
+    </div>
+    <div style="padding:16px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px">TAGGED MOMENTS</div>
+    <div style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 20px">
+      <sc-for list="{{ gameMoments }}" as="m" hint-placeholder-count="2">
+        <div style="flex:none;width:140px;border-radius:14px;overflow:hidden;background:#fff;border:1px solid #EAE7F0">
+          <div style="height:90px;background:{{ m.bg }};display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:13px;letter-spacing:1px">{{ m.tag }}</div>
+          <div style="padding:8px 10px"><div style="font-size:12px;font-weight:600">{{ m.caption }}</div><div style="font-size:11px;color:#6F6981">{{ m.by }}</div></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ CHECK-IN FLOW ============ -->
+  <sc-if value="{{ isCheckin }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto;background:#F7F6F3;display:flex;flex-direction:column" data-screen-label="Check-in">
+    <div style="padding:58px 16px 0">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;color:#6F6981;cursor:pointer;margin-bottom:12px">‹ Not now</div>
+      <div style="display:flex;gap:6px;margin-bottom:18px">
+        <sc-for list="{{ checkinDots }}" as="d" hint-placeholder-count="4"><div style="flex:1;height:5px;border-radius:99px;background:{{ d.bg }}"></div></sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ ciStep1 }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:0 20px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:30px;line-height:1.05">Is this you?</div>
+        <div style="font-size:14px;color:#6F6981;margin:6px 0 18px">Your captain added you to the roster. Give it a quick look.</div>
+        <div style="background:#fff;border:1px solid #EAE7F0;border-radius:16px;padding:6px 16px">
+          <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F1EFF5"><span style="color:#6F6981;font-size:13.5px">Name</span><span style="font-weight:600;font-size:14px">Kwame Mensah</span></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F1EFF5"><span style="color:#6F6981;font-size:13.5px">Team</span><span style="font-weight:600;font-size:14px">DMV United</span></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F1EFF5"><span style="color:#6F6981;font-size:13.5px">Category</span><span style="font-weight:600;font-size:14px">Men's Open · 9v9</span></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F1EFF5"><span style="color:#6F6981;font-size:13.5px">Jersey</span><span style="font-weight:600;font-size:14px">#10</span></div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0"><span style="color:#6F6981;font-size:13.5px">Waiver</span><span style="font-weight:600;font-size:14px;color:#1E7A6F">Signed at registration ✓</span></div>
+        </div>
+        <div onClick="{{ ciNext }}" style="margin-top:18px;background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">YES, THAT'S ME</div>
+        <div style="text-align:center;margin-top:12px;font-size:13px;color:#6F6981;cursor:pointer">Something's wrong — tell my captain</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ ciStep2 }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:0 20px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:30px;line-height:1.05">Take a quick selfie</div>
+        <div style="font-size:14px;color:#6F6981;margin:6px 0 18px">Staff match it to your Tournament Pass at the gate.</div>
+        <sc-if value="{{ selfieNotTaken }}" hint-placeholder-val="{{ true }}">
+          <div style="width:190px;height:190px;margin:6px auto 16px;border-radius:50%;border:2px dashed #C9C3D8;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+            <div style="width:44px;height:44px;border-radius:50%;background:#EFE6F6;display:flex;align-items:center;justify-content:center;color:#7B3FA4;font-family:'Barlow Condensed';font-weight:800;font-size:18px">◉</div>
+            <div style="font-size:12px;color:#9C96AE;font-family:ui-monospace,monospace">camera preview</div>
+          </div>
+          <div onClick="{{ takeSelfie }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">TAKE SELFIE</div>
+        </sc-if>
+        <sc-if value="{{ selfieTaken }}" hint-placeholder-val="{{ false }}">
+          <div style="width:190px;height:190px;margin:6px auto 10px;border-radius:50%;background:linear-gradient(135deg,#7B3FA4,#2E6BC0);border:4px solid #F2B95B;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:56px;animation:umPop .35s">KM</div>
+          <div onClick="{{ retakeSelfie }}" style="text-align:center;font-size:13.5px;font-weight:600;color:#2E6BC0;cursor:pointer;margin-bottom:14px">Retake</div>
+          <div onClick="{{ ciNext }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">LOOKS GOOD — CONTINUE</div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ ciStep3 }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:0 20px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:30px;line-height:1.05">Snap your government ID</div>
+        <div style="font-size:14px;color:#6F6981;margin:6px 0 18px">For age verification only. Only admins and the commissioner can see it, and it's deleted after the tournament.</div>
+        <sc-if value="{{ idNotTaken }}" hint-placeholder-val="{{ true }}">
+          <div style="height:170px;margin:6px 0 16px;border-radius:16px;border:2px dashed #C9C3D8;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+            <div style="width:44px;height:32px;border-radius:6px;background:#E4EDF9;border:1.5px solid #2E6BC0"></div>
+            <div style="font-size:12px;color:#9C96AE;font-family:ui-monospace,monospace">driver's license · passport · state ID</div>
+          </div>
+          <div onClick="{{ takeId }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">TAKE PHOTO OF ID</div>
+        </sc-if>
+        <sc-if value="{{ idTaken }}" hint-placeholder-val="{{ false }}">
+          <div style="height:170px;margin:6px 0 10px;border-radius:16px;background:#211A33;padding:18px;box-sizing:border-box;display:flex;gap:16px;align-items:center;animation:umPop .35s">
+            <div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#7B3FA4,#2E6BC0);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:22px">KM</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+              <div style="height:11px;width:70%;border-radius:99px;background:rgba(255,255,255,.35)"></div>
+              <div style="height:11px;width:50%;border-radius:99px;background:rgba(255,255,255,.22)"></div>
+              <div style="height:11px;width:60%;border-radius:99px;background:rgba(255,255,255,.22)"></div>
+              <div style="font-size:11px;color:#F2B95B;font-family:ui-monospace,monospace;margin-top:2px">captured · encrypted</div>
+            </div>
+          </div>
+          <div onClick="{{ retakeId }}" style="text-align:center;font-size:13.5px;font-weight:600;color:#2E6BC0;cursor:pointer;margin-bottom:14px">Retake</div>
+          <div onClick="{{ submitCheckin }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">SUBMIT FOR REVIEW</div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ ciStep4 }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:0 20px;text-align:center">
+
+        <sc-if value="{{ ciVerifying }}" hint-placeholder-val="{{ true }}">
+          <div style="width:58px;height:58px;margin:14px auto 16px;border-radius:50%;border:4px solid #EFE6F6;border-top-color:#7B3FA4;animation:umSpin .9s linear infinite"></div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px">Checking your details…</div>
+          <div style="font-size:14px;color:#6F6981;margin:8px 0 18px;line-height:1.5">Matching your selfie to your registration photo<br>and reading the date of birth on your ID.</div>
+          <div style="background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:6px 16px;text-align:left">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #F1EFF5;font-size:13.5px"><span>Photo matches registration</span><span style="color:#9C96AE;font-family:ui-monospace,monospace;font-size:11px">checking…</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-size:13.5px"><span>Age eligible for Men's Open</span><span style="color:#9C96AE;font-family:ui-monospace,monospace;font-size:11px">checking…</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ ciFailed }}" hint-placeholder-val="{{ false }}">
+          <div style="width:64px;height:64px;margin:10px auto 14px;border-radius:50%;background:#FBE3DF;color:#C0392B;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:26px">✕</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px">We couldn't verify you</div>
+          <div style="font-size:14px;color:#6F6981;margin:6px 0 14px">No worries — this is usually the lighting. Try again.</div>
+          <div style="background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:6px 16px;text-align:left">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #F1EFF5;font-size:13.5px"><span>Photo matches registration</span><span style="font-weight:700;color:#C0392B">✕ {{ ciFailReason }}</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;font-size:13.5px"><span>Age eligible for Men's Open</span><span style="font-weight:700;color:#1E7A6F">✓ Verified</span></div>
+          </div>
+          <div onClick="{{ ciResubmit }}" style="margin-top:16px;background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">RETAKE &amp; RESUBMIT</div>
+          <div style="margin-top:12px;font-size:12.5px;color:#6F6981;line-height:1.5">{{ ciAttemptNote }}</div>
+          <div onClick="{{ failAgainDemo }}" style="margin-top:10px;font-size:12px;color:#9C96AE;cursor:pointer;font-family:ui-monospace,monospace">prototype: fail again → admin review</div>
+        </sc-if>
+
+        <sc-if value="{{ ciAdminReview }}" hint-placeholder-val="{{ false }}">
+          <div style="width:64px;height:64px;margin:10px auto 14px;border-radius:50%;background:#FBEEDC;display:flex;align-items:center;justify-content:center"><span style="width:16px;height:16px;border-radius:50%;background:#F2A93B;animation:umPulse 1.6s infinite"></span></div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px">Sent to an admin</div>
+          <div style="font-size:14px;color:#6F6981;margin:6px 0 16px;line-height:1.5">The automatic check didn't go through twice, so a real person will review your photos and ID. You'll get a notification with their decision — usually within the hour.</div>
+          <div style="background:#211A33;border-radius:18px;padding:18px;color:#fff">
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:16px;letter-spacing:2px;color:#F2B95B">TOURNAMENT PASS</div>
+            <div style="margin:12px auto;width:140px;height:140px;background:#fff;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+              <span style="width:12px;height:12px;border-radius:50%;background:#F2A93B;animation:umPulse 1.6s infinite"></span>
+              <div style="font-family:'Barlow Condensed';font-weight:800;font-size:15px;letter-spacing:2px;color:#B97514">ADMIN REVIEW</div>
+            </div>
+            <div style="font-weight:700;font-size:14.5px">Kwame Mensah · DMV United · Men's Open</div>
+            <div style="font-size:12px;opacity:.7;margin-top:2px">Your QR code appears if the admin approves your check-in</div>
+          </div>
+          <div onClick="{{ ciDone }}" style="margin-top:16px;background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">DONE</div>
+          <div onClick="{{ approveDemo }}" style="margin-top:12px;font-size:12px;color:#9C96AE;cursor:pointer;font-family:ui-monospace,monospace">prototype: simulate admin approval →</div>
+        </sc-if>
+
+        <sc-if value="{{ ciApprovedStep }}" hint-placeholder-val="{{ false }}">
+          <div style="width:64px;height:64px;margin:10px auto 14px;border-radius:50%;background:#E2F2EF;color:#2C9C90;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:28px;animation:umPop .4s">✓</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:30px">You're cleared to play!</div>
+          <div style="font-size:14px;color:#6F6981;margin:6px 0 8px">Photo matched ✓ · Age verified ✓<br>Here's your Tournament Pass — show it at the gate on Friday.</div>
+          <div style="background:#211A33;border-radius:18px;padding:18px;color:#fff">
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:16px;letter-spacing:2px;color:#F2B95B">TOURNAMENT PASS</div>
+            <div style="width:60px;height:60px;margin:12px auto 0;border-radius:50%;background:linear-gradient(135deg,#7B3FA4,#2E6BC0);border:3px solid #F2B95B;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:22px">KM</div>
+            <div style="margin:10px auto 12px;width:140px;height:140px;background:#fff;border-radius:12px;padding:11px;box-sizing:border-box;display:grid;grid-template-columns:repeat(13,1fr);grid-template-rows:repeat(13,1fr);gap:1px">
+              <sc-for list="{{ qrCells }}" as="c" hint-placeholder-count="30"><div style="background:{{ c.bg }}"></div></sc-for>
+            </div>
+            <div style="font-weight:700;font-size:14.5px">Kwame Mensah · DMV United · Men's Open</div>
+          </div>
+          <div style="margin-top:12px;background:#FBEEDC;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#8A5A0F;line-height:1.5;text-align:left">Heads up: admins may randomly re-check verifications. If yours doesn't hold up, your check-in can be nullified — we'd notify you right away.</div>
+          <div onClick="{{ ciDone }}" style="margin-top:14px;background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">DONE</div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <div style="height:24px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ SCAVENGER HUNT ============ -->
+  <sc-if value="{{ isHunt }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto;position:relative" data-screen-label="Scavenger hunt">
+
+    <!-- Not joined: intro + create crew -->
+    <sc-if value="{{ huntIntro }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#211A33;color:#fff;padding:58px 20px 22px">
+        <div onClick="{{ back }}" style="font-size:14px;font-weight:600;opacity:.8;cursor:pointer;margin-bottom:10px">‹ Back</div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:32px;color:#F2B95B">THE HUNT</div>
+        <div style="font-size:14px;opacity:.9;margin-top:4px;line-height:1.5">45 missions across 3 days. Photos, videos, trivia, QR scans and check-ins — earn points, climb the board, win prizes.</div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <div style="background:rgba(255,255,255,.12);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600">📸 Photo</div>
+          <div style="background:rgba(255,255,255,.12);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600">🎥 Video</div>
+          <div style="background:rgba(255,255,255,.12);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600">🧠 Trivia</div>
+          <div style="background:rgba(255,255,255,.12);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600">📍 Check-in</div>
+          <div style="background:rgba(255,255,255,.12);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600">🔲 QR scan</div>
+        </div>
+      </div>
+      <div style="padding:16px 20px 4px">
+        <div style="background:#fff;border:1px solid #EAE7F0;border-radius:16px;padding:16px">
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:18px">HOW IT WORKS</div>
+          <div style="display:flex;gap:10px;margin-top:10px;font-size:13px;color:#4A4460;line-height:1.45"><span style="color:#7B3FA4;font-weight:800">1</span><span>Make a crew of up to 4 — players, fans, captains, anyone with an Umoja account.</span></div>
+          <div style="display:flex;gap:10px;margin-top:8px;font-size:13px;color:#4A4460;line-height:1.45"><span style="color:#7B3FA4;font-weight:800">2</span><span>Everyone submits from their own phone. Points land automatically or after a quick facilitator review.</span></div>
+          <div style="display:flex;gap:10px;margin-top:8px;font-size:13px;color:#4A4460;line-height:1.45"><span style="color:#7B3FA4;font-weight:800">3</span><span>Bonus points for creativity and community spirit. Watch the live leaderboard!</span></div>
+        </div>
+        <div style="margin-top:12px;background:#E2F2EF;border-radius:12px;padding:11px 14px;font-size:12.5px;color:#1E5C50;font-weight:600">✓ Signed in as Kwame Mensah — you're ready to join</div>
+      </div>
+      <div style="padding:14px 20px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:18px">NAME YOUR CREW</div>
+      <div style="padding:0 20px">
+        <input value="{{ crewName }}" onChange="{{ typeCrewName }}" placeholder="e.g. The Mensah Family" style="width:100%;box-sizing:border-box;padding:14px;border-radius:14px;border:1.5px solid #D9D4E4;font-size:15px;font-family:'Barlow';outline:none;background:#fff">
+      </div>
+      <div style="padding:14px 20px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:18px">ADD YOUR CREW <span style="font-family:'Barlow';font-weight:500;font-size:13px;color:#6F6981">({{ crewCount }} of 4 — tap to add)</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 20px">
+        <sc-for list="{{ crewPicks }}" as="c" hint-placeholder-count="5">
+          <div onClick="{{ c.pick }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px 8px 8px;border-radius:99px;cursor:pointer;background:{{ c.bg }};border:1.5px solid {{ c.border }};opacity:{{ c.opacity }}">
+            <div style="width:26px;height:26px;border-radius:50%;background:{{ c.c }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:11px">{{ c.ini }}</div>
+            <span style="font-weight:600;font-size:13.5px">{{ c.n }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:4px 20px 0;font-size:12px;color:#6F6981">Only people with Umoja accounts can join — invites go to their app.</div>
+      <div style="padding:16px 20px 24px">
+        <div onClick="{{ createCrew }}" style="background:{{ crewBtnBg }};color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer;transition:background .2s">CREATE CREW &amp; START</div>
+      </div>
+    </sc-if>
+
+    <!-- Joined: missions + leaderboard -->
+    <sc-if value="{{ huntMain }}" hint-placeholder-val="{{ true }}">
+      <div style="background:#211A33;color:#fff;padding:58px 16px 18px">
+        <div onClick="{{ back }}" style="font-size:14px;font-weight:600;opacity:.8;cursor:pointer;margin-bottom:10px">‹ Back</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div>
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px;color:#F2B95B">THE HUNT</div>
+            <div style="font-size:12.5px;opacity:.8;margin-top:2px">{{ crewLabel }} · {{ crewMembersLabel }}</div>
+          </div>
+          <div style="text-align:right;flex:none">
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:26px;color:#F2B95B;white-space:nowrap">{{ huntPts }} pts</div>
+            <div style="font-size:11.5px;opacity:.7;white-space:nowrap">{{ huntRank }} · {{ huntPendingNote }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;padding:14px 16px 10px">
+        <sc-for list="{{ huntSegs }}" as="s" hint-placeholder-count="2">
+          <div onClick="{{ s.pick }}" style="flex:1;text-align:center;padding:11px 0;border-radius:12px;font-family:'Barlow Condensed';font-weight:800;font-size:15px;letter-spacing:.8px;cursor:pointer;background:{{ s.bg }};color:{{ s.fg }};border:1px solid #EAE7F0">{{ s.label }}</div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ huntChallengesView }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:6px;padding:2px 16px 12px;overflow-x:auto">
+          <sc-for list="{{ huntDayChips }}" as="d" hint-placeholder-count="4">
+            <div onClick="{{ d.pick }}" style="flex:none;padding:8px 14px;border-radius:99px;font-weight:600;font-size:12.5px;cursor:pointer;white-space:nowrap;background:{{ d.bg }};color:{{ d.fg }};border:1px solid #EAE7F0">{{ d.label }}</div>
+          </sc-for>
+        </div>
+        <sc-for list="{{ huntMissions }}" as="h" hint-placeholder-count="6">
+          <div onClick="{{ h.open }}" style="margin:0 16px 8px;background:#fff;border:1.5px solid {{ h.border }};border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;opacity:{{ h.opacity }}">
+            <div style="width:38px;height:38px;border-radius:12px;flex:none;background:#F1EFF5;display:flex;align-items:center;justify-content:center;font-size:17px">{{ h.icon }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px;color:{{ h.tc }}">{{ h.title }}</div>
+              <div style="font-size:12px;color:{{ h.subColor }};font-weight:{{ h.subW }}">{{ h.sub }}</div>
+            </div>
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:16px;color:{{ h.ptc }};flex:none">+{{ h.pts }}</div>
+          </div>
+        </sc-for>
+        <div style="padding:4px 20px 20px;font-size:12px;color:#6F6981">📸🎥💬 missions go to a facilitator for review · 🧠📍🔲 score instantly. Your best submissions can show up in Fresh Moments!</div>
+      </sc-if>
+
+      <sc-if value="{{ huntBoardView }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:0 16px;background:#fff;border:1px solid #EAE7F0;border-radius:14px;padding:4px 14px">
+          <sc-for list="{{ huntBoard }}" as="r" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F1EFF5">
+              <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;color:{{ r.rc }};min-width:26px">{{ r.rank }}</div>
+              <div style="width:34px;height:34px;border-radius:50%;background:{{ r.c }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:13px">{{ r.ini }}</div>
+              <div style="flex:1"><div style="font-weight:{{ r.w }};font-size:14px">{{ r.name }}</div><div style="font-size:12px;color:#6F6981">{{ r.done }} missions</div></div>
+              <div style="font-family:'Barlow Condensed';font-weight:800;font-size:17px;color:{{ r.rc }}">{{ r.pts }}</div>
+            </div>
+          </sc-for>
+          <div style="padding:12px 0;font-size:12px;color:#6F6981">Prizes: $500 grand · $150 runner-up · sponsor gift bags for top 5 · bonus points at facilitator discretion</div>
+        </div>
+        <div style="height:16px"></div>
+      </sc-if>
+    </sc-if>
+
+    <!-- Mission submit sheet -->
+    <sc-if value="{{ msOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(20,15,35,.5);display:flex;align-items:flex-end;z-index:40" data-screen-label="Mission submit">
+      <div style="width:100%;background:#fff;border-radius:22px 22px 0 0;padding:18px 20px 26px;box-sizing:border-box">
+        <div style="width:40px;height:4px;border-radius:99px;background:#D9D4E4;margin:0 auto 14px"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <div style="width:36px;height:36px;border-radius:10px;background:#F1EFF5;display:flex;align-items:center;justify-content:center;font-size:16px">{{ ms.icon }}</div>
+          <div style="flex:1;font-family:'Barlow Condensed';font-weight:800;font-size:20px">{{ ms.title }}</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:18px;color:#7B3FA4">+{{ ms.pts }}</div>
+        </div>
+        <div style="font-size:13.5px;color:#6F6981;line-height:1.5;margin-bottom:14px">{{ ms.desc }}</div>
+
+        <sc-if value="{{ msMedia }}" hint-placeholder-val="{{ true }}">
+          <div onClick="{{ msSubmitMedia }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer">{{ ms.mediaCta }}</div>
+          <div style="text-align:center;font-size:12px;color:#6F6981;margin-top:10px">Goes to a facilitator for review — points land after approval</div>
+        </sc-if>
+
+        <sc-if value="{{ msTrivia }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ msOptions }}" as="o" hint-placeholder-count="4">
+              <div onClick="{{ o.pick }}" style="background:{{ o.bg }};border:1.5px solid {{ o.border }};border-radius:12px;padding:13px 15px;font-weight:600;font-size:14px;cursor:pointer;color:{{ o.fg }}">{{ o.label }}</div>
+            </sc-for>
+          </div>
+          <div style="text-align:center;font-size:12px;color:#6F6981;margin-top:10px">Auto-scored the moment you answer</div>
+        </sc-if>
+
+        <sc-if value="{{ msText }}" hint-placeholder-val="{{ false }}">
+          <textarea value="{{ msAnswer }}" onChange="{{ typeMsAnswer }}" placeholder="Type your answer…" style="width:100%;box-sizing:border-box;min-height:90px;padding:14px;border-radius:14px;border:1.5px solid #D9D4E4;font-size:14.5px;font-family:'Barlow';outline:none;background:#fff;resize:none"></textarea>
+          <div onClick="{{ msSubmitText }}" style="margin-top:12px;background:{{ msTextBtnBg }};color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer;transition:background .2s">SUBMIT ANSWER</div>
+        </sc-if>
+
+        <sc-if value="{{ msInstant }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ msSubmitInstant }}" style="background:linear-gradient(120deg,#2C9C90,#2E6BC0);color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer">{{ ms.instantCta }}</div>
+          <div style="text-align:center;font-size:12px;color:#6F6981;margin-top:10px">Verified on the spot — points land instantly</div>
+        </sc-if>
+
+        <sc-if value="{{ msDone }}" hint-placeholder-val="{{ false }}">
+          <div style="text-align:center;padding:6px 0 2px">
+            <div style="width:54px;height:54px;margin:0 auto 10px;border-radius:50%;background:{{ msDoneBg }};color:{{ msDoneFg }};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:22px;animation:umPop .4s">{{ msDoneIcon }}</div>
+            <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px">{{ msDoneTitle }}</div>
+            <div style="font-size:13.5px;color:#6F6981;margin:4px 0 14px">{{ msDoneSub }}</div>
+          </div>
+        </sc-if>
+
+        <div onClick="{{ msClose }}" style="text-align:center;margin-top:14px;font-size:14px;font-weight:600;color:#6F6981;cursor:pointer">Close</div>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ============ NOTIFICATIONS ============ -->
+  <sc-if value="{{ isNotifs }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto" data-screen-label="Notifications">
+    <div style="padding:58px 16px 0">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;color:#6F6981;cursor:pointer;margin-bottom:10px">‹ Back</div>
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px;margin-bottom:4px">What you missed</div>
+      <div style="font-size:13.5px;color:#6F6981;margin-bottom:14px">Only the stuff that matters to you and your team</div>
+    </div>
+    <sc-for list="{{ notifs }}" as="n" hint-placeholder-count="5">
+      <div style="margin:0 16px 8px;background:{{ n.bg }};border:1px solid #EAE7F0;border-radius:14px;padding:13px 14px;display:flex;gap:12px">
+        <div style="width:38px;height:38px;border-radius:12px;flex:none;background:{{ n.ic }};display:flex;align-items:center;justify-content:center;font-size:16px">{{ n.emoji }}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">{{ n.title }}</div>
+          <div style="font-size:13px;color:#6F6981;line-height:1.4;margin-top:1px">{{ n.body }}</div>
+          <div style="font-size:11.5px;color:#9C96AE;margin-top:4px">{{ n.when }}</div>
+        </div>
+      </div>
+    </sc-for>
+    <div style="height:16px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ COMPLAINT FLOW ============ -->
+  <sc-if value="{{ isComplaint }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column" data-screen-label="Report an issue">
+    <div style="padding:58px 16px 0">
+      <div onClick="{{ back }}" style="font-size:14px;font-weight:600;color:#6F6981;cursor:pointer;margin-bottom:14px">‹ Cancel</div>
+    </div>
+
+    <sc-if value="{{ cpStep1 }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:0 20px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px;line-height:1.05">What's going on?</div>
+        <div style="font-size:14px;color:#6F6981;margin:6px 0 16px">This goes straight to Commissioner Osei. It stays private.</div>
+        <sc-for list="{{ cpTypes }}" as="t" hint-placeholder-count="5">
+          <div onClick="{{ t.pick }}" style="background:{{ t.bg }};border:1.5px solid {{ t.border }};border-radius:14px;padding:15px 16px;margin-bottom:8px;cursor:pointer">
+            <div style="font-weight:700;font-size:14.5px">{{ t.label }}</div>
+            <div style="font-size:12.5px;color:#6F6981;margin-top:1px">{{ t.sub }}</div>
+          </div>
+        </sc-for>
+        <div onClick="{{ cpNext }}" style="margin-top:10px;background:{{ cpNextBg }};color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer;transition:background .2s">CONTINUE</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ cpStep2 }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:0 20px">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px;line-height:1.05">Tell us what happened</div>
+        <div style="font-size:14px;color:#6F6981;margin:6px 0 14px">{{ complaintTypeLabel }} · a sentence or two is plenty</div>
+        <textarea value="{{ cpText }}" onChange="{{ cpType }}" placeholder="What happened, and when?" style="width:100%;box-sizing:border-box;min-height:130px;padding:15px;border-radius:14px;border:1.5px solid #D9D4E4;font-size:15px;font-family:'Barlow';outline:none;background:#fff;resize:none"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #EAE7F0;border-radius:12px;padding:13px 14px;margin-top:10px">
+          <span style="font-size:13.5px;color:#6F6981">Related game</span><span style="font-weight:600;font-size:13.5px">DMV United vs Lagos Legends</span>
+        </div>
+        <div onClick="{{ cpSubmit }}" style="margin-top:14px;background:{{ cpSubmitBg }};color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer;transition:background .2s">SEND TO COMMISSIONER</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ cpStep3 }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:10px 20px 0;text-align:center">
+        <div style="width:64px;height:64px;margin:10px auto 14px;border-radius:50%;background:#E2F2EF;color:#2C9C90;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:28px;animation:umPop .4s">✓</div>
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:28px">We've got it.</div>
+        <div style="font-size:14px;color:#6F6981;margin:8px 0 18px;line-height:1.5">Case <b>#UG-114</b> is with Commissioner Osei.<br>You'll get a notification when there's an update — usually within the hour.</div>
+        <div onClick="{{ cpDone }}" style="background:#211A33;color:#fff;border-radius:14px;padding:16px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:18px;letter-spacing:1px;cursor:pointer">BACK TO MY UMOJA</div>
+      </div>
+    </sc-if>
+    <div style="height:24px"></div>
+  </div>
+  </sc-if>
+
+  <!-- ============ UPLOAD MOMENT SHEET ============ -->
+  <sc-if value="{{ uploadOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:rgba(20,15,35,.5);display:flex;align-items:flex-end;z-index:40" data-screen-label="Upload moment">
+    <div style="width:100%;background:#fff;border-radius:22px 22px 0 0;padding:18px 20px 26px;box-sizing:border-box">
+      <div style="width:40px;height:4px;border-radius:99px;background:#D9D4E4;margin:0 auto 14px"></div>
+
+      <sc-if value="{{ upStep1 }}" hint-placeholder-val="{{ true }}">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px">Share a moment</div>
+        <div style="font-size:13.5px;color:#6F6981;margin:4px 0 16px">Umoja FC vs Harambee SC · it lands on the game page after a quick review</div>
+        <div style="display:flex;gap:10px">
+          <div onClick="{{ pickVideo }}" style="flex:1;border:1.5px solid #EAE7F0;border-radius:16px;padding:22px 14px;text-align:center;cursor:pointer">
+            <div style="width:44px;height:44px;margin:0 auto 8px;border-radius:50%;background:#EFE6F6;display:flex;align-items:center;justify-content:center;color:#7B3FA4;font-family:'Barlow Condensed';font-weight:800;font-size:16px">▶</div>
+            <div style="font-weight:700;font-size:15px">Video</div>
+          </div>
+          <div onClick="{{ pickPhoto }}" style="flex:1;border:1.5px solid #EAE7F0;border-radius:16px;padding:22px 14px;text-align:center;cursor:pointer">
+            <div style="width:44px;height:44px;margin:0 auto 8px;border-radius:50%;background:#E4EDF9;display:flex;align-items:center;justify-content:center;color:#2E6BC0;font-family:'Barlow Condensed';font-weight:800;font-size:16px">◉</div>
+            <div style="font-weight:700;font-size:15px">Photo</div>
+          </div>
+        </div>
+        <div onClick="{{ closeUpload }}" style="text-align:center;margin-top:16px;font-size:14px;font-weight:600;color:#6F6981;cursor:pointer">Cancel</div>
+      </sc-if>
+
+      <sc-if value="{{ upStep2 }}" hint-placeholder-val="{{ false }}">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px">What kind of moment?</div>
+        <div style="font-size:13.5px;color:#6F6981;margin:4px 0 14px">Pick one — it helps everyone find it later</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{ tagChips }}" as="t" hint-placeholder-count="6">
+            <div onClick="{{ t.pick }}" style="padding:11px 16px;border-radius:99px;font-weight:600;font-size:14px;cursor:pointer;background:{{ t.bg }};color:{{ t.fg }};border:1.5px solid {{ t.border }}">{{ t.label }}</div>
+          </sc-for>
+        </div>
+        <div onClick="{{ upNext }}" style="margin-top:16px;background:{{ upNextBg }};color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer">NEXT</div>
+      </sc-if>
+
+      <sc-if value="{{ upStep3 }}" hint-placeholder-val="{{ false }}">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px">Tag a player? <span style="font-size:15px;color:#6F6981;font-family:'Barlow';font-weight:500">(optional)</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px">
+          <sc-for list="{{ tagPlayers }}" as="t" hint-placeholder-count="4">
+            <div onClick="{{ t.pick }}" style="display:flex;align-items:center;gap:8px;padding:8px 13px 8px 8px;border-radius:99px;cursor:pointer;background:{{ t.bg }};border:1.5px solid {{ t.border }}">
+              <div style="width:26px;height:26px;border-radius:50%;background:{{ t.c }};color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:11px">{{ t.ini }}</div>
+              <span style="font-weight:600;font-size:13.5px">{{ t.n }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;color:#6F6981;margin-bottom:12px">Players who opted out of media won't appear here.</div>
+        <div onClick="{{ submitUpload }}" style="background:linear-gradient(120deg,#7B3FA4,#2E6BC0);color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer">POST MOMENT</div>
+      </sc-if>
+
+      <sc-if value="{{ upStep4 }}" hint-placeholder-val="{{ false }}">
+        <div style="text-align:center;padding:8px 0 4px">
+          <div style="width:56px;height:56px;margin:0 auto 12px;border-radius:50%;background:#E2F2EF;color:#2C9C90;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:24px;animation:umPop .4s">✓</div>
+          <div style="font-family:'Barlow Condensed';font-weight:800;font-size:24px">Moment posted!</div>
+          <div style="font-size:13.5px;color:#6F6981;margin:4px 0 16px">A moderator will take a quick look, then it goes live on the game page.</div>
+          <div onClick="{{ closeUpload }}" style="background:#211A33;color:#fff;border-radius:14px;padding:15px;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px;letter-spacing:1px;cursor:pointer">BACK TO THE GAME</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ TAB BAR ============ -->
+  <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+  <div style="flex:none;display:flex;background:#fff;border-top:1px solid #EAE7F0;padding:6px 8px 8px">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+      <div onClick="{{ t.pick }}" style="flex:1;text-align:center;padding:9px 0;cursor:pointer">
+        <div style="font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:{{ t.fg }}">{{ t.label }}</div>
+        <div style="width:20px;height:3px;border-radius:99px;margin:4px auto 0;background:{{ t.bar }}"></div>
+      </div>
+    </sc-for>
+  </div>
+  </sc-if>
+
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Floodlights — night-mode direction (home screen only)</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="393px,830px">
+<div style="height:100%;overflow-y:auto;background:#171226;font-family:'Barlow',sans-serif;color:#F2F0F7" data-screen-label="Home (dark variant)">
+  <div style="padding:62px 20px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;letter-spacing:1px;background:linear-gradient(90deg,#C084E8,#6FA4EF);-webkit-background-clip:text;background-clip:text;color:transparent">UMOJA GAMES</div>
+      <div style="font-size:12px;font-weight:600;background:rgba(255,255,255,.1);padding:5px 10px;border-radius:99px">Day 1</div>
+    </div>
+    <div style="margin-top:16px;font-family:'Barlow Condensed';font-weight:700;font-size:30px;line-height:1.05">Good morning, Kwame.</div>
+    <div style="margin-top:4px;font-size:14px;color:#A79FC0">Your game is at 10:40 AM on Field 3.</div>
+  </div>
+  <div style="margin:0 16px;background:#221B38;border-radius:16px;padding:16px;border:1px solid #322950">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#F2566B;animation:umPulse 1.6s infinite"></span>
+      <span style="font-size:12px;font-weight:700;color:#F2566B;letter-spacing:.5px">LIVE · 38'</span>
+      <span style="margin-left:auto;font-size:12px;color:#A79FC0">Men's Open · Field 1</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
+      <div style="text-align:center"><div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#9256C4;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">UF</div><div style="font-weight:600;font-size:13px">Umoja FC</div></div>
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:40px;letter-spacing:2px;color:#FFD98A">2–1</div>
+      <div style="text-align:center"><div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#37B3A6;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">HS</div><div style="font-weight:600;font-size:13px">Harambee SC</div></div>
+    </div>
+  </div>
+  <div style="padding:20px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.5px;color:#CFC8E4">YOUR NEXT GAME</div>
+  <div style="margin:0 16px;background:linear-gradient(120deg,#9256C4,#3B79D4);border-radius:16px;padding:16px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;opacity:.85;margin-bottom:10px"><span>Men's Open · Seeding R2</span><span>Field 3</span></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#fff;color:#D8365D;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:15px">DU</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:15px">DMV United vs Lagos Legends</div><div style="font-size:13px;opacity:.85">Today · 10:40 AM</div></div>
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:#FFD98A">10:40</div>
+    </div>
+  </div>
+  <div style="padding:20px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;letter-spacing:.5px;color:#CFC8E4">FRESH MOMENTS</div>
+  <div style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 20px">
+    <div style="flex:none;width:150px;border-radius:14px;overflow:hidden;background:#221B38;border:1px solid #322950"><div style="height:96px;background:linear-gradient(135deg,#D8365D,#EF5A4C);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:14px;letter-spacing:1px">GOAL</div><div style="padding:9px 10px"><div style="font-size:12.5px;font-weight:600">Mensah's rocket from 25 yards</div><div style="font-size:11.5px;color:#A79FC0">Amina J. · 2m ago</div></div></div>
+    <div style="flex:none;width:150px;border-radius:14px;overflow:hidden;background:#221B38;border:1px solid #322950"><div style="height:96px;background:linear-gradient(135deg,#2C9C90,#2E6BC0);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:14px;letter-spacing:1px">SAVE</div><div style="padding:9px 10px"><div style="font-size:12.5px;font-weight:600">Fingertip stop by Boateng</div><div style="font-size:11.5px;color:#A79FC0">Coach T. · 11m ago</div></div></div>
+  </div>
+  <div style="display:flex;background:#1D1731;border-top:1px solid #322950;padding:8px">
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#FFD98A">HOME</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#7A7295">GAMES</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#7A7295">MOMENTS</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#7A7295">MY UMOJA</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Festival — warm community direction (home screen only)</div>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="393px,830px">
+<div style="height:100%;overflow-y:auto;background:#FAF4EA;font-family:'Barlow',sans-serif;color:#33261B" data-screen-label="Home (festival variant)">
+  <div style="padding:62px 20px 20px;background:#F3E7D3;border-radius:0 0 26px 26px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;letter-spacing:1px;color:#B9541F">UMOJA GAMES</div>
+      <div style="font-size:12px;font-weight:600;background:#fff;padding:5px 10px;border-radius:99px;color:#8A6A45">Day 1 · Seeding</div>
+    </div>
+    <div style="margin-top:16px;font-family:'Barlow Condensed';font-weight:700;font-size:30px;line-height:1.05">Karibu, Kwame!</div>
+    <div style="margin-top:4px;font-size:14px;color:#8A6A45">Field 3 at 10:40 — bring the whole family.</div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <div style="background:#fff;border-radius:99px;padding:8px 14px;font-weight:600;font-size:12.5px;color:#B9541F">Food trucks open</div>
+      <div style="background:#fff;border-radius:99px;padding:8px 14px;font-weight:600;font-size:12.5px;color:#2C7A6E">Join the Hunt · $500</div>
+    </div>
+  </div>
+  <div style="padding:18px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;color:#7A5A35">HAPPENING NOW</div>
+  <div style="margin:0 16px;background:#fff;border-radius:18px;padding:16px;box-shadow:0 2px 10px rgba(120,80,30,.08)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <span style="width:8px;height:8px;border-radius:50%;background:#C4432F;animation:umPulse 1.6s infinite"></span>
+      <span style="font-size:12px;font-weight:700;color:#C4432F">LIVE · 38'</span>
+      <span style="margin-left:auto;font-size:12px;color:#8A6A45">Men's Open · Field 1</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
+      <div style="text-align:center"><div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#7B3FA4;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">UF</div><div style="font-weight:600;font-size:13px">Umoja FC</div></div>
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:38px;color:#33261B">2–1</div>
+      <div style="text-align:center"><div style="width:44px;height:44px;margin:0 auto 6px;border-radius:50%;background:#2C9C90;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:17px">HS</div><div style="font-weight:600;font-size:13px">Harambee SC</div></div>
+    </div>
+  </div>
+  <div style="padding:18px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;color:#7A5A35">YOUR NEXT GAME</div>
+  <div style="margin:0 16px;background:#2C7A6E;color:#fff;border-radius:18px;padding:16px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:40px;height:40px;border-radius:50%;background:#F2B95B;color:#6B4A12;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:800;font-size:15px">DU</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:15px">DMV United vs Lagos Legends</div><div style="font-size:13px;opacity:.85">Today · 10:40 AM · Field 3</div></div>
+      <div style="font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:#F2B95B">10:40</div>
+    </div>
+  </div>
+  <div style="padding:18px 16px 8px;font-family:'Barlow Condensed';font-weight:800;font-size:19px;color:#7A5A35">FRESH MOMENTS</div>
+  <div style="display:flex;gap:10px;overflow-x:auto;padding:0 16px 20px">
+    <div style="flex:none;width:150px;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 2px 10px rgba(120,80,30,.08)"><div style="height:96px;background:#C4432F;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:14px;letter-spacing:1px">GOAL</div><div style="padding:9px 10px"><div style="font-size:12.5px;font-weight:600">Mensah's rocket from 25 yards</div><div style="font-size:11.5px;color:#8A6A45">Amina J. · 2m ago</div></div></div>
+    <div style="flex:none;width:150px;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 2px 10px rgba(120,80,30,.08)"><div style="height:96px;background:#2C7A6E;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:14px;letter-spacing:1px">FAN MOMENT</div><div style="padding:9px 10px"><div style="font-size:12.5px;font-weight:600">Drum circle at Field 2</div><div style="font-size:11.5px;color:#8A6A45">Zawadi · 8m ago</div></div></div>
+  </div>
+  <div style="display:flex;background:#fff;border-top:1px solid #EADFC9;padding:8px">
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#B9541F">HOME</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#B9A583">GAMES</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#B9A583">MOMENTS</div>
+    <div style="flex:1;text-align:center;font-family:'Barlow Condensed';font-weight:800;font-size:15.5px;letter-spacing:.8px;color:#B9A583">MY UMOJA</div>
+  </div>
+</div>
+</x-import>
+</div>
+
+</div>
+<p class="dv-next">Try next: "make <a class="dv-oid" href="#1a">1a</a> use the dark look from <a class="dv-oid" href="#1b">1b</a>" · "add the scavenger hunt screen" · "warmer copy like <a class="dv-oid" href="#1c">1c</a>"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: &quot;1500px&quot;, &quot;height&quot;: &quot;1100px&quot;}}">
+class Component extends DCLogic {
+  state = {
+    tab: 'home', view: null,
+    ciStep: 1, selfieTaken: false, idTaken: false, ciStatus: 'none',
+    aiState: null, aiAttempts: 0,
+    uploadOpen: false, upStep: 1, upType: null, upTag: null, upPlayer: null,
+    voted: null, cheers: 128, day: 0, captainView: false,
+    reminded: {}, posted: false, viewPlayerIdx: 0,
+    gamesSeg: 'schedule', huntSeg: 'challenges',
+    huntJoined: false, crewName: '', crewSel: {}, huntDay: 0,
+    missionSt: { m2: 'done', m4: 'pending' }, msMission: null, msAnswer: '', msResult: null,
+    notifsRead: false, cpStep: 1, cpTypeSel: null, cpText: '', complaintFiled: false
+  };
+
+  data() {
+    const roster = [
+      { n: 'Kwame Mensah', num: 10, pos: 'Forward', st: 'cleared', c: '#7B3FA4', bio: 'Playing for my dad, who started our Sunday league in 2004.', g: 3, a: 2, hl: 4, badges: ['Player of the Match', 'Rising Star'] },
+      { n: 'Deji Okafor', num: 7, pos: 'Midfield · Captain', st: 'cleared', c: '#2E6BC0', bio: 'Captain. Coffee first, tactics second.', g: 1, a: 4, hl: 2, badges: ['Best Sportsmanship'] },
+      { n: 'Yaw Boateng', num: 1, pos: 'Goalkeeper', st: 'cleared', c: '#D8365D', bio: 'Hands of stone, heart of gold.', g: 0, a: 0, hl: 3, badges: ['Best Save'] },
+      { n: 'Sam Teklu', num: 4, pos: 'Defense', st: 'pending', c: '#2C9C90', bio: 'First Umoja Games. Ready.', g: 0, a: 1, hl: 1, badges: [] },
+      { n: 'Tunde Alabi', num: 8, pos: 'Midfield', st: 'cleared', c: '#EF5A4C', bio: 'Runs all day.', g: 1, a: 1, hl: 1, badges: [] },
+      { n: 'Malik Diallo', num: 22, pos: 'Forward', st: 'missing', c: '#B98514', bio: 'Speed merchant.', g: 2, a: 0, hl: 2, badges: [] },
+      { n: 'Ade Falade', num: 5, pos: 'Defense', st: 'cleared', c: '#7B3FA4', bio: 'The wall.', g: 0, a: 0, hl: 0, badges: [] },
+      { n: 'Isaac Owusu', num: 12, pos: 'Defense', st: 'pending', c: '#2E6BC0', bio: 'Quiet leader.', g: 0, a: 0, hl: 0, badges: [] },
+      { n: 'Femi Adeyemi', num: 9, pos: 'Forward', st: 'cleared', c: '#2C9C90', bio: 'Finisher.', g: 2, a: 1, hl: 2, badges: [] }
+    ];
+    const games = [
+      [
+        { id: 'g1', cat: "Men's Open", field: 'Field 1', home: 'Umoja FC', away: 'Harambee SC', mid: '2–1', st: 'live' },
+        { id: 'g2', cat: "Men's Open", field: 'Field 3', home: 'DMV United', away: 'Lagos Legends', mid: '10:40', st: 'up' },
+        { id: 'g3', cat: "Boys 14U", field: 'Field 5', home: 'Silver Spring SC', away: 'Takoma Stars', mid: '11:00', st: 'up' },
+        { id: 'g4', cat: "Women's Open", field: 'Field 2', home: 'Queens United', away: 'Adanna FC', mid: '3–2', st: 'ft' },
+        { id: 'g5', cat: "Girls 11U", field: 'Field 6', home: 'Little Lions', away: 'Rockville Rays', mid: '11:20', st: 'up' }
+      ],
+      [
+        { id: 'g6', cat: "Men's Open · QF", field: 'Field 1', home: 'Seed 1', away: 'Seed 8', mid: '9:00', st: 'up' },
+        { id: 'g7', cat: "Men's Open · QF", field: 'Field 2', home: 'Seed 4', away: 'Seed 5', mid: '9:00', st: 'up' },
+        { id: 'g8', cat: "Women's Open · Semi", field: 'Field 3', home: 'Pool A #1', away: 'Pool B #2', mid: '10:30', st: 'up' }
+      ],
+      [
+        { id: 'g9', cat: "Men's Open · FINAL", field: 'Stadium Field', home: 'TBD', away: 'TBD', mid: '2:00', st: 'up' },
+        { id: 'g10', cat: 'All-Star Game', field: 'Stadium Field', home: 'Team Unity', away: 'Team Victory', mid: '4:00', st: 'up' }
+      ]
+    ];
+    const moments = [
+      { tag: 'GOAL', src: '⚽ GAME', caption: "Mensah's rocket from 25 yards", by: 'Amina J.', when: '2m ago', bg: 'linear-gradient(135deg,#D8365D,#EF5A4C)' },
+      { tag: 'THE HUNT', src: '🧭 HUNT', caption: 'Team chant challenge — The Adebayos', by: 'Adebayo crew', when: '9m ago', bg: 'linear-gradient(135deg,#F2B95B,#B9541F)' },
+      { tag: 'SAVE', src: '⚽ GAME', caption: 'Fingertip stop by Boateng', by: 'Coach T.', when: '11m ago', bg: 'linear-gradient(135deg,#2C9C90,#2E6BC0)' },
+      { tag: 'FAN MOMENT', src: '🎉 COMMUNITY', caption: 'Drum circle at Field 2', by: 'Zawadi', when: '18m ago', bg: 'linear-gradient(135deg,#F2A93B,#EF5A4C)' },
+      { tag: 'THE HUNT', src: '🧭 HUNT', caption: 'UMOJA human spelling, aerial shot', by: 'Team Diallo', when: '22m ago', bg: 'linear-gradient(135deg,#7B3FA4,#F2A93B)' },
+      { tag: 'CELEBRATION', src: '⚽ GAME', caption: 'Team entrance, flags out', by: 'Marcus', when: '25m ago', bg: 'linear-gradient(135deg,#7B3FA4,#D8365D)' },
+      { tag: 'SKILL', src: '⚽ GAME', caption: 'Nutmeg heard around the plex', by: 'Leila', when: '31m ago', bg: 'linear-gradient(135deg,#2E6BC0,#7B3FA4)' },
+      { tag: 'COMMUNITY', src: '🎉 COMMUNITY', caption: 'Camp kids meet the refs', by: 'Umoja Staff', when: '44m ago', bg: 'linear-gradient(135deg,#2C9C90,#F2A93B)' }
+    ];
+    return { roster, games, moments };
+  }
+
+  renderVals() {
+    const S = this.state;
+    const { roster, games, moments } = this.data();
+    const nav = (patch) => () => this.setState(patch);
+
+    const stMap = {
+      cleared: { stLabel: 'Cleared', stColor: '#1E7A6F', stBg: '#E2F2EF' },
+      pending: { stLabel: 'Pending', stColor: '#B97514', stBg: '#FBEEDC' },
+      missing: { stLabel: 'ID missing', stColor: '#C0392B', stBg: '#FBE3DF' }
+    };
+
+    const rosterVals = roster.map((p, i) => {
+      const st = stMap[p.st];
+      const wasReminded = !!S.reminded[p.n];
+      return Object.assign({}, p, st, {
+        ini: p.n.split(' ').map(x => x[0]).join(''),
+        openPlayer: () => this.setState({ view: 'player', viewPlayerIdx: i }),
+        needsNudge: p.st !== 'cleared',
+        nudgeLabel: wasReminded ? 'Sent ✓' : 'Nudge',
+        nudgeBg: wasReminded ? '#9C96AE' : '#7B3FA4',
+        remind: () => this.setState(s => ({ reminded: Object.assign({}, s.reminded, { [p.n]: true }) }))
+      });
+    });
+
+    const cleared = roster.filter(p => p.st === 'cleared').length;
+    const pct = Math.round(cleared / roster.length * 100) + '%';
+
+    const gStMap = { live: { stLabel: '● LIVE', stColor: '#D8365D' }, up: { stLabel: 'Upcoming', stColor: '#6F6981' }, ft: { stLabel: 'Final', stColor: '#1E7A6F' } };
+    const dayGames = games[S.day].map(g => Object.assign({}, g, gStMap[g.st], {
+      open: g.id === 'g1' ? () => this.setState({ view: 'game' }) : () => {}
+    }));
+    const dayLabels = ['Fri · Seeding', 'Sat · Brackets', 'Sun · Finals'];
+    const dayChips = dayLabels.map((label, i) => ({
+      label,
+      bg: i === S.day ? '#211A33' : '#fff',
+      fg: i === S.day ? '#fff' : '#211A33',
+      pick: () => this.setState({ day: i })
+    }));
+
+    // Voting
+    const base = { 'Kwame Mensah': 48, 'Adisa Kone': 39, 'Yaw Boateng': 31 };
+    const cands = [
+      { name: 'Kwame Mensah', team: 'DMV United', c: '#7B3FA4' },
+      { name: 'Adisa Kone', team: 'Umoja FC', c: '#2C9C90' },
+      { name: 'Yaw Boateng', team: 'DMV United', c: '#D8365D' }
+    ];
+    const totals = cands.map(c => base[c.name] + (S.voted === c.name ? 1 : 0));
+    const sum = totals.reduce((a, b) => a + b, 0);
+    const voteCands = cands.map((c, i) => {
+      const pctN = Math.round(totals[i] / sum * 100);
+      const mine = S.voted === c.name;
+      return Object.assign({}, c, {
+        ini: c.name.split(' ').map(x => x[0]).join(''),
+        pick: () => this.setState({ voted: mine ? null : c.name }),
+        pct: pctN + '%', pctW: pctN + '%',
+        barBg: mine ? 'linear-gradient(90deg,#7B3FA4,#2E6BC0)' : '#C9C3D8',
+        pctColor: mine ? '#7B3FA4' : '#6F6981'
+      });
+    });
+
+    // Upload
+    const tagList = ['Goal', 'Save', 'Skill move', 'Celebration', 'Fan moment', 'Team entrance', 'Funny moment', 'Community'];
+    const tagChips = tagList.map(t => ({
+      label: t,
+      bg: S.upTag === t ? '#211A33' : '#fff',
+      fg: S.upTag === t ? '#fff' : '#211A33',
+      border: S.upTag === t ? '#211A33' : '#EAE7F0',
+      pick: () => this.setState({ upTag: t })
+    }));
+    const tagPlayers = roster.slice(0, 5).map(p => ({
+      n: p.n.split(' ')[0] + ' ' + p.n.split(' ')[1][0] + '.',
+      ini: p.n.split(' ').map(x => x[0]).join(''), c: p.c,
+      bg: S.upPlayer === p.n ? '#EFE6F6' : '#fff',
+      border: S.upPlayer === p.n ? '#7B3FA4' : '#EAE7F0',
+      pick: () => this.setState(s => ({ upPlayer: s.upPlayer === p.n ? null : p.n }))
+    }));
+
+    const postedMoment = { tag: (S.upTag || 'MOMENT').toUpperCase(), src: '⚽ GAME', caption: 'Your upload', by: 'You', when: 'now', bg: 'linear-gradient(135deg,#6F6981,#211A33)', pending: true };
+    const gameMoments = (S.posted ? [postedMoment] : []).concat(moments.slice(0, 3));
+    const allMoments = (S.posted ? [postedMoment] : []).concat(moments);
+
+    // QR cells (deterministic)
+    const qrCells = [];
+    for (let i = 0; i < 169; i++) {
+      const r = Math.floor(i / 13), c = i % 13;
+      const corner = (r < 4 && c < 4) || (r < 4 && c > 8) || (r > 8 && c < 4);
+      let on;
+      if (corner) { const rr = r > 8 ? 12 - r : r, cc = c > 8 ? 12 - c : c; on = !(rr === 3 || cc === 3) && !(rr >= 1 && rr <= 2 && (cc === 0 || cc === 3)) && !(rr === 0 && cc >= 1 && cc <= 2) === false || (rr <= 2 && cc <= 2); on = (rr === 0 || cc === 0 || (rr >= 1 && rr <= 1 && cc >= 1 && cc <= 1)) || (rr <= 2 && cc <= 2 && !(rr === 1 && cc === 2) && !(rr === 2 && cc === 1)); }
+      else on = ((i * 2654435761) >>> 0) % 100 < 46;
+      qrCells.push({ bg: on ? '#211A33' : '#fff' });
+    }
+
+    const ciDots = [1, 2, 3, 4].map(n => ({ bg: n <= S.ciStep ? '#7B3FA4' : '#E3DFEC' }));
+
+    const tabDefs = [['home', 'HOME'], ['games', 'GAMES'], ['moments', 'MOMENTS'], ['me', 'MY UMOJA']];
+    const tabs = tabDefs.map(([id, label]) => {
+      const active = S.tab === id && !S.view;
+      return {
+        label,
+        fg: active ? '#7B3FA4' : '#8B85A0',
+        bar: active ? '#7B3FA4' : 'transparent',
+        pick: () => this.setState({ tab: id, view: null })
+      };
+    });
+
+    const vp = roster[S.viewPlayerIdx];
+    const viewPlayer = Object.assign({}, vp, { ini: vp.n.split(' ').map(x => x[0]).join('') });
+
+    // Games tab segments
+    const gamesSegs = [['schedule', 'SCHEDULE'], ['standings', 'STANDINGS']].map(([id, label]) => ({
+      label,
+      bg: S.gamesSeg === id ? '#211A33' : '#fff',
+      fg: S.gamesSeg === id ? '#fff' : '#211A33',
+      pick: () => this.setState({ gamesSeg: id })
+    }));
+    const standings = [
+      { rank: 1, team: 'Umoja FC', rec: '2-0-0', gd: '+4', pts: 6, bg: '#F5F0FA', w: 700 },
+      { rank: 2, team: 'DMV United', rec: '1-1-0', gd: '+3', pts: 4, bg: '#F5F0FA', w: 700 },
+      { rank: 3, team: 'Harambee SC', rec: '1-0-1', gd: '0', pts: 3, bg: '#fff', w: 500 },
+      { rank: 4, team: 'Lagos Legends', rec: '0-1-1', gd: '-3', pts: 1, bg: '#fff', w: 500 },
+      { rank: 5, team: 'Nairobi Ndovu', rec: '0-0-2', gd: '-4', pts: 0, bg: '#fff', w: 500 }
+    ];
+    const bracketRows = [
+      { tag: 'QF', match: 'Seed 1 vs Seed 8 · Seed 4 vs Seed 5', when: 'Sat 9:00 AM', c: '#7B3FA4', tc: '#211A33' },
+      { tag: 'QF', match: 'Seed 2 vs Seed 7 · Seed 3 vs Seed 6', when: 'Sat 9:00 AM', c: '#7B3FA4', tc: '#211A33' },
+      { tag: 'SEMI', match: 'Winners face off', when: 'Sat 2:00 PM', c: '#2E6BC0', tc: '#6F6981' },
+      { tag: 'FINAL', match: 'Stadium Field — bring everyone', when: 'Sun 2:00 PM', c: '#D8365D', tc: '#6F6981' }
+    ];
+
+    // Scavenger hunt — Umoja Games 2026 Mission Guide (PlayTours-style)
+    const missions = [
+      { id: 'm1', day: 0, type: 'photo', icon: '📸', title: 'The Sportsmanship Handshake', desc: 'Snap a photo of a genuine handshake between two players from opposing teams after a match.', pts: 100 },
+      { id: 'm2', day: 0, type: 'video', icon: '🎥', title: 'Team Chant Challenge', desc: 'Create an original chant for your team and record your entire squad performing it. Energy earns bonus points!', pts: 150 },
+      { id: 'm3', day: 0, type: 'photo', icon: '📸', title: 'Snap with Mr. Umoji', desc: 'Our mascot is somewhere at SoccerPlex — find Mr. Umoji and take a selfie with him!', pts: 75 },
+      { id: 'm4', day: 0, type: 'gps', icon: '📍', title: 'Welcome to SoccerPlex', desc: 'Check in at the main entrance to officially start your Umoja Games 2026 journey.', pts: 100 },
+      { id: 'm5', day: 0, type: 'trivia', icon: '🧠', title: 'Soccer IQ Test', desc: 'Which country has won the most FIFA World Cup titles?', pts: 100, options: ['Brazil', 'Germany', 'Italy', 'Argentina'], answer: 0 },
+      { id: 'm6', day: 0, type: 'trivia', icon: '🧠', title: 'Islamic Trivia Challenge', desc: "What does the word 'Umoja' mean in Swahili?", pts: 100, options: ['Unity', 'Peace', 'Faith', 'Strength'], answer: 0 },
+      { id: 'm7', day: 1, type: 'gps', icon: '📍', title: 'Find the Umoja Booth', desc: "Navigate to the official Umoja booth and check in. While you're there, say salam to the team!", pts: 100 },
+      { id: 'm8', day: 1, type: 'video', icon: '🎥', title: 'Penalty Kick Drama', desc: "Capture a video of a player taking a penalty kick — get the goalkeeper's reaction too if you can!", pts: 150 },
+      { id: 'm9', day: 1, type: 'video', icon: '🎥', title: '5 Keep-Ups or More', desc: 'Record at least 5 consecutive keep-ups without dropping the ball. No hands after the first touch!', pts: 175 },
+      { id: 'm10', day: 1, type: 'qr', icon: '🔲', title: 'Sponsor Shoutout Station', desc: 'Scan the QR code at the sponsor booth to learn who makes this tournament possible.', pts: 75 },
+      { id: 'm11', day: 1, type: 'photo', icon: '📸', title: 'Team Huddle', desc: 'Capture a team doing a full group huddle — hands in, eyes focused.', pts: 100 },
+      { id: 'm12', day: 1, type: 'text', icon: '💬', title: 'Dua Before the Match', desc: 'Share the dua or dhikr that helps you stay focused and calm under pressure. No wrong answer — this is personal!', pts: 100 },
+      { id: 'm13', day: 2, type: 'qr', icon: '🔲', title: 'Umoja 13 Location Guess', desc: "Scan the QR at the booth and guess next year's tournament location.", pts: 75 },
+      { id: 'm14', day: 2, type: 'video', icon: '🎥', title: 'UMOJA Human Spelling', desc: 'Spell out U-M-O-J-A with your teammates on the field. Record a wide-angle video of the full word!', pts: 175 },
+      { id: 'm15', day: 2, type: 'photo', icon: '📸', title: 'Your Hype Outfit', desc: 'Take a photo of your Day 3 tournament outfit — show the community your style.', pts: 100 },
+      { id: 'm16', day: 2, type: 'video', icon: '🎥', title: 'Superhero of the Pitch', desc: "Make a cape, strike your best pose, and declare: 'Never fear, [your superhero name] is here!'", pts: 150 },
+      { id: 'm17', day: 2, type: 'photo', icon: '📸', title: 'Sadaqah Moment', desc: 'Drop a dollar in the donation box at the Umoja booth and take a photo!', pts: 75 },
+      { id: 'm18', day: 3, type: 'photo', icon: '📸', title: 'Subhanallah Sunset', desc: "Capture the beauty of Allah's (swt) creation — a stunning sunset anywhere during the weekend.", pts: 75 },
+      { id: 'm19', day: 3, type: 'photo', icon: '📸', title: 'Favorite Vendor Bite', desc: 'Take a photo of yourself eating your favorite vendor food at the tournament.', pts: 100 },
+      { id: 'm20', day: 3, type: 'video', icon: '🎥', title: 'Elaborate Handshake', desc: 'Invent a multi-step handshake with a teammate and record the two of you pulling it off smoothly.', pts: 100 },
+      { id: 'm21', day: 3, type: 'photo', icon: '📸', title: 'Smiling is Sunnah!', desc: "'Your smile for your brother is a charity.' Give someone your warmest smile and snap the moment!", pts: 75 },
+      { id: 'm22', day: 3, type: 'video', icon: '🎥', title: 'Hot Take Alert', desc: 'Share a soccer opinion that could spark a debate — who is the GOAT, and why?', pts: 100 },
+      { id: 'm23', day: 3, type: 'text', icon: '💬', title: 'Guess Umoja 14 Location', desc: 'Umoja 14 is already on the horizon! Submit your best guess for where it will be held.', pts: 75 }
+    ];
+    const mSt = (id) => S.missionSt[id] || 'todo';
+    const huntPts = missions.reduce((a, m) => a + (mSt(m.id) === 'done' ? m.pts : 0), 0);
+    const huntPendingCt = missions.filter(m => mSt(m.id) === 'pending').length;
+    const huntDoneCt = missions.filter(m => mSt(m.id) === 'done').length;
+
+    const huntDayChips = ['Day 1 · Fri', 'Day 2 · Sat', 'Day 3 · Sun', 'Open · all days'].map((label, i) => ({
+      label,
+      bg: S.huntDay === i ? '#211A33' : '#fff',
+      fg: S.huntDay === i ? '#fff' : '#211A33',
+      pick: () => this.setState({ huntDay: i })
+    }));
+    const huntMissions = missions.filter(m => m.day === S.huntDay).map(m => {
+      const st = mSt(m.id);
+      const typeLabel = { photo: 'Photo', video: 'Video', trivia: 'Trivia · auto-scored', gps: 'GPS check-in', qr: 'QR scan', text: 'Text answer' }[m.type];
+      return {
+        icon: m.icon, title: m.title, pts: m.pts,
+        sub: st === 'done' ? 'Done ✓ · points in the bag' : (st === 'pending' ? 'Submitted · facilitator reviewing' : typeLabel),
+        subColor: st === 'done' ? '#1E7A6F' : (st === 'pending' ? '#B97514' : '#6F6981'),
+        subW: st === 'todo' ? 400 : 700,
+        border: st === 'done' ? '#2C9C90' : (st === 'pending' ? '#F2B95B' : '#EAE7F0'),
+        tc: st === 'done' ? '#9C96AE' : '#211A33',
+        ptc: st === 'done' ? '#2C9C90' : '#7B3FA4',
+        opacity: st === 'done' ? 0.75 : 1,
+        open: () => this.setState({ msMission: m.id, msAnswer: '', msResult: st === 'todo' ? null : st })
+      };
+    });
+
+    // Crew creation
+    const crewFriends = [
+      { n: 'Amina J.', c: '#D8365D' }, { n: 'Deji Okafor', c: '#2E6BC0' }, { n: 'Zawadi', c: '#F2A93B' },
+      { n: 'Coach T.', c: '#2C9C90' }, { n: 'Malik Diallo', c: '#B97514' }, { n: 'Leila M.', c: '#7B3FA4' }
+    ];
+    const crewCount = 1 + Object.keys(S.crewSel).filter(k => S.crewSel[k]).length;
+    const crewPicks = [{ n: 'You (Kwame)', c: '#7B3FA4', me: true }].concat(crewFriends).map(f => {
+      const sel = f.me || !!S.crewSel[f.n];
+      const full = crewCount >= 4 && !sel;
+      return {
+        n: f.n, c: f.c, ini: f.n.split(' ').map(x => x[0]).join('').slice(0, 2),
+        bg: sel ? '#EFE6F6' : '#fff',
+        border: sel ? '#7B3FA4' : '#EAE7F0',
+        opacity: full ? 0.45 : 1,
+        pick: () => { if (!f.me && !full) this.setState(s => { const c = Object.assign({}, s.crewSel); c[f.n] = !c[f.n]; return { crewSel: c }; }); }
+      };
+    });
+    const crewReady = S.crewName.trim().length >= 2;
+    const crewMembers = ['Kwame'].concat(Object.keys(S.crewSel).filter(k => S.crewSel[k]).map(n => n.split(' ')[0]));
+
+    const huntSegs = [['challenges', 'MISSIONS'], ['board', 'LEADERBOARD']].map(([id, label]) => ({
+      label,
+      bg: S.huntSeg === id ? '#211A33' : '#fff',
+      fg: S.huntSeg === id ? '#fff' : '#211A33',
+      pick: () => this.setState({ huntSeg: id })
+    }));
+    const boardBase = [
+      { name: 'The Adebayo Family', done: 11, pts: 1250, c: '#2C9C90' },
+      { name: 'Team Diallo', done: 9, pts: 1050, c: '#EF5A4C' },
+      { name: 'Zawadi & Friends', done: 8, pts: 925, c: '#2E6BC0' },
+      { name: 'Harambee Superfans', done: 7, pts: 800, c: '#D8365D' },
+      { name: 'The Teklu Twins', done: 5, pts: 550, c: '#B97514' }
+    ];
+    const myCrew = { name: (S.crewName.trim() || 'Your crew') + ' (you)', done: huntDoneCt, pts: huntPts, c: '#7B3FA4', me: true };
+    const board = boardBase.concat(S.huntJoined ? [myCrew] : []).sort((a, b) => b.pts - a.pts);
+    const myRank = board.findIndex(r => r.me) + 1;
+    const huntBoard = board.map((r, i) => ({
+      rank: i + 1, name: r.name, done: r.done, pts: r.pts, c: r.c,
+      ini: r.name.split(' ').map(x => x[0]).join('').slice(0, 2),
+      rc: i === 0 ? '#B97514' : (i < 3 ? '#7B3FA4' : '#6F6981'),
+      w: r.me ? 700 : 600
+    }));
+
+    // Mission submit sheet
+    const msSel = S.msMission ? missions.find(m => m.id === S.msMission) : null;
+    const msState = msSel ? mSt(msSel.id) : 'todo';
+    const setMission = (id, st, result) => this.setState(s => ({ missionSt: Object.assign({}, s.missionSt, { [id]: st }), msResult: result }));
+    const msShowForm = msSel && msState === 'todo' && !S.msResult;
+    const msVals = {
+      msOpen: !!msSel,
+      ms: msSel ? {
+        icon: msSel.icon, title: msSel.title, desc: msSel.desc, pts: msSel.pts,
+        mediaCta: msSel.type === 'photo' ? '◉ TAKE / UPLOAD PHOTO' : '▶ RECORD / UPLOAD VIDEO',
+        instantCta: msSel.type === 'gps' ? '📍 CHECK IN HERE' : '🔲 SCAN THE QR CODE'
+      } : {},
+      msClose: () => this.setState({ msMission: null, msResult: null }),
+      msMedia: !!msShowForm && (msSel.type === 'photo' || msSel.type === 'video'),
+      msTrivia: !!msShowForm && msSel.type === 'trivia',
+      msText: !!msShowForm && msSel.type === 'text',
+      msInstant: !!msShowForm && (msSel.type === 'gps' || msSel.type === 'qr'),
+      msDone: !!msSel && !msShowForm,
+      msOptions: msSel && msSel.options ? msSel.options.map((o, i) => ({
+        label: String.fromCharCode(65 + i) + ') ' + o,
+        bg: '#fff', fg: '#211A33', border: '#EAE7F0',
+        pick: () => setMission(msSel.id, i === msSel.answer ? 'done' : 'wrong', i === msSel.answer ? 'correct' : 'wrong')
+      })) : [],
+      msAnswer: S.msAnswer,
+      typeMsAnswer: (e) => this.setState({ msAnswer: e.target.value }),
+      msTextBtnBg: S.msAnswer.trim().length >= 2 ? 'linear-gradient(120deg,#7B3FA4,#2E6BC0)' : '#C9C3D8',
+      msSubmitText: () => { if (S.msAnswer.trim().length >= 2) setMission(msSel.id, 'pending', 'pending'); },
+      msSubmitMedia: () => setMission(msSel.id, 'pending', 'pending'),
+      msSubmitInstant: () => setMission(msSel.id, 'done', 'instant'),
+      msDoneIcon: msState === 'done' ? '✓' : (msState === 'wrong' ? '✕' : '⏳'),
+      msDoneBg: msState === 'done' ? '#E2F2EF' : (msState === 'wrong' ? '#FBE3DF' : '#FBEEDC'),
+      msDoneFg: msState === 'done' ? '#2C9C90' : (msState === 'wrong' ? '#C0392B' : '#B97514'),
+      msDoneTitle: msState === 'done' ? '+' + (msSel ? msSel.pts : 0) + ' pts — nice work!' : (msState === 'wrong' ? 'Not quite!' : 'Submitted for review'),
+      msDoneSub: msState === 'done' ? 'Points are on the board for your whole crew.' : (msState === 'wrong' ? 'No points this time — trivia only gets one shot per crew.' : 'A facilitator will take a look shortly. Standout submissions can land in Fresh Moments!')
+    };
+
+    // Notifications
+    const notifs = [
+      { emoji: '⚽', title: 'Your game moved up 10 minutes', body: 'DMV United vs Lagos Legends now warms up at 10:10 on Field 3.', when: '8 min ago', bg: '#fff', ic: '#EFE6F6' },
+      { emoji: '🎬', title: 'You were tagged in a moment', body: '"Mensah\'s rocket from 25 yards" is live on the game page.', when: '22 min ago', bg: '#fff', ic: '#E4EDF9' },
+      { emoji: '🏆', title: 'Player of the Match voting is open', body: 'Umoja FC vs Harambee SC — cast your vote before full time.', when: '30 min ago', bg: '#fff', ic: '#FBEEDC' },
+      { emoji: '📣', title: 'From the organizers', body: 'Food trucks are open by the pavilion. Kids\' clinic at noon near Field 6.', when: '1 h ago', bg: '#fff', ic: '#E2F2EF' },
+      { emoji: '🧭', title: 'The Hunt is on!', body: '12 challenges, $500 grand prize. Your family is currently in 1st.', when: '2 h ago', bg: '#fff', ic: '#FBE3DF' }
+    ];
+
+    // Complaint flow
+    const cpTypeDefs = [
+      { id: 'eligibility', label: 'Eligibility concern', sub: 'A player may not meet the age or roster rules' },
+      { id: 'score', label: 'Score dispute', sub: 'The recorded result looks wrong' },
+      { id: 'conduct', label: 'Conduct issue', sub: 'Unsafe play, language, or sideline behavior' },
+      { id: 'schedule', label: 'Schedule problem', sub: 'A conflict or timing issue with your games' },
+      { id: 'other', label: 'Something else', sub: 'Anything the commissioner should know' }
+    ];
+    const cpTypes = cpTypeDefs.map(t => ({
+      label: t.label, sub: t.sub,
+      bg: S.cpTypeSel === t.id ? '#EFE6F6' : '#fff',
+      border: S.cpTypeSel === t.id ? '#7B3FA4' : '#EAE7F0',
+      pick: () => this.setState({ cpTypeSel: t.id })
+    }));
+    const cpSel = cpTypeDefs.find(t => t.id === S.cpTypeSel);
+
+    const inTab = (t) => !S.view && S.tab === t;
+    return {
+      gamesSegs, gamesSchedule: S.gamesSeg === 'schedule', gamesStandings: S.gamesSeg === 'standings',
+      standings, bracketRows,
+      isHunt: S.view === 'hunt', isNotifs: S.view === 'notifs', isComplaint: S.view === 'complaint',
+      openHunt: nav({ view: 'hunt' }),
+      openNotifs: nav({ view: 'notifs', notifsRead: true }),
+      openComplaint: nav({ view: 'complaint', cpStep: 1, cpTypeSel: null, cpText: '' }),
+      hasUnread: !S.notifsRead,
+      huntTeaser: S.huntJoined ? (huntDoneCt + ' missions done · ' + huntPts + ' pts · rank #' + myRank) : 'Team up (max 4) · 45 missions · anyone with an account can play',
+      huntSegs, huntChallengesView: S.huntSeg === 'challenges', huntBoardView: S.huntSeg === 'board',
+      huntBoard, huntPts, huntDayChips, huntMissions,
+      huntIntro: !S.huntJoined, huntMain: S.huntJoined,
+      crewName: S.crewName,
+      typeCrewName: (e) => this.setState({ crewName: e.target.value }),
+      crewPicks, crewCount,
+      crewBtnBg: crewReady ? 'linear-gradient(120deg,#D8365D,#EF5A4C)' : '#C9C3D8',
+      createCrew: () => { if (crewReady) this.setState({ huntJoined: true }); },
+      crewLabel: S.crewName.trim() || 'Your crew',
+      crewMembersLabel: crewMembers.join(' · '),
+      huntRank: 'Rank #' + (myRank || '—'),
+      huntPendingNote: huntPendingCt + ' in review',
+      ...msVals,
+      notifs,
+      cpStep1: S.cpStep === 1, cpStep2: S.cpStep === 2, cpStep3: S.cpStep === 3,
+      cpTypes,
+      cpNext: () => { if (S.cpTypeSel) this.setState({ cpStep: 2 }); },
+      cpNextBg: S.cpTypeSel ? 'linear-gradient(120deg,#7B3FA4,#2E6BC0)' : '#C9C3D8',
+      cpText: S.cpText,
+      cpType: (e) => this.setState({ cpText: e.target.value }),
+      cpSubmit: () => { if (S.cpText.trim().length >= 3) this.setState({ cpStep: 3, complaintFiled: true }); },
+      cpSubmitBg: S.cpText.trim().length >= 3 ? 'linear-gradient(120deg,#7B3FA4,#2E6BC0)' : '#C9C3D8',
+      cpDone: nav({ view: null, tab: 'me' }),
+      complaintFiled: S.complaintFiled,
+      complaintTypeLabel: cpSel ? cpSel.label : 'Issue',
+      isHome: inTab('home'), isGames: inTab('games'), isMoments: inTab('moments'), isMe: inTab('me'),
+      isGamePage: S.view === 'game', isTeamPage: S.view === 'team', isPlayerPage: S.view === 'player', isCheckin: S.view === 'checkin',
+      showTabs: !S.view || ['game', 'team', 'player', 'hunt', 'notifs'].includes(S.view),
+      showCheckinBanner: S.ciStatus === 'none', showPassBanner: S.ciStatus === 'approved', showPendingBanner: S.ciStatus === 'pending',
+      ciApproved: S.ciStatus === 'approved', ciPendingMe: S.ciStatus === 'pending', notCheckedIn: S.ciStatus === 'none',
+      ciVerifying: S.aiState === 'verifying', ciFailed: S.aiState === 'failed',
+      ciAdminReview: S.aiState === 'admin', ciApprovedStep: S.aiState === 'passed' || S.ciStatus === 'approved',
+      ciFailReason: S.aiAttempts < 2 ? 'Low confidence (62%)' : 'Still below threshold',
+      ciAttemptNote: S.aiAttempts >= 1 ? 'If it fails again, your check-in goes to an admin for a human review.' : '',
+      ciResubmit: nav({ ciStep: 2, selfieTaken: false, idTaken: false, aiState: null }),
+      failAgainDemo: nav({ aiState: 'admin', ciStatus: 'pending' }),
+      back: () => this.setState(s => ({ view: s.view === 'player' ? 'team' : null })),
+      goGames: nav({ tab: 'games', view: null }), goMoments: nav({ tab: 'moments', view: null }), goMe: nav({ tab: 'me', view: null }),
+      openLiveGame: nav({ view: 'game' }), openTeam: nav({ view: 'team' }),
+      startCheckin: nav({ view: 'checkin', ciStep: 1 }),
+      tabs, dayChips, dayGames, roster: rosterVals, teamGames: [
+        { time: 'FT', vs: 'DMV United 2–2 Nairobi Ndovu', meta: 'Fri 9:00 · Seeding R1 · Field 3', tc: '#1E7A6F' },
+        { time: '10:40', vs: 'DMV United vs Lagos Legends', meta: 'Today · Seeding R2 · Field 3', tc: '#7B3FA4' },
+        { time: '2:20', vs: 'DMV United vs Addis Hawks', meta: 'Today · Seeding R3 · Field 4', tc: '#6F6981' }
+      ],
+      mySchedule: [
+        { time: '10:40', vs: 'vs Lagos Legends', meta: 'Today · Field 3 · arrive 10:20' },
+        { time: '2:20', vs: 'vs Addis Hawks', meta: 'Today · Field 4' },
+        { time: 'Sat', vs: 'Bracket play', meta: 'Time set after seeding tonight' }
+      ],
+      homeMoments: moments.slice(0, 4), allMoments, gameMoments,
+      gameEvents: [
+        { min: "38'", txt: 'GOAL — A. Kone slots it home (Umoja FC)', dot: '#D8365D' },
+        { min: "31'", txt: 'Yellow card — R. Musa (Harambee SC)', dot: '#F2A93B' },
+        { min: "24'", txt: 'GOAL — T. Banda equalizes (Harambee SC)', dot: '#D8365D' },
+        { min: "9'", txt: 'GOAL — A. Kone opens the scoring (Umoja FC)', dot: '#D8365D' },
+        { min: "1'", txt: 'Kickoff — perfect morning for it', dot: '#2C9C90' }
+      ],
+      voteCands, voteHint: S.voted ? 'You voted for ' + S.voted + ' — tap again to change your mind.' : 'One vote per fan. Voting closes at full time.',
+      uploadOpen: S.uploadOpen,
+      openUpload: nav({ uploadOpen: true, upStep: 1, upType: null, upTag: null, upPlayer: null }),
+      closeUpload: nav({ uploadOpen: false }),
+      upStep1: S.upStep === 1, upStep2: S.upStep === 2, upStep3: S.upStep === 3, upStep4: S.upStep === 4,
+      pickVideo: nav({ upType: 'video', upStep: 2 }), pickPhoto: nav({ upType: 'photo', upStep: 2 }),
+      upNext: () => { if (S.upTag) this.setState({ upStep: 3 }); },
+      upNextBg: S.upTag ? '#211A33' : '#C9C3D8',
+      submitUpload: nav({ upStep: 4, posted: true }),
+      tagChips, tagPlayers,
+      ciStep1: S.ciStep === 1, ciStep2: S.ciStep === 2, ciStep3: S.ciStep === 3, ciStep4: S.ciStep === 4,
+      checkinDots: ciDots,
+      ciNext: () => {
+        if (S.ciStep === 2 && !S.selfieTaken) return;
+        this.setState(s => ({ ciStep: Math.min(4, s.ciStep + 1) }));
+      },
+      ciDone: nav({ view: null, tab: 'me' }),
+      selfieTaken: S.selfieTaken, selfieNotTaken: !S.selfieTaken,
+      takeSelfie: nav({ selfieTaken: true }), retakeSelfie: nav({ selfieTaken: false }),
+      idTaken: S.idTaken, idNotTaken: !S.idTaken,
+      takeId: nav({ idTaken: true }), retakeId: nav({ idTaken: false }),
+      submitCheckin: () => {
+        if (!S.idTaken) return;
+        this.setState(s => ({ ciStep: 4, aiState: 'verifying', aiAttempts: s.aiAttempts + 1 }));
+        setTimeout(() => this.setState(s => {
+          if (s.aiAttempts === 1) return { aiState: 'failed' };                      // 1st try: photo match fails
+          if (s.aiAttempts >= 3) return { aiState: 'admin', ciStatus: 'pending' };   // 3rd+ failure: human review
+          return { aiState: 'passed', ciStatus: 'approved' };                        // resubmit passes
+        }), 1800);
+      },
+      approveDemo: nav({ ciStatus: 'approved', aiState: 'passed' }),
+      captainView: S.captainView,
+      toggleCaptain: () => this.setState(s => ({ captainView: !s.captainView })),
+      capToggleBg: S.captainView ? '#7B3FA4' : '#D9D4E4',
+      capKnobLeft: S.captainView ? '21px' : '3px',
+      teamPct: pct,
+      teamSummary: cleared + ' of ' + roster.length + ' cleared · 2 pending review · 1 missing ID',
+      qrCells, viewPlayer
+    };
+  }
+}
+</script>
+</body>
+</html>

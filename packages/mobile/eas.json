@@ -1,0 +1,47 @@
+{
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDNMLAbAMYC7b3QzcqSFT8Cx2pRApqAOyQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "umoja-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "umoja-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "umoja-app.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "831522312134",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:831522312134:web:dc410974782623cf11acc7",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATORS": "false",
+        "EXPO_PUBLIC_FIRESTORE_DATABASE_ID": "umoja13-app",
+        "EXPO_PUBLIC_STORAGE_BUCKET_URL": "gs://umoja-games-proto-media"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDNMLAbAMYC7b3QzcqSFT8Cx2pRApqAOyQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "umoja-app.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "umoja-app",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "umoja-app.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "831522312134",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:831522312134:web:dc410974782623cf11acc7",
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATORS": "false",
+        "EXPO_PUBLIC_FIRESTORE_DATABASE_ID": "umoja13-app",
+        "EXPO_PUBLIC_STORAGE_BUCKET_URL": "gs://umoja-games-proto-media"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "games@umojaoutreach.org",
+        "appleTeamId": "W4YKXW4536"
+      }
+    }
+  }
+}

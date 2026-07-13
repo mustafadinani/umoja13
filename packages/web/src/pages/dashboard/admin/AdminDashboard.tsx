@@ -1,0 +1,34 @@
+import { useState } from "react";
+import { theme } from "../../../lib/theme";
+import { Pill } from "../../../components/ui";
+import { AllGamesTab } from "./AllGamesTab";
+import { CheckInsTab } from "./CheckInsTab";
+import { ModerationOpsTab } from "./ModerationOpsTab";
+import { HuntAdminTab } from "./HuntAdminTab";
+
+type Tab = "games" | "checkins" | "ops" | "hunt";
+const TABS: { id: Tab; label: string }[] = [
+  { id: "games", label: "All Games" },
+  { id: "checkins", label: "Player Check-ins" },
+  { id: "ops", label: "Moderation & Ops" },
+  { id: "hunt", label: "The Hunt" },
+];
+
+export function AdminDashboard() {
+  const [tab, setTab] = useState<Tab>("games");
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "28px 24px 48px" }}>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>ADMIN</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {TABS.map((t) => (
+          <Pill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Pill>
+        ))}
+      </div>
+      {tab === "games" && <AllGamesTab />}
+      {tab === "checkins" && <CheckInsTab />}
+      {tab === "ops" && <ModerationOpsTab />}
+      {tab === "hunt" && <HuntAdminTab />}
+    </div>
+  );
+}

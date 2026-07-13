@@ -1,0 +1,48 @@
+{
+  "firestore": [
+    {
+      "database": "umoja13-app",
+      "rules": "packages/backend/firestore.rules",
+      "indexes": "packages/backend/firestore.indexes.json"
+    }
+  ],
+  "storage": [
+    {
+      "bucket": "umoja-games-proto-media",
+      "rules": "packages/backend/storage.rules"
+    }
+  ],
+  "functions": [
+    {
+      "source": "packages/backend/functions",
+      "codebase": "umoja-games",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "hosting": {
+    "target": "umoja-games-site",
+    "public": "packages/web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "functions": { "port": 5001 },
+    "firestore": { "port": 8080 },
+    "storage": { "port": 9199 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true },
+    "singleProjectMode": true
+  }
+}
