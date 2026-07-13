@@ -1,6 +1,6 @@
 node_modules/
 dist/
-lib/
+/packages/backend/functions/lib/
 build/
 .expo/
 .env
