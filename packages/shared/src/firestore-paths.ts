@@ -19,6 +19,9 @@ export const COLLECTIONS = {
   huntSubmissions: "huntSubmissions",
   chatEscalations: "chatEscalations",
   counters: "counters",
+  uatScenarios: "uatScenarios",
+  uatBugs: "uatBugs",
+  uatSignoffs: "uatSignoffs",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

@@ -13,6 +13,7 @@ import { Team } from "./pages/Team";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
+import { Uat } from "./pages/uat/Uat";
 
 export default function App() {
   return (
@@ -34,6 +35,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/uat"
+              element={
+                <ProtectedRoute>
+                  <Uat />
                 </ProtectedRoute>
               }
             />

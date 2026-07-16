@@ -141,5 +141,21 @@ service cloud.firestore {
     match /counters/{id} {
       allow read, write: if false;
     }
+
+    // ---- UAT tracker (staging-only tool; shared checklist + append-only lists) ----
+    match /uatScenarios/{scenarioId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+    match /uatBugs/{bugId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.filedByUid == request.auth.uid;
+    }
+    match /uatSignoffs/{signoffId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
   }
 }

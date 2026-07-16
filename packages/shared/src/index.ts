@@ -7,6 +7,7 @@ export * from "./types/moments.js";
 export * from "./types/incident.js";
 export * from "./types/hunt.js";
 export * from "./types/chat.js";
+export * from "./types/uat.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/sponsors.js";
