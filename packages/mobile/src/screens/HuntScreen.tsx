@@ -145,7 +145,7 @@ export function HuntScreen() {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: 20, paddingBottom: 24, paddingHorizontal: 20 },
+  hero: { paddingTop: 60, paddingBottom: 24, paddingHorizontal: 20 },
   heroTitle: { color: "#fff", fontWeight: "800", fontSize: 26 },
   heroSub: { color: "#fff", opacity: 0.9, fontSize: 13, marginTop: 6 },
 });

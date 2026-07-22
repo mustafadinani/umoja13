@@ -55,7 +55,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         {upNext.length === 0 && <Text style={{ color: theme.color.textMuted }}>No upcoming games yet.</Text>}
       </View>
 
-      <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Hunt")} activeOpacity={0.85}>
+      <TouchableOpacity onPress={() => navigation.navigate("Hunt")} activeOpacity={0.85}>
         <LinearGradient colors={hunterGradient} style={styles.huntTile}>
           <Text style={styles.huntTitle}>THE HUNT · WIN $500</Text>
           <Text style={styles.huntSub}>45 missions around the plex →</Text>

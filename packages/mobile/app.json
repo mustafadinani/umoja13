@@ -28,6 +28,9 @@
         "projectId": "ddf3e5f7-077c-4ace-8d2f-36b27fccc3c7"
       }
     },
-    "owner": "umoja-outreach-foundation"
+    "owner": "umoja-outreach-foundation",
+    "plugins": [
+      "expo-status-bar"
+    ]
   }
 }

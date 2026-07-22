@@ -24,7 +24,6 @@ export type RootStackParamList = {
   Game: { gameId: string };
   Team: { teamId: string };
   CheckIn: { teamId: string; categoryId: string };
-  Hunt: undefined;
   Notifications: undefined;
   Complaint: undefined;
 };
@@ -46,6 +45,7 @@ function TabNavigator() {
     >
       <Tabs.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏠" focused={focused} /> }} />
       <Tabs.Screen name="Games" component={GamesScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="⚽" focused={focused} /> }} />
+      <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       <Tabs.Screen name="Moments" component={MomentsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🎬" focused={focused} /> }} />
       <Tabs.Screen name="MyUmoja" component={MyUmojaScreen} options={{ title: "My Umoja", tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }} />
     </Tabs.Navigator>
@@ -71,7 +71,6 @@ export function RootNavigator() {
             <Stack.Screen name="Game" component={GameScreen} options={{ headerShown: true, title: "" }} />
             <Stack.Screen name="Team" component={TeamScreen} options={{ headerShown: true, title: "" }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ headerShown: true, title: "Check In" }} />
-            <Stack.Screen name="Hunt" component={HuntScreen} options={{ headerShown: true, title: "The Hunt" }} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
           </>
