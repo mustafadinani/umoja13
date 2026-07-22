@@ -28,10 +28,12 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <Text style={styles.category}>{CATEGORIES.find((c) => c.id === game.categoryId)?.label} · {game.field}</Text>
         <View style={styles.scoreRow}>
           <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: home.id })} style={{ flex: 1 }}>
+            <View style={[styles.colorDot, { backgroundColor: home.color ?? theme.color.purple }]} />
             <Text style={styles.teamName}>{home.name}</Text>
           </TouchableOpacity>
           <Text style={styles.score}>{game.status === "scheduled" ? game.kickoffTime : `${homeGoals} – ${awayGoals}`}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1 }}>
+          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1, alignItems: "flex-end" }}>
+            <View style={[styles.colorDot, { backgroundColor: away.color ?? theme.color.blue }]} />
             <Text style={[styles.teamName, { textAlign: "right" }]}>{away.name}</Text>
           </TouchableOpacity>
         </View>
@@ -60,6 +62,7 @@ const styles = StyleSheet.create({
   category: { color: "#A79FC0", fontSize: 12, marginTop: 8 },
   scoreRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
   teamName: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  colorDot: { width: 10, height: 10, borderRadius: 5, marginBottom: 6 },
   score: { color: "#fff", fontWeight: "800", fontSize: 32, marginHorizontal: 12 },
   section: { padding: 16 },
   sectionTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },

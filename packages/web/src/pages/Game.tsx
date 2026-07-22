@@ -21,7 +21,6 @@ export function Game() {
   const { data: categories } = useCategories();
   const { data: allMoments } = useMoments();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [potmVote, setPotmVote] = useState<string | null>(null);
 
   if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -30,6 +29,7 @@ export function Game() {
   const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
   const gameMoments = allMoments.filter((m) => m.gameId === game.id);
   const roster = [...(home?.roster ?? []), ...(away?.roster ?? [])];
+  const myVote = profile ? game.potmVotes?.[profile.uid] ?? null : null;
 
   async function setStatus(status: GameStatus) {
     if (!gameId) return;
@@ -38,8 +38,7 @@ export function Game() {
 
   async function votePotm(playerId: string) {
     if (!profile || !gameId) return;
-    const same = potmVote === playerId;
-    setPotmVote(same ? null : playerId);
+    const same = myVote === playerId;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), {
       [`potmVotes.${profile.uid}`]: same ? null : playerId,
     });
@@ -80,13 +79,23 @@ export function Game() {
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>PLAYER OF THE MATCH</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {roster.slice(0, 6).map((p) => {
-                const votes = Object.values(game.potmVotes ?? {}).filter((v) => v === p.userId).length;
-                const total = Object.keys(game.potmVotes ?? {}).length || 1;
+                const castVotes = Object.values(game.potmVotes ?? {}).filter((v): v is string => !!v);
+                const votes = castVotes.filter((v) => v === p.userId).length;
+                const total = castVotes.length || 1;
                 const pct = Math.round((votes / total) * 100);
+                const isMyVote = myVote === p.userId;
                 return (
-                  <div key={p.userId} onClick={() => votePotm(p.userId)} style={{ cursor: "pointer", background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, fontWeight: 600 }}>
-                      <span>#{p.jerseyNumber} {p.displayName}</span>
+                  <div
+                    key={p.userId}
+                    onClick={() => votePotm(p.userId)}
+                    style={{
+                      cursor: "pointer", background: isMyVote ? theme.color.purpleLight + "22" : "#fff",
+                      border: `1px solid ${isMyVote ? theme.color.purple : theme.color.border}`,
+                      borderRadius: theme.radius.sm, padding: "8px 12px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, fontWeight: 600 }}>
+                      <span>{isMyVote && "✓ "}#{p.jerseyNumber} {p.displayName}</span>
                       <span>{pct}%</span>
                     </div>
                     <div style={{ height: 6, background: "#F1EFF5", borderRadius: 99, marginTop: 6 }}>

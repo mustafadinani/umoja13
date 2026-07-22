@@ -61,7 +61,7 @@ export function Standings() {
               <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>GROUP {group}</div>
               <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 10, padding: "10px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, borderBottom: `1px solid ${theme.color.border}` }}>
-                  <span>#</span><span>TEAM</span><span>W-D-L</span><span>GF</span><span>GD</span><span>PTS</span>
+                  <span>#</span><span>TEAM</span><span>PTS</span><span>GD</span><span>GF</span><span>W-D-L</span>
                 </div>
                 {list.map((t, i) => (
                   <div
@@ -71,10 +71,10 @@ export function Standings() {
                   >
                     <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
                     <span style={{ fontWeight: 600 }}>{t.name}</span>
-                    <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
-                    <span>{t.stats.goalsFor}</span>
-                    <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
                     <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
+                    <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
+                    <span>{t.stats.goalsFor}</span>
+                    <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
                   </div>
                 ))}
               </div>
