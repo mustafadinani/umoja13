@@ -66,7 +66,7 @@ export function CommissionerDashboard() {
 }
 
 function sourceIcon(source: string): string {
-  return { captain_complaint: "📝", referee_flag: "🚩", forfeit: "🚩", fan_message: "💬" }[source] ?? "•";
+  return { captain_complaint: "📝", referee_flag: "🚩", forfeit: "🚩", fan_message: "💬", volunteer_message: "🙋" }[source] ?? "•";
 }
 
 function FinalizeRow({

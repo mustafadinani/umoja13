@@ -6,16 +6,18 @@ import { useAnnouncements, useGames, useHuntCrews, useMoments, useTeams } from "
 import { Card } from "../components/ui";
 import { VENUE } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
+import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 
 export function Home() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
   const { data: crews } = useHuntCrews();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
+  const [volunteerOpen, setVolunteerOpen] = useState(false);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -57,6 +59,12 @@ export function Home() {
                 style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 FRESH MOMENTS
+              </button>
+              <button
+                onClick={() => (user ? setVolunteerOpen(true) : navigate("/signup"))}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
+              >
+                🙋 BECOME A VOLUNTEER
               </button>
             </div>
           </div>
@@ -167,6 +175,7 @@ export function Home() {
       </div>
 
       {openAnnouncement && <AnnouncementModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />}
+      {volunteerOpen && <BecomeVolunteerModal onClose={() => setVolunteerOpen(false)} />}
     </div>
   );
 }

@@ -113,6 +113,24 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['thread']));
     }
 
+    // ---- Volunteers ----
+    // Applications: applicant can read/create their own; approve/reject only via
+    // the reviewVolunteerApplication Cloud Function (Admin SDK, bypasses rules —
+    // it's the only path that grants the 'volunteer' role, same as setUserRole).
+    match /volunteerApplications/{applicationId} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
+        request.resource.data.status == 'pending';
+    }
+    // Tasks/shifts: publicly readable (matches games/moments), staff manage the
+    // task list, an assigned volunteer may only flag a conflict or mark done.
+    match /volunteerTasks/{taskId} {
+      allow read: if true;
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done']));
+    }
+
     // ---- The Hunt ----
     match /huntCrews/{crewId} {
       allow read: if true;

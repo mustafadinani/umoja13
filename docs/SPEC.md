@@ -78,6 +78,39 @@ submitted → under_review → resolved | denied (commissioner can cycle by
 clicking the pill or via the reply modal). Unlimited two-way threaded
 messaging between commissioner and filer once a case exists.
 
+## Volunteers (added from the second Claude Design iteration)
+Public "🙋 Become a Volunteer" CTA on the Home hero (next to Fresh Moments) —
+any signed-in user can apply: name, email, phone, emergency contact,
+available days (Fri/Sat/Sun), optional photo. Application lands in
+`volunteerApplications` (status: pending → approved | rejected) for
+admin/commissioner review in the admin dashboard's **Volunteers** tab.
+Approving an application grants the `volunteer` role via the
+`reviewVolunteerApplication` Cloud Function — the same custom-claims +
+Firestore-roles pattern as `setUserRole`, and (like `setUserRole`) the only
+path to that role. `volunteer` sits in the `Role` union between `captain`
+and `referee`.
+
+Once approved, a volunteer's dashboard (`primaryRole: "volunteer"`) shows
+**My Shifts** — tasks/shifts assigned to them (`volunteerTasks`, type: setup |
+checkin_support | water_shade | packdown | custom, with a time slot and
+location) — where they can mark a shift done or flag "can't make it" with a
+reason. Admins create/assign shifts from the Volunteers tab (title, type,
+time, location, optional assignee) and see a "Needs attention" queue of any
+shift flagged can't-make. Volunteers can also message the organizers, which
+routes through the same unified incidents inbox as other messages
+(`source: "volunteer_message"`), reviewed by the commissioner alongside
+captain complaints/referee flags/fan messages.
+
+Web-only, like the rest of the role-dashboard system — the mobile app stays
+scoped to fan/player/captain per the original design intent.
+
+## Palette refresh (second Claude Design iteration)
+The second design export refreshed 5 core theme colors and both gradients
+(`heroGradient`, `hunterGradient`) — updated in both `packages/web/src/lib/theme.ts`
+and `packages/mobile/src/lib/theme.ts`. All other tokens (navy/text, textMuted,
+border, bg, danger/success/warning + their `*Bg` variants, purpleLight,
+tealLight, orange) are unchanged.
+
 ## The Hunt
 **Real content is the 45-mission 2026 guide** (`packages/shared/src/constants/huntMissions.ts`,
 transcribed from the Scavenger Hunt PDF) — 30 numbered missions across 3 days +

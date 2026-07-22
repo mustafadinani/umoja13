@@ -2,6 +2,7 @@ export const ROLES = [
   "fan",
   "player",
   "captain",
+  "volunteer",
   "referee",
   "commissioner",
   "admin",

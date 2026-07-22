@@ -9,14 +9,14 @@ export const theme = {
     textMuted: "#6F6981",
     border: "#EAE7F0",
     bg: "#F7F6F3",
-    purple: "#7B3FA4",
+    purple: "#8B2FD1",
     purpleLight: "#C084E8",
-    blue: "#2E6BC0",
-    teal: "#2C9C90",
+    blue: "#2563EB",
+    teal: "#0FAE9E",
     tealLight: "#6FC2B5",
-    gold: "#F2B95B",
+    gold: "#FDB528",
     orange: "#F2856F",
-    pink: "#D8365D",
+    pink: "#EC3B63",
     danger: "#C0392B",
     dangerBg: "#FBE3DF",
     success: "#1E7A6F",
@@ -35,5 +35,5 @@ export const theme = {
   },
 } as const;
 
-export const heroGradient = "linear-gradient(115deg,#7B3FA4 0%,#2E6BC0 55%,#2C9C90 100%)";
-export const hunterGradient = "linear-gradient(120deg,#D8365D,#EF5A4C)";
+export const heroGradient = "linear-gradient(115deg,#8B2FD1 0%,#2563EB 55%,#0FAE9E 100%)";
+export const hunterGradient = "linear-gradient(120deg,#EC3B63,#FF5A3C)";

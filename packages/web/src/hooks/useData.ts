@@ -16,6 +16,8 @@ import {
   type Notification,
   type UserProfile,
   type CheckIn,
+  type VolunteerApplication,
+  type VolunteerTask,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -86,3 +88,18 @@ export const useMyInvites = (email: string | undefined) =>
 
 export const useHuntSubmissions = (constraints: QueryConstraint[] = []) =>
   useCollection<HuntSubmission>(COLLECTIONS.huntSubmissions, [orderBy("createdAt", "desc"), ...constraints]);
+
+export const useVolunteers = () =>
+  useCollection<UserProfile>(COLLECTIONS.users, [where("roles", "array-contains", "volunteer")]);
+
+export const useVolunteerApplications = (constraints: QueryConstraint[] = []) =>
+  useCollection<VolunteerApplication>(COLLECTIONS.volunteerApplications, [orderBy("createdAt", "desc"), ...constraints]);
+
+export const useVolunteerTasks = () =>
+  useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, [orderBy("createdAt", "desc")]);
+
+export const useMyVolunteerTasks = (uid: string | undefined) =>
+  useCollection<VolunteerTask>(
+    COLLECTIONS.volunteerTasks,
+    uid ? [where("assigneeUid", "==", uid)] : []
+  );

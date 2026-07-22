@@ -22,6 +22,8 @@ export const COLLECTIONS = {
   uatScenarios: "uatScenarios",
   uatBugs: "uatBugs",
   uatSignoffs: "uatSignoffs",
+  volunteerApplications: "volunteerApplications",
+  volunteerTasks: "volunteerTasks",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

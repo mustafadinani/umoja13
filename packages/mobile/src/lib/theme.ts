@@ -9,14 +9,14 @@ export const theme = {
     textMuted: "#6F6981",
     border: "#EAE7F0",
     bg: "#F7F6F3",
-    purple: "#7B3FA4",
+    purple: "#8B2FD1",
     purpleLight: "#C084E8",
-    blue: "#2E6BC0",
-    teal: "#2C9C90",
+    blue: "#2563EB",
+    teal: "#0FAE9E",
     tealLight: "#6FC2B5",
-    gold: "#F2B95B",
+    gold: "#FDB528",
     orange: "#F2856F",
-    pink: "#D8365D",
+    pink: "#EC3B63",
     danger: "#C0392B",
     dangerBg: "#FBE3DF",
     success: "#1E7A6F",
@@ -36,4 +36,4 @@ export const theme = {
 } as const;
 
 export const heroGradient = [theme.color.purple, theme.color.blue] as const;
-export const hunterGradient = [theme.color.pink, "#EF5A4C"] as const;
+export const hunterGradient = [theme.color.pink, "#FF5A3C"] as const;

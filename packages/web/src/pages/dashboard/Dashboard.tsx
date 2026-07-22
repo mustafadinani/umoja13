@@ -4,6 +4,7 @@ import { FanDashboard } from "./fan/FanDashboard";
 import { RefereeDashboard } from "./referee/RefereeDashboard";
 import { CommissionerDashboard } from "./commissioner/CommissionerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
+import { VolunteerDashboard } from "./volunteer/VolunteerDashboard";
 
 /** Renders the dashboard matching the signed-in user's primaryRole. */
 export function Dashboard() {
@@ -14,6 +15,8 @@ export function Dashboard() {
     case "player":
     case "captain":
       return <PlayerDashboard />;
+    case "volunteer":
+      return <VolunteerDashboard />;
     case "referee":
       return <RefereeDashboard />;
     case "commissioner":

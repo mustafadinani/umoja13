@@ -72,3 +72,8 @@ export const setUserRole = httpsCallable<
   { targetUid: string; roles: string[]; primaryRole: string },
   { ok: true }
 >(functions, "setUserRole");
+
+export const reviewVolunteerApplication = httpsCallable<
+  { applicationId: string; decision: "approve" | "reject" },
+  { status: "approved" | "rejected" }
+>(functions, "reviewVolunteerApplication");
