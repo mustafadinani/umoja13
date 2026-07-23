@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { FESTIVAL_CATEGORY_IDS, type Category } from "@umoja/shared";
@@ -7,11 +7,15 @@ import { useCategories, useGames, useTeams } from "../hooks/useData";
 import { Card, Pill, StatusBadge } from "../components/ui";
 
 /**
- * Split out and memoized so this row doesn't re-render (and repaint every
- * Pill's text) every time an unrelated games/teams snapshot fires elsewhere
- * on this screen — e.g. a live game's score updating every few seconds.
+ * On first mount, this row's Pills can size themselves correctly (their
+ * width already reflects the real label) but leave the text glyphs unpainted
+ * until something forces a second render pass — confirmed by screen
+ * recording: labels stayed blank for ~3s after launch and only appeared the
+ * instant the user tapped a chip (i.e. on the next re-render), not on any
+ * fixed timer. Forcing one extra render right after mount fixes it
+ * regardless of how fast real data happens to arrive.
  */
-const CategoryChipRow = memo(function CategoryChipRow({
+function CategoryChipRow({
   categories,
   categoryId,
   onSelect,
@@ -20,6 +24,12 @@ const CategoryChipRow = memo(function CategoryChipRow({
   categoryId: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  const [, forceRepaint] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => forceRepaint((n) => n + 1));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
     <ScrollView
       horizontal
@@ -35,7 +45,7 @@ const CategoryChipRow = memo(function CategoryChipRow({
       ))}
     </ScrollView>
   );
-});
+}
 
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: categories } = useCategories();
