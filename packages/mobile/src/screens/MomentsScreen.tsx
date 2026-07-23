@@ -178,10 +178,7 @@ export function MomentsScreen() {
           </>
         )}
       </Modal>
-      {openMomentId && (() => {
-        const openMoment = moments.find((m) => m.id === openMomentId);
-        return openMoment ? <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} /> : null;
-      })()}
+      <MomentDetailModal moment={moments.find((m) => m.id === openMomentId) ?? null} onClose={() => setOpenMomentId(null)} />
     </View>
   );
 }

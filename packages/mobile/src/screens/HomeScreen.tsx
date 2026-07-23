@@ -162,7 +162,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         )}
       </Modal>
       {sponsorInquiryOpen && <SponsorInquiryModal onClose={() => setSponsorInquiryOpen(false)} />}
-      {openMoment && <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />}
+      <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />
     </ScrollView>
   );
 }
