@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Linking } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { VENUE, SPONSOR_TIER_ORDER, SPONSOR_TIER_LABELS } from "@umoja/shared";
+import { VENUE, SPONSOR_TIER_ORDER, SPONSOR_TIER_LABELS, type Sponsor } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useAnnouncements, useGames, useMoments, useSponsors, useTeams } from "../hooks/useData";
-import { Card, Modal } from "../components/ui";
+import { Card, Modal, PrimaryButton } from "../components/ui";
 import { SponsorInquiryModal } from "../components/SponsorInquiryModal";
+import { MomentDetailModal } from "../components/MomentDetailModal";
 
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { profile } = useAuth();
@@ -19,7 +20,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [sponsorInquiryOpen, setSponsorInquiryOpen] = useState(false);
+  const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
+  const [openMomentId, setOpenMomentId] = useState<string | null>(null);
   const openAnnouncement = announcements.find((a) => a.id === openAnnouncementId) ?? null;
+  const openMoment = moments.find((m) => m.id === openMomentId) ?? null;
   const visibleSponsors = sponsors.filter((s) => s.visible ?? true);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
@@ -72,13 +76,26 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>FRESH MOMENTS</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>FRESH MOMENTS</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Moments")}>
+            <Text style={{ color: theme.color.blue, fontWeight: "700", fontSize: 12.5 }}>See all →</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {moments.slice(0, 5).map((m) => (
-            <View key={m.id} style={styles.momentTile}>
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>{m.source.toUpperCase()}</Text>
-            </View>
+            <TouchableOpacity key={m.id} onPress={() => setOpenMomentId(m.id)} activeOpacity={0.85}>
+              {m.mediaUrl && m.mediaType !== "video" ? (
+                <Image source={{ uri: m.mediaUrl }} style={styles.momentTile} />
+              ) : (
+                <View style={[styles.momentTile, m.mediaType === "video" ? styles.momentTileVideo : null]}>
+                  {m.mediaType === "video" && <Text style={{ fontSize: 18 }}>▶</Text>}
+                  <Text style={{ color: "#fff", fontWeight: "700", fontSize: 11 }}>{m.source.toUpperCase()}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           ))}
+          {moments.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No moments yet — be the first to share one.</Text>}
         </ScrollView>
       </View>
 
@@ -108,9 +125,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
               <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>{SPONSOR_TIER_LABELS[tier].toUpperCase()}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {tierSponsors.map((s) => (
-                  <View key={s.id} style={styles.sponsorChip}>
+                  <TouchableOpacity key={s.id} style={styles.sponsorChip} onPress={() => setOpenSponsor(s)} activeOpacity={0.7}>
+                    {s.logoUrl && <Image source={{ uri: s.logoUrl }} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 8 }} resizeMode="contain" />}
                     <Text style={{ fontWeight: "700", fontSize: 13 }}>{s.name}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </View>
@@ -130,7 +148,21 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           </View>
         )}
       </Modal>
+      <Modal visible={!!openSponsor} onClose={() => setOpenSponsor(null)}>
+        {openSponsor && (
+          <View>
+            {openSponsor.logoUrl && <Image source={{ uri: openSponsor.logoUrl }} style={{ width: "100%", height: 70, marginBottom: 12 }} resizeMode="contain" />}
+            <Text style={{ fontWeight: "800", fontSize: 20 }}>{openSponsor.name}</Text>
+            {openSponsor.tagline && <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, marginBottom: 12 }}>{openSponsor.tagline}</Text>}
+            {openSponsor.story && <Text style={{ fontSize: 14.5, lineHeight: 21, marginBottom: openSponsor.websiteUrl ? 16 : 0 }}>{openSponsor.story}</Text>}
+            {openSponsor.websiteUrl && (
+              <PrimaryButton style={{ width: "100%" }} onPress={() => Linking.openURL(openSponsor.websiteUrl!)}>VISIT WEBSITE</PrimaryButton>
+            )}
+          </View>
+        )}
+      </Modal>
       {sponsorInquiryOpen && <SponsorInquiryModal onClose={() => setSponsorInquiryOpen(false)} />}
+      {openMoment && <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />}
     </ScrollView>
   );
 }
@@ -151,5 +183,6 @@ const styles = StyleSheet.create({
   huntTitle: { color: "#fff", fontWeight: "800", fontSize: 17 },
   huntSub: { color: "#fff", opacity: 0.9, marginTop: 4, fontSize: 13 },
   momentTile: { width: 100, height: 70, borderRadius: 10, backgroundColor: theme.color.purple, marginRight: 8, alignItems: "center", justifyContent: "center" },
-  sponsorChip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
+  momentTileVideo: { backgroundColor: theme.color.navy },
+  sponsorChip: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
 });

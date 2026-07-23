@@ -18,8 +18,15 @@ export function Pill({
     <TouchableOpacity onPress={onPress} disabled={!onPress} activeOpacity={0.7} style={[
       styles.pill,
       { backgroundColor: bg ?? (active ? theme.color.navy : "#F1EFF5") },
+      !active && !bg ? styles.pillInactiveBorder : null,
     ]}>
-      <Text numberOfLines={1} style={{ color: fg ?? (active ? "#fff" : theme.color.text), fontWeight: "600", fontSize: 13 }}>{children}</Text>
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.3}
+        style={{ color: fg ?? (active ? "#fff" : theme.color.text), fontWeight: "600", fontSize: 13, lineHeight: 16 }}
+      >
+        {children}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -75,6 +82,10 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     flexShrink: 0,
     alignSelf: "flex-start",
+  },
+  pillInactiveBorder: {
+    borderWidth: 1,
+    borderColor: theme.color.border,
   },
   primaryButton: {
     paddingVertical: 13,

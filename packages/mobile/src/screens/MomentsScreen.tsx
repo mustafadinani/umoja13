@@ -2,14 +2,14 @@ import { useMemo, useState } from "react";
 import { View, Text, FlatList, Image, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { addDoc, collection, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { addDoc, collection, doc, deleteDoc } from "firebase/firestore";
 import { COLLECTIONS, MOMENT_TAGS, type Moment } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useMoments, useMyMoments } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../components/ui";
-import { Lightbox } from "../components/Lightbox";
+import { MomentDetailModal } from "../components/MomentDetailModal";
 
 const SOURCE_BADGE: Record<string, string> = { game: "⚽", hunt: "🧭", community: "🎉" };
 
@@ -24,7 +24,7 @@ export function MomentsScreen() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
-  const [lightbox, setLightbox] = useState<{ url: string; type: "photo" | "video" } | null>(null);
+  const [openMomentId, setOpenMomentId] = useState<string | null>(null);
 
   // Public approved feed plus the signed-in user's own posts regardless of
   // moderation status — otherwise a pending/rejected post just vanishes on
@@ -85,11 +85,6 @@ export function MomentsScreen() {
     setError(null);
   }
 
-  async function toggleLike(momentId: string, liked: boolean) {
-    if (!user) return;
-    await updateDoc(doc(db, COLLECTIONS.moments, momentId), { likeUids: liked ? arrayRemove(user.uid) : arrayUnion(user.uid) });
-  }
-
   async function remove(momentId: string) {
     await deleteDoc(doc(db, COLLECTIONS.moments, momentId));
   }
@@ -109,18 +104,16 @@ export function MomentsScreen() {
           const liked = user ? m.likeUids.includes(user.uid) : false;
           const isOwn = user?.uid === m.postedBy;
           return (
-            <View style={styles.tile}>
+            <TouchableOpacity style={styles.tile} onPress={() => setOpenMomentId(m.id)} activeOpacity={0.85}>
               {m.mediaUrl ? (
-                <TouchableOpacity onPress={() => setLightbox({ url: m.mediaUrl, type: m.mediaType })} activeOpacity={0.85}>
-                  {m.mediaType === "video" ? (
-                    <View style={[styles.tileImage, styles.videoPlaceholder]}>
-                      <Text style={{ fontSize: 26 }}>▶</Text>
-                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", marginTop: 2 }}>VIDEO</Text>
-                    </View>
-                  ) : (
-                    <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
-                  )}
-                </TouchableOpacity>
+                m.mediaType === "video" ? (
+                  <View style={[styles.tileImage, styles.videoPlaceholder]}>
+                    <Text style={{ fontSize: 26 }}>▶</Text>
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", marginTop: 2 }}>VIDEO</Text>
+                  </View>
+                ) : (
+                  <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+                )
               ) : (
                 <View style={[styles.tileImage, { backgroundColor: theme.color.purple }]} />
               )}
@@ -136,13 +129,11 @@ export function MomentsScreen() {
                 <Text style={{ fontWeight: "600", fontSize: 12 }} numberOfLines={1}>{m.caption}</Text>
                 {m.comment && <Text style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2 }} numberOfLines={2}>{m.comment}</Text>}
                 <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                  <TouchableOpacity onPress={() => toggleLike(m.id, liked)}>
-                    <Text style={{ color: liked ? theme.color.pink : theme.color.textMuted, fontSize: 12 }}>{liked ? "♥" : "♡"} {m.likeUids.length}</Text>
-                  </TouchableOpacity>
+                  <Text style={{ color: liked ? theme.color.pink : theme.color.textMuted, fontSize: 12 }}>{liked ? "♥" : "♡"} {m.likeUids.length}</Text>
                   {isOwn && <TouchableOpacity onPress={() => remove(m.id)}><Text style={{ color: theme.color.danger, fontSize: 11 }}>Delete</Text></TouchableOpacity>}
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -187,7 +178,10 @@ export function MomentsScreen() {
           </>
         )}
       </Modal>
-      <Lightbox visible={!!lightbox} src={lightbox?.url ?? null} mediaType={lightbox?.type} onClose={() => setLightbox(null)} />
+      {openMomentId && (() => {
+        const openMoment = moments.find((m) => m.id === openMomentId);
+        return openMoment ? <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} /> : null;
+      })()}
     </View>
   );
 }

@@ -60,8 +60,8 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 10 },
+  header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 4 },
   title: { fontWeight: "800", fontSize: 24, marginBottom: 12 },
   segRow: { flexDirection: "row", gap: 8 },
-  chipRow: { flexGrow: 0 },
+  chipRow: { flexGrow: 0, marginTop: 14 },
 });
