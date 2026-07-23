@@ -14,6 +14,8 @@ import { GameScreen } from "../screens/GameScreen";
 import { TeamScreen } from "../screens/TeamScreen";
 import { CheckInScreen } from "../screens/CheckInScreen";
 import { HuntScreen } from "../screens/HuntScreen";
+import { RefereeScreen } from "../screens/RefereeScreen";
+import { RefereeGameScreen } from "../screens/RefereeGameScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
 
@@ -24,6 +26,7 @@ export type RootStackParamList = {
   Game: { gameId: string };
   Team: { teamId: string };
   CheckIn: { teamId: string; categoryId: string };
+  RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;
 };
@@ -36,6 +39,9 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 }
 
 function TabNavigator() {
+  const { profile } = useAuth();
+  const isReferee = profile?.roles?.includes("referee") ?? false;
+
   return (
     <Tabs.Navigator
       screenOptions={{
@@ -45,6 +51,9 @@ function TabNavigator() {
     >
       <Tabs.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏠" focused={focused} /> }} />
       <Tabs.Screen name="Games" component={GamesScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="⚽" focused={focused} /> }} />
+      {isReferee && (
+        <Tabs.Screen name="Referee" component={RefereeScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏁" focused={focused} /> }} />
+      )}
       <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       <Tabs.Screen name="Moments" component={MomentsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🎬" focused={focused} /> }} />
       <Tabs.Screen name="MyUmoja" component={MyUmojaScreen} options={{ title: "My Umoja", tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }} />
@@ -71,6 +80,7 @@ export function RootNavigator() {
             <Stack.Screen name="Game" component={GameScreen} options={{ headerShown: true, title: "" }} />
             <Stack.Screen name="Team" component={TeamScreen} options={{ headerShown: true, title: "" }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ headerShown: true, title: "Check In" }} />
+            <Stack.Screen name="RefereeGame" component={RefereeGameScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
           </>

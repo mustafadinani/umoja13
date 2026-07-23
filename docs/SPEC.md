@@ -16,9 +16,14 @@ tone in copy but don't over-index visuals on it beyond what's in the prototype.
 dashboard + captain tools (roster/jersey mgmt, complaints). Commissioner and
 admin both see all games/categories; commissioner owns the finalize +
 moderation queues. A user can hold multiple roles; `primaryRole` drives nav.
-Web app has all 6 roles. Mobile app is intentionally narrower: fan/player/
-captain only (no referee/commissioner/admin UI) — matches original design
-intent ("mobile = personal experience", web = "public hub with role dashboards").
+Web app has all 6 roles. Mobile app covers fan/player/captain/referee — a
+Referee tab (🏁) appears in the bottom nav only for users with the `referee`
+role, mirroring web's gate check → match console → MOTM → submit game card
+flow (packages/mobile/src/screens/RefereeScreen.tsx,
+RefereeGameScreen.tsx). Commissioner/admin remain web-only — those stay
+desk-bound review queues, not something a referee/commissioner needs
+in-hand on the field, matching original design intent ("mobile = personal
+experience", web = "public hub with role dashboards").
 
 ## Real categories (14) — packages/shared/src/constants/categories.ts
 Men's Open (9v9), Men's Over 40 (9v9, 40+ or turning 40 in 2026), Men's Over 30
