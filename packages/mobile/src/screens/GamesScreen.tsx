@@ -1,10 +1,41 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { FESTIVAL_CATEGORY_IDS } from "@umoja/shared";
+import { FESTIVAL_CATEGORY_IDS, type Category } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useTeams } from "../hooks/useData";
 import { Card, Pill, StatusBadge } from "../components/ui";
+
+/**
+ * Split out and memoized so this row doesn't re-render (and repaint every
+ * Pill's text) every time an unrelated games/teams snapshot fires elsewhere
+ * on this screen — e.g. a live game's score updating every few seconds.
+ */
+const CategoryChipRow = memo(function CategoryChipRow({
+  categories,
+  categoryId,
+  onSelect,
+}: {
+  categories: Category[];
+  categoryId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator
+      style={styles.chipRow}
+      contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingRight: 32, paddingVertical: 12 }}
+    >
+      <Pill active={!categoryId} bg={!categoryId ? theme.color.purple : undefined} onPress={() => onSelect(null)}>All</Pill>
+      {categories.map((c) => (
+        <Pill key={c.id} active={categoryId === c.id} bg={categoryId === c.id ? theme.color.purple : undefined} onPress={() => onSelect(c.id)}>
+          {c.label}
+        </Pill>
+      ))}
+    </ScrollView>
+  );
+});
 
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: categories } = useCategories();
@@ -30,19 +61,7 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
       <View style={styles.divider} />
       <Text style={styles.filterLabel}>FILTER BY CATEGORY</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator
-        style={styles.chipRow}
-        contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingRight: 32, paddingVertical: 12 }}
-      >
-        <Pill active={!categoryId} bg={!categoryId ? theme.color.purple : undefined} onPress={() => setCategoryId(null)}>All</Pill>
-        {categories.map((c) => (
-          <Pill key={c.id} active={categoryId === c.id} bg={categoryId === c.id ? theme.color.purple : undefined} onPress={() => setCategoryId(c.id)}>
-            {c.label}
-          </Pill>
-        ))}
-      </ScrollView>
+      <CategoryChipRow categories={categories} categoryId={categoryId} onSelect={setCategoryId} />
 
       <ScrollView style={{ padding: 16 }}>
         {seg === "schedule" ? (
