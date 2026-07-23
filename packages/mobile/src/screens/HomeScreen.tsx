@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   heroSub: { color: "#fff", opacity: 0.9, marginTop: 10, fontSize: 14 },
   liveCard: { backgroundColor: theme.color.navy, margin: 16, marginTop: -16, borderRadius: theme.radius.lg, padding: 16 },
   liveLabel: { color: theme.color.gold, fontWeight: "700", fontSize: 12 },
-  liveScoreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  liveScoreRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 10, gap: 10 },
   liveTeam: { color: "#fff", fontWeight: "600", fontSize: 13, flex: 1 },
   liveScore: { color: "#fff", fontWeight: "800", fontSize: 28 },
   section: { padding: 16 },

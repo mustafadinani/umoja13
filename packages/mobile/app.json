@@ -30,7 +30,15 @@
     },
     "owner": "umoja-outreach-foundation",
     "plugins": [
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Umoja13 needs access to your photo library so you can share moments, submit Hunt missions, and upload check-in photos.",
+          "cameraPermission": "Umoja13 needs access to your camera so you can take photos for check-in, moments, and Hunt missions.",
+          "microphonePermission": "Umoja13 needs access to your microphone so videos you share include sound."
+        }
+      ]
     ]
   }
 }
