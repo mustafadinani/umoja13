@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -6,7 +6,7 @@ import { VENUE } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useAnnouncements, useGames, useMoments, useTeams } from "../hooks/useData";
-import { Card } from "../components/ui";
+import { Card, Modal } from "../components/ui";
 
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { profile } = useAuth();
@@ -14,6 +14,8 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
+  const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
+  const openAnnouncement = announcements.find((a) => a.id === openAnnouncementId) ?? null;
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
   const liveGame = games.find((g) => g.status === "live");
@@ -76,11 +78,25 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ANNOUNCEMENTS</Text>
         {announcements.slice(0, 3).map((a) => (
-          <View key={a.id} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.color.border }}>
+          <TouchableOpacity key={a.id} onPress={() => setOpenAnnouncementId(a.id)} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.color.border }}>
             <Text style={{ fontWeight: "600" }}>{a.title}</Text>
-          </View>
+            <Text style={{ color: theme.color.blue, fontSize: 12, fontWeight: "600", marginTop: 2 }}>Read more</Text>
+          </TouchableOpacity>
         ))}
+        {announcements.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No announcements yet.</Text>}
       </View>
+
+      <Modal visible={!!openAnnouncement} onClose={() => setOpenAnnouncementId(null)}>
+        {openAnnouncement && (
+          <View>
+            <Text style={{ fontWeight: "800", fontSize: 19 }}>{openAnnouncement.title}</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginVertical: 8 }}>
+              {new Date(openAnnouncement.postedAt).toLocaleString()}
+            </Text>
+            <Text style={{ fontSize: 14.5, lineHeight: 21 }}>{openAnnouncement.body}</Text>
+          </View>
+        )}
+      </Modal>
     </ScrollView>
   );
 }

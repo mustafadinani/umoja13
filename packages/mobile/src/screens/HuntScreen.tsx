@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { View, Text, ScrollView, TextInput, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TextInput, StyleSheet, Image, TouchableOpacity } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { COLLECTIONS, huntMissionIsAutoScored, type CrewMember } from "@umoja/shared";
-import { db } from "../lib/firebase";
+import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useHuntCrews, useHuntMissions, useMyCrew, useMyInvites } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
+
+const MAX_CREW_MEMBERS = 4; // including the lead
 
 export function HuntScreen() {
   const { user, profile } = useAuth();
@@ -16,23 +20,95 @@ export function HuntScreen() {
   const { data: leaderboard } = useHuntCrews();
   const { data: invites } = useMyInvites(profile?.email);
   const [seg, setSeg] = useState<"missions" | "leaderboard">("missions");
+  const [crewWizardStep, setCrewWizardStep] = useState(1);
   const [crewName, setCrewName] = useState("");
+  const [crewInvites, setCrewInvites] = useState<{ name: string; email: string }[]>([]);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [crewError, setCrewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
+  const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [textAnswer, setTextAnswer] = useState("");
 
   const pendingInvite = invites.find((c) => c.members.find((m) => m.email === profile?.email.toLowerCase())?.status === "invited" && !c.locked);
   const openMission = missions.find((m) => m.id === openMissionId) ?? null;
 
+  function openMissionDetail(id: string) {
+    setOpenMissionId(id);
+    setTriviaChoice(null);
+    setMediaUri(null);
+    setTextAnswer("");
+  }
+
+  async function pickMedia(fromCamera: boolean) {
+    const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = fromCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images", "videos"], quality: 0.7 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images", "videos"], quality: 0.7 });
+    if (!result.canceled && result.assets[0]) setMediaUri(result.assets[0].uri);
+  }
+
+  async function submitForReview() {
+    if (!user || !profile || !crew || !openMission) return;
+    setBusy(true);
+    try {
+      let mediaUrl: string | null = null;
+      let mediaType: "photo" | "video" | "text" | null = null;
+      if (mediaUri) {
+        const response = await fetch(mediaUri);
+        const blob = await response.blob();
+        const isVideo = mediaUri.endsWith(".mov") || mediaUri.endsWith(".mp4");
+        mediaType = isVideo ? "video" : "photo";
+        const path = `huntSubmissions/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, blob);
+        mediaUrl = await getDownloadURL(storageRef);
+      } else if (textAnswer.trim()) {
+        mediaType = "text";
+      }
+      await addDoc(collection(db, COLLECTIONS.huntSubmissions), {
+        crewId: crew.id,
+        missionId: openMission.id,
+        submittedBy: user.uid,
+        submittedByName: profile.displayName,
+        mediaType,
+        mediaUrl,
+        textAnswer: textAnswer.trim() || null,
+        status: "pending",
+        createdAt: Date.now(),
+      });
+      setOpenMissionId(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function addInvite() {
+    if (!inviteEmail.includes("@") || crewInvites.length >= MAX_CREW_MEMBERS - 1) return;
+    if (crewInvites.some((i) => i.email.toLowerCase() === inviteEmail.toLowerCase())) return;
+    setCrewInvites((list) => [...list, { name: inviteName || inviteEmail, email: inviteEmail }]);
+    setInviteName("");
+    setInviteEmail("");
+  }
+
   async function createCrew() {
     if (!user || !profile || crewName.trim().length < 2) return;
     setBusy(true);
+    setCrewError(null);
     try {
-      const lead: CrewMember = { userId: user.uid, name: profile.displayName, email: profile.email.toLowerCase(), status: "accepted", invitedAt: Date.now() };
+      const now = Date.now();
+      const lead: CrewMember = { userId: user.uid, name: profile.displayName, email: profile.email.toLowerCase(), status: "accepted", invitedAt: now };
+      const inviteMembers: CrewMember[] = crewInvites.map((i) => ({ name: i.name, email: i.email.toLowerCase(), status: "invited", invitedAt: now }));
+      const members = [lead, ...inviteMembers];
       await addDoc(collection(db, COLLECTIONS.huntCrews), {
-        name: crewName, leadUserId: user.uid, members: [lead], memberUids: [user.uid], memberEmails: [lead.email],
-        locked: false, points: 0, missionsCompleted: [], createdAt: Date.now(),
+        name: crewName, leadUserId: user.uid, members, memberUids: [user.uid], memberEmails: members.map((m) => m.email),
+        locked: false, points: 0, missionsCompleted: [], createdAt: now,
       });
+    } catch (e) {
+      setCrewError(e instanceof Error ? e.message : "Couldn't create your crew.");
     } finally {
       setBusy(false);
     }
@@ -74,16 +150,65 @@ export function HuntScreen() {
 
         {!crew ? (
           <Card>
-            <Text style={{ fontWeight: "800", fontSize: 16, marginBottom: 8 }}>Start your crew</Text>
-            <TextInput
-              placeholder="Crew name"
-              value={crewName}
-              onChangeText={setCrewName}
-              style={{ borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12 }}
-            />
-            <PrimaryButton disabled={crewName.trim().length < 2 || busy} onPress={createCrew} style={{ width: "100%" }}>
-              {busy ? "Creating…" : "CREATE CREW & JOIN"}
-            </PrimaryButton>
+            <Text style={{ fontWeight: "800", fontSize: 16, marginBottom: 4 }}>Start your crew</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 14 }}>
+              Step {crewWizardStep} of 3 · up to 4 people total, no changes once the Hunt begins.
+            </Text>
+
+            {crewWizardStep === 1 && (
+              <>
+                <Text style={{ fontSize: 13.5, marginBottom: 14 }}>
+                  You'll be the crew lead, {profile?.displayName}. You can invite up to 3 more people — anyone with
+                  an Umoja account, by email. No one can be part of two crews at once.
+                </Text>
+                <PrimaryButton onPress={() => setCrewWizardStep(2)} style={{ width: "100%" }}>ACCEPT & START MY CREW</PrimaryButton>
+              </>
+            )}
+
+            {crewWizardStep === 2 && (
+              <>
+                <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Invite crew members ({crewInvites.length}/3)</Text>
+                {crewInvites.map((i) => (
+                  <View key={i.email} style={styles.inviteRow}>
+                    <Text style={{ fontSize: 13 }}>{i.name} · {i.email}</Text>
+                    <TouchableOpacity onPress={() => setCrewInvites((l) => l.filter((x) => x.email !== i.email))}>
+                      <Text style={{ color: theme.color.danger }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {crewInvites.length < MAX_CREW_MEMBERS - 1 && (
+                  <View style={{ marginBottom: 16 }}>
+                    <TextInput placeholder="Name" value={inviteName} onChangeText={setInviteName} style={styles.input} />
+                    <TextInput
+                      placeholder="Email"
+                      value={inviteEmail}
+                      onChangeText={setInviteEmail}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      style={[styles.input, { marginTop: 6 }]}
+                    />
+                    <PrimaryButton onPress={addInvite} style={{ marginTop: 8 }}>ADD</PrimaryButton>
+                  </View>
+                )}
+                <PrimaryButton onPress={() => setCrewWizardStep(3)} style={{ width: "100%" }}>NEXT — NAME YOUR CREW</PrimaryButton>
+              </>
+            )}
+
+            {crewWizardStep === 3 && (
+              <>
+                <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Crew name</Text>
+                <TextInput
+                  placeholder="e.g. The Adebayo Family"
+                  value={crewName}
+                  onChangeText={setCrewName}
+                  style={[styles.input, { marginBottom: 14 }]}
+                />
+                {crewError && <Text style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{crewError}</Text>}
+                <PrimaryButton disabled={crewName.trim().length < 2 || busy} onPress={createCrew} style={{ width: "100%" }}>
+                  {busy ? "Creating…" : "CREATE CREW & JOIN THE HUNT"}
+                </PrimaryButton>
+              </>
+            )}
           </Card>
         ) : (
           <>
@@ -101,7 +226,7 @@ export function HuntScreen() {
               ? missions.map((m) => {
                   const isDone = crew.missionsCompleted.includes(m.id);
                   return (
-                    <Card key={m.id} onPress={() => setOpenMissionId(m.id)} style={{ marginBottom: 6, opacity: isDone ? 0.6 : 1 }}>
+                    <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, opacity: isDone ? 0.6 : 1 }}>
                       <Text style={{ fontWeight: "600" }}>{m.title}</Text>
                       <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{isDone ? "Done ✓" : `${m.subtitle} · +${m.points}`}</Text>
                     </Card>
@@ -123,7 +248,12 @@ export function HuntScreen() {
             <Text style={{ fontWeight: "800", fontSize: 17 }}>{openMission.title}</Text>
             <Text style={{ color: theme.color.textMuted, fontSize: 12, marginVertical: 6 }}>{openMission.subtitle} · +{openMission.points} pts</Text>
             <Text style={{ marginBottom: 14 }}>{openMission.description}</Text>
-            {openMission.type === "trivia" && openMission.options ? (
+
+            {crew?.missionsCompleted.includes(openMission.id) ? (
+              <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
+                <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>Done ✓ — points are on the board for your crew.</Text>
+              </View>
+            ) : openMission.type === "trivia" && openMission.options ? (
               <>
                 {openMission.options.map((opt, idx) => (
                   <Pill key={idx} active={triviaChoice === idx} onPress={() => setTriviaChoice(idx)}>{opt}</Pill>
@@ -133,9 +263,35 @@ export function HuntScreen() {
                 </PrimaryButton>
               </>
             ) : huntMissionIsAutoScored(openMission.type) ? (
-              <PrimaryButton onPress={() => completeInstant(true)} style={{ width: "100%" }}>CHECK IN HERE</PrimaryButton>
+              <PrimaryButton onPress={() => completeInstant(true)} style={{ width: "100%" }}>
+                {openMission.type === "gps" ? "📍 CHECK IN HERE" : "🔲 SCAN THE QR CODE"}
+              </PrimaryButton>
             ) : (
-              <Text style={{ color: theme.color.textMuted }}>Submit a photo/video/text for this mission from the web app for now.</Text>
+              <>
+                {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
+                  mediaUri ? (
+                    <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                  ) : (
+                    <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                      <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
+                      <PrimaryButton onPress={() => pickMedia(false)} style={{ flex: 1 }}>🖼 Library</PrimaryButton>
+                    </View>
+                  )
+                )}
+                {openMission.type === "text" && (
+                  <TextInput
+                    value={textAnswer}
+                    onChangeText={setTextAnswer}
+                    placeholder="Your answer…"
+                    multiline
+                    numberOfLines={3}
+                    style={styles.textArea}
+                  />
+                )}
+                <PrimaryButton disabled={(!mediaUri && !textAnswer.trim()) || busy} onPress={submitForReview} style={{ width: "100%" }}>
+                  {busy ? "Submitting…" : "SUBMIT FOR REVIEW"}
+                </PrimaryButton>
+              </>
             )}
           </View>
         )}
@@ -148,4 +304,7 @@ const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 24, paddingHorizontal: 20 },
   heroTitle: { color: "#fff", fontWeight: "800", fontSize: 26 },
   heroSub: { color: "#fff", opacity: 0.9, fontSize: 13, marginTop: 6 },
+  textArea: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 70, textAlignVertical: "top" },
+  input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
+  inviteRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#F7F6F3", borderRadius: 8, padding: 10, marginBottom: 6 },
 });

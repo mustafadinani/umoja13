@@ -28,7 +28,7 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
           <Pill active={seg === "standings"} onPress={() => setSeg("standings")}>STANDINGS</Pill>
         </View>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.chipRow} contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingRight: 32 }}>
         <Pill active={!categoryId} onPress={() => setCategoryId(null)}>All</Pill>
         {categories.map((c) => <Pill key={c.id} active={categoryId === c.id} onPress={() => setCategoryId(c.id)}>{c.label}</Pill>)}
       </ScrollView>
