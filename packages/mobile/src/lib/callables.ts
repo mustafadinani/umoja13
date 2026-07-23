@@ -82,3 +82,8 @@ export const reviewChallengeSubmission = httpsCallable<
   { submissionId: string; decision: "approve" | "reject" },
   { status: "approved" | "rejected"; bonusPoints?: number; rank?: number }
 >(functions, "reviewChallengeSubmission");
+
+export const registerPushToken = httpsCallable<{ token: string | null }, { ok: true }>(
+  functions,
+  "registerPushToken"
+);

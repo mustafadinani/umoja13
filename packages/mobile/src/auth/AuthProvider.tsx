@@ -10,6 +10,8 @@ import {
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { COLLECTIONS, type UserProfile } from "@umoja/shared";
 import { auth, db } from "../lib/firebase";
+import { registerForPushNotificationsAsync } from "../lib/pushNotifications";
+import { registerPushToken } from "../lib/callables";
 
 interface AuthContextValue {
   user: FirebaseUser | null;
@@ -46,6 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(snap.exists() ? (snap.data() as UserProfile) : null);
       setProfileLoading(false);
     });
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    registerForPushNotificationsAsync()
+      .then((token) => {
+        if (token) registerPushToken({ token });
+      })
+      .catch(() => {});
   }, [user]);
 
   async function signIn(email: string, password: string) {

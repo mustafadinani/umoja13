@@ -17,6 +17,7 @@ import {
   type TournamentPass,
   type Challenge,
   type ChallengeSubmission,
+  type VolunteerTask,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -84,3 +85,7 @@ export const useMyHuntSubmissions = (crewId: string | undefined) =>
     COLLECTIONS.huntSubmissions,
     crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
   );
+
+/** Shifts assigned to this volunteer. */
+export const useMyVolunteerTasks = (uid: string | undefined) =>
+  useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, uid ? [where("assigneeUid", "==", uid)] : []);

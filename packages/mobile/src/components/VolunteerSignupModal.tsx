@@ -1,0 +1,147 @@
+import { useState } from "react";
+import { View, Text, TextInput } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { addDoc, collection } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
+import { db, storage } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
+import { theme } from "../lib/theme";
+import { Modal, PrimaryButton, Pill } from "./ui";
+
+export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
+  const { user, profile } = useAuth();
+  const [name, setName] = useState(profile?.displayName ?? "");
+  const [email, setEmail] = useState(profile?.email ?? "");
+  const [phone, setPhone] = useState("");
+  const [emergencyContact, setEmergencyContact] = useState("");
+  const [availability, setAvailability] = useState<string[]>([]);
+  const [selfieUri, setSelfieUri] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  function toggleDay(day: string) {
+    setAvailability((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+  }
+
+  async function pickSelfie() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.6 });
+    if (!result.canceled && result.assets[0]) setSelfieUri(result.assets[0].uri);
+  }
+
+  async function submit() {
+    if (!user || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      let selfieUrl: string | undefined;
+      if (selfieUri) {
+        const response = await fetch(selfieUri);
+        const blob = await response.blob();
+        const path = `volunteers/${user.uid}/${Date.now()}.jpg`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+        selfieUrl = await getDownloadURL(storageRef);
+      }
+
+      await addDoc(collection(db, COLLECTIONS.volunteerApplications), {
+        name,
+        email,
+        phone,
+        emergencyContact,
+        availability,
+        ...(selfieUrl ? { selfieUrl } : {}),
+        status: "pending",
+        filedByUid: user.uid,
+        createdAt: Date.now(),
+      });
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't submit your application.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <Modal visible onClose={onClose}>
+        <View style={{ alignItems: "center", paddingVertical: 10 }}>
+          <Text style={{ fontSize: 40 }}>✓</Text>
+          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 8 }}>Thanks for signing up!</Text>
+          <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6, textAlign: "center" }}>
+            An organizer will review your application and follow up with your shifts.
+          </Text>
+          <PrimaryButton style={{ marginTop: 18, width: "100%" }} onPress={onClose}>DONE</PrimaryButton>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal visible onClose={onClose}>
+      <Text style={{ fontWeight: "800", fontSize: 19, marginBottom: 4 }}>Become a Volunteer</Text>
+      <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
+        Help us run Umoja Games — setup, check-in support, water/shade, pack-down, and more.
+      </Text>
+
+      <Field label="Full name" value={name} onChangeText={setName} />
+      <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+      <Field label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+      <Field label="Emergency contact (name & phone)" value={emergencyContact} onChangeText={setEmergencyContact} />
+
+      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Available days</Text>
+      <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
+        {VOLUNTEER_AVAILABILITY_DAYS.map((day) => (
+          <Pill key={day} active={availability.includes(day)} onPress={() => toggleDay(day)}>{day}</Pill>
+        ))}
+      </View>
+
+      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Photo (optional)</Text>
+      {selfieUri ? (
+        <Text style={{ fontSize: 12.5, color: theme.color.success, marginBottom: 14 }}>Photo attached ✓</Text>
+      ) : (
+        <PrimaryButton onPress={pickSelfie} style={{ marginBottom: 14 }}>📷 TAKE A PHOTO</PrimaryButton>
+      )}
+
+      {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
+      <PrimaryButton
+        disabled={busy || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0}
+        onPress={submit}
+        style={{ width: "100%" }}
+      >
+        {busy ? "Submitting…" : "SUBMIT APPLICATION"}
+      </PrimaryButton>
+    </Modal>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  keyboardType,
+  autoCapitalize,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  keyboardType?: "default" | "email-address" | "phone-pad";
+  autoCapitalize?: "none" | "sentences";
+}) {
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        style={{ borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 }}
+      />
+    </View>
+  );
+}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { View, Text, FlatList, Image, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection, doc, deleteDoc } from "firebase/firestore";
@@ -112,7 +113,7 @@ export function MomentsScreen() {
                     <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", marginTop: 2 }}>VIDEO</Text>
                   </View>
                 ) : (
-                  <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+                  <LoadingImage source={{ uri: m.mediaUrl }} style={styles.tileImage} />
                 )
               ) : (
                 <View style={[styles.tileImage, { backgroundColor: theme.color.purple }]} />

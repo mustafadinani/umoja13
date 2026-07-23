@@ -82,3 +82,14 @@ export const reviewChallengeSubmission = httpsCallable<
   { submissionId: string; decision: "approve" | "reject" },
   { status: "approved" | "rejected"; bonusPoints?: number; rank?: number }
 >(functions, "reviewChallengeSubmission");
+
+type NotificationTarget =
+  | { type: "all" }
+  | { type: "role"; role: string }
+  | { type: "game"; gameId: string }
+  | { type: "users"; uids: string[] };
+
+export const sendNotification = httpsCallable<
+  { title: string; body: string; target: NotificationTarget },
+  { notifiedCount: number; pushCount: number }
+>(functions, "sendNotification");

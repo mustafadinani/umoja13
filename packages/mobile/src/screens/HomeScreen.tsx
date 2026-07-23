@@ -9,6 +9,7 @@ import { useAnnouncements, useGames, useMoments, useSponsors, useTeams } from ".
 import { Card, Modal, PrimaryButton } from "../components/ui";
 import { SponsorInquiryModal } from "../components/SponsorInquiryModal";
 import { MomentDetailModal } from "../components/MomentDetailModal";
+import { LoadingImage } from "../components/LoadingImage";
 
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { profile } = useAuth();
@@ -86,7 +87,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           {moments.slice(0, 5).map((m) => (
             <TouchableOpacity key={m.id} onPress={() => setOpenMomentId(m.id)} activeOpacity={0.85}>
               {m.mediaUrl && m.mediaType !== "video" ? (
-                <Image source={{ uri: m.mediaUrl }} style={styles.momentTile} />
+                <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
               ) : (
                 <View style={[styles.momentTile, m.mediaType === "video" ? styles.momentTileVideo : null]}>
                   {m.mediaType === "video" && <Text style={{ fontSize: 18 }}>▶</Text>}

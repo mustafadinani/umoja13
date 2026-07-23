@@ -12,6 +12,8 @@ export interface UserProfile {
   playerOf?: PlayerMembership[];
   /** Team ids a fan follows. */
   followedTeamIds?: string[];
+  /** Expo push token for the device this user last registered from (set via registerPushToken). */
+  pushToken?: string;
   createdAt: number;
   updatedAt: number;
 }

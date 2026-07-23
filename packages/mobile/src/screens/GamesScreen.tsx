@@ -30,7 +30,12 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
       <View style={styles.divider} />
       <Text style={styles.filterLabel}>FILTER BY CATEGORY</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.chipRow} contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingRight: 32 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
+        style={styles.chipRow}
+        contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingRight: 32, paddingVertical: 12 }}
+      >
         <Pill active={!categoryId} bg={!categoryId ? theme.color.purple : undefined} onPress={() => setCategoryId(null)}>All</Pill>
         {categories.map((c) => (
           <Pill key={c.id} active={categoryId === c.id} bg={categoryId === c.id ? theme.color.purple : undefined} onPress={() => setCategoryId(c.id)}>
@@ -70,6 +75,6 @@ const styles = StyleSheet.create({
   title: { fontWeight: "800", fontSize: 24, marginBottom: 12 },
   segRow: { flexDirection: "row", gap: 8 },
   divider: { height: 1, backgroundColor: theme.color.border, marginTop: 16, marginHorizontal: 16 },
-  filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 12, marginBottom: 8, marginHorizontal: 16 },
-  chipRow: { flexGrow: 0 },
+  filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 14, marginBottom: 8, marginHorizontal: 16 },
+  chipRow: { flexGrow: 0, marginBottom: 4 },
 });

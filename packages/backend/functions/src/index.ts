@@ -10,3 +10,5 @@ export { askUmoja, escalateChat } from "./ai/chatAssistant.js";
 export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
+export { registerPushToken } from "./http/registerPushToken.js";
+export { sendNotification } from "./http/sendNotification.js";

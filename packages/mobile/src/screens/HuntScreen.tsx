@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, ScrollView, TextInput, StyleSheet, Image, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -443,7 +444,7 @@ export function HuntScreen() {
               <>
                 {missionPreviewUri && mySubmission?.mediaType !== "text" && (
                   <TouchableOpacity onPress={() => setLightbox({ uri: missionPreviewUri, mediaType: mySubmission?.mediaType === "video" ? "video" : "photo" })}>
-                    <Image source={{ uri: missionPreviewUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                    <LoadingImage source={{ uri: missionPreviewUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
                   </TouchableOpacity>
                 )}
                 {mySubmission?.textAnswer && (
@@ -458,7 +459,7 @@ export function HuntScreen() {
             )}
             {missionStatus === "rejected" && mySubmission?.mediaUrl && (
               <TouchableOpacity onPress={() => setLightbox({ uri: mySubmission.mediaUrl!, mediaType: mySubmission.mediaType === "video" ? "video" : "photo" })}>
-                <Image source={{ uri: mySubmission.mediaUrl }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                <LoadingImage source={{ uri: mySubmission.mediaUrl }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
               </TouchableOpacity>
             )}
             {missionStatus === "rejected" && (
@@ -486,7 +487,7 @@ export function HuntScreen() {
                   {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
                     mediaUri ? (
                       <TouchableOpacity onPress={() => setLightbox({ uri: mediaUri, mediaType: openMission.type === "video" ? "video" : "photo" })}>
-                        <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                        <LoadingImage source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
                       </TouchableOpacity>
                     ) : (
                       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>

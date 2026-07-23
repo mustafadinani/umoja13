@@ -39,7 +39,14 @@
           "microphonePermission": "Umoja13 needs access to your microphone so videos you share include sound."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#8B2FD1"
+        }
+      ]
     ]
   }
 }

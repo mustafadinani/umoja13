@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, Modal as RNModal } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal as RNModal } from "react-native";
+import { useVideoPlayer } from "expo-video";
 import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { LoadingImage } from "./LoadingImage";
+import { LoadingVideo } from "./LoadingVideo";
 
 const SOURCE_LABEL: Record<string, string> = { game: "⚽ Game moment", hunt: "🧭 Hunt submission", community: "🎉 Community" };
 
@@ -58,9 +60,9 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
             <ScrollView bounces={false}>
               {moment.mediaUrl ? (
                 isVideo ? (
-                  <VideoView player={player} style={styles.media} nativeControls contentFit="contain" />
+                  <LoadingVideo player={player} style={styles.media} nativeControls contentFit="contain" />
                 ) : (
-                  <Image source={{ uri: moment.mediaUrl }} style={styles.media} resizeMode="cover" />
+                  <LoadingImage source={{ uri: moment.mediaUrl }} style={styles.media} resizeMode="cover" />
                 )
               ) : (
                 <View style={[styles.media, { backgroundColor: theme.color.purple }]} />
