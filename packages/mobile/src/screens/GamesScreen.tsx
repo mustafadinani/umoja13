@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { FESTIVAL_CATEGORY_IDS, type Category } from "@umoja/shared";
@@ -7,13 +7,15 @@ import { useCategories, useGames, useTeams } from "../hooks/useData";
 import { Card, Pill, StatusBadge } from "../components/ui";
 
 /**
- * On first mount, this row's Pills can size themselves correctly (their
- * width already reflects the real label) but leave the text glyphs unpainted
- * until something forces a second render pass — confirmed by screen
- * recording: labels stayed blank for ~3s after launch and only appeared the
- * instant the user tapped a chip (i.e. on the next re-render), not on any
- * fixed timer. Forcing one extra render right after mount fixes it
- * regardless of how fast real data happens to arrive.
+ * On first mount, this row's Pills size themselves correctly (their width
+ * already reflects the real label) but leave the text glyphs unpainted until
+ * something forces a real native update — confirmed by screen recording:
+ * labels stayed blank until the user tapped a chip (which changes each
+ * Pill's active/color prop), and re-blanked on every subsequent fresh mount.
+ * A same-props re-render doesn't help (React sees no diff and skips the
+ * native update) — nudging the ScrollView's actual scroll position by a
+ * pixel and back forces iOS to recomposite the content, which reliably
+ * unsticks the stuck text layer.
  */
 function CategoryChipRow({
   categories,
@@ -24,14 +26,18 @@ function CategoryChipRow({
   categoryId: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const [, forceRepaint] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
   useEffect(() => {
-    const id = requestAnimationFrame(() => forceRepaint((n) => n + 1));
+    const id = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ x: 1, animated: false });
+      requestAnimationFrame(() => scrollRef.current?.scrollTo({ x: 0, animated: false }));
+    });
     return () => cancelAnimationFrame(id);
   }, []);
 
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator
       style={styles.chipRow}
@@ -68,10 +74,10 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
           <Pill active={seg === "schedule"} onPress={() => setSeg("schedule")}>SCHEDULE</Pill>
           <Pill active={seg === "standings"} onPress={() => setSeg("standings")}>STANDINGS</Pill>
         </View>
+        <Text style={styles.filterLabel}>FILTER BY CATEGORY</Text>
+        <CategoryChipRow categories={categories} categoryId={categoryId} onSelect={setCategoryId} />
       </View>
       <View style={styles.divider} />
-      <Text style={styles.filterLabel}>FILTER BY CATEGORY</Text>
-      <CategoryChipRow categories={categories} categoryId={categoryId} onSelect={setCategoryId} />
 
       <ScrollView style={{ padding: 16 }}>
         {seg === "schedule" ? (
@@ -104,6 +110,6 @@ const styles = StyleSheet.create({
   title: { fontWeight: "800", fontSize: 24, marginBottom: 12 },
   segRow: { flexDirection: "row", gap: 8 },
   divider: { height: 1, backgroundColor: theme.color.border, marginTop: 16, marginHorizontal: 16 },
-  filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 14, marginBottom: 8, marginHorizontal: 16 },
-  chipRow: { flexGrow: 0, marginBottom: 4 },
+  filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
+  chipRow: { flexGrow: 0, marginHorizontal: -16, marginBottom: 4 },
 });
