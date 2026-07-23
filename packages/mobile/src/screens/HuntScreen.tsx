@@ -29,6 +29,39 @@ function activeChallenge(c: Challenge, now: number) {
   return true;
 }
 
+function PointsBadge({ points }: { points: number }) {
+  return (
+    <View style={styles.pointsBadge}>
+      <Text style={styles.pointsBadgeText}>+{points} PTS</Text>
+    </View>
+  );
+}
+
+function ResultBadge({ status, wonPoints }: { status: "won" | "pending" | "rejected" | null; wonPoints?: number }) {
+  if (status === "won") {
+    return (
+      <View style={[styles.resultBadge, { backgroundColor: theme.color.success }]}>
+        <Text style={styles.resultBadgeText}>✓ WON{wonPoints ? ` +${wonPoints}` : ""}</Text>
+      </View>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <View style={[styles.resultBadge, { backgroundColor: theme.color.warning }]}>
+        <Text style={styles.resultBadgeText}>PENDING</Text>
+      </View>
+    );
+  }
+  if (status === "rejected") {
+    return (
+      <View style={[styles.resultBadge, { backgroundColor: theme.color.danger }]}>
+        <Text style={styles.resultBadgeText}>RETRY</Text>
+      </View>
+    );
+  }
+  return <Text style={{ color: theme.color.textMuted, fontSize: 20, fontWeight: "300" }}>›</Text>;
+}
+
 export function HuntScreen() {
   const { user, profile } = useAuth();
   const { data: crew } = useMyCrew(user?.uid);
@@ -286,18 +319,22 @@ export function HuntScreen() {
                 const submission = myHuntSubmissions.find((s) => s.missionId === m.id) ?? null;
                 const isPending = !isDone && submission?.status === "pending";
                 const isRejected = !isDone && submission?.status === "rejected";
+                const resultStatus = isDone ? "won" : isPending ? "pending" : isRejected ? "rejected" : null;
                 return (
-                  <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 12 }}>
                     <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type] }]}>
                       <Text style={{ fontSize: 16 }}>{isDone ? "✓" : TYPE_ICON[m.type]}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: "600", textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</Text>
-                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
-                        {isDone ? `Done ✓ — +${m.points} pts earned` : isPending ? "Submitted — pending review" : isRejected ? "Not approved — tap to resubmit" : m.subtitle}
+                      <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                        <Text style={{ fontWeight: "600", textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</Text>
+                        <PointsBadge points={m.points} />
+                      </View>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 3 }}>
+                        {isDone ? "Completed — nice work!" : isPending ? "Submitted — pending review" : isRejected ? "Not approved — tap to resubmit" : m.subtitle}
                       </Text>
                     </View>
-                    <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</Text>
+                    <ResultBadge status={resultStatus} wonPoints={m.points} />
                   </Card>
                 );
               };
@@ -305,10 +342,11 @@ export function HuntScreen() {
               const done = missions.filter((m) => crew.missionsCompleted.includes(m.id));
               return (
                 <>
+                  {notDone.length > 0 && <Text style={styles.sectionDivider}>TO DO ({notDone.length})</Text>}
                   {notDone.map(row)}
                   {done.length > 0 && (
                     <>
-                      <Text style={styles.sectionDivider}>COMPLETED ({done.length})</Text>
+                      <Text style={styles.sectionDivider}>✓ COMPLETED ({done.length})</Text>
                       {done.map(row)}
                     </>
                   )}
@@ -326,28 +364,34 @@ export function HuntScreen() {
                   const isActive = activeChallenge(c, Date.now());
                   const bonus = mySub?.bonusPoints ?? 0;
                   const total = c.points + bonus;
+                  const resultStatus = isDone ? "won" : mySub?.status === "pending" ? "pending" : mySub?.status === "rejected" ? "rejected" : null;
                   return (
-                    <Card key={c.id} onPress={() => setOpenChallenge(c)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55 }}>
+                    <Card key={c.id} onPress={() => setOpenChallenge(c)} style={{ marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55 }}>
                       <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : "#FFF0E8" }]}>
                         <Text style={{ fontSize: 17 }}>{isDone ? "✓" : "⚡"}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: "600" }}>{c.title}</Text>
-                        <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                          <Text style={{ fontWeight: "600" }}>{c.title}</Text>
+                          <PointsBadge points={c.points} />
+                        </View>
+                        <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 3 }}>
                           {isDone
-                            ? `Done ✓ — ${c.points}${bonus ? ` + ${bonus} early-bird` : ""} = ${total} pts`
+                            ? bonus > 0
+                              ? `Completed — +${bonus} early-bird bonus!`
+                              : "Completed — nice work!"
                             : mySub?.status === "pending"
                             ? "Submitted — pending review"
                             : mySub?.status === "rejected"
                             ? "Not approved — tap to resubmit"
                             : !isActive
-                            ? "Not open"
+                            ? "Not open yet"
                             : c.earlyBirdBonuses.length > 0
                             ? "⚡ Early-bird bonus available"
                             : "Open now"}
                         </Text>
                       </View>
-                      <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.orange }}>+{isDone ? total : c.points}</Text>
+                      <ResultBadge status={resultStatus} wonPoints={total} />
                     </Card>
                   );
                 };
@@ -355,10 +399,11 @@ export function HuntScreen() {
                 const done = challenges.filter((c) => crew.challengesCompleted?.includes(c.id) ?? false);
                 return (
                   <>
+                    {notDone.length > 0 && <Text style={styles.sectionDivider}>TO DO ({notDone.length})</Text>}
                     {notDone.map(row)}
                     {done.length > 0 && (
                       <>
-                        <Text style={styles.sectionDivider}>COMPLETED ({done.length})</Text>
+                        <Text style={styles.sectionDivider}>✓ COMPLETED ({done.length})</Text>
                         {done.map(row)}
                       </>
                     )}
@@ -496,5 +541,9 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 99, backgroundColor: "rgba(255,255,255,.25)", overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: theme.color.gold, borderRadius: 99 },
   typeIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  sectionDivider: { fontWeight: "800", fontSize: 11.5, color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
+  sectionDivider: { fontWeight: "800", fontSize: 11.5, color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 10, marginBottom: 8 },
+  pointsBadge: { backgroundColor: theme.color.bg, borderWidth: 1, borderColor: theme.color.border, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8 },
+  pointsBadgeText: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted },
+  resultBadge: { borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
+  resultBadgeText: { fontSize: 11, fontWeight: "800", color: "#fff" },
 });

@@ -16,10 +16,10 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment; onClose
   const player = useVideoPlayer(isVideo ? moment.mediaUrl! : null);
 
   useEffect(() => {
-    if (!player) return;
+    if (!player || !isVideo) return;
     player.play();
     return () => player.pause();
-  }, [player]);
+  }, [player, isVideo]);
 
   const liked = user ? moment.likeUids.includes(user.uid) : false;
   const isOwn = user?.uid === moment.postedBy;
