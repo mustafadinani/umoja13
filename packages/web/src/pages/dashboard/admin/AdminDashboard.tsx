@@ -6,14 +6,16 @@ import { CheckInsTab } from "./CheckInsTab";
 import { ModerationOpsTab } from "./ModerationOpsTab";
 import { HuntAdminTab } from "./HuntAdminTab";
 import { VolunteersTab } from "./VolunteersTab";
+import { SponsorsAdminTab } from "./SponsorsAdminTab";
 
-type Tab = "games" | "checkins" | "ops" | "hunt" | "volunteers";
+type Tab = "games" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors";
 const TABS: { id: Tab; label: string }[] = [
   { id: "games", label: "All Games" },
   { id: "checkins", label: "Player Check-ins" },
   { id: "ops", label: "Moderation & Ops" },
   { id: "hunt", label: "The Hunt" },
   { id: "volunteers", label: "Volunteers" },
+  { id: "sponsors", label: "Sponsors" },
 ];
 
 export function AdminDashboard() {
@@ -32,6 +34,7 @@ export function AdminDashboard() {
       {tab === "ops" && <ModerationOpsTab />}
       {tab === "hunt" && <HuntAdminTab />}
       {tab === "volunteers" && <VolunteersTab />}
+      {tab === "sponsors" && <SponsorsAdminTab />}
     </div>
   );
 }

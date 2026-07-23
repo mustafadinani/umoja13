@@ -18,6 +18,8 @@ import {
   type CheckIn,
   type VolunteerApplication,
   type VolunteerTask,
+  type Challenge,
+  type ChallengeSubmission,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -106,4 +108,16 @@ export const useMyVolunteerTasks = (uid: string | undefined) =>
   useCollection<VolunteerTask>(
     COLLECTIONS.volunteerTasks,
     uid ? [where("assigneeUid", "==", uid)] : []
+  );
+
+export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
+
+export const useChallengeSubmissions = (constraints: QueryConstraint[] = []) =>
+  useCollection<ChallengeSubmission>(COLLECTIONS.challengeSubmissions, [orderBy("createdAt", "desc"), ...constraints]);
+
+/** A crew's own challenge submissions, so the Hunt UI can show pending/rejected status per challenge. */
+export const useMyChallengeSubmissions = (crewId: string | undefined) =>
+  useCollection<ChallengeSubmission>(
+    COLLECTIONS.challengeSubmissions,
+    crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
   );

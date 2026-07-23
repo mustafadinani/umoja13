@@ -9,6 +9,8 @@ export * from "./types/hunt.js";
 export * from "./types/chat.js";
 export * from "./types/uat.js";
 export * from "./types/volunteer.js";
+export * from "./types/challenge.js";
+export * from "./types/sponsor.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/sponsors.js";

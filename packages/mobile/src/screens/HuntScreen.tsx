@@ -3,23 +3,41 @@ import { View, Text, ScrollView, TextInput, StyleSheet, Image, TouchableOpacity 
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, huntMissionIsAutoScored, type CrewMember } from "@umoja/shared";
+import { COLLECTIONS, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMissionType } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { useHuntCrews, useHuntMissions, useMyCrew, useMyInvites } from "../hooks/useData";
+import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyInvites } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
+import { ChallengeDetailModal } from "../components/ChallengeDetailModal";
 
 const MAX_CREW_MEMBERS = 4; // including the lead
+
+const TYPE_ICON: Record<HuntMissionType, string> = {
+  photo: "📸", video: "🎥", trivia: "🧠", gps: "📍", qr: "🔲", text: "💬", mini_game: "🎮",
+};
+const TYPE_ICON_BG: Record<HuntMissionType, string> = {
+  photo: theme.color.purple, video: theme.color.pink, trivia: theme.color.blue,
+  gps: theme.color.teal, qr: theme.color.orange, text: theme.color.purpleLight, mini_game: theme.color.gold,
+};
+
+function activeChallenge(c: Challenge, now: number) {
+  if (c.startsAt && now < c.startsAt) return false;
+  if (c.deadline && now > c.deadline) return false;
+  return true;
+}
 
 export function HuntScreen() {
   const { user, profile } = useAuth();
   const { data: crew } = useMyCrew(user?.uid);
   const { data: missions } = useHuntMissions();
+  const { data: challenges } = useChallenges();
+  const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
   const { data: leaderboard } = useHuntCrews();
   const { data: invites } = useMyInvites(profile?.email);
-  const [seg, setSeg] = useState<"missions" | "leaderboard">("missions");
+  const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard">("missions");
+  const [openChallenge, setOpenChallenge] = useState<Challenge | null>(null);
   const [crewWizardStep, setCrewWizardStep] = useState(1);
   const [crewName, setCrewName] = useState("");
   const [crewInvites, setCrewInvites] = useState<{ name: string; email: string }[]>([]);
@@ -139,8 +157,8 @@ export function HuntScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <LinearGradient colors={hunterGradient} style={styles.hero}>
-        <Text style={styles.heroTitle}>THE HUNT</Text>
-        <Text style={styles.heroSub}>45 missions across 3 days. $500 grand prize.</Text>
+        <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
+        <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
       </LinearGradient>
 
       <View style={{ padding: 16 }}>
@@ -217,32 +235,87 @@ export function HuntScreen() {
           </Card>
         ) : (
           <>
-            <Card style={{ marginBottom: 16 }}>
-              <Text style={{ fontWeight: "800", fontSize: 16 }}>{crew.name}</Text>
-              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{crew.points} pts · {crew.missionsCompleted.length} done</Text>
-            </Card>
+            <View style={styles.progressCard}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
+                <View>
+                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{crew.name}</Text>
+                  {(() => {
+                    const rank = leaderboard.findIndex((c) => c.id === crew.id) + 1;
+                    return rank > 0 ? <Text style={{ color: "#fff", opacity: 0.85, fontSize: 12 }}>Rank #{rank} of {leaderboard.length}</Text> : null;
+                  })()}
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 26 }}>{crew.points}</Text>
+                  <Text style={{ color: "#fff", opacity: 0.85, fontSize: 10.5 }}>POINTS</Text>
+                </View>
+              </View>
+              {(() => {
+                const totalDone = crew.missionsCompleted.length + (crew.challengesCompleted?.length ?? 0);
+                const totalAvailable = missions.length + challenges.length;
+                const pct = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
+                return (
+                  <>
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${pct}%` }]} />
+                    </View>
+                    <Text style={{ color: "#fff", opacity: 0.9, fontSize: 11.5, marginTop: 6 }}>{totalDone} of {totalAvailable} done ({pct}%)</Text>
+                  </>
+                );
+              })()}
+            </View>
 
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
               <Pill active={seg === "missions"} onPress={() => setSeg("missions")}>MISSIONS</Pill>
+              <Pill active={seg === "challenges"} onPress={() => setSeg("challenges")}>⚡ CHALLENGES</Pill>
               <Pill active={seg === "leaderboard"} onPress={() => setSeg("leaderboard")}>LEADERBOARD</Pill>
             </View>
 
-            {seg === "missions"
-              ? missions.map((m) => {
-                  const isDone = crew.missionsCompleted.includes(m.id);
-                  return (
-                    <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, opacity: isDone ? 0.6 : 1 }}>
-                      <Text style={{ fontWeight: "600" }}>{m.title}</Text>
-                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{isDone ? "Done ✓" : `${m.subtitle} · +${m.points}`}</Text>
-                    </Card>
-                  );
-                })
-              : leaderboard.map((c, i) => (
-                  <Card key={c.id} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontWeight: "700" }}>{i + 1}. {c.name}{c.id === crew.id ? " (you)" : ""}</Text>
-                    <Text style={{ fontWeight: "800" }}>{c.points} pts</Text>
+            {seg === "missions" && missions.map((m) => {
+              const isDone = crew.missionsCompleted.includes(m.id);
+              return (
+                <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type] }]}>
+                    <Text style={{ fontSize: 16 }}>{isDone ? "✓" : TYPE_ICON[m.type]}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: "600", textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</Text>
+                    <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{isDone ? "Done ✓" : m.subtitle}</Text>
+                  </View>
+                  <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</Text>
+                </Card>
+              );
+            })}
+
+            {seg === "challenges" && (
+              challenges.length === 0 ? (
+                <Text style={{ color: theme.color.textMuted, textAlign: "center", padding: 20 }}>No challenges yet — check back throughout the weekend.</Text>
+              ) : challenges.map((c) => {
+                const isDone = crew.challengesCompleted?.includes(c.id) ?? false;
+                const mySubmission = myChallengeSubmissions.find((s) => s.challengeId === c.id) ?? null;
+                const isActive = activeChallenge(c, Date.now());
+                return (
+                  <Card key={c.id} onPress={() => setOpenChallenge(c)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55 }}>
+                    <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : "#FFF0E8" }]}>
+                      <Text style={{ fontSize: 17 }}>{isDone ? "✓" : "⚡"}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "600" }}>{c.title}</Text>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {isDone ? `Done ✓${mySubmission?.bonusPoints ? ` · +${mySubmission.bonusPoints} early-bird` : ""}` : mySubmission?.status === "pending" ? "Submitted — pending review" : !isActive ? "Not open" : c.earlyBirdBonuses.length > 0 ? "⚡ Early-bird bonus available" : "Open now"}
+                      </Text>
+                    </View>
+                    <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.orange }}>+{c.points}</Text>
                   </Card>
-                ))}
+                );
+              })
+            )}
+
+            {seg === "leaderboard" && leaderboard.map((c, i) => (
+              <Card key={c.id} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontWeight: "700" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`} {c.name}{c.id === crew.id ? " (you)" : ""}</Text>
+                <Text style={{ fontWeight: "800" }}>{c.points} pts</Text>
+              </Card>
+            ))}
           </>
         )}
       </View>
@@ -302,6 +375,15 @@ export function HuntScreen() {
           </View>
         )}
       </Modal>
+
+      {openChallenge && crew && (
+        <ChallengeDetailModal
+          challenge={openChallenge}
+          crew={crew}
+          mySubmission={myChallengeSubmissions.find((s) => s.challengeId === openChallenge.id) ?? null}
+          onClose={() => setOpenChallenge(null)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -313,4 +395,8 @@ const styles = StyleSheet.create({
   textArea: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 70, textAlignVertical: "top" },
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
   inviteRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#F7F6F3", borderRadius: 8, padding: 10, marginBottom: 6 },
+  progressCard: { backgroundColor: theme.color.navy, borderRadius: 16, padding: 16, marginBottom: 16 },
+  progressTrack: { height: 8, borderRadius: 99, backgroundColor: "rgba(255,255,255,.25)", overflow: "hidden" },
+  progressFill: { height: "100%", backgroundColor: theme.color.gold, borderRadius: 99 },
+  typeIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });

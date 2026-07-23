@@ -14,6 +14,8 @@ import {
   type Notification,
   type CheckIn,
   type TournamentPass,
+  type Challenge,
+  type ChallengeSubmission,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -65,3 +67,12 @@ export const useMyInvites = (email: string | undefined) =>
 
 export const useCheckIn = (checkInId: string) => useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
 export const usePass = (checkInId: string) => useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
+
+export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
+
+/** A crew's own challenge submissions, so the Hunt UI can show pending/rejected status per challenge. */
+export const useMyChallengeSubmissions = (crewId: string | undefined) =>
+  useCollection<ChallengeSubmission>(
+    COLLECTIONS.challengeSubmissions,
+    crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
+  );

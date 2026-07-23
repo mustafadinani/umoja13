@@ -44,6 +44,8 @@ export interface HuntCrew {
   locked: boolean; // true once the Hunt begins (Fri 9am) — no roster changes after
   points: number;
   missionsCompleted: string[]; // mission ids
+  /** Challenge ids this crew has an approved submission for (separate from missionsCompleted). */
+  challengesCompleted?: string[];
   createdAt: number;
 }
 

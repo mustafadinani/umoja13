@@ -6,6 +6,8 @@ import { theme } from "../../../lib/theme";
 import { useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
 import { useAuth } from "../../../auth/AuthProvider";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { Lightbox } from "../../../components/Lightbox";
+import { ChallengesAdminTab } from "./ChallengesAdminTab";
 
 const TYPES: { id: HuntMissionType; label: string }[] = [
   { id: "photo", label: "📸 Photo" },
@@ -35,6 +37,8 @@ export function HuntAdminTab() {
   const [day, setDay] = useState<"1" | "2" | "3" | "open">("open");
   const [points, setPoints] = useState(75);
   const [busy, setBusy] = useState(false);
+  const [section, setSection] = useState<"missions" | "challenges">("missions");
+  const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   async function reviewSubmission(submissionId: string, crewId: string, missionId: string, approve: boolean) {
     if (!user) return;
@@ -76,6 +80,13 @@ export function HuntAdminTab() {
 
   return (
     <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <Pill active={section === "missions"} onClick={() => setSection("missions")}>Missions</Pill>
+        <Pill active={section === "challenges"} onClick={() => setSection("challenges")}>Challenges</Pill>
+      </div>
+
+      {section === "challenges" ? <ChallengesAdminTab /> : (
+      <>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>SUBMISSIONS TO REVIEW ({pendingSubmissions.length})</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
         {pendingSubmissions.map((s) => {
@@ -83,7 +94,12 @@ export function HuntAdminTab() {
           const crew = crews.find((c) => c.id === s.crewId);
           return (
             <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-              {s.mediaUrl && <div style={{ width: 60, height: 44, borderRadius: 6, background: `url(${s.mediaUrl}) center/cover` }} />}
+              {s.mediaUrl && (
+                <div
+                  onClick={() => setLightbox({ src: s.mediaUrl!, mediaType: s.mediaType === "video" ? "video" : "photo" })}
+                  style={{ width: 60, height: 44, borderRadius: 6, background: `url(${s.mediaUrl}) center/cover`, cursor: "zoom-in", flexShrink: 0 }}
+                />
+              )}
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{mission?.title ?? s.missionId}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted }}>
@@ -140,6 +156,9 @@ export function HuntAdminTab() {
           </Card>
         ))}
       </div>
+      </>
+      )}
+      {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

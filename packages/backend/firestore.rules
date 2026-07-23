@@ -144,6 +144,28 @@ service cloud.firestore {
       allow update: if isStaff();
     }
 
+    // Challenges: admin-thrown, time-windowed questions with early-bird bonus
+    // points. Approve/reject (and the bonus-rank computation) goes through the
+    // reviewChallengeSubmission Cloud Function; isStaff() here just covers a
+    // manual correction from the console.
+    match /challenges/{challengeId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /challengeSubmissions/{submissionId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.submittedBy == request.auth.uid;
+      allow update: if isStaff();
+    }
+
+    // ---- Sponsorship inquiries ("Become a Sponsor" CTA) ----
+    match /sponsorInquiries/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
+        request.resource.data.status == 'new';
+      allow update: if isStaff();
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

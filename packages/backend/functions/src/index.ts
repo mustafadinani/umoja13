@@ -1,5 +1,6 @@
 export { setUserRole } from "./http/setUserRole.js";
 export { reviewVolunteerApplication } from "./http/reviewVolunteerApplication.js";
+export { reviewChallengeSubmission } from "./http/reviewChallengeSubmission.js";
 export { adminReviewCheckIn } from "./http/adminReviewCheckIn.js";
 export { submitGameCard } from "./http/submitGameCard.js";
 export { fileIncident } from "./http/fileIncident.js";

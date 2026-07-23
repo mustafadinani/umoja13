@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { VENUE } from "@umoja/shared";
+import { VENUE, SPONSOR_TIER_ORDER, SPONSOR_TIER_LABELS } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
-import { useAnnouncements, useGames, useMoments, useTeams } from "../hooks/useData";
+import { useAnnouncements, useGames, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card, Modal } from "../components/ui";
+import { SponsorInquiryModal } from "../components/SponsorInquiryModal";
 
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { profile } = useAuth();
@@ -15,8 +16,11 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
+  const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
+  const [sponsorInquiryOpen, setSponsorInquiryOpen] = useState(false);
   const openAnnouncement = announcements.find((a) => a.id === openAnnouncementId) ?? null;
+  const visibleSponsors = sponsors.filter((s) => s.visible ?? true);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
   const liveGame = games.find((g) => g.status === "live");
@@ -89,6 +93,32 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         {announcements.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No announcements yet.</Text>}
       </View>
 
+      <View style={styles.section}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <Text style={styles.sectionTitle}>SPONSORS</Text>
+          <TouchableOpacity onPress={() => setSponsorInquiryOpen(true)}>
+            <Text style={{ color: theme.color.blue, fontWeight: "700", fontSize: 12.5 }}>Become a Sponsor →</Text>
+          </TouchableOpacity>
+        </View>
+        {SPONSOR_TIER_ORDER.map((tier) => {
+          const tierSponsors = visibleSponsors.filter((s) => (s.tier ?? "supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          if (tierSponsors.length === 0) return null;
+          return (
+            <View key={tier} style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>{SPONSOR_TIER_LABELS[tier].toUpperCase()}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {tierSponsors.map((s) => (
+                  <View key={s.id} style={styles.sponsorChip}>
+                    <Text style={{ fontWeight: "700", fontSize: 13 }}>{s.name}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        })}
+        {visibleSponsors.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No sponsors yet — be the first!</Text>}
+      </View>
+
       <Modal visible={!!openAnnouncement} onClose={() => setOpenAnnouncementId(null)}>
         {openAnnouncement && (
           <View>
@@ -100,6 +130,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           </View>
         )}
       </Modal>
+      {sponsorInquiryOpen && <SponsorInquiryModal onClose={() => setSponsorInquiryOpen(false)} />}
     </ScrollView>
   );
 }
@@ -120,4 +151,5 @@ const styles = StyleSheet.create({
   huntTitle: { color: "#fff", fontWeight: "800", fontSize: 17 },
   huntSub: { color: "#fff", opacity: 0.9, marginTop: 4, fontSize: 13 },
   momentTile: { width: 100, height: 70, borderRadius: 10, backgroundColor: theme.color.purple, marginRight: 8, alignItems: "center", justifyContent: "center" },
+  sponsorChip: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
 });

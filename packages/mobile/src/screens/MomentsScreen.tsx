@@ -9,6 +9,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useMoments, useMyMoments } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../components/ui";
+import { Lightbox } from "../components/Lightbox";
 
 const SOURCE_BADGE: Record<string, string> = { game: "⚽", hunt: "🧭", community: "🎉" };
 
@@ -23,6 +24,7 @@ export function MomentsScreen() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   // Public approved feed plus the signed-in user's own posts regardless of
   // moderation status — otherwise a pending/rejected post just vanishes on
@@ -108,7 +110,13 @@ export function MomentsScreen() {
           const isOwn = user?.uid === m.postedBy;
           return (
             <View style={styles.tile}>
-              {m.mediaUrl ? <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} /> : <View style={[styles.tileImage, { backgroundColor: theme.color.purple }]} />}
+              {m.mediaUrl ? (
+                <TouchableOpacity onPress={() => m.mediaType === "photo" && setLightboxUrl(m.mediaUrl)} activeOpacity={m.mediaType === "photo" ? 0.85 : 1}>
+                  <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.tileImage, { backgroundColor: theme.color.purple }]} />
+              )}
               <Text style={styles.badge}>{SOURCE_BADGE[m.source] ?? "•"}</Text>
               {isOwn && m.moderationStatus !== "approved" && (
                 <View style={[styles.statusBadge, { backgroundColor: m.moderationStatus === "pending" ? theme.color.warning : theme.color.danger }]}>
@@ -172,6 +180,7 @@ export function MomentsScreen() {
           </>
         )}
       </Modal>
+      <Lightbox visible={!!lightboxUrl} src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
     </View>
   );
 }

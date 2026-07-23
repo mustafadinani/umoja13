@@ -27,6 +27,8 @@ export interface Announcement {
   postedAt: number;
 }
 
+export type SponsorTier = "title" | "official" | "supporter";
+
 export interface Sponsor {
   id: string;
   name: string;
@@ -34,6 +36,12 @@ export interface Sponsor {
   tagline: string;
   story: string;
   sponsoredTeamIds: string[];
+  tier: SponsorTier;
+  /** Manual sort position within a tier (lower shows first). */
+  order: number;
+  websiteUrl?: string;
+  /** Staff can hide a sponsor without deleting it (e.g. a deal that lapsed). */
+  visible: boolean;
 }
 
 export interface Notification {

@@ -1,7 +1,9 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { useState } from "react";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import type { RosterEntry, Category } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
+import { Lightbox } from "./Lightbox";
 
 export function PlayerIdModal({
   player,
@@ -19,11 +21,14 @@ export function PlayerIdModal({
   onClose: () => void;
 }) {
   const approved = player.checkInStatus === "approved";
+  const [zoomed, setZoomed] = useState(false);
 
   return (
     <Modal visible onClose={onClose}>
       <View style={{ alignItems: "center" }}>
-        <View
+        <TouchableOpacity
+          disabled={!player.selfieUrl}
+          onPress={() => setZoomed(true)}
           style={{
             width: 90,
             height: 90,
@@ -34,7 +39,9 @@ export function PlayerIdModal({
             borderColor: approved ? theme.color.gold : theme.color.border,
             overflow: "hidden",
           }}
-        />
+        >
+          {player.selfieUrl && <Image source={{ uri: player.selfieUrl }} style={{ width: "100%", height: "100%" }} />}
+        </TouchableOpacity>
         <Text style={{ fontWeight: "800", fontSize: 20 }}>{player.displayName}</Text>
         <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, textAlign: "center" }}>
           #{player.jerseyNumber ?? "—"} · {teamName} · {category?.label ?? ""}
@@ -63,6 +70,7 @@ export function PlayerIdModal({
           <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>Close</Text>
         </TouchableOpacity>
       </View>
+      <Lightbox visible={zoomed} src={player.selfieUrl ?? null} onClose={() => setZoomed(false)} />
     </Modal>
   );
 }

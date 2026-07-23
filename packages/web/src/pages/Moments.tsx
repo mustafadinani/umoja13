@@ -7,6 +7,7 @@ import { theme } from "../lib/theme";
 import { useMoments, useMyMoments } from "../hooks/useData";
 import { Card, PrimaryButton } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { Lightbox } from "../components/Lightbox";
 
 const SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUNT", community: "🎉 COMMUNITY" };
 
@@ -15,6 +16,7 @@ export function Moments() {
   const { data: approvedMoments } = useMoments();
   const { data: myMoments } = useMyMoments(user?.uid);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   // Public approved feed, plus the signed-in user's own posts regardless of
   // moderation status — otherwise a pending/rejected post just vanishes on
@@ -54,9 +56,23 @@ export function Moments() {
             <Card key={m.id} style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ position: "relative", height: 150, background: "#211A33" }}>
                 {m.mediaType === "video" ? (
-                  <video src={m.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls />
+                  <>
+                    <video src={m.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls />
+                    <button
+                      onClick={() => setLightbox({ src: m.mediaUrl, mediaType: "video" })}
+                      style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(0,0,0,.55)", border: "none", color: "#fff", borderRadius: 6, width: 26, height: 26, fontSize: 13, cursor: "zoom-in" }}
+                      title="Expand"
+                    >
+                      ⛶
+                    </button>
+                  </>
                 ) : (
-                  <img src={m.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={m.caption} />
+                  <img
+                    src={m.mediaUrl}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "zoom-in" }}
+                    alt={m.caption}
+                    onClick={() => setLightbox({ src: m.mediaUrl, mediaType: "photo" })}
+                  />
                 )}
                 <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 10.5, fontWeight: 700, padding: "3px 7px", borderRadius: 99 }}>
                   {SOURCE_BADGE[m.source] ?? m.source}
@@ -97,6 +113,7 @@ export function Moments() {
       </div>
 
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} />}
+      {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

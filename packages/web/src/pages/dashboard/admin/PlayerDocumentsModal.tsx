@@ -3,9 +3,11 @@ import { CATEGORIES, type CheckIn, type UserProfile } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { adminReviewCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
+import { Lightbox } from "../../../components/Lightbox";
 
 export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: CheckIn; user?: UserProfile; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const category = CATEGORIES.find((c) => c.id === checkIn.categoryId);
   const membership = user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
 
@@ -25,9 +27,9 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>{category?.label} · attempt {checkIn.attempt}</div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <Photo label="Registration photo" url={membership?.registrationPhotoUrl} />
-        <Photo label="Check-in selfie" url={checkIn.selfieUrl} />
-        <Photo label="Government ID" url={checkIn.govIdUrl} />
+        <Photo label="Registration photo" url={membership?.registrationPhotoUrl} onExpand={setLightboxUrl} />
+        <Photo label="Check-in selfie" url={checkIn.selfieUrl} onExpand={setLightboxUrl} />
+        <Photo label="Government ID" url={checkIn.govIdUrl} onExpand={setLightboxUrl} />
       </div>
 
       {checkIn.aiVerification && (
@@ -57,14 +59,18 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
           <button disabled={busy} onClick={() => decide("nullify")} style={{ flex: 1, background: "none", border: `1px solid ${theme.color.danger}`, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "12px", fontWeight: 700 }}>NULLIFY CHECK-IN</button>
         )}
       </div>
+      {lightboxUrl && <Lightbox src={lightboxUrl} mediaType="photo" onClose={() => setLightboxUrl(null)} />}
     </Modal>
   );
 }
 
-function Photo({ label, url }: { label: string; url?: string }) {
+function Photo({ label, url, onExpand }: { label: string; url?: string; onExpand: (url: string) => void }) {
   return (
     <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ height: 90, borderRadius: 8, background: url ? `url(${url}) center/cover` : "#F1EFF5" }} />
+      <div
+        onClick={() => url && onExpand(url)}
+        style={{ height: 90, borderRadius: 8, background: url ? `url(${url}) center/cover` : "#F1EFF5", cursor: url ? "zoom-in" : undefined }}
+      />
       <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{label}</div>
     </div>
   );
