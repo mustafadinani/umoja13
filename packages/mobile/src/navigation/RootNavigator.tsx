@@ -43,7 +43,13 @@ function TabNavigator() {
   const isReferee = profile?.roles?.includes("referee") ?? false;
 
   return (
+    // Keying on the signed-in uid forces a full remount when the account
+    // changes (e.g. signing out of one demo account into another without
+    // restarting the app) — otherwise React Navigation's bottom-tabs can
+    // keep a stale screen list from the previous session around, so a
+    // role-conditional tab like Referee can end up visible to everyone.
     <Tabs.Navigator
+      key={profile?.uid ?? "anon"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.color.purple,
@@ -51,10 +57,11 @@ function TabNavigator() {
     >
       <Tabs.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏠" focused={focused} /> }} />
       <Tabs.Screen name="Games" component={GamesScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="⚽" focused={focused} /> }} />
-      {isReferee && (
+      {isReferee ? (
         <Tabs.Screen name="Referee" component={RefereeScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏁" focused={focused} /> }} />
+      ) : (
+        <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       )}
-      <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       <Tabs.Screen name="Moments" component={MomentsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🎬" focused={focused} /> }} />
       <Tabs.Screen name="MyUmoja" component={MyUmojaScreen} options={{ title: "My Umoja", tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }} />
     </Tabs.Navigator>

@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { COLLECTIONS } from "@umoja/shared";
+import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useMoments } from "../hooks/useData";
+import { useMoments, useMyMoments } from "../hooks/useData";
 import { Card, PrimaryButton } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 
@@ -12,8 +12,18 @@ const SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUN
 
 export function Moments() {
   const { user } = useAuth();
-  const { data: moments } = useMoments();
+  const { data: approvedMoments } = useMoments();
+  const { data: myMoments } = useMyMoments(user?.uid);
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  // Public approved feed, plus the signed-in user's own posts regardless of
+  // moderation status — otherwise a pending/rejected post just vanishes on
+  // the poster with no indication it was ever received.
+  const moments = useMemo(() => {
+    const byId = new Map<string, Moment>(approvedMoments.map((m) => [m.id, m]));
+    for (const m of myMoments) byId.set(m.id, m);
+    return [...byId.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }, [approvedMoments, myMoments]);
 
   async function toggleLike(momentId: string, liked: boolean) {
     if (!user) return;
@@ -56,9 +66,15 @@ export function Moments() {
                     YOURS
                   </div>
                 )}
+                {isOwn && m.moderationStatus !== "approved" && (
+                  <div style={{ position: "absolute", bottom: 8, left: 8, background: m.moderationStatus === "pending" ? theme.color.warning : theme.color.danger, color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 7px", borderRadius: 99 }}>
+                    {m.moderationStatus === "pending" ? "PENDING REVIEW" : "NOT APPROVED"}
+                  </div>
+                )}
               </div>
               <div style={{ padding: "10px 12px" }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.caption}</div>
+                {m.comment && <div style={{ fontSize: 12.5, color: theme.color.text, marginTop: 4 }}>{m.comment}</div>}
                 <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{m.postedByName}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   <button

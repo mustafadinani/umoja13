@@ -75,6 +75,10 @@ export const useAllCheckIns = () => useCollection<CheckIn>(COLLECTIONS.checkIns,
 
 export const useAllMoments = () => useCollection<Moment>(COLLECTIONS.moments, [orderBy("createdAt", "desc")]);
 
+/** A signed-in user's own moments regardless of moderation status, so they can see pending/rejected posts that the public feed hides. */
+export const useMyMoments = (uid: string | undefined) =>
+  useCollection<Moment>(COLLECTIONS.moments, uid ? [where("postedBy", "==", uid), orderBy("createdAt", "desc")] : []);
+
 /** Staff-only: full user directory, used to resolve display names next to check-ins/rosters. */
 export const useAllUsers = () => useCollection<UserProfile>(COLLECTIONS.users);
 

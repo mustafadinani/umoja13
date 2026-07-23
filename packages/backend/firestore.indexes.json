@@ -26,6 +26,14 @@
       ]
     },
     {
+      "collectionGroup": "moments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "postedBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "incidents",
       "queryScope": "COLLECTION",
       "fields": [

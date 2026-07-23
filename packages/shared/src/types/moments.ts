@@ -6,6 +6,8 @@ export interface Moment {
   mediaType: MomentMediaType;
   mediaUrl: string;
   caption: string;
+  /** Optional freeform note from the poster, shown under the caption. */
+  comment?: string;
   postedBy: string; // uid
   postedByName: string;
   teamTagId?: string;

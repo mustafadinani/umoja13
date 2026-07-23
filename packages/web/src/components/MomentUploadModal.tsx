@@ -20,6 +20,7 @@ export function MomentUploadModal({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
 
@@ -42,6 +43,7 @@ export function MomentUploadModal({
         mediaType: isVideo ? "video" : "photo",
         mediaUrl,
         caption: tag,
+        ...(comment.trim() ? { comment: comment.trim() } : {}),
         postedBy: user.uid,
         postedByName: profile.displayName,
         source,
@@ -96,11 +98,20 @@ export function MomentUploadModal({
       </label>
 
       <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>What kind of moment?</div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         {MOMENT_TAGS.map((t) => (
           <Pill key={t} active={tag === t} onClick={() => setTag(t)}>{t}</Pill>
         ))}
       </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Add a comment (optional)</div>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Say something about this moment…"
+        rows={2}
+        style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 20 }}
+      />
 
       <PrimaryButton disabled={!file || !tag || posting} onClick={submit} style={{ width: "100%" }}>
         {posting ? "Posting…" : "POST MOMENT"}

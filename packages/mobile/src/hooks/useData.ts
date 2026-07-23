@@ -46,6 +46,10 @@ export const useMoments = (approvedOnly = true) =>
     approvedOnly ? [where("moderationStatus", "==", "approved"), orderBy("createdAt", "desc")] : [orderBy("createdAt", "desc")]
   );
 
+/** A signed-in user's own moments regardless of moderation status, so they can see pending/rejected posts that the public feed hides. */
+export const useMyMoments = (uid: string | undefined) =>
+  useCollection<Moment>(COLLECTIONS.moments, uid ? [where("postedBy", "==", uid), orderBy("createdAt", "desc")] : []);
+
 export const useHuntCrews = () => useCollection<HuntCrew>(COLLECTIONS.huntCrews, [orderBy("points", "desc")]);
 
 export const useMyNotifications = (uid: string | undefined) =>

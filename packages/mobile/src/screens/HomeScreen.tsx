@@ -10,6 +10,7 @@ import { Card, Modal } from "../components/ui";
 
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { profile } = useAuth();
+  const isReferee = profile?.roles?.includes("referee") ?? false;
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
@@ -57,12 +58,14 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         {upNext.length === 0 && <Text style={{ color: theme.color.textMuted }}>No upcoming games yet.</Text>}
       </View>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Hunt")} activeOpacity={0.85}>
-        <LinearGradient colors={hunterGradient} style={styles.huntTile}>
-          <Text style={styles.huntTitle}>THE HUNT · WIN $500</Text>
-          <Text style={styles.huntSub}>45 missions around the plex →</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      {!isReferee && (
+        <TouchableOpacity onPress={() => navigation.navigate("Hunt")} activeOpacity={0.85}>
+          <LinearGradient colors={hunterGradient} style={styles.huntTile}>
+            <Text style={styles.huntTitle}>THE HUNT · WIN $500</Text>
+            <Text style={styles.huntSub}>45 missions around the plex →</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>FRESH MOMENTS</Text>
