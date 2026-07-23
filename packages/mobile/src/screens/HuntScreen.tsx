@@ -31,6 +31,7 @@ export function HuntScreen() {
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [mediaUri, setMediaUri] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const pendingInvite = invites.find((c) => c.members.find((m) => m.email === profile?.email.toLowerCase())?.status === "invited" && !c.locked);
   const openMission = missions.find((m) => m.id === openMissionId) ?? null;
@@ -40,6 +41,7 @@ export function HuntScreen() {
     setTriviaChoice(null);
     setMediaUri(null);
     setTextAnswer("");
+    setSubmitError(null);
   }
 
   async function pickMedia(fromCamera: boolean) {
@@ -54,6 +56,7 @@ export function HuntScreen() {
   async function submitForReview() {
     if (!user || !profile || !crew || !openMission) return;
     setBusy(true);
+    setSubmitError(null);
     try {
       let mediaUrl: string | null = null;
       let mediaType: "photo" | "video" | "text" | null = null;
@@ -64,7 +67,7 @@ export function HuntScreen() {
         mediaType = isVideo ? "video" : "photo";
         const path = `huntSubmissions/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, blob);
+        await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
         mediaUrl = await getDownloadURL(storageRef);
       } else if (textAnswer.trim()) {
         mediaType = "text";
@@ -81,6 +84,8 @@ export function HuntScreen() {
         createdAt: Date.now(),
       });
       setOpenMissionId(null);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Couldn't submit this mission.");
     } finally {
       setBusy(false);
     }
@@ -288,6 +293,7 @@ export function HuntScreen() {
                     style={styles.textArea}
                   />
                 )}
+                {submitError && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{submitError}</Text>}
                 <PrimaryButton disabled={(!mediaUri && !textAnswer.trim()) || busy} onPress={submitForReview} style={{ width: "100%" }}>
                   {busy ? "Submitting…" : "SUBMIT FOR REVIEW"}
                 </PrimaryButton>

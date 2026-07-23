@@ -19,6 +19,7 @@ export function MomentsScreen() {
   const [uri, setUri] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function pickImage(fromCamera: boolean) {
     const perm = fromCamera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -32,13 +33,14 @@ export function MomentsScreen() {
   async function post() {
     if (!uri || !tag || !user) return;
     setPosting(true);
+    setError(null);
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
       const isVideo = uri.endsWith(".mov") || uri.endsWith(".mp4");
       const path = `moments/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
       const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob);
+      await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
       const mediaUrl = await getDownloadURL(storageRef);
       await addDoc(collection(db, COLLECTIONS.moments), {
         mediaType: isVideo ? "video" : "photo",
@@ -54,6 +56,8 @@ export function MomentsScreen() {
       setUploadOpen(false);
       setUri(null);
       setTag(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't post your moment.");
     } finally {
       setPosting(false);
     }
@@ -113,6 +117,7 @@ export function MomentsScreen() {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
           {MOMENT_TAGS.map((t) => <Pill key={t} active={tag === t} onPress={() => setTag(t)}>{t}</Pill>)}
         </View>
+        {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
         <PrimaryButton disabled={!uri || !tag || posting} onPress={post} style={{ width: "100%" }}>
           {posting ? "Posting…" : "POST MOMENT"}
         </PrimaryButton>

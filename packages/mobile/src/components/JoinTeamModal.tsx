@@ -18,6 +18,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   const [jerseyNumber, setJerseyNumber] = useState("");
   const [uri, setUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -29,11 +30,12 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   async function submit() {
     if (!user || !profile || !categoryId || !teamId || !uri) return;
     setBusy(true);
+    setError(null);
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
       const storageRef = ref(storage, `checkins/${user.uid}/registration/${Date.now()}.jpg`);
-      await uploadBytes(storageRef, blob);
+      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const registrationPhotoUrl = await getDownloadURL(storageRef);
 
       const membership: PlayerMembership = {
@@ -52,6 +54,8 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         }),
       });
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't join the team.");
     } finally {
       setBusy(false);
     }
@@ -78,6 +82,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       {uri ? <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8, marginBottom: 12 }} /> : (
         <PrimaryButton onPress={pickPhoto} style={{ marginBottom: 12 }}>📷 Add registration photo</PrimaryButton>
       )}
+      {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
       <PrimaryButton disabled={!categoryId || !teamId || !uri || busy} onPress={submit} style={{ width: "100%" }}>
         {busy ? "Joining…" : "JOIN TEAM"}
       </PrimaryButton>
