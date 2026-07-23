@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { HuntMissionType, HuntMission, Challenge } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew } from "../hooks/useData";
+import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
 import { CrewCreateWizard } from "./hunt/CrewCreateWizard";
 import { InvitesBanner } from "./hunt/InvitesBanner";
@@ -43,6 +43,7 @@ export function Hunt() {
   const { data: challenges } = useChallenges();
   const { data: crew } = useMyCrew(user?.uid);
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
+  const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
   const { data: leaderboard } = useHuntCrews();
   const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard">("missions");
   const [typeFilter, setTypeFilter] = useState<HuntMissionType | null>(null);
@@ -51,7 +52,13 @@ export function Hunt() {
   const [openChallenge, setOpenChallenge] = useState<Challenge | null>(null);
   const [openCrewId, setOpenCrewId] = useState<string | null>(null);
 
-  const filteredMissions = missions.filter((m) => (!typeFilter || m.type === typeFilter) && (!dayFilter || m.day === dayFilter));
+  const filteredMissions = missions
+    .filter((m) => (!typeFilter || m.type === typeFilter) && (!dayFilter || m.day === dayFilter))
+    .slice()
+    .sort((a, b) => Number(crew?.missionsCompleted.includes(a.id) ?? false) - Number(crew?.missionsCompleted.includes(b.id) ?? false));
+  const sortedChallenges = challenges
+    .slice()
+    .sort((a, b) => Number(crew?.challengesCompleted?.includes(a.id) ?? false) - Number(crew?.challengesCompleted?.includes(b.id) ?? false));
   const openCrew = leaderboard.find((c) => c.id === openCrewId) ?? null;
   const now = Date.now();
   const activeChallenges = challenges.filter((c) => activeChallenge(c, now));
@@ -127,21 +134,39 @@ export function Hunt() {
                       {["1", "2", "3", "open"].map((d) => <Pill key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>{DAY_LABELS[d]}</Pill>)}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {filteredMissions.map((m) => {
-                        const isDone = crew.missionsCompleted.includes(m.id);
+                      {(() => {
+                        const notDone = filteredMissions.filter((m) => !crew.missionsCompleted.includes(m.id));
+                        const done = filteredMissions.filter((m) => crew.missionsCompleted.includes(m.id));
+                        const row = (m: HuntMission, isDone: boolean) => {
+                          const mySubmission = myHuntSubmissions.find((s) => s.missionId === m.id) ?? null;
+                          const pendingReview = !isDone && mySubmission?.status === "pending";
+                          return (
+                            <Card key={m.id} onClick={() => setOpenMission(m)} data-testid="mission-row" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                                {isDone ? "✓" : TYPE_LABELS[m.type].split(" ")[0]}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</div>
+                                <div style={{ fontSize: 12, color: isDone ? theme.color.success : pendingReview ? theme.color.warning : theme.color.textMuted, marginTop: 2, fontWeight: isDone || pendingReview ? 700 : 400 }}>
+                                  {isDone ? `Done ✓ — +${m.points} pts earned` : pendingReview ? "Submitted — pending review" : m.subtitle}
+                                </div>
+                              </div>
+                              <div style={{ fontFamily: theme.font.display, fontWeight: 800, color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</div>
+                            </Card>
+                          );
+                        };
                         return (
-                          <Card key={m.id} onClick={() => setOpenMission(m)} data-testid="mission-row" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                              {isDone ? "✓" : TYPE_LABELS[m.type].split(" ")[0]}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</div>
-                              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{isDone ? "Done ✓" : m.subtitle}</div>
-                            </div>
-                            <div style={{ fontFamily: theme.font.display, fontWeight: 800, color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</div>
-                          </Card>
+                          <>
+                            {notDone.map((m) => row(m, false))}
+                            {done.length > 0 && (
+                              <div style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, marginTop: notDone.length > 0 ? 8 : 0 }}>
+                                COMPLETED ({done.length})
+                              </div>
+                            )}
+                            {done.map((m) => row(m, true))}
+                          </>
                         );
-                      })}
+                      })()}
                       {filteredMissions.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14, textAlign: "center", padding: 20 }}>No missions match these filters.</div>}
                     </div>
                   </>
@@ -149,29 +174,50 @@ export function Hunt() {
 
                 {seg === "challenges" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {challenges.map((c) => {
-                      const isDone = crew.challengesCompleted?.includes(c.id) ?? false;
-                      const mySubmission = myChallengeSubmissions.find((s) => s.challengeId === c.id) ?? null;
-                      const isActive = activeChallenge(c, now);
-                      return (
-                        <Card
-                          key={c.id}
-                          onClick={() => setOpenChallenge(c)}
-                          style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55, border: `1px solid ${isDone ? theme.color.success : theme.color.pink}33` }}
-                        >
-                          <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : "#FFF0E8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-                            {isDone ? "✓" : "⚡"}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title}</div>
-                            <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                              {isDone ? `Done ✓${mySubmission?.bonusPoints ? ` · +${mySubmission.bonusPoints} early-bird` : ""}` : mySubmission?.status === "pending" ? "Submitted — pending review" : !isActive ? (c.startsAt && now < c.startsAt ? `Opens ${new Date(c.startsAt).toLocaleDateString()}` : "Closed") : c.earlyBirdBonuses.length > 0 ? "⚡ Early-bird bonus available" : "Open now"}
+                    {(() => {
+                      const row = (c: Challenge) => {
+                        const isDone = crew.challengesCompleted?.includes(c.id) ?? false;
+                        const mySubmission = myChallengeSubmissions.find((s) => s.challengeId === c.id) ?? null;
+                        const isActive = activeChallenge(c, now);
+                        const bonus = mySubmission?.bonusPoints ?? 0;
+                        const total = c.points + bonus;
+                        return (
+                          <Card
+                            key={c.id}
+                            onClick={() => setOpenChallenge(c)}
+                            style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55, border: `1px solid ${isDone ? theme.color.success : theme.color.pink}33` }}
+                          >
+                            <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : "#FFF0E8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                              {isDone ? "✓" : "⚡"}
                             </div>
-                          </div>
-                          <div style={{ fontFamily: theme.font.display, fontWeight: 800, color: isDone ? theme.color.success : theme.color.orange }}>+{c.points}</div>
-                        </Card>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title}</div>
+                              <div style={{ fontSize: 12, color: isDone ? theme.color.success : mySubmission?.status === "pending" ? theme.color.warning : theme.color.textMuted, marginTop: 2, fontWeight: isDone || mySubmission?.status === "pending" ? 700 : 400 }}>
+                                {isDone
+                                  ? bonus > 0 ? `Done ✓ — ${c.points} + ${bonus} early-bird = ${total} pts` : `Done ✓ — +${c.points} pts earned`
+                                  : mySubmission?.status === "pending" ? "Submitted — pending review"
+                                  : !isActive ? (c.startsAt && now < c.startsAt ? `Opens ${new Date(c.startsAt).toLocaleDateString()}` : "Closed")
+                                  : c.earlyBirdBonuses.length > 0 ? "⚡ Early-bird bonus available" : "Open now"}
+                              </div>
+                            </div>
+                            <div style={{ fontFamily: theme.font.display, fontWeight: 800, color: isDone ? theme.color.success : theme.color.orange }}>+{isDone ? total : c.points}</div>
+                          </Card>
+                        );
+                      };
+                      const notDone = sortedChallenges.filter((c) => !(crew.challengesCompleted?.includes(c.id) ?? false));
+                      const done = sortedChallenges.filter((c) => crew.challengesCompleted?.includes(c.id) ?? false);
+                      return (
+                        <>
+                          {notDone.map(row)}
+                          {done.length > 0 && (
+                            <div style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, marginTop: notDone.length > 0 ? 8 : 0 }}>
+                              COMPLETED ({done.length})
+                            </div>
+                          )}
+                          {done.map(row)}
+                        </>
                       );
-                    })}
+                    })()}
                     {challenges.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14, textAlign: "center", padding: 20 }}>No challenges yet — check back throughout the weekend.</div>}
                   </div>
                 )}
@@ -203,7 +249,14 @@ export function Hunt() {
         )}
       </div>
 
-      {openMission && crew && <MissionDetailModal mission={openMission} crew={crew} onClose={() => setOpenMission(null)} />}
+      {openMission && crew && (
+        <MissionDetailModal
+          mission={openMission}
+          crew={crew}
+          mySubmission={myHuntSubmissions.find((s) => s.missionId === openMission.id) ?? null}
+          onClose={() => setOpenMission(null)}
+        />
+      )}
       {openChallenge && crew && (
         <ChallengeDetailModal
           challenge={openChallenge}

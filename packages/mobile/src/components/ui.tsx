@@ -19,7 +19,7 @@ export function Pill({
       styles.pill,
       { backgroundColor: bg ?? (active ? theme.color.navy : "#F1EFF5") },
     ]}>
-      <Text style={{ color: fg ?? (active ? "#fff" : theme.color.text), fontWeight: "600", fontSize: 13 }}>{children}</Text>
+      <Text numberOfLines={1} style={{ color: fg ?? (active ? "#fff" : theme.color.text), fontWeight: "600", fontSize: 13 }}>{children}</Text>
     </TouchableOpacity>
   );
 }
@@ -73,6 +73,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: theme.radius.pill,
+    flexShrink: 0,
+    alignSelf: "flex-start",
   },
   primaryButton: {
     paddingVertical: 13,

@@ -99,7 +99,10 @@ service cloud.firestore {
     // ---- moments ----
     match /moments/{momentId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.postedBy == request.auth.uid;
+      // Staff may also create a moment on a submitter's behalf — used when an
+      // approved Hunt mission/challenge photo/video submission is mirrored
+      // into the Moments wall so the whole community can see it.
+      allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff());
       allow update: if isStaff() ||
         (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeUids']));
       allow delete: if isStaff() || (isSignedIn() && resource.data.postedBy == request.auth.uid);

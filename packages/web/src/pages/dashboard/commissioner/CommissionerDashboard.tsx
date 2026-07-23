@@ -14,13 +14,17 @@ export function CommissionerDashboard() {
   const [openIncidentId, setOpenIncidentId] = useState<string | null>(null);
   const [cardPhotoUrl, setCardPhotoUrl] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState<string | null>(null);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
 
   const openIncident = incidents.find((i) => i.id === openIncidentId) ?? null;
 
   async function finalize(gameId: string) {
     setFinalizing(gameId);
+    setFinalizeError(null);
     try {
       await callItFinal({ gameId });
+    } catch (e) {
+      setFinalizeError(e instanceof Error ? e.message : "Couldn't call this game final.");
     } finally {
       setFinalizing(null);
     }
@@ -31,6 +35,11 @@ export function CommissionerDashboard() {
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>COMMISSIONER DESK</div>
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>GAME CARDS TO FINALIZE</div>
+      {finalizeError && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          {finalizeError}
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {awaitingGames.map((g) => (
           <FinalizeRow key={g.id} homeTeamId={g.homeTeamId} awayTeamId={g.awayTeamId} motmUserId={g.motmUserId}

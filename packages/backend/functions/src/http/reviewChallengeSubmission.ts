@@ -72,5 +72,20 @@ export const reviewChallengeSubmission = onCall<ReviewChallengeSubmissionRequest
     }
   }
 
+  // Mirror an approved submission onto the Moments wall so the whole
+  // community can see it — matches how approved Hunt mission submissions work.
+  await db.collection(COLLECTIONS.moments).add({
+    mediaType: submission.mediaType,
+    mediaUrl: submission.mediaUrl,
+    caption: challenge.title,
+    postedBy: submission.submittedBy,
+    postedByName: submission.submittedByName,
+    source: "hunt",
+    huntSubmissionId: submissionId,
+    likeUids: [],
+    moderationStatus: "approved",
+    createdAt: now,
+  });
+
   return { status: "approved", bonusPoints: bonus, rank };
 });

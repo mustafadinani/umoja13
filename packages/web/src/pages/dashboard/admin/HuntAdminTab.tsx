@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDoc, collection, doc, deleteDoc, updateDoc, arrayUnion, where } from "firebase/firestore";
-import { COLLECTIONS, type HuntMissionType } from "@umoja/shared";
+import { COLLECTIONS, type HuntMissionType, type HuntSubmission } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
@@ -40,8 +40,9 @@ export function HuntAdminTab() {
   const [section, setSection] = useState<"missions" | "challenges">("missions");
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
-  async function reviewSubmission(submissionId: string, crewId: string, missionId: string, approve: boolean) {
+  async function reviewSubmission(submission: HuntSubmission, approve: boolean) {
     if (!user) return;
+    const { id: submissionId, crewId, missionId } = submission;
     await updateDoc(doc(db, COLLECTIONS.huntSubmissions, submissionId), {
       status: approve ? "approved" : "rejected",
       reviewedBy: user.uid,
@@ -53,6 +54,22 @@ export function HuntAdminTab() {
         await updateDoc(doc(db, COLLECTIONS.huntCrews, crewId), {
           points: crew.points + mission.points,
           missionsCompleted: arrayUnion(missionId),
+        });
+      }
+      // Mirror an approved photo/video submission onto the Moments wall so the
+      // whole community can see it — matches the original design intent.
+      if (submission.mediaUrl && (submission.mediaType === "photo" || submission.mediaType === "video")) {
+        await addDoc(collection(db, COLLECTIONS.moments), {
+          mediaType: submission.mediaType,
+          mediaUrl: submission.mediaUrl,
+          caption: mission?.title ?? "Hunt mission",
+          postedBy: submission.submittedBy,
+          postedByName: submission.submittedByName,
+          source: "hunt",
+          huntSubmissionId: submissionId,
+          likeUids: [],
+          moderationStatus: "approved",
+          createdAt: Date.now(),
         });
       }
     }
@@ -106,8 +123,8 @@ export function HuntAdminTab() {
                   {crew?.name ?? s.crewId} · {s.submittedByName} {s.textAnswer && `· "${s.textAnswer}"`}
                 </div>
               </div>
-              <button onClick={() => reviewSubmission(s.id, s.crewId, s.missionId, true)} style={{ background: theme.color.successBg, color: theme.color.success, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>Approve</button>
-              <button onClick={() => reviewSubmission(s.id, s.crewId, s.missionId, false)} style={{ background: theme.color.dangerBg, color: theme.color.danger, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>Reject</button>
+              <button onClick={() => reviewSubmission(s, true)} style={{ background: theme.color.successBg, color: theme.color.success, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>Approve</button>
+              <button onClick={() => reviewSubmission(s, false)} style={{ background: theme.color.dangerBg, color: theme.color.danger, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}>Reject</button>
             </Card>
           );
         })}

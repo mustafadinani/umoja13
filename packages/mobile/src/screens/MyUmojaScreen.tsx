@@ -6,15 +6,18 @@ import { theme } from "../lib/theme";
 import { useGames, useTeam } from "../hooks/useData";
 import { Card, PrimaryButton } from "../components/ui";
 import { JoinTeamModal } from "../components/JoinTeamModal";
+import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { useState } from "react";
 
 export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user, profile, signOut } = useAuth();
   const { data: games } = useGames();
   const [joinOpen, setJoinOpen] = useState(false);
+  const [complaintTeamId, setComplaintTeamId] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
   const myTeamIds = new Set(memberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
+  const captainMemberships = memberships.filter((m) => m.isCaptain);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
@@ -60,6 +63,15 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
             ))}
             {myGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
           </View>
+
+          {captainMemberships.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>CAPTAIN TOOLS</Text>
+              {captainMemberships.map((m) => (
+                <CaptainComplaintRow key={m.teamId} teamId={m.teamId} onPress={() => setComplaintTeamId(m.teamId)} />
+              ))}
+            </View>
+          )}
         </>
       )}
 
@@ -76,6 +88,7 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
+      {complaintTeamId && <CaptainComplaintTeamWrapper teamId={complaintTeamId} onClose={() => setComplaintTeamId(null)} />}
     </ScrollView>
   );
 }
@@ -89,6 +102,23 @@ function TeamRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
       <Text style={{ color: theme.color.textMuted }}>#{team.stats.groupRank ?? "—"} · {team.stats.points} pts</Text>
     </Card>
   );
+}
+
+function CaptainComplaintRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
+  const { data: team } = useTeam(teamId);
+  if (!team) return null;
+  return (
+    <Card onPress={onPress} style={{ marginBottom: 6 }}>
+      <Text style={{ fontWeight: "600" }}>File a complaint — {team.name}</Text>
+      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>$35 review fee, refunded if upheld</Text>
+    </Card>
+  );
+}
+
+function CaptainComplaintTeamWrapper({ teamId, onClose }: { teamId: string; onClose: () => void }) {
+  const { data: team } = useTeam(teamId);
+  if (!team) return null;
+  return <CaptainComplaintModal teamName={team.name} onClose={onClose} />;
 }
 
 const styles = StyleSheet.create({

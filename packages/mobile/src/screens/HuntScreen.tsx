@@ -3,14 +3,15 @@ import { View, Text, ScrollView, TextInput, StyleSheet, Image, TouchableOpacity 
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMissionType } from "@umoja/shared";
+import { COLLECTIONS, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyInvites } from "../hooks/useData";
+import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useMyInvites } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
 import { ChallengeDetailModal } from "../components/ChallengeDetailModal";
+import { Lightbox } from "../components/Lightbox";
 
 const MAX_CREW_MEMBERS = 4; // including the lead
 
@@ -34,6 +35,7 @@ export function HuntScreen() {
   const { data: missions } = useHuntMissions();
   const { data: challenges } = useChallenges();
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
+  const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
   const { data: leaderboard } = useHuntCrews();
   const { data: invites } = useMyInvites(profile?.email);
   const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard">("missions");
@@ -50,9 +52,17 @@ export function HuntScreen() {
   const [mediaUri, setMediaUri] = useState<string | null>(null);
   const [textAnswer, setTextAnswer] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [justSubmitted, setJustSubmitted] = useState<"pending" | "correct" | "wrong" | null>(null);
+  const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
 
   const pendingInvite = invites.find((c) => c.members.find((m) => m.email === profile?.email.toLowerCase())?.status === "invited" && !c.locked);
   const openMission = missions.find((m) => m.id === openMissionId) ?? null;
+  const mySubmission = openMission ? myHuntSubmissions.find((s) => s.missionId === openMission.id) ?? null : null;
+  const alreadyDone = openMission ? (crew?.missionsCompleted.includes(openMission.id) ?? false) : false;
+  const missionStatus = alreadyDone
+    ? "correct"
+    : justSubmitted ?? (mySubmission?.status === "rejected" ? "rejected" : mySubmission?.status === "pending" ? "pending" : null);
+  const missionPreviewUri = mediaUri ?? mySubmission?.mediaUrl ?? null;
 
   function openMissionDetail(id: string) {
     setOpenMissionId(id);
@@ -60,6 +70,7 @@ export function HuntScreen() {
     setMediaUri(null);
     setTextAnswer("");
     setSubmitError(null);
+    setJustSubmitted(null);
   }
 
   async function pickMedia(fromCamera: boolean) {
@@ -101,7 +112,7 @@ export function HuntScreen() {
         status: "pending",
         createdAt: Date.now(),
       });
-      setOpenMissionId(null);
+      setJustSubmitted("pending");
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Couldn't submit this mission.");
     } finally {
@@ -150,8 +161,7 @@ export function HuntScreen() {
     if (correct) {
       await updateDoc(doc(db, COLLECTIONS.huntCrews, crew.id), { points: crew.points + openMission.points, missionsCompleted: arrayUnion(openMission.id) });
     }
-    setOpenMissionId(null);
-    setTriviaChoice(null);
+    setJustSubmitted(correct ? "correct" : "wrong");
   }
 
   return (
@@ -270,44 +280,91 @@ export function HuntScreen() {
               <Pill active={seg === "leaderboard"} onPress={() => setSeg("leaderboard")}>LEADERBOARD</Pill>
             </View>
 
-            {seg === "missions" && missions.map((m) => {
-              const isDone = crew.missionsCompleted.includes(m.id);
+            {seg === "missions" && (() => {
+              const row = (m: HuntMission) => {
+                const isDone = crew.missionsCompleted.includes(m.id);
+                const submission = myHuntSubmissions.find((s) => s.missionId === m.id) ?? null;
+                const isPending = !isDone && submission?.status === "pending";
+                const isRejected = !isDone && submission?.status === "rejected";
+                return (
+                  <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type] }]}>
+                      <Text style={{ fontSize: 16 }}>{isDone ? "✓" : TYPE_ICON[m.type]}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "600", textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</Text>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {isDone ? `Done ✓ — +${m.points} pts earned` : isPending ? "Submitted — pending review" : isRejected ? "Not approved — tap to resubmit" : m.subtitle}
+                      </Text>
+                    </View>
+                    <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</Text>
+                  </Card>
+                );
+              };
+              const notDone = missions.filter((m) => !crew.missionsCompleted.includes(m.id));
+              const done = missions.filter((m) => crew.missionsCompleted.includes(m.id));
               return (
-                <Card key={m.id} onPress={() => openMissionDetail(m.id)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
-                  <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type] }]}>
-                    <Text style={{ fontSize: 16 }}>{isDone ? "✓" : TYPE_ICON[m.type]}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: "600", textDecorationLine: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</Text>
-                    <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{isDone ? "Done ✓" : m.subtitle}</Text>
-                  </View>
-                  <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</Text>
-                </Card>
+                <>
+                  {notDone.map(row)}
+                  {done.length > 0 && (
+                    <>
+                      <Text style={styles.sectionDivider}>COMPLETED ({done.length})</Text>
+                      {done.map(row)}
+                    </>
+                  )}
+                </>
               );
-            })}
+            })()}
 
             {seg === "challenges" && (
               challenges.length === 0 ? (
                 <Text style={{ color: theme.color.textMuted, textAlign: "center", padding: 20 }}>No challenges yet — check back throughout the weekend.</Text>
-              ) : challenges.map((c) => {
-                const isDone = crew.challengesCompleted?.includes(c.id) ?? false;
-                const mySubmission = myChallengeSubmissions.find((s) => s.challengeId === c.id) ?? null;
-                const isActive = activeChallenge(c, Date.now());
+              ) : (() => {
+                const row = (c: Challenge) => {
+                  const isDone = crew.challengesCompleted?.includes(c.id) ?? false;
+                  const mySub = myChallengeSubmissions.find((s) => s.challengeId === c.id) ?? null;
+                  const isActive = activeChallenge(c, Date.now());
+                  const bonus = mySub?.bonusPoints ?? 0;
+                  const total = c.points + bonus;
+                  return (
+                    <Card key={c.id} onPress={() => setOpenChallenge(c)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55 }}>
+                      <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : "#FFF0E8" }]}>
+                        <Text style={{ fontSize: 17 }}>{isDone ? "✓" : "⚡"}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: "600" }}>{c.title}</Text>
+                        <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                          {isDone
+                            ? `Done ✓ — ${c.points}${bonus ? ` + ${bonus} early-bird` : ""} = ${total} pts`
+                            : mySub?.status === "pending"
+                            ? "Submitted — pending review"
+                            : mySub?.status === "rejected"
+                            ? "Not approved — tap to resubmit"
+                            : !isActive
+                            ? "Not open"
+                            : c.earlyBirdBonuses.length > 0
+                            ? "⚡ Early-bird bonus available"
+                            : "Open now"}
+                        </Text>
+                      </View>
+                      <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.orange }}>+{isDone ? total : c.points}</Text>
+                    </Card>
+                  );
+                };
+                const notDone = challenges.filter((c) => !(crew.challengesCompleted?.includes(c.id) ?? false));
+                const done = challenges.filter((c) => crew.challengesCompleted?.includes(c.id) ?? false);
                 return (
-                  <Card key={c.id} onPress={() => setOpenChallenge(c)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55 }}>
-                    <View style={[styles.typeIcon, { backgroundColor: isDone ? theme.color.successBg : "#FFF0E8" }]}>
-                      <Text style={{ fontSize: 17 }}>{isDone ? "✓" : "⚡"}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: "600" }}>{c.title}</Text>
-                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
-                        {isDone ? `Done ✓${mySubmission?.bonusPoints ? ` · +${mySubmission.bonusPoints} early-bird` : ""}` : mySubmission?.status === "pending" ? "Submitted — pending review" : !isActive ? "Not open" : c.earlyBirdBonuses.length > 0 ? "⚡ Early-bird bonus available" : "Open now"}
-                      </Text>
-                    </View>
-                    <Text style={{ fontWeight: "800", color: isDone ? theme.color.success : theme.color.orange }}>+{c.points}</Text>
-                  </Card>
+                  <>
+                    {notDone.map(row)}
+                    {done.length > 0 && (
+                      <>
+                        <Text style={styles.sectionDivider}>COMPLETED ({done.length})</Text>
+                        {done.map(row)}
+                      </>
+                    )}
+                  </>
                 );
-              })
+              })()
             )}
 
             {seg === "leaderboard" && leaderboard.map((c, i) => (
@@ -327,50 +384,88 @@ export function HuntScreen() {
             <Text style={{ color: theme.color.textMuted, fontSize: 12, marginVertical: 6 }}>{openMission.subtitle} · +{openMission.points} pts</Text>
             <Text style={{ marginBottom: 14 }}>{openMission.description}</Text>
 
-            {crew?.missionsCompleted.includes(openMission.id) ? (
+            {missionStatus === "correct" && (
               <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
-                <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>Done ✓ — points are on the board for your crew.</Text>
+                <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>Done ✓ — +{openMission.points} pts earned for your crew.</Text>
               </View>
-            ) : openMission.type === "trivia" && openMission.options ? (
+            )}
+            {missionStatus === "wrong" && (
+              <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12 }}>
+                <Text style={{ color: theme.color.danger, fontWeight: "700", textAlign: "center" }}>Not quite — trivia only gets one shot per crew.</Text>
+              </View>
+            )}
+            {missionStatus === "pending" && (
               <>
-                {openMission.options.map((opt, idx) => (
-                  <Pill key={idx} active={triviaChoice === idx} onPress={() => setTriviaChoice(idx)}>{opt}</Pill>
-                ))}
-                <PrimaryButton disabled={triviaChoice === null} onPress={() => completeInstant(triviaChoice === openMission.answerIndex)} style={{ marginTop: 12, width: "100%" }}>
-                  SUBMIT ANSWER
-                </PrimaryButton>
-              </>
-            ) : huntMissionIsAutoScored(openMission.type) ? (
-              <PrimaryButton onPress={() => completeInstant(true)} style={{ width: "100%" }}>
-                {openMission.type === "gps" ? "📍 CHECK IN HERE" : "🔲 SCAN THE QR CODE"}
-              </PrimaryButton>
-            ) : (
-              <>
-                {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
-                  mediaUri ? (
-                    <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
-                  ) : (
-                    <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-                      <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
-                      <PrimaryButton onPress={() => pickMedia(false)} style={{ flex: 1 }}>🖼 Library</PrimaryButton>
-                    </View>
-                  )
+                {missionPreviewUri && mySubmission?.mediaType !== "text" && (
+                  <TouchableOpacity onPress={() => setLightbox({ uri: missionPreviewUri, mediaType: mySubmission?.mediaType === "video" ? "video" : "photo" })}>
+                    <Image source={{ uri: missionPreviewUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                  </TouchableOpacity>
                 )}
-                {openMission.type === "text" && (
-                  <TextInput
-                    value={textAnswer}
-                    onChangeText={setTextAnswer}
-                    placeholder="Your answer…"
-                    multiline
-                    numberOfLines={3}
-                    style={styles.textArea}
-                  />
+                {mySubmission?.textAnswer && (
+                  <View style={{ backgroundColor: "#F7F6F3", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 13.5 }}>"{mySubmission.textAnswer}"</Text>
+                  </View>
                 )}
-                {submitError && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{submitError}</Text>}
-                <PrimaryButton disabled={(!mediaUri && !textAnswer.trim()) || busy} onPress={submitForReview} style={{ width: "100%" }}>
-                  {busy ? "Submitting…" : "SUBMIT FOR REVIEW"}
-                </PrimaryButton>
+                <View style={{ backgroundColor: theme.color.warningBg, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ color: theme.color.warning, fontWeight: "700", textAlign: "center" }}>Submitted — a facilitator will take a look shortly.</Text>
+                </View>
               </>
+            )}
+            {missionStatus === "rejected" && mySubmission?.mediaUrl && (
+              <TouchableOpacity onPress={() => setLightbox({ uri: mySubmission.mediaUrl!, mediaType: mySubmission.mediaType === "video" ? "video" : "photo" })}>
+                <Image source={{ uri: mySubmission.mediaUrl }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+              </TouchableOpacity>
+            )}
+            {missionStatus === "rejected" && (
+              <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                <Text style={{ color: theme.color.danger, fontWeight: "700", textAlign: "center" }}>Not approved — try submitting again.</Text>
+              </View>
+            )}
+
+            {(missionStatus === null || missionStatus === "rejected") && (
+              openMission.type === "trivia" && openMission.options ? (
+                <>
+                  {openMission.options.map((opt, idx) => (
+                    <Pill key={idx} active={triviaChoice === idx} onPress={() => setTriviaChoice(idx)}>{opt}</Pill>
+                  ))}
+                  <PrimaryButton disabled={triviaChoice === null} onPress={() => completeInstant(triviaChoice === openMission.answerIndex)} style={{ marginTop: 12, width: "100%" }}>
+                    SUBMIT ANSWER
+                  </PrimaryButton>
+                </>
+              ) : huntMissionIsAutoScored(openMission.type) ? (
+                <PrimaryButton onPress={() => completeInstant(true)} style={{ width: "100%" }}>
+                  {openMission.type === "gps" ? "📍 CHECK IN HERE" : "🔲 SCAN THE QR CODE"}
+                </PrimaryButton>
+              ) : (
+                <>
+                  {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
+                    mediaUri ? (
+                      <TouchableOpacity onPress={() => setLightbox({ uri: mediaUri, mediaType: openMission.type === "video" ? "video" : "photo" })}>
+                        <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                        <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
+                        <PrimaryButton onPress={() => pickMedia(false)} style={{ flex: 1 }}>🖼 Library</PrimaryButton>
+                      </View>
+                    )
+                  )}
+                  {openMission.type === "text" && (
+                    <TextInput
+                      value={textAnswer}
+                      onChangeText={setTextAnswer}
+                      placeholder="Your answer…"
+                      multiline
+                      numberOfLines={3}
+                      style={styles.textArea}
+                    />
+                  )}
+                  {submitError && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{submitError}</Text>}
+                  <PrimaryButton disabled={(!mediaUri && !textAnswer.trim()) || busy} onPress={submitForReview} style={{ width: "100%" }}>
+                    {busy ? "Submitting…" : missionStatus === "rejected" ? "RESUBMIT" : "SUBMIT FOR REVIEW"}
+                  </PrimaryButton>
+                </>
+              )
             )}
           </View>
         )}
@@ -384,6 +479,8 @@ export function HuntScreen() {
           onClose={() => setOpenChallenge(null)}
         />
       )}
+
+      <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </ScrollView>
   );
 }
@@ -399,4 +496,5 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 99, backgroundColor: "rgba(255,255,255,.25)", overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: theme.color.gold, borderRadius: 99 },
   typeIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  sectionDivider: { fontWeight: "800", fontSize: 11.5, color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 10, marginBottom: 6 },
 });

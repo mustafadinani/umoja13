@@ -11,6 +11,7 @@ import {
   type Sponsor,
   type HuntCrew,
   type HuntMission,
+  type HuntSubmission,
   type Notification,
   type CheckIn,
   type TournamentPass,
@@ -74,5 +75,12 @@ export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challeng
 export const useMyChallengeSubmissions = (crewId: string | undefined) =>
   useCollection<ChallengeSubmission>(
     COLLECTIONS.challengeSubmissions,
+    crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
+  );
+
+/** A crew's own mission submissions, so the Hunt UI can show persisted pending/approved/rejected status + the submitted media. */
+export const useMyHuntSubmissions = (crewId: string | undefined) =>
+  useCollection<HuntSubmission>(
+    COLLECTIONS.huntSubmissions,
     crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
   );

@@ -24,7 +24,7 @@ export function MomentsScreen() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; type: "photo" | "video" } | null>(null);
 
   // Public approved feed plus the signed-in user's own posts regardless of
   // moderation status — otherwise a pending/rejected post just vanishes on
@@ -111,8 +111,15 @@ export function MomentsScreen() {
           return (
             <View style={styles.tile}>
               {m.mediaUrl ? (
-                <TouchableOpacity onPress={() => m.mediaType === "photo" && setLightboxUrl(m.mediaUrl)} activeOpacity={m.mediaType === "photo" ? 0.85 : 1}>
-                  <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+                <TouchableOpacity onPress={() => setLightbox({ url: m.mediaUrl, type: m.mediaType })} activeOpacity={0.85}>
+                  {m.mediaType === "video" ? (
+                    <View style={[styles.tileImage, styles.videoPlaceholder]}>
+                      <Text style={{ fontSize: 26 }}>▶</Text>
+                      <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", marginTop: 2 }}>VIDEO</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+                  )}
                 </TouchableOpacity>
               ) : (
                 <View style={[styles.tileImage, { backgroundColor: theme.color.purple }]} />
@@ -180,7 +187,7 @@ export function MomentsScreen() {
           </>
         )}
       </Modal>
-      <Lightbox visible={!!lightboxUrl} src={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+      <Lightbox visible={!!lightbox} src={lightbox?.url ?? null} mediaType={lightbox?.type} onClose={() => setLightbox(null)} />
     </View>
   );
 }
@@ -190,6 +197,7 @@ const styles = StyleSheet.create({
   title: { fontWeight: "800", fontSize: 24 },
   tile: { flex: 1, margin: 6, backgroundColor: "#fff", borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: theme.color.border },
   tileImage: { width: "100%", height: 100 },
+  videoPlaceholder: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: 6, left: 6, fontSize: 16 },
   statusBadge: { position: "absolute", top: 78, left: 6, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
   commentInput: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13, minHeight: 50, textAlignVertical: "top", marginBottom: 14 },

@@ -1,12 +1,35 @@
+import { useEffect } from "react";
 import { Modal as RNModal, Image, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 
-/** Full-screen tap-to-view for a photo. Mobile has no working inline video
- * player yet (a separate, pre-existing gap), so this only handles photos. */
-export function Lightbox({ visible, src, onClose }: { visible: boolean; src: string | null; onClose: () => void }) {
+export function Lightbox({
+  visible,
+  src,
+  mediaType = "photo",
+  onClose,
+}: {
+  visible: boolean;
+  src: string | null;
+  mediaType?: "photo" | "video";
+  onClose: () => void;
+}) {
+  const isVideo = mediaType === "video" && !!src;
+  const player = useVideoPlayer(isVideo ? src : null);
+
+  useEffect(() => {
+    if (!player) return;
+    if (visible && isVideo) player.play();
+    else player.pause();
+  }, [visible, isVideo, player]);
+
   return (
     <RNModal visible={visible && !!src} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
-        {src && <Image source={{ uri: src }} style={styles.media} resizeMode="contain" />}
+        {src && isVideo ? (
+          <VideoView player={player} style={styles.media} nativeControls contentFit="contain" />
+        ) : (
+          src && <Image source={{ uri: src }} style={styles.media} resizeMode="contain" />
+        )}
         <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
           <Text style={{ color: "#fff", fontSize: 18 }}>✕</Text>
         </TouchableOpacity>

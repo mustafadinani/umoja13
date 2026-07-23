@@ -1,24 +1,37 @@
 import { useState } from "react";
 import { doc, updateDoc, arrayUnion, addDoc, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, huntMissionIsAutoScored, type HuntCrew, type HuntMission } from "@umoja/shared";
+import { COLLECTIONS, huntMissionIsAutoScored, type HuntCrew, type HuntMission, type HuntSubmission } from "@umoja/shared";
 import { db, storage } from "../../lib/firebase";
 import { useAuth } from "../../auth/AuthProvider";
 import { theme } from "../../lib/theme";
 import { Modal, PrimaryButton, Pill } from "../../components/ui";
 
-export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMission; crew: HuntCrew; onClose: () => void }) {
+export function MissionDetailModal({
+  mission,
+  crew,
+  mySubmission,
+  onClose,
+}: {
+  mission: HuntMission;
+  crew: HuntCrew;
+  mySubmission: HuntSubmission | null;
+  onClose: () => void;
+}) {
   const { user, profile } = useAuth();
   const [file, setFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<"pending" | "correct" | "wrong" | null>(
+  const [justSubmitted, setJustSubmitted] = useState<"pending" | "correct" | "wrong" | null>(
     crew.missionsCompleted.includes(mission.id) ? "correct" : null
   );
 
   const alreadyDone = crew.missionsCompleted.includes(mission.id);
   const autoScored = huntMissionIsAutoScored(mission.type);
+  // Persisted status wins over ephemeral local state (so it survives closing/reopening the modal).
+  const status = alreadyDone ? "correct" : justSubmitted ?? (mySubmission?.status === "rejected" ? "rejected" : mySubmission?.status === "pending" ? "pending" : null);
 
   async function completeInstant(correct: boolean) {
     setBusy(true);
@@ -29,10 +42,15 @@ export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMi
           missionsCompleted: arrayUnion(mission.id),
         });
       }
-      setDone(correct ? "correct" : "wrong");
+      setJustSubmitted(correct ? "correct" : "wrong");
     } finally {
       setBusy(false);
     }
+  }
+
+  function pickFile(f: File | null) {
+    setFile(f);
+    setFilePreview(f ? URL.createObjectURL(f) : null);
   }
 
   async function submitForReview() {
@@ -61,11 +79,13 @@ export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMi
         status: "pending",
         createdAt: Date.now(),
       });
-      setDone("pending");
+      setJustSubmitted("pending");
     } finally {
       setBusy(false);
     }
   }
+
+  const previewUrl = filePreview ?? mySubmission?.mediaUrl;
 
   return (
     <Modal onClose={onClose}>
@@ -73,23 +93,41 @@ export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMi
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>{mission.subtitle} · +{mission.points} pts</div>
       <div style={{ fontSize: 14, marginBottom: 16 }}>{mission.description}</div>
 
-      {(alreadyDone || done === "correct") && (
+      {status === "correct" && (
         <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
-          Done ✓ — points are on the board for your crew.
+          Done ✓ — +{mission.points} pts earned for your crew.
         </div>
       )}
-      {done === "wrong" && (
+      {status === "wrong" && (
         <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
           Not quite — trivia only gets one shot per crew.
         </div>
       )}
-      {done === "pending" && (
-        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
-          Submitted — a facilitator will take a look shortly.
-        </div>
+      {status === "pending" && (
+        <>
+          {previewUrl && mySubmission?.mediaType !== "text" && (
+            <img src={previewUrl} alt="Your submission" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12 }} />
+          )}
+          {mySubmission?.textAnswer && (
+            <div style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, fontSize: 13.5, marginBottom: 12 }}>"{mySubmission.textAnswer}"</div>
+          )}
+          <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
+            Submitted — a facilitator will take a look shortly.
+          </div>
+        </>
+      )}
+      {status === "rejected" && (
+        <>
+          {mySubmission?.mediaUrl && (
+            <img src={mySubmission.mediaUrl} alt="Your submission" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12 }} />
+          )}
+          <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center", marginBottom: 12 }}>
+            Not approved — try submitting again.
+          </div>
+        </>
       )}
 
-      {!alreadyDone && done === null && (
+      {(status === null || status === "rejected") && (
         <>
           {mission.type === "trivia" && mission.options && (
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
@@ -105,7 +143,7 @@ export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMi
           )}
           {(mission.type === "photo" || mission.type === "video" || mission.type === "mini_game") && (
             <label style={{ display: "block", border: `2px dashed ${theme.color.border}`, borderRadius: theme.radius.md, padding: 18, textAlign: "center", cursor: "pointer", marginBottom: 14 }}>
-              <input type="file" accept="image/*,video/*" capture="environment" style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*,video/*" capture="environment" style={{ display: "none" }} onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
               {file ? <div style={{ fontSize: 13 }}>{file.name}</div> : <div style={{ color: theme.color.textMuted }}>📷 Take or upload a photo/video</div>}
             </label>
           )}
@@ -131,7 +169,7 @@ export function MissionDetailModal({ mission, crew, onClose }: { mission: HuntMi
             )
           ) : (
             <PrimaryButton disabled={(!file && !text) || busy} onClick={submitForReview} style={{ width: "100%" }}>
-              {busy ? "Submitting…" : "SUBMIT FOR REVIEW"}
+              {busy ? "Submitting…" : status === "rejected" ? "RESUBMIT" : "SUBMIT FOR REVIEW"}
             </PrimaryButton>
           )}
         </>

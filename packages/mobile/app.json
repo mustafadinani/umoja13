@@ -38,7 +38,8 @@
           "cameraPermission": "Umoja13 needs access to your camera so you can take photos for check-in, moments, and Hunt missions.",
           "microphonePermission": "Umoja13 needs access to your microphone so videos you share include sound."
         }
-      ]
+      ],
+      "expo-video"
     ]
   }
 }

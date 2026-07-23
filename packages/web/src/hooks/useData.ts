@@ -95,6 +95,13 @@ export const useMyInvites = (email: string | undefined) =>
 export const useHuntSubmissions = (constraints: QueryConstraint[] = []) =>
   useCollection<HuntSubmission>(COLLECTIONS.huntSubmissions, [orderBy("createdAt", "desc"), ...constraints]);
 
+/** A crew's own mission submissions, so the Hunt UI can show persisted pending/approved/rejected status + the submitted media, not just an ephemeral in-modal state. */
+export const useMyHuntSubmissions = (crewId: string | undefined) =>
+  useCollection<HuntSubmission>(
+    COLLECTIONS.huntSubmissions,
+    crewId ? [where("crewId", "==", crewId), orderBy("createdAt", "desc")] : []
+  );
+
 export const useVolunteers = () =>
   useCollection<UserProfile>(COLLECTIONS.users, [where("roles", "array-contains", "volunteer")]);
 
