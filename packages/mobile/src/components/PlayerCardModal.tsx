@@ -1,8 +1,11 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { Modal } from "./ui";
+import { useMoments } from "../hooks/useData";
+import { Drawer } from "./ui";
 import { LoadingImage } from "./LoadingImage";
+import { Lightbox } from "./Lightbox";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
@@ -22,9 +25,12 @@ export function PlayerCardModal({
   onClose: () => void;
 }) {
   const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
+  const { data: moments } = useMoments();
+  const playerMoments = moments.filter((m) => m.playerTagUid === player.userId).sort((a, b) => b.createdAt - a.createdAt);
+  const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
 
   return (
-    <Modal visible onClose={onClose}>
+    <Drawer visible onClose={onClose}>
       <View style={{ alignItems: "center" }}>
         {player.selfieUrl ? (
           <LoadingImage source={{ uri: player.selfieUrl }} style={styles.photo} />
@@ -54,7 +60,7 @@ export function PlayerCardModal({
         )}
 
         {player.badges && player.badges.length > 0 && (
-          <View style={styles.badgeRow}>
+          <View style={[styles.badgeRow, playerMoments.length > 0 && { marginBottom: 20 }]}>
             {player.badges.map((b) => (
               <View key={b} style={styles.badge}>
                 <Text style={{ fontSize: 11.5, fontWeight: "700", color: theme.color.purple }}>🏅 {b}</Text>
@@ -62,8 +68,28 @@ export function PlayerCardModal({
             ))}
           </View>
         )}
+
+        {playerMoments.length > 0 && (
+          <View style={{ width: "100%" }}>
+            <Text style={styles.momentsTitle}>MOMENTS</Text>
+            <View style={styles.momentsGrid}>
+              {playerMoments.map((m) => (
+                <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
+                  {m.mediaType === "video" ? (
+                    <View style={[styles.momentTile, styles.momentTileVideo]}>
+                      <Text style={{ fontSize: 20 }}>▶</Text>
+                    </View>
+                  ) : (
+                    <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
-    </Modal>
+      <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
+    </Drawer>
   );
 }
 
@@ -79,4 +105,8 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, color: theme.color.textMuted, marginTop: 2 },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" },
   badge: { backgroundColor: "#F7F0FF", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
+  momentsTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
+  momentsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  momentTile: { width: 84, height: 84, borderRadius: 8 },
+  momentTileVideo: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
 });

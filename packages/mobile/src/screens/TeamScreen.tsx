@@ -7,23 +7,27 @@ import { CATEGORIES, COLLECTIONS, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useTeam } from "../hooks/useData";
+import { useGames, useMoments, useTeam } from "../hooks/useData";
 import { Card, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { PlayerCardModal } from "../components/PlayerCardModal";
+import { Lightbox } from "../components/Lightbox";
 
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
   const { profile } = useAuth();
   const { data: team } = useTeam(teamId);
   const { data: games } = useGames();
+  const { data: moments } = useMoments();
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
+  const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
+  const teamMoments = moments.filter((m) => m.teamTagId === team.id).sort((a, b) => b.createdAt - a.createdAt);
   const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
 
   async function saveNumber(userId: string) {
@@ -100,7 +104,27 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           </Card>
         ))}
       </View>
+
+      {teamMoments.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>MOMENTS</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {teamMoments.map((m) => (
+              <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
+                {m.mediaType === "video" ? (
+                  <View style={[styles.momentTile, styles.momentTileVideo]}>
+                    <Text style={{ fontSize: 20 }}>▶</Text>
+                  </View>
+                ) : (
+                  <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
       {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
+      <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </ScrollView>
   );
 }
@@ -115,4 +139,6 @@ const styles = StyleSheet.create({
   saveBtn: { backgroundColor: theme.color.navy, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
+  momentTile: { width: 84, height: 84, borderRadius: 8 },
+  momentTileVideo: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
 });

@@ -8,7 +8,7 @@ import { COLLECTIONS, MOMENT_TAGS, type Moment } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useMoments, useMyMoments } from "../hooks/useData";
+import { useMoments, useMyMoments, useTeam, useTeams } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../components/ui";
 import { MomentDetailModal } from "../components/MomentDetailModal";
 
@@ -18,10 +18,14 @@ export function MomentsScreen() {
   const { user } = useAuth();
   const { data: approvedMoments } = useMoments();
   const { data: myMoments } = useMyMoments(user?.uid);
+  const { data: teams } = useTeams();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uri, setUri] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [teamTagId, setTeamTagId] = useState<string | null>(null);
+  const [playerTagUid, setPlayerTagUid] = useState<string | null>(null);
+  const { data: taggedTeam } = useTeam(teamTagId ?? undefined);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
@@ -65,6 +69,8 @@ export function MomentsScreen() {
         postedBy: user.uid,
         postedByName: user.displayName ?? "Fan",
         source: "community",
+        ...(teamTagId ? { teamTagId } : {}),
+        ...(playerTagUid ? { playerTagUid } : {}),
         likeUids: [],
         moderationStatus: "pending",
         createdAt: Date.now(),
@@ -82,6 +88,8 @@ export function MomentsScreen() {
     setUri(null);
     setTag(null);
     setComment("");
+    setTeamTagId(null);
+    setPlayerTagUid(null);
     setPosted(false);
     setError(null);
   }
@@ -172,6 +180,26 @@ export function MomentsScreen() {
               numberOfLines={2}
               style={styles.commentInput}
             />
+
+            <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Tag a team (optional)</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+              <Pill active={teamTagId === null} onPress={() => { setTeamTagId(null); setPlayerTagUid(null); }}>No team</Pill>
+              {teams.map((t) => (
+                <Pill key={t.id} active={teamTagId === t.id} onPress={() => { setTeamTagId(t.id); setPlayerTagUid(null); }}>{t.name}</Pill>
+              ))}
+            </View>
+
+            {teamTagId && taggedTeam && taggedTeam.roster.length > 0 && (
+              <>
+                <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Tag a player (optional)</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                  {taggedTeam.roster.map((p) => (
+                    <Pill key={p.userId} active={playerTagUid === p.userId} onPress={() => setPlayerTagUid(playerTagUid === p.userId ? null : p.userId)}>{p.displayName}</Pill>
+                  ))}
+                </View>
+              </>
+            )}
+
             {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
             <PrimaryButton disabled={!uri || !tag || posting} onPress={post} style={{ width: "100%" }}>
               {posting ? "Posting…" : "POST MOMENT"}

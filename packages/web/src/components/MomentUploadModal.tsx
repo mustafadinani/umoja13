@@ -5,6 +5,7 @@ import { COLLECTIONS, MOMENT_TAGS, type MomentSource } from "@umoja/shared";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { useTeam, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
 export function MomentUploadModal({
@@ -17,10 +18,14 @@ export function MomentUploadModal({
   source?: MomentSource;
 }) {
   const { user, profile } = useAuth();
+  const { data: teams } = useTeams();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [teamTagId, setTeamTagId] = useState<string | null>(null);
+  const [playerTagUid, setPlayerTagUid] = useState<string | null>(null);
+  const { data: taggedTeam } = useTeam(teamTagId ?? undefined);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
 
@@ -48,6 +53,8 @@ export function MomentUploadModal({
         postedByName: profile.displayName,
         source,
         gameId: gameId ?? null,
+        ...(teamTagId ? { teamTagId } : {}),
+        ...(playerTagUid ? { playerTagUid } : {}),
         likeUids: [],
         moderationStatus: "pending",
         createdAt: Date.now(),
@@ -110,8 +117,36 @@ export function MomentUploadModal({
         onChange={(e) => setComment(e.target.value)}
         placeholder="Say something about this moment…"
         rows={2}
-        style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 20 }}
+        style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
       />
+
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Tag a team (optional)</div>
+      <select
+        value={teamTagId ?? ""}
+        onChange={(e) => { setTeamTagId(e.target.value || null); setPlayerTagUid(null); }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5, background: "#fff" }}
+      >
+        <option value="">No team</option>
+        {teams.map((t) => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+
+      {teamTagId && taggedTeam && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Tag a player (optional)</div>
+          <select
+            value={playerTagUid ?? ""}
+            onChange={(e) => setPlayerTagUid(e.target.value || null)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 20, fontSize: 13.5, background: "#fff" }}
+          >
+            <option value="">No player</option>
+            {taggedTeam.roster.map((p) => (
+              <option key={p.userId} value={p.userId}>{p.displayName}</option>
+            ))}
+          </select>
+        </>
+      )}
 
       <PrimaryButton disabled={!file || !tag || posting} onClick={submit} style={{ width: "100%" }}>
         {posting ? "Posting…" : "POST MOMENT"}

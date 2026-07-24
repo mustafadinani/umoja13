@@ -11,6 +11,8 @@ export interface Moment {
   postedBy: string; // uid
   postedByName: string;
   teamTagId?: string;
+  /** Optional player tag — shows this moment on that player's Player Card. */
+  playerTagUid?: string;
   source: MomentSource;
   gameId?: string;
   huntSubmissionId?: string;

@@ -137,6 +137,56 @@ export function Modal({ children, onClose, width = 440 }: { children: ReactNode;
   );
 }
 
+export function Drawer({ children, onClose, width = 460 }: { children: ReactNode; onClose: () => void; width?: number }) {
+  return (
+    <div
+      onClick={onClose}
+      data-testid="drawer-scrim"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(17,12,32,.45)",
+        zIndex: 100,
+        display: "flex",
+        justifyContent: "flex-end",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative",
+          background: "#fff",
+          width,
+          maxWidth: "100%",
+          height: "100%",
+          overflowY: "auto",
+          padding: 28,
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: "none",
+            background: "#F1EFF5",
+            color: theme.color.text,
+            fontSize: 15,
+            cursor: "pointer",
+          }}
+        >
+          ✕
+        </button>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     scheduled: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Upcoming" },

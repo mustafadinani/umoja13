@@ -1,6 +1,9 @@
+import { useState } from "react";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { Modal } from "./ui";
+import { useMoments } from "../hooks/useData";
+import { Drawer } from "./ui";
+import { Lightbox } from "./Lightbox";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
@@ -12,9 +15,12 @@ const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }>
 
 export function PlayerCardModal({ player, teamName, onClose }: { player: RosterEntry; teamName: string; onClose: () => void }) {
   const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
+  const { data: moments } = useMoments();
+  const playerMoments = moments.filter((m) => m.playerTagUid === player.userId).sort((a, b) => b.createdAt - a.createdAt);
+  const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   return (
-    <Modal onClose={onClose}>
+    <Drawer onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
         {player.selfieUrl ? (
           <img src={player.selfieUrl} alt={player.displayName} style={{ width: 140, height: 140, borderRadius: "50%", objectFit: "cover", marginBottom: 14 }} />
@@ -48,7 +54,7 @@ export function PlayerCardModal({ player, teamName, onClose }: { player: RosterE
         )}
 
         {player.badges && player.badges.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: playerMoments.length > 0 ? 20 : 0 }}>
             {player.badges.map((b) => (
               <div key={b} style={{ background: "#F7F0FF", borderRadius: 8, padding: "6px 10px", fontSize: 11.5, fontWeight: 700, color: theme.color.purple }}>
                 🏅 {b}
@@ -56,7 +62,29 @@ export function PlayerCardModal({ player, teamName, onClose }: { player: RosterE
             ))}
           </div>
         )}
+
+        {playerMoments.length > 0 && (
+          <div style={{ width: "100%" }}>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, marginBottom: 8 }}>MOMENTS</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {playerMoments.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
+                  style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", border: `1px solid ${theme.color.border}` }}
+                >
+                  {m.mediaType === "video" ? (
+                    <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
+                  ) : (
+                    <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </Modal>
+      {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
+    </Drawer>
   );
 }

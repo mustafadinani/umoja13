@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useCategories, useGames, useTeam } from "../hooks/useData";
+import { useCategories, useGames, useMoments, useTeam } from "../hooks/useData";
 import { Card, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
+import { Lightbox } from "../components/Lightbox";
 
 export function Team() {
   const { teamId } = useParams();
@@ -12,11 +13,14 @@ export function Team() {
   const { data: team } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
+  const { data: moments } = useMoments();
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
+  const teamMoments = moments.filter((m) => m.teamTagId === team.id).sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
@@ -74,8 +78,30 @@ export function Team() {
             {teamGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
         </div>
+
+        {teamMoments.length > 0 && (
+          <div>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>MOMENTS</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              {teamMoments.map((m) => (
+                <Card
+                  key={m.id}
+                  onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
+                  style={{ padding: 0, overflow: "hidden", cursor: "pointer" }}
+                >
+                  {m.mediaType === "video" ? (
+                    <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
+                  ) : (
+                    <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
+      {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

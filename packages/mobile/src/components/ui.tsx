@@ -59,6 +59,24 @@ export function Modal({ visible, onClose, children }: { visible: boolean; onClos
   );
 }
 
+export function Drawer({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
+  return (
+    <RNModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={styles.drawerScrim} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} style={styles.drawerCard} onPress={() => {}}>
+          <View style={styles.drawerHandle} />
+          <TouchableOpacity onPress={onClose} style={styles.drawerCloseBtn}>
+            <Text style={{ fontSize: 15 }}>✕</Text>
+          </TouchableOpacity>
+          <ScrollView contentContainerStyle={styles.drawerContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </RNModal>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     scheduled: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Upcoming" },
@@ -112,5 +130,41 @@ const styles = StyleSheet.create({
   },
   modalCardContent: {
     padding: 20,
+  },
+  drawerScrim: {
+    flex: 1,
+    backgroundColor: "rgba(17,12,32,.5)",
+    justifyContent: "flex-end",
+  },
+  drawerCard: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: theme.radius.lg,
+    borderTopRightRadius: theme.radius.lg,
+    height: "90%",
+    overflow: "hidden",
+  },
+  drawerHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.color.border,
+    alignSelf: "center",
+    marginTop: 10,
+  },
+  drawerCloseBtn: {
+    position: "absolute",
+    top: 14,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F1EFF5",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+  drawerContent: {
+    padding: 20,
+    paddingTop: 24,
   },
 });
