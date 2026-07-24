@@ -53,5 +53,15 @@ service firebase.storage {
         request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
+
+    // Business-donor company logo uploaded during sponsorship checkout —
+    // self-serve, owner-scoped write; public read since it may become a
+    // public Sponsor logo once an admin converts the order.
+    match /sponsorshipLogos/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.size < 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
   }
 }

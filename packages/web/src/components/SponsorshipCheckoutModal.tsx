@@ -1,0 +1,198 @@
+import { useState } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
+import { storage } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
+import { theme } from "../lib/theme";
+import { createSponsorshipCheckout } from "../lib/callables";
+import { Modal, PrimaryButton, Pill } from "./ui";
+import { SponsorInquiryModal } from "./SponsorInquiryModal";
+
+function formatDollars(cents: number) {
+  return `$${(cents / 100).toLocaleString()}`;
+}
+
+export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
+  const { user, profile } = useAuth();
+  const [showInquiry, setShowInquiry] = useState(false);
+  const [tierId, setTierId] = useState<SponsorTier | null>(null);
+  const [donorType, setDonorType] = useState<SponsorshipDonorType>("individual");
+  const [donorName, setDonorName] = useState(profile?.displayName ?? "");
+  const [email, setEmail] = useState(profile?.email ?? "");
+  const [phone, setPhone] = useState("");
+  const [customAmount, setCustomAmount] = useState("");
+  const [customNote, setCustomNote] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
+
+  if (!user) {
+    return (
+      <Modal onClose={onClose}>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Become a Sponsor</div>
+        <div style={{ fontSize: 14, color: theme.color.textMuted }}>Sign in first, then come back to choose a tier.</div>
+      </Modal>
+    );
+  }
+
+  const tier = SPONSORSHIP_TIERS.find((t) => t.id === tierId) ?? null;
+  const customAmountCents = Math.round(parseFloat(customAmount || "0") * 100);
+  const validCustomAmount = tier?.priceCents == null ? customAmountCents >= 100 : true;
+  const canSubmit = !!tier && !!donorName.trim() && !!email.trim() && validCustomAmount;
+
+  async function checkout() {
+    if (!tier || !canSubmit) return;
+    setBusy(true);
+    setError(null);
+    try {
+      let companyLogoUrl: string | undefined;
+      if (donorType === "business" && logoFile) {
+        const path = `sponsorshipLogos/${user!.uid}/${Date.now()}-${logoFile.name}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, logoFile, { contentType: logoFile.type });
+        companyLogoUrl = await getDownloadURL(storageRef);
+      }
+
+      const res = await createSponsorshipCheckout({
+        tierId: tier.id,
+        donorType,
+        donorName: donorName.trim(),
+        email: email.trim(),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
+        ...(companyLogoUrl ? { companyLogoUrl } : {}),
+        ...(tier.priceCents == null
+          ? { customAmountCents, ...(customNote.trim() ? { customNote: customNote.trim() } : {}) }
+          : {}),
+        successUrl: `${window.location.origin}/?sponsored=1`,
+        cancelUrl: window.location.origin,
+      });
+
+      if (res.data.checkoutUrl) {
+        window.location.assign(res.data.checkoutUrl);
+      } else {
+        setError("Couldn't start checkout.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't start checkout.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} width={560}>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24, marginBottom: 4 }}>Become a Sponsor</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 18 }}>
+        Pick a tier, tell us about yourself, then pay securely through Stripe.
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose a tier</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+        {SPONSORSHIP_TIERS.map((t) => {
+          const active = tierId === t.id;
+          return (
+            <div
+              key={t.id}
+              onClick={() => setTierId(t.id)}
+              style={{
+                cursor: "pointer",
+                borderRadius: theme.radius.sm,
+                border: `2px solid ${active ? theme.color.purple : theme.color.border}`,
+                background: active ? "#F7F0FF" : "#fff",
+                padding: "12px 14px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>{t.label}</div>
+                <div style={{ fontWeight: 800, fontSize: 15, color: theme.color.purple }}>
+                  {t.priceCents != null ? formatDollars(t.priceCents) : "Name your amount"}
+                </div>
+              </div>
+              <div style={{ fontSize: 12.5, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{t.tagline}</div>
+              {active && (
+                <ul style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: 12.5, color: theme.color.text }}>
+                  {t.perks.map((perk) => (
+                    <li key={perk} style={{ marginBottom: 3 }}>{perk}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {tier && (
+        <>
+          {tier.priceCents == null && (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Your amount ($)</div>
+              <input
+                type="number"
+                min={1}
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="e.g. 2500"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+              />
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>What would you like to include? (optional)</div>
+              <textarea
+                value={customNote}
+                onChange={(e) => setCustomNote(e.target.value)}
+                rows={3}
+                placeholder="Tell us what matters to you — signage, jerseys, media, anything else…"
+                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 12 }}
+              />
+            </>
+          )}
+
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>You're sponsoring as</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            <Pill active={donorType === "individual"} onClick={() => setDonorType("individual")}>Individual</Pill>
+            <Pill active={donorType === "business"} onClick={() => setDonorType("business")}>Business</Pill>
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{donorType === "business" ? "Company name" : "Full name"}</div>
+          <input
+            value={donorName}
+            onChange={(e) => setDonorName(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+          />
+
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email</div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+          />
+
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Phone (optional)</div>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+          />
+
+          {donorType === "business" && (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Company logo (optional)</div>
+              <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
+            </>
+          )}
+
+          {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+          <PrimaryButton disabled={!canSubmit || busy} onClick={checkout} style={{ width: "100%" }}>
+            {busy ? "Redirecting to Stripe…" : `CONTINUE TO PAYMENT`}
+          </PrimaryButton>
+        </>
+      )}
+
+      <div onClick={() => setShowInquiry(true)} style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: theme.color.textMuted, cursor: "pointer" }}>
+        Prefer to just talk to our team first? Send an inquiry instead →
+      </div>
+    </Modal>
+  );
+}

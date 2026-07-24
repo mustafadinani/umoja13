@@ -169,6 +169,16 @@ service cloud.firestore {
       allow update: if isStaff();
     }
 
+    // ---- Sponsorship orders (real $ tiers via Stripe Checkout) ----
+    // Created only by the createSponsorshipCheckout Cloud Function (Admin SDK,
+    // bypasses rules) and flipped to "paid" only by the Stripe webhook — no
+    // client-side create rule needed. Staff convert a paid order into a public
+    // Sponsor entry (or cancel it) from the admin dashboard.
+    match /sponsorshipOrders/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
+      allow write: if isStaff();
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

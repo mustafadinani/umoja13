@@ -20,6 +20,7 @@ import {
   type VolunteerTask,
   type Challenge,
   type ChallengeSubmission,
+  type SponsorshipOrder,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -35,6 +36,8 @@ export function useCategories() {
   return { ...result, data: sorted };
 }
 export const useSponsors = () => useCollection<Sponsor>(COLLECTIONS.sponsors);
+export const useSponsorshipOrders = () =>
+  useCollection<SponsorshipOrder>(COLLECTIONS.sponsorshipOrders, [orderBy("createdAt", "desc")]);
 export const useAnnouncements = () =>
   useCollection<Announcement>(COLLECTIONS.announcements, [orderBy("postedAt", "desc")]);
 export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.huntMissions);

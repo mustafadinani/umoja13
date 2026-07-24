@@ -8,6 +8,7 @@ export { callItFinal } from "./http/callItFinal.js";
 export { verifyCheckIn } from "./ai/verifyCheckIn.js";
 export { askUmoja, escalateChat } from "./ai/chatAssistant.js";
 export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
+export { createSponsorshipCheckout } from "./stripe/createSponsorshipCheckout.js";
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
 export { registerPushToken } from "./http/registerPushToken.js";

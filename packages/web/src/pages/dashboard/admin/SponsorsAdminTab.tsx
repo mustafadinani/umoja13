@@ -1,17 +1,123 @@
 import { useState } from "react";
 import { addDoc, collection, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { SPONSOR_TIER_LABELS, SPONSOR_TIER_ORDER, COLLECTIONS, type Sponsor, type SponsorTier } from "@umoja/shared";
+import {
+  SPONSOR_TIER_LABELS,
+  SPONSOR_TIER_ORDER,
+  SPONSORSHIP_TIERS,
+  COLLECTIONS,
+  type Sponsor,
+  type SponsorTier,
+  type SponsorshipOrder,
+} from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
-import { useSponsors } from "../../../hooks/useData";
+import { useSponsors, useSponsorshipOrders } from "../../../hooks/useData";
+
+function formatDollars(cents: number) {
+  return `$${(cents / 100).toLocaleString()}`;
+}
+
+function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
+  const { data: orders } = useSponsorshipOrders();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function convert(order: SponsorshipOrder) {
+    setBusyId(order.id);
+    try {
+      const inTier = sponsors.filter((s) => (s.tier ?? "community_supporter") === order.tierId);
+      const nextOrder = inTier.length > 0 ? Math.max(...inTier.map((s) => s.order ?? 0)) + 1 : 0;
+      const newSponsor = await addDoc(collection(db, COLLECTIONS.sponsors), {
+        name: order.donorName,
+        logoUrl: order.companyLogoUrl ?? "",
+        tagline: SPONSORSHIP_TIERS.find((t) => t.id === order.tierId)?.label ?? "",
+        story: order.customNote ?? "",
+        sponsoredTeamIds: [],
+        tier: order.tierId,
+        order: nextOrder,
+        websiteUrl: "",
+        visible: true,
+      });
+      await updateDoc(doc(db, COLLECTIONS.sponsorshipOrders, order.id), {
+        status: "converted",
+        convertedSponsorId: newSponsor.id,
+      });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function cancel(order: SponsorshipOrder) {
+    setBusyId(order.id);
+    try {
+      await updateDoc(doc(db, COLLECTIONS.sponsorshipOrders, order.id), { status: "cancelled" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (orders.length === 0) return null;
+
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 18, marginBottom: 24 }}>
+      <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 14 }}>SPONSORSHIP ORDERS</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {orders.map((o) => (
+          <div key={o.id} style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{o.donorName} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>({o.donorType})</span></div>
+              <div style={{ fontWeight: 800, color: theme.color.purple }}>{formatDollars(o.amountCents)}</div>
+            </div>
+            <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
+              {SPONSOR_TIER_LABELS[o.tierId]} · {o.email}{o.phone ? ` · ${o.phone}` : ""}
+            </div>
+            {o.customNote && <div style={{ fontSize: 12.5, marginTop: 6 }}>"{o.customNote}"</div>}
+            {o.companyLogoUrl && <img src={o.companyLogoUrl} alt="" style={{ height: 28, marginTop: 8, objectFit: "contain" }} />}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  color: o.status === "paid" ? theme.color.success : o.status === "converted" ? theme.color.blue : o.status === "cancelled" ? theme.color.danger : theme.color.warning,
+                  background: o.status === "paid" ? theme.color.successBg : o.status === "converted" ? "#E8EEFC" : o.status === "cancelled" ? theme.color.dangerBg : theme.color.warningBg,
+                }}
+              >
+                {o.status.toUpperCase()}
+              </span>
+              {o.status === "paid" && (
+                <button
+                  disabled={busyId === o.id}
+                  onClick={() => convert(o)}
+                  style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12.5 }}
+                >
+                  {busyId === o.id ? "Converting…" : "Convert to Sponsor"}
+                </button>
+              )}
+              {o.status === "pending" && (
+                <button
+                  disabled={busyId === o.id}
+                  onClick={() => cancel(o)}
+                  style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12.5 }}
+                >
+                  Mark cancelled
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function SponsorsAdminTab() {
   const { data: sponsors } = useSponsors();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function addSponsor(tier: SponsorTier) {
-    const inTier = sponsors.filter((s) => (s.tier ?? "supporter") === tier);
+    const inTier = sponsors.filter((s) => (s.tier ?? "community_supporter") === tier);
     const nextOrder = inTier.length > 0 ? Math.max(...inTier.map((s) => s.order ?? 0)) + 1 : 0;
     await addDoc(collection(db, COLLECTIONS.sponsors), {
       name: "New sponsor",
@@ -69,8 +175,10 @@ export function SponsorsAdminTab() {
         Manage the supporter band shown across the site. Upload a logo onto a sponsor, or leave it blank to show the name as a wordmark.
       </div>
 
+      <SponsorshipOrdersSection sponsors={sponsors} />
+
       {SPONSOR_TIER_ORDER.map((tier) => {
-        const tierSponsors = sponsors.filter((s) => (s.tier ?? "supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const tierSponsors = sponsors.filter((s) => (s.tier ?? "community_supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         return (
           <div key={tier} style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 18, marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

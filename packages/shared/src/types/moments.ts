@@ -27,7 +27,7 @@ export interface Announcement {
   postedAt: number;
 }
 
-export type SponsorTier = "title" | "official" | "supporter";
+export type SponsorTier = "legacy_builder" | "impact_partner" | "community_supporter" | "custom";
 
 export interface Sponsor {
   id: string;

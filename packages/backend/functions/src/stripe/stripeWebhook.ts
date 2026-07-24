@@ -31,6 +31,14 @@ export const stripeWebhook = onRequest(
           { merge: true }
         );
       }
+
+      const sponsorshipOrderId = session.metadata?.sponsorshipOrderId;
+      if (sponsorshipOrderId) {
+        await db.collection(COLLECTIONS.sponsorshipOrders).doc(sponsorshipOrderId).set(
+          { status: "paid", paidAt: Date.now() },
+          { merge: true }
+        );
+      }
     }
 
     res.status(200).send({ received: true });

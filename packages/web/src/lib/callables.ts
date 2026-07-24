@@ -4,6 +4,8 @@ import type {
   ChatEscalationTopic,
   IncidentSource,
   ComplaintType,
+  SponsorTier,
+  SponsorshipDonorType,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -67,6 +69,22 @@ export const createComplaintCheckout = httpsCallable<
   { incidentId: string; successUrl: string; cancelUrl: string },
   { checkoutUrl: string | null }
 >(functions, "createComplaintCheckout");
+
+export const createSponsorshipCheckout = httpsCallable<
+  {
+    tierId: SponsorTier;
+    donorType: SponsorshipDonorType;
+    donorName: string;
+    email: string;
+    phone?: string;
+    companyLogoUrl?: string;
+    customNote?: string;
+    customAmountCents?: number;
+    successUrl: string;
+    cancelUrl: string;
+  },
+  { checkoutUrl: string | null; orderId: string }
+>(functions, "createSponsorshipCheckout");
 
 export const setUserRole = httpsCallable<
   { targetUid: string; roles: string[]; primaryRole: string },

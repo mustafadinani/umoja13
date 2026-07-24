@@ -7,7 +7,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useAnnouncements, useGames, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card, Modal, PrimaryButton } from "../components/ui";
-import { SponsorInquiryModal } from "../components/SponsorInquiryModal";
+import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
 import { MomentDetailModal } from "../components/MomentDetailModal";
 import { LoadingImage } from "../components/LoadingImage";
 
@@ -20,7 +20,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: announcements } = useAnnouncements();
   const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
-  const [sponsorInquiryOpen, setSponsorInquiryOpen] = useState(false);
+  const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
   const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
   const [openMomentId, setOpenMomentId] = useState<string | null>(null);
   const openAnnouncement = announcements.find((a) => a.id === openAnnouncementId) ?? null;
@@ -115,12 +115,12 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       <View style={styles.section}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
           <Text style={styles.sectionTitle}>SPONSORS</Text>
-          <TouchableOpacity onPress={() => setSponsorInquiryOpen(true)}>
+          <TouchableOpacity onPress={() => setSponsorCheckoutOpen(true)}>
             <Text style={{ color: theme.color.blue, fontWeight: "700", fontSize: 12.5 }}>Become a Sponsor →</Text>
           </TouchableOpacity>
         </View>
         {SPONSOR_TIER_ORDER.map((tier) => {
-          const tierSponsors = visibleSponsors.filter((s) => (s.tier ?? "supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          const tierSponsors = visibleSponsors.filter((s) => (s.tier ?? "community_supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
           if (tierSponsors.length === 0) return null;
           return (
             <View key={tier} style={{ marginBottom: 10 }}>
@@ -163,7 +163,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           </View>
         )}
       </Modal>
-      {sponsorInquiryOpen && <SponsorInquiryModal onClose={() => setSponsorInquiryOpen(false)} />}
+      {sponsorCheckoutOpen && <SponsorshipCheckoutModal onClose={() => setSponsorCheckoutOpen(false)} />}
       <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />
     </ScrollView>
   );

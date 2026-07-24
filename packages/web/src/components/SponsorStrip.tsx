@@ -2,16 +2,16 @@ import { useState } from "react";
 import { SPONSOR_TIER_LABELS, SPONSOR_TIER_ORDER, type Sponsor } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
-import { SponsorInquiryModal } from "./SponsorInquiryModal";
+import { SponsorshipCheckoutModal } from "./SponsorshipCheckoutModal";
 
 export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
   const [open, setOpen] = useState<Sponsor | null>(null);
-  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const visible = sponsors.filter((s) => s.visible ?? true);
   const byTier = SPONSOR_TIER_ORDER.map((tier) => ({
     tier,
-    sponsors: visible.filter((s) => (s.tier ?? "supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    sponsors: visible.filter((s) => (s.tier ?? "community_supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
   })).filter((g) => g.sponsors.length > 0);
 
   return (
@@ -20,7 +20,7 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, color: theme.color.textMuted }}>
           PROUDLY SUPPORTED BY
         </div>
-        <div onClick={() => setInquiryOpen(true)} style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.blue, cursor: "pointer" }}>
+        <div onClick={() => setCheckoutOpen(true)} style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.blue, cursor: "pointer" }}>
           Become a Sponsor →
         </div>
       </div>
@@ -38,19 +38,19 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
                     key={s.id}
                     onClick={() => setOpen(s)}
                     style={{
-                      padding: tier === "title" ? "14px 22px" : "10px 16px",
+                      padding: tier === "legacy_builder" ? "14px 22px" : "10px 16px",
                       borderRadius: theme.radius.sm,
                       border: `1px solid ${theme.color.border}`,
                       background: "#fff",
                       cursor: "pointer",
                       fontWeight: 700,
-                      fontSize: tier === "title" ? 16 : 13.5,
+                      fontSize: tier === "legacy_builder" ? 16 : 13.5,
                       display: "flex",
                       alignItems: "center",
                       gap: 8,
                     }}
                   >
-                    {s.logoUrl && <img src={s.logoUrl} alt="" style={{ height: tier === "title" ? 28 : 20, objectFit: "contain" }} />}
+                    {s.logoUrl && <img src={s.logoUrl} alt="" style={{ height: tier === "legacy_builder" ? 28 : 20, objectFit: "contain" }} />}
                     {s.name}
                   </div>
                 ))}
@@ -70,7 +70,7 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
           )}
         </Modal>
       )}
-      {inquiryOpen && <SponsorInquiryModal onClose={() => setInquiryOpen(false)} />}
+      {checkoutOpen && <SponsorshipCheckoutModal onClose={() => setCheckoutOpen(false)} />}
     </div>
   );
 }
