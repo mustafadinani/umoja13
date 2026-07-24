@@ -6,6 +6,7 @@ import { db, storage } from "../../lib/firebase";
 import { useAuth } from "../../auth/AuthProvider";
 import { theme } from "../../lib/theme";
 import { Modal, PrimaryButton } from "../../components/ui";
+import { Lightbox } from "../../components/Lightbox";
 
 export function ChallengeDetailModal({
   challenge,
@@ -23,8 +24,31 @@ export function ChallengeDetailModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   const done = crew.challengesCompleted?.includes(challenge.id) ?? false;
+
+  function renderMediaPreview(src: string, mediaType: string | null | undefined) {
+    if (mediaType === "video") {
+      return (
+        <div
+          onClick={() => setLightboxSrc({ src, mediaType: "video" })}
+          style={{ position: "relative", width: "100%", height: 200, borderRadius: theme.radius.sm, marginBottom: 12, overflow: "hidden", cursor: "zoom-in", background: "#000" }}
+        >
+          <video src={src} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.3)", color: "#fff", fontSize: 32 }}>▶</div>
+        </div>
+      );
+    }
+    return (
+      <img
+        src={src}
+        alt="Your submission"
+        onClick={() => setLightboxSrc({ src, mediaType: "photo" })}
+        style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12, cursor: "zoom-in" }}
+      />
+    );
+  }
   const accept = challenge.answerType === "photo_only" ? "image/*" : challenge.answerType === "video_only" ? "video/*" : "image/*,video/*";
   const now = Date.now();
   const notYetOpen = challenge.startsAt && now < challenge.startsAt;
@@ -71,13 +95,19 @@ export function ChallengeDetailModal({
       )}
 
       {done || mySubmission?.status === "approved" ? (
-        <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
-          Done ✓ {mySubmission?.bonusPoints ? `— +${mySubmission.bonusPoints} early-bird bonus!` : ""}
-        </div>
+        <>
+          {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+          <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
+            Done ✓ {mySubmission?.bonusPoints ? `— +${mySubmission.bonusPoints} early-bird bonus!` : ""}
+          </div>
+        </>
       ) : mySubmission?.status === "pending" || justSubmitted ? (
-        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
-          Submitted — a facilitator will take a look shortly.
-        </div>
+        <>
+          {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+          <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
+            Submitted — a facilitator will take a look shortly.
+          </div>
+        </>
       ) : notYetOpen ? (
         <div style={{ color: theme.color.textMuted, fontSize: 13, textAlign: "center" }}>
           Opens {new Date(challenge.startsAt!).toLocaleString()}
@@ -87,9 +117,12 @@ export function ChallengeDetailModal({
       ) : (
         <>
           {mySubmission?.status === "rejected" && (
-            <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, marginBottom: 12, textAlign: "center" }}>
-              Not approved — try submitting again.
-            </div>
+            <>
+              {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+              <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, marginBottom: 12, textAlign: "center" }}>
+                Not approved — try submitting again.
+              </div>
+            </>
           )}
           <label style={{ display: "block", border: `2px dashed ${theme.color.border}`, borderRadius: theme.radius.md, padding: 18, textAlign: "center", cursor: "pointer", marginBottom: 14 }}>
             <input type="file" accept={accept} capture="environment" style={{ display: "none" }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
@@ -101,6 +134,7 @@ export function ChallengeDetailModal({
           </PrimaryButton>
         </>
       )}
+      {lightboxSrc && <Lightbox src={lightboxSrc.src} mediaType={lightboxSrc.mediaType} onClose={() => setLightboxSrc(null)} />}
     </Modal>
   );
 }

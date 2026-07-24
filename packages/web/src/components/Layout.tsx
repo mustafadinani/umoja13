@@ -45,13 +45,19 @@ export function Layout({ children }: { children: ReactNode }) {
     backgroundClip: "text",
     color: "transparent",
     whiteSpace: "nowrap",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
   };
 
   return (
     <div style={{ minHeight: "100vh", background: theme.color.bg, color: theme.color.text }}>
       <div style={barStyle}>
         <div style={barInner}>
-          <Link to="/" style={brandStyle}>UMOJA GAMES</Link>
+          <Link to="/" style={brandStyle}>
+            <img src="/logo-icon.png" alt="" style={{ height: 32, width: "auto" }} />
+            UMOJA GAMES
+          </Link>
           <div style={{ display: "flex", gap: 4, flex: 1, flexWrap: "wrap" }}>
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.to;

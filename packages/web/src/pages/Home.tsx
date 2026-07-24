@@ -38,6 +38,7 @@ export function Home() {
       <div style={{ background: heroGradient, color: "#fff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 24px 40px", display: "flex", alignItems: "flex-end", gap: 40, flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 380 }}>
+            <img src="/logo-icon.png" alt="" style={{ height: 54, width: "auto", marginBottom: 12 }} />
             <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>
               {VENUE.name.toUpperCase()} · {VENUE.dates.toUpperCase()}
             </div>

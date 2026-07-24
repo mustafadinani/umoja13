@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Image, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useAuth } from "../auth/AuthProvider";
@@ -27,6 +27,7 @@ export function Login({ navigation }: NativeStackScreenProps<RootStackParamList,
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <Image source={require("../../assets/logo-icon.png")} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>UMOJA GAMES</Text>
       <Text style={styles.subtitle}>Sign in</Text>
       <TextInput style={styles.input} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
@@ -42,6 +43,7 @@ export function Login({ navigation }: NativeStackScreenProps<RootStackParamList,
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.color.bg, justifyContent: "center", padding: 28 },
+  logo: { width: 84, height: 84, alignSelf: "center", marginBottom: 8 },
   title: { fontWeight: "800", fontSize: 26, color: theme.color.purple, textAlign: "center", marginBottom: 4 },
   subtitle: { fontSize: 15, color: theme.color.textMuted, textAlign: "center", marginBottom: 24 },
   input: { backgroundColor: "#fff", borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm, padding: 14, marginBottom: 12, fontSize: 15 },

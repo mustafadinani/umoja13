@@ -5,15 +5,20 @@ import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
 export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
+  const { data: categories } = useCategories();
   const [name, setName] = useState(profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [teamId, setTeamId] = useState("");
+  const { data: teams } = useTeams(categoryId || undefined);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +48,8 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
         emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(teamId ? { teamId } : {}),
         status: "pending",
         filedByUid: user.uid,
         createdAt: Date.now(),
@@ -113,6 +120,37 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
           <Pill key={day} active={availability.includes(day)} onClick={() => toggleDay(day)}>{day}</Pill>
         ))}
       </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Tournament category (optional)</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
+        If you also play or coach, let us know so we can schedule you around your own games.
+      </div>
+      <select
+        value={categoryId}
+        onChange={(e) => { setCategoryId(e.target.value); setTeamId(""); }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5, background: "#fff" }}
+      >
+        <option value="">Not applicable</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>{c.label}</option>
+        ))}
+      </select>
+
+      {categoryId && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Team (optional)</div>
+          <select
+            value={teamId}
+            onChange={(e) => setTeamId(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5, background: "#fff" }}
+          >
+            <option value="">Select a team</option>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Photo (optional)</div>
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />

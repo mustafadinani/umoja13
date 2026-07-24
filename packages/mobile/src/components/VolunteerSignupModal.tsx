@@ -7,15 +7,20 @@ import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
 export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
+  const { data: categories } = useCategories();
   const [name, setName] = useState(profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
+  const { data: teams } = useTeams(categoryId ?? undefined);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +59,8 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
         emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
+        ...(categoryId ? { categoryId } : {}),
+        ...(teamId ? { teamId } : {}),
         status: "pending",
         filedByUid: user.uid,
         createdAt: Date.now(),
@@ -99,6 +106,28 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
           <Pill key={day} active={availability.includes(day)} onPress={() => toggleDay(day)}>{day}</Pill>
         ))}
       </View>
+
+      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Tournament category (optional)</Text>
+      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
+        If you also play or coach, let us know so we can schedule you around your own games.
+      </Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+        <Pill active={categoryId === null} onPress={() => { setCategoryId(null); setTeamId(null); }}>N/A</Pill>
+        {categories.map((c) => (
+          <Pill key={c.id} active={categoryId === c.id} onPress={() => { setCategoryId(c.id); setTeamId(null); }}>{c.label}</Pill>
+        ))}
+      </View>
+
+      {categoryId && teams.length > 0 && (
+        <>
+          <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Team (optional)</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+            {teams.map((t) => (
+              <Pill key={t.id} active={teamId === t.id} onPress={() => setTeamId(teamId === t.id ? null : t.id)}>{t.name}</Pill>
+            ))}
+          </View>
+        </>
+      )}
 
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Photo (optional)</Text>
       {selfieUri ? (

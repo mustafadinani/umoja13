@@ -2,10 +2,14 @@ import { useState } from "react";
 import type { VolunteerApplication } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { reviewVolunteerApplication } from "../../../lib/callables";
+import { useCategories, useTeam } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
 export function VolunteerApplicationModal({ application, onClose }: { application: VolunteerApplication; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
+  const { data: categories } = useCategories();
+  const { data: team } = useTeam(application.teamId);
+  const categoryLabel = categories.find((c) => c.id === application.categoryId)?.label;
 
   async function decide(decision: "approve" | "reject") {
     setBusy(true);
@@ -31,6 +35,8 @@ export function VolunteerApplicationModal({ application, onClose }: { applicatio
         <Row label="Phone" value={application.phone} />
         <Row label="Emergency contact" value={application.emergencyContact} />
         <Row label="Available" value={application.availability.join(", ")} />
+        {categoryLabel && <Row label="Category" value={categoryLabel} />}
+        {team && <Row label="Team" value={team.name} />}
       </div>
 
       {application.status === "pending" ? (

@@ -27,14 +27,22 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <StatusBadge status={game.status} />
         <Text style={styles.category}>{CATEGORIES.find((c) => c.id === game.categoryId)?.label} · {game.field}</Text>
         <View style={styles.scoreRow}>
-          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: home.id })} style={{ flex: 1 }}>
+          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: home.id })} style={{ flex: 1 }} activeOpacity={0.6}>
             <View style={[styles.colorDot, { backgroundColor: home.color ?? theme.color.purple }]} />
-            <Text style={styles.teamName}>{home.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={styles.teamName}>{home.name}</Text>
+              <Text style={styles.teamNameChevron}>›</Text>
+            </View>
+            <Text style={styles.tapHint}>View roster</Text>
           </TouchableOpacity>
           <Text style={styles.score}>{game.status === "scheduled" ? game.kickoffTime : `${homeGoals} – ${awayGoals}`}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1, alignItems: "flex-end" }}>
+          <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1, alignItems: "flex-end" }} activeOpacity={0.6}>
             <View style={[styles.colorDot, { backgroundColor: away.color ?? theme.color.blue }]} />
-            <Text style={[styles.teamName, { textAlign: "right" }]}>{away.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={styles.teamNameChevron}>‹</Text>
+              <Text style={[styles.teamName, { textAlign: "right" }]}>{away.name}</Text>
+            </View>
+            <Text style={styles.tapHint}>View roster</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -61,7 +69,9 @@ const styles = StyleSheet.create({
   header: { backgroundColor: theme.color.navy, padding: 20 },
   category: { color: "#A79FC0", fontSize: 12, marginTop: 8 },
   scoreRow: { flexDirection: "row", alignItems: "center", marginTop: 16 },
-  teamName: { color: "#fff", fontWeight: "600", fontSize: 13 },
+  teamName: { color: "#fff", fontWeight: "600", fontSize: 13, textDecorationLine: "underline", textDecorationColor: "rgba(255,255,255,.5)" },
+  teamNameChevron: { color: theme.color.gold, fontWeight: "800", fontSize: 15 },
+  tapHint: { color: "#A79FC0", fontSize: 10, marginTop: 2 },
   colorDot: { width: 10, height: 10, borderRadius: 5, marginBottom: 6 },
   score: { color: "#fff", fontWeight: "800", fontSize: 32, marginHorizontal: 12 },
   section: { padding: 16 },

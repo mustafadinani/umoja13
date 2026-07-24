@@ -5,7 +5,8 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
   return (
     <div style={{ minHeight: "calc(100vh - 84px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: 380, maxWidth: "100%" }}>
-        <div style={{ background: heroGradient, borderRadius: `${theme.radius.lg} ${theme.radius.lg} 0 0`, padding: "22px 26px", color: "#fff" }}>
+        <div style={{ background: heroGradient, borderRadius: `${theme.radius.lg} ${theme.radius.lg} 0 0`, padding: "22px 26px", color: "#fff", textAlign: "center" }}>
+          <img src="/logo-icon.png" alt="Umoja Games" style={{ height: 56, width: "auto", marginBottom: 10 }} />
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 26, letterSpacing: 0.5 }}>{title}</div>
           <div style={{ fontSize: 13.5, opacity: 0.9, marginTop: 4 }}>{subtitle}</div>
         </div>

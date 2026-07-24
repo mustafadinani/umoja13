@@ -98,6 +98,24 @@ export function HuntScreen() {
     : justSubmitted ?? (mySubmission?.status === "rejected" ? "rejected" : mySubmission?.status === "pending" ? "pending" : null);
   const missionPreviewUri = mediaUri ?? mySubmission?.mediaUrl ?? null;
 
+  function renderMediaPreview(uri: string, mediaType: "photo" | "video" | "text" | null | undefined) {
+    if (mediaType === "video") {
+      return (
+        <TouchableOpacity onPress={() => setLightbox({ uri, mediaType: "video" })} style={{ marginBottom: 12 }}>
+          <View style={styles.videoPreview}>
+            <Text style={{ fontSize: 28 }}>▶</Text>
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700", marginTop: 4 }}>TAP TO PLAY VIDEO</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    return (
+      <TouchableOpacity onPress={() => setLightbox({ uri, mediaType: "photo" })}>
+        <LoadingImage source={{ uri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+      </TouchableOpacity>
+    );
+  }
+
   function openMissionDetail(id: string) {
     setOpenMissionId(id);
     setTriviaChoice(null);
@@ -431,9 +449,17 @@ export function HuntScreen() {
             <Text style={{ marginBottom: 14 }}>{openMission.description}</Text>
 
             {missionStatus === "correct" && (
-              <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
-                <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>Done ✓ — +{openMission.points} pts earned for your crew.</Text>
-              </View>
+              <>
+                {mySubmission?.mediaUrl && mySubmission.mediaType !== "text" && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+                {mySubmission?.textAnswer && (
+                  <View style={{ backgroundColor: "#F7F6F3", borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                    <Text style={{ fontSize: 13.5 }}>"{mySubmission.textAnswer}"</Text>
+                  </View>
+                )}
+                <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
+                  <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>Done ✓ — +{openMission.points} pts earned for your crew.</Text>
+                </View>
+              </>
             )}
             {missionStatus === "wrong" && (
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12 }}>
@@ -442,11 +468,7 @@ export function HuntScreen() {
             )}
             {missionStatus === "pending" && (
               <>
-                {missionPreviewUri && mySubmission?.mediaType !== "text" && (
-                  <TouchableOpacity onPress={() => setLightbox({ uri: missionPreviewUri, mediaType: mySubmission?.mediaType === "video" ? "video" : "photo" })}>
-                    <LoadingImage source={{ uri: missionPreviewUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
-                  </TouchableOpacity>
-                )}
+                {missionPreviewUri && mySubmission?.mediaType !== "text" && renderMediaPreview(missionPreviewUri, mySubmission?.mediaType ?? (mediaUri ? "photo" : null))}
                 {mySubmission?.textAnswer && (
                   <View style={{ backgroundColor: "#F7F6F3", borderRadius: 8, padding: 12, marginBottom: 12 }}>
                     <Text style={{ fontSize: 13.5 }}>"{mySubmission.textAnswer}"</Text>
@@ -457,11 +479,7 @@ export function HuntScreen() {
                 </View>
               </>
             )}
-            {missionStatus === "rejected" && mySubmission?.mediaUrl && (
-              <TouchableOpacity onPress={() => setLightbox({ uri: mySubmission.mediaUrl!, mediaType: mySubmission.mediaType === "video" ? "video" : "photo" })}>
-                <LoadingImage source={{ uri: mySubmission.mediaUrl }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
-              </TouchableOpacity>
-            )}
+            {missionStatus === "rejected" && mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
             {missionStatus === "rejected" && (
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginBottom: 12 }}>
                 <Text style={{ color: theme.color.danger, fontWeight: "700", textAlign: "center" }}>Not approved — try submitting again.</Text>
@@ -547,4 +565,5 @@ const styles = StyleSheet.create({
   pointsBadgeText: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted },
   resultBadge: { borderRadius: 99, paddingVertical: 5, paddingHorizontal: 10 },
   resultBadgeText: { fontSize: 11, fontWeight: "800", color: "#fff" },
+  videoPreview: { width: "100%", height: 160, borderRadius: 8, backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
 });

@@ -3,12 +3,14 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useTeam } from "../hooks/useData";
 import { Card, StatusBadge } from "../components/ui";
+import { LoadingImage } from "../components/LoadingImage";
+import { PlayerCardModal } from "../components/PlayerCardModal";
 
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
@@ -18,6 +20,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
@@ -45,7 +48,14 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ROSTER</Text>
         {team.roster.map((p) => (
-          <Card key={p.userId} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Card key={p.userId} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+            {p.selfieUrl ? (
+              <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
+              </View>
+            )}
             {isCaptain && editingUserId === p.userId ? (
               <>
                 <TextInput
@@ -90,6 +100,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           </Card>
         ))}
       </View>
+      {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
     </ScrollView>
   );
 }
@@ -102,4 +113,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
   jerseyInput: { width: 46, borderWidth: 1, borderColor: theme.color.border, borderRadius: 6, padding: 6, textAlign: "center" },
   saveBtn: { backgroundColor: theme.color.navy, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
+  avatar: { width: 36, height: 36, borderRadius: 18 },
+  avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
 });

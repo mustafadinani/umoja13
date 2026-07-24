@@ -14,6 +14,8 @@ export interface VolunteerApplication {
   emergencyContact: string;
   availability: string[]; // subset of VOLUNTEER_AVAILABILITY_DAYS
   selfieUrl?: string;
+  categoryId?: string; // optional: tournament category they also play/coach in, for scheduling around their games
+  teamId?: string; // optional: their team, for scheduling around their games
   status: VolunteerApplicationStatus;
   filedByUid: string;
   createdAt: number;

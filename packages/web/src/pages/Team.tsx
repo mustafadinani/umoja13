@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useTeam } from "../hooks/useData";
 import { Card, StatusBadge } from "../components/ui";
+import { PlayerCardModal } from "../components/PlayerCardModal";
 
 export function Team() {
   const { teamId } = useParams();
@@ -9,6 +12,7 @@ export function Team() {
   const { data: team } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
+  const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -34,10 +38,17 @@ export function Team() {
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.roster.map((p) => (
-              <Card key={p.userId} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Card key={p.userId} onClick={() => setOpenPlayer(p)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 16, color: theme.color.textMuted }}>#{p.jerseyNumber ?? "—"}</span>
+                  {p.selfieUrl ? (
+                    <img src={p.selfieUrl} alt={p.displayName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</span>
+                    </div>
+                  )}
                   <span style={{ fontWeight: 600 }}>{p.displayName}{p.isCaptain && " (C)"}</span>
+                  <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: theme.color.purple }}>#{p.jerseyNumber ?? "—"}</span>
                 </div>
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>
                   {p.goals}G {p.assists}A ·{" "}
@@ -64,6 +75,7 @@ export function Team() {
           </div>
         </div>
       </div>
+      {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
     </div>
   );
 }

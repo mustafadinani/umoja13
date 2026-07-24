@@ -151,7 +151,8 @@ function TeamAvatar({ name, color, onClick }: { name?: string; color?: string; o
       <div style={{ width: 60, height: 60, margin: "0 auto 6px", borderRadius: "50%", background: color ?? theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>
         {(name ?? "TBD").slice(0, 2).toUpperCase()}
       </div>
-      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{name ?? "TBD"}</div>
+      <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: "underline", textDecorationColor: "rgba(255,255,255,.5)" }}>{name ?? "TBD"}</div>
+      <div style={{ fontSize: 10, color: "#A79FC0", marginTop: 2 }}>View roster ›</div>
     </div>
   );
 }

@@ -34,6 +34,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <LinearGradient colors={heroGradient} style={styles.hero}>
+        <Image source={require("../../assets/logo-icon.png")} style={styles.heroLogo} resizeMode="contain" />
         <Text style={styles.heroKicker}>{VENUE.name.toUpperCase()} · {VENUE.dates.toUpperCase()}</Text>
         <Text style={styles.heroTitle}>UNITED WE STAND.{"\n"}TOGETHER WE WIN.</Text>
         <Text style={styles.heroSub}>Good morning, {profile?.displayName?.split(" ")[0] ?? "there"}.</Text>
@@ -170,6 +171,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
 
 const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 28, paddingHorizontal: 20 },
+  heroLogo: { position: "absolute", top: 54, right: 20, width: 48, height: 48 },
   heroKicker: { color: "#fff", opacity: 0.85, fontWeight: "700", fontSize: 11, letterSpacing: 1 },
   heroTitle: { color: "#fff", fontWeight: "800", fontSize: 28, marginTop: 8, lineHeight: 32 },
   heroSub: { color: "#fff", opacity: 0.9, marginTop: 10, fontSize: 14 },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -8,6 +8,8 @@ import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
+import { LoadingImage } from "./LoadingImage";
+import { Lightbox } from "./Lightbox";
 
 export function ChallengeDetailModal({
   challenge,
@@ -25,8 +27,27 @@ export function ChallengeDetailModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
+  const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
 
   const done = crew.challengesCompleted?.includes(challenge.id) ?? false;
+
+  function renderMediaPreview(uri: string, mediaType: string | undefined) {
+    if (mediaType === "video") {
+      return (
+        <TouchableOpacity onPress={() => setLightbox({ uri, mediaType: "video" })} style={{ marginBottom: 12 }}>
+          <View style={styles.videoPreview}>
+            <Text style={{ fontSize: 28 }}>▶</Text>
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700", marginTop: 4 }}>TAP TO PLAY VIDEO</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    return (
+      <TouchableOpacity onPress={() => setLightbox({ uri, mediaType: "photo" })}>
+        <LoadingImage source={{ uri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+      </TouchableOpacity>
+    );
+  }
   const now = Date.now();
   const notYetOpen = challenge.startsAt && now < challenge.startsAt;
   const closed = challenge.deadline && now > challenge.deadline;
@@ -88,15 +109,21 @@ export function ChallengeDetailModal({
       )}
 
       {done || mySubmission?.status === "approved" ? (
-        <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
-          <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>
-            Done ✓ {mySubmission?.bonusPoints ? `— +${mySubmission.bonusPoints} early-bird bonus!` : ""}
-          </Text>
-        </View>
+        <>
+          {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+          <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, padding: 12 }}>
+            <Text style={{ color: theme.color.success, fontWeight: "700", textAlign: "center" }}>
+              Done ✓ {mySubmission?.bonusPoints ? `— +${mySubmission.bonusPoints} early-bird bonus!` : ""}
+            </Text>
+          </View>
+        </>
       ) : mySubmission?.status === "pending" || justSubmitted ? (
-        <View style={{ backgroundColor: theme.color.warningBg, borderRadius: 8, padding: 12 }}>
-          <Text style={{ color: theme.color.warning, fontWeight: "700", textAlign: "center" }}>Submitted — a facilitator will take a look shortly.</Text>
-        </View>
+        <>
+          {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+          <View style={{ backgroundColor: theme.color.warningBg, borderRadius: 8, padding: 12 }}>
+            <Text style={{ color: theme.color.warning, fontWeight: "700", textAlign: "center" }}>Submitted — a facilitator will take a look shortly.</Text>
+          </View>
+        </>
       ) : notYetOpen ? (
         <Text style={{ color: theme.color.textMuted, fontSize: 13, textAlign: "center" }}>Opens {new Date(challenge.startsAt!).toLocaleString()}</Text>
       ) : closed ? (
@@ -104,9 +131,12 @@ export function ChallengeDetailModal({
       ) : (
         <>
           {mySubmission?.status === "rejected" && (
-            <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 10, marginBottom: 12 }}>
-              <Text style={{ color: theme.color.danger, fontSize: 12.5, textAlign: "center" }}>Not approved — try submitting again.</Text>
-            </View>
+            <>
+              {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+              <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                <Text style={{ color: theme.color.danger, fontSize: 12.5, textAlign: "center" }}>Not approved — try submitting again.</Text>
+              </View>
+            </>
           )}
           {mediaUri ? (
             <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
@@ -122,6 +152,11 @@ export function ChallengeDetailModal({
           </PrimaryButton>
         </>
       )}
+      <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  videoPreview: { width: "100%", height: 160, borderRadius: 8, backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
+});

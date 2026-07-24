@@ -6,6 +6,7 @@ import { db, storage } from "../../lib/firebase";
 import { useAuth } from "../../auth/AuthProvider";
 import { theme } from "../../lib/theme";
 import { Modal, PrimaryButton, Pill } from "../../components/ui";
+import { Lightbox } from "../../components/Lightbox";
 
 export function MissionDetailModal({
   mission,
@@ -27,6 +28,7 @@ export function MissionDetailModal({
   const [justSubmitted, setJustSubmitted] = useState<"pending" | "correct" | "wrong" | null>(
     crew.missionsCompleted.includes(mission.id) ? "correct" : null
   );
+  const [lightboxSrc, setLightboxSrc] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   const alreadyDone = crew.missionsCompleted.includes(mission.id);
   const autoScored = huntMissionIsAutoScored(mission.type);
@@ -87,6 +89,28 @@ export function MissionDetailModal({
 
   const previewUrl = filePreview ?? mySubmission?.mediaUrl;
 
+  function renderMediaPreview(src: string, mediaType: string | null | undefined) {
+    if (mediaType === "video") {
+      return (
+        <div
+          onClick={() => setLightboxSrc({ src, mediaType: "video" })}
+          style={{ position: "relative", width: "100%", height: 220, borderRadius: theme.radius.sm, marginBottom: 12, overflow: "hidden", cursor: "zoom-in", background: "#000" }}
+        >
+          <video src={src} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.3)", color: "#fff", fontSize: 32 }}>▶</div>
+        </div>
+      );
+    }
+    return (
+      <img
+        src={src}
+        alt="Your submission"
+        onClick={() => setLightboxSrc({ src, mediaType: "photo" })}
+        style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12, cursor: "zoom-in" }}
+      />
+    );
+  }
+
   return (
     <Modal onClose={onClose}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{mission.title}</div>
@@ -94,9 +118,12 @@ export function MissionDetailModal({
       <div style={{ fontSize: 14, marginBottom: 16 }}>{mission.description}</div>
 
       {status === "correct" && (
-        <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
-          Done ✓ — +{mission.points} pts earned for your crew.
-        </div>
+        <>
+          {mySubmission?.mediaUrl && mySubmission.mediaType !== "text" && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
+          <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
+            Done ✓ — +{mission.points} pts earned for your crew.
+          </div>
+        </>
       )}
       {status === "wrong" && (
         <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center" }}>
@@ -105,9 +132,7 @@ export function MissionDetailModal({
       )}
       {status === "pending" && (
         <>
-          {previewUrl && mySubmission?.mediaType !== "text" && (
-            <img src={previewUrl} alt="Your submission" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12 }} />
-          )}
+          {previewUrl && mySubmission?.mediaType !== "text" && renderMediaPreview(previewUrl, mySubmission?.mediaType ?? (file ? (file.type.startsWith("video") ? "video" : "photo") : null))}
           {mySubmission?.textAnswer && (
             <div style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, fontSize: 13.5, marginBottom: 12 }}>"{mySubmission.textAnswer}"</div>
           )}
@@ -118,9 +143,7 @@ export function MissionDetailModal({
       )}
       {status === "rejected" && (
         <>
-          {mySubmission?.mediaUrl && (
-            <img src={mySubmission.mediaUrl} alt="Your submission" style={{ width: "100%", maxHeight: 220, objectFit: "cover", borderRadius: theme.radius.sm, marginBottom: 12 }} />
-          )}
+          {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
           <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center", marginBottom: 12 }}>
             Not approved — try submitting again.
           </div>
@@ -174,6 +197,7 @@ export function MissionDetailModal({
           )}
         </>
       )}
+      {lightboxSrc && <Lightbox src={lightboxSrc.src} mediaType={lightboxSrc.mediaType} onClose={() => setLightboxSrc(null)} />}
     </Modal>
   );
 }
