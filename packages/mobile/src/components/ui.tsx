@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { View, Text, TouchableOpacity, Modal as RNModal, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, type ViewStyle } from "react-native";
 import { theme } from "../lib/theme";
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -50,7 +50,9 @@ export function Modal({ visible, onClose, children }: { visible: boolean; onClos
     <RNModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
-          {children}
+          <ScrollView contentContainerStyle={styles.modalCardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
         </TouchableOpacity>
       </TouchableOpacity>
     </RNModal>
@@ -103,9 +105,12 @@ const styles = StyleSheet.create({
   modalCard: {
     backgroundColor: "#fff",
     borderRadius: theme.radius.lg,
-    padding: 20,
     width: "100%",
     maxWidth: 400,
     maxHeight: "85%",
+    overflow: "hidden",
+  },
+  modalCardContent: {
+    padding: 20,
   },
 });
