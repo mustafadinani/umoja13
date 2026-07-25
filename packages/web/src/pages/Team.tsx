@@ -3,9 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useMoments, useTeam } from "../hooks/useData";
-import { Card, StatusBadge } from "../components/ui";
+import { Card, Pill, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
+
+type Tab = "roster" | "schedule" | "moments";
 
 export function Team() {
   const { teamId } = useParams();
@@ -14,13 +16,19 @@ export function Team() {
   const { data: categories } = useCategories();
   const { data: games } = useGames();
   const { data: moments } = useMoments();
+  const [tab, setTab] = useState<Tab>("roster");
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const teamMoments = moments.filter((m) => m.teamTagIds?.includes(team.id)).sort((a, b) => b.createdAt - a.createdAt);
+  const rosterUids = new Set(team.roster.map((p) => p.userId));
+  // Team moments plus any moment tagging a player on this roster — a fan
+  // tagging just the player should still surface it here.
+  const teamMoments = moments
+    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
@@ -37,9 +45,14 @@ export function Team() {
         </div>
       </div>
 
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-        <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
+      <div style={{ padding: "16px 24px 0", display: "flex", gap: 8 }}>
+        <Pill active={tab === "roster"} onClick={() => setTab("roster")}>Roster</Pill>
+        <Pill active={tab === "schedule"} onClick={() => setTab("schedule")}>Schedule</Pill>
+        <Pill active={tab === "moments"} onClick={() => setTab("moments")}>Moments{teamMoments.length > 0 ? ` (${teamMoments.length})` : ""}</Pill>
+      </div>
+
+      <div style={{ padding: 24 }}>
+        {tab === "roster" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.roster.map((p) => (
               <Card key={p.userId} onClick={() => setOpenPlayer(p)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
@@ -64,10 +77,9 @@ export function Team() {
             ))}
             {team.roster.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>Roster not published yet.</div>}
           </div>
-        </div>
+        )}
 
-        <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>SCHEDULE & RESULTS</div>
+        {tab === "schedule" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {teamGames.map((g) => (
               <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
@@ -77,11 +89,12 @@ export function Team() {
             ))}
             {teamGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
-        </div>
+        )}
 
-        {teamMoments.length > 0 && (
-          <div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>MOMENTS</div>
+        {tab === "moments" && (
+          teamMoments.length === 0 ? (
+            <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No moments tagged yet.</div>
+          ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {teamMoments.map((m) => (
                 <Card
@@ -97,7 +110,7 @@ export function Team() {
                 </Card>
               ))}
             </div>
-          </div>
+          )
         )}
       </div>
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
