@@ -6,6 +6,7 @@ import type {
   ComplaintType,
   SponsorTier,
   SponsorshipDonorType,
+  TeamChannelMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -105,3 +106,8 @@ export const registerPushToken = httpsCallable<{ token: string | null }, { ok: t
   functions,
   "registerPushToken"
 );
+
+export const sendTeamMessage = httpsCallable<
+  { teamId: string; text: string },
+  { message: TeamChannelMessage }
+>(functions, "sendTeamMessage");

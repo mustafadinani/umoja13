@@ -7,14 +7,15 @@ import { CATEGORIES, COLLECTIONS, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useMoments, useTeam } from "../hooks/useData";
+import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
+import { sendTeamMessage } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 
-type Tab = "roster" | "schedule" | "moments";
+type Tab = "roster" | "schedule" | "moments" | "channel";
 
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
@@ -22,6 +23,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data: team } = useTeam(teamId);
   const { data: games } = useGames();
   const { data: moments } = useMoments();
+  const { data: channel } = useTeamChannel(teamId);
   const [tab, setTab] = useState<Tab>("roster");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -29,6 +31,8 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
+  const [channelDraft, setChannelDraft] = useState("");
+  const [sending, setSending] = useState(false);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
@@ -39,6 +43,21 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
   const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
+  const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
+  const onRoster = profile ? rosterUids.has(profile.uid) : false;
+  const canPostToChannel = isStaff || onRoster;
+  const channelMessages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
+
+  async function sendChannelMessage() {
+    if (!channelDraft.trim()) return;
+    setSending(true);
+    try {
+      await sendTeamMessage({ teamId: team!.id, text: channelDraft });
+      setChannelDraft("");
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function saveNumber(userId: string) {
     const num = Number(draft);
@@ -63,6 +82,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <Pill active={tab === "roster"} onPress={() => setTab("roster")}>ROSTER</Pill>
         <Pill active={tab === "schedule"} onPress={() => setTab("schedule")}>SCHEDULE</Pill>
         <Pill active={tab === "moments"} onPress={() => setTab("moments")}>MOMENTS{teamMoments.length > 0 ? ` (${teamMoments.length})` : ""}</Pill>
+        <Pill active={tab === "channel"} onPress={() => setTab("channel")}>CHANNEL{channelMessages.length > 0 ? ` (${channelMessages.length})` : ""}</Pill>
       </View>
 
       {tab === "roster" && (
@@ -153,6 +173,45 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           )}
         </View>
       )}
+
+      {tab === "channel" && (
+        <View style={styles.section}>
+          <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 14 }}>
+            One-way broadcast from organizers to this team — anyone on the roster can reply back.
+          </Text>
+          <View style={{ gap: 8, marginBottom: 16 }}>
+            {channelMessages.map((m) => (
+              <View
+                key={m.id}
+                style={[
+                  styles.channelBubble,
+                  { alignSelf: m.from === "admin" ? "flex-start" : "flex-end", backgroundColor: m.from === "admin" ? theme.color.navy : "#F1EFF5" },
+                ]}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: m.from === "admin" ? "#fff" : theme.color.textMuted }}>
+                  {m.from === "admin" ? "Organizers" : m.authorName}
+                </Text>
+                <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text }}>{m.text}</Text>
+              </View>
+            ))}
+            {channelMessages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</Text>}
+          </View>
+
+          {canPostToChannel ? (
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TextInput
+                value={channelDraft}
+                onChangeText={setChannelDraft}
+                placeholder="Send a message…"
+                style={styles.channelInput}
+              />
+              <PrimaryButton disabled={sending || !channelDraft.trim()} onPress={sendChannelMessage}>Send</PrimaryButton>
+            </View>
+          ) : (
+            <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers and players on this team can post here.</Text>
+          )}
+        </View>
+      )}
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
       {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}
@@ -173,4 +232,6 @@ const styles = StyleSheet.create({
   momentTile: { width: 84, height: 84, borderRadius: 8 },
   momentTileVideo: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
   emptyState: { alignItems: "center", padding: 18, backgroundColor: "#F7F6F3", borderRadius: 10 },
+  channelBubble: { borderRadius: 10, padding: 10, maxWidth: "80%" },
+  channelInput: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
 });

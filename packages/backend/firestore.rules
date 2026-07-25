@@ -179,6 +179,16 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // ---- Team channels: one-way staff broadcast + roster reply-back ----
+    // Written only by the sendTeamMessage Cloud Function (Admin SDK, bypasses
+    // rules), which derives `from` server-side from the caller's role/roster
+    // membership rather than trusting a client-set field. Publicly readable,
+    // same privacy posture as the team roster itself.
+    match /teamChannels/{teamId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

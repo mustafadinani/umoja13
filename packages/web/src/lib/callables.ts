@@ -6,6 +6,7 @@ import type {
   ComplaintType,
   SponsorTier,
   SponsorshipDonorType,
+  TeamChannelMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -111,3 +112,8 @@ export const sendNotification = httpsCallable<
   { title: string; body: string; target: NotificationTarget },
   { notifiedCount: number; pushCount: number }
 >(functions, "sendNotification");
+
+export const sendTeamMessage = httpsCallable<
+  { teamId: string; text: string },
+  { message: TeamChannelMessage }
+>(functions, "sendTeamMessage");
