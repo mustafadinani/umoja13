@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useMoments, useTeam } from "../hooks/useData";
-import { Card, Pill, StatusBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
+import { MomentUploadModal } from "../components/MomentUploadModal";
 
 type Tab = "roster" | "schedule" | "moments";
 
@@ -19,6 +20,7 @@ export function Team() {
   const [tab, setTab] = useState<Tab>("roster");
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
+  const [addMomentOpen, setAddMomentOpen] = useState(false);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -93,28 +95,39 @@ export function Team() {
 
         {tab === "moments" && (
           teamMoments.length === 0 ? (
-            <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No moments tagged yet.</div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-              {teamMoments.map((m) => (
-                <Card
-                  key={m.id}
-                  onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
-                  style={{ padding: 0, overflow: "hidden", cursor: "pointer" }}
-                >
-                  {m.mediaType === "video" ? (
-                    <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
-                  ) : (
-                    <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />
-                  )}
-                </Card>
-              ))}
+            <div style={{ textAlign: "center", padding: "24px 10px", background: "#F7F6F3", borderRadius: theme.radius.sm }}>
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 12 }}>No moments tagged yet.</div>
+              <PrimaryButton onClick={() => setAddMomentOpen(true)}>+ ADD A MOMENT</PrimaryButton>
             </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <div onClick={() => setAddMomentOpen(true)} style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: theme.color.purple }}>
+                  + Add
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                {teamMoments.map((m) => (
+                  <Card
+                    key={m.id}
+                    onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
+                    style={{ padding: 0, overflow: "hidden", cursor: "pointer" }}
+                  >
+                    {m.mediaType === "video" ? (
+                      <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
+                    ) : (
+                      <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </>
           )
         )}
       </div>
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
+      {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}
     </div>
   );
 }

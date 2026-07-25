@@ -8,10 +8,11 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam } from "../hooks/useData";
-import { Card, Pill, StatusBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
+import { MomentUploadModal } from "../components/MomentUploadModal";
 
 type Tab = "roster" | "schedule" | "moments";
 
@@ -27,6 +28,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [error, setError] = useState<string | null>(null);
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
+  const [addMomentOpen, setAddMomentOpen] = useState(false);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
@@ -125,26 +127,35 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
       {tab === "moments" && (
         <View style={styles.section}>
           {teamMoments.length === 0 ? (
-            <Text style={{ color: theme.color.textMuted }}>No moments tagged yet.</Text>
-          ) : (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {teamMoments.map((m) => (
-                <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
-                  {m.mediaType === "video" ? (
-                    <View style={[styles.momentTile, styles.momentTileVideo]}>
-                      <Text style={{ fontSize: 20 }}>▶</Text>
-                    </View>
-                  ) : (
-                    <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
-                  )}
-                </TouchableOpacity>
-              ))}
+            <View style={styles.emptyState}>
+              <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 10 }}>No moments tagged yet.</Text>
+              <PrimaryButton onPress={() => setAddMomentOpen(true)}>+ ADD A MOMENT</PrimaryButton>
             </View>
+          ) : (
+            <>
+              <TouchableOpacity onPress={() => setAddMomentOpen(true)} style={{ alignSelf: "flex-end", marginBottom: 8 }}>
+                <Text style={{ color: theme.color.purple, fontWeight: "700", fontSize: 12.5 }}>+ Add</Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {teamMoments.map((m) => (
+                  <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
+                    {m.mediaType === "video" ? (
+                      <View style={[styles.momentTile, styles.momentTileVideo]}>
+                        <Text style={{ fontSize: 20 }}>▶</Text>
+                      </View>
+                    ) : (
+                      <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
           )}
         </View>
       )}
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
+      {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}
     </ScrollView>
   );
 }
@@ -161,4 +172,5 @@ const styles = StyleSheet.create({
   avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
   momentTile: { width: 84, height: 84, borderRadius: 8 },
   momentTileVideo: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
+  emptyState: { alignItems: "center", padding: 18, backgroundColor: "#F7F6F3", borderRadius: 10 },
 });
