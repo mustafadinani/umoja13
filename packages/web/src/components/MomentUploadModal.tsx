@@ -5,33 +5,54 @@ import { COLLECTIONS, MOMENT_TAGS, type MomentSource } from "@umoja/shared";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useTeam, useTeams } from "../hooks/useData";
+import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
+import { TagPickerDrawer } from "./TagPickerDrawer";
 
 export function MomentUploadModal({
   onClose,
   gameId,
   source = "community",
+  initialTeamTagIds = [],
+  initialPlayerTagUids = [],
 }: {
   onClose: () => void;
   gameId?: string;
   source?: MomentSource;
+  initialTeamTagIds?: string[];
+  initialPlayerTagUids?: string[];
 }) {
   const { user, profile } = useAuth();
   const { data: teams } = useTeams();
+  const { data: categories } = useCategories();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
-  const [teamTagId, setTeamTagId] = useState<string | null>(null);
-  const [playerTagUid, setPlayerTagUid] = useState<string | null>(null);
-  const { data: taggedTeam } = useTeam(teamTagId ?? undefined);
+  const [teamTagIds, setTeamTagIds] = useState<string[]>(initialTeamTagIds);
+  const [playerTagUids, setPlayerTagUids] = useState<string[]>(initialPlayerTagUids);
+  const [pickerOpen, setPickerOpen] = useState<"team" | "player" | null>(null);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
+
+  const taggedTeams = teams.filter((t) => teamTagIds.includes(t.id));
+  const rosterPool = (teamTagIds.length > 0 ? taggedTeams : teams).flatMap((t) =>
+    t.roster.map((p) => ({ id: p.userId, label: p.displayName, sublabel: t.name }))
+  );
+  const taggedPlayers = rosterPool.filter((p) => playerTagUids.includes(p.id));
 
   function onPick(f: File | null) {
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : null);
+  }
+
+  function removeTeam(id: string) {
+    setTeamTagIds((prev) => prev.filter((x) => x !== id));
+    // Selected players from a team that's no longer tagged would silently
+    // stay tagged with no visible way to remove them once the roster pool
+    // narrows back down — drop them along with the team.
+    const remainingIds = new Set(teams.filter((t) => t.id !== id && teamTagIds.includes(t.id)).flatMap((t) => t.roster.map((p) => p.userId)));
+    setPlayerTagUids((prev) => (teamTagIds.length <= 1 ? prev : prev.filter((p) => remainingIds.has(p))));
   }
 
   async function submit() {
@@ -53,8 +74,8 @@ export function MomentUploadModal({
         postedByName: profile.displayName,
         source,
         gameId: gameId ?? null,
-        ...(teamTagId ? { teamTagId } : {}),
-        ...(playerTagUid ? { playerTagUid } : {}),
+        ...(teamTagIds.length > 0 ? { teamTagIds } : {}),
+        ...(playerTagUids.length > 0 ? { playerTagUids } : {}),
         likeUids: [],
         moderationStatus: "pending",
         createdAt: Date.now(),
@@ -120,37 +141,63 @@ export function MomentUploadModal({
         style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
       />
 
-      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Tag a team (optional)</div>
-      <select
-        value={teamTagId ?? ""}
-        onChange={(e) => { setTeamTagId(e.target.value || null); setPlayerTagUid(null); }}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5, background: "#fff" }}
-      >
-        <option value="">No team</option>
-        {teams.map((t) => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-      </select>
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Tag people (optional)</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <button
+          onClick={() => setPickerOpen("team")}
+          type="button"
+          style={{ flex: 1, padding: "10px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+        >
+          🏷 Tag a team{teamTagIds.length > 0 ? ` (${teamTagIds.length})` : ""}
+        </button>
+        <button
+          onClick={() => setPickerOpen("player")}
+          type="button"
+          style={{ flex: 1, padding: "10px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+        >
+          🏷 Tag a player{playerTagUids.length > 0 ? ` (${playerTagUids.length})` : ""}
+        </button>
+      </div>
 
-      {teamTagId && taggedTeam && (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Tag a player (optional)</div>
-          <select
-            value={playerTagUid ?? ""}
-            onChange={(e) => setPlayerTagUid(e.target.value || null)}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 20, fontSize: 13.5, background: "#fff" }}
-          >
-            <option value="">No player</option>
-            {taggedTeam.roster.map((p) => (
-              <option key={p.userId} value={p.userId}>{p.displayName}</option>
-            ))}
-          </select>
-        </>
+      {(taggedTeams.length > 0 || taggedPlayers.length > 0) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+          {taggedTeams.map((t) => (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F1EFF5", borderRadius: 999, padding: "5px 10px", fontSize: 12.5, fontWeight: 600 }}>
+              {t.name}
+              <span onClick={() => removeTeam(t.id)} style={{ cursor: "pointer", color: theme.color.textMuted }}>✕</span>
+            </div>
+          ))}
+          {taggedPlayers.map((p) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F7F0FF", borderRadius: 999, padding: "5px 10px", fontSize: 12.5, fontWeight: 600, color: theme.color.purple }}>
+              {p.label}
+              <span onClick={() => setPlayerTagUids((prev) => prev.filter((x) => x !== p.id))} style={{ cursor: "pointer" }}>✕</span>
+            </div>
+          ))}
+        </div>
       )}
 
       <PrimaryButton disabled={!file || !tag || posting} onClick={submit} style={{ width: "100%" }}>
         {posting ? "Posting…" : "POST MOMENT"}
       </PrimaryButton>
+
+      {pickerOpen === "team" && (
+        <TagPickerDrawer
+          title="Tag a team"
+          items={teams.map((t) => ({ id: t.id, label: t.name, sublabel: categories.find((c) => c.id === t.categoryId)?.label }))}
+          selected={teamTagIds}
+          onConfirm={(ids) => { setTeamTagIds(ids); setPickerOpen(null); }}
+          onClose={() => setPickerOpen(null)}
+        />
+      )}
+      {pickerOpen === "player" && (
+        <TagPickerDrawer
+          title="Tag a player"
+          items={rosterPool}
+          selected={playerTagUids}
+          onConfirm={(ids) => { setPlayerTagUids(ids); setPickerOpen(null); }}
+          onClose={() => setPickerOpen(null)}
+        />
+      )}
     </Modal>
   );
 }

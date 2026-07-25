@@ -20,7 +20,7 @@ export function Team() {
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const teamMoments = moments.filter((m) => m.teamTagId === team.id).sort((a, b) => b.createdAt - a.createdAt);
+  const teamMoments = moments.filter((m) => m.teamTagIds?.includes(team.id)).sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
@@ -100,7 +100,7 @@ export function Team() {
           </div>
         )}
       </div>
-      {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
+      {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
     </div>
   );

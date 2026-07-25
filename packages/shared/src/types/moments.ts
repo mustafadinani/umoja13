@@ -10,9 +10,10 @@ export interface Moment {
   comment?: string;
   postedBy: string; // uid
   postedByName: string;
-  teamTagId?: string;
-  /** Optional player tag — shows this moment on that player's Player Card. */
-  playerTagUid?: string;
+  /** Optional team tags — shows this moment on each tagged team's page. */
+  teamTagIds?: string[];
+  /** Optional player tags — shows this moment on each tagged player's Player Card. */
+  playerTagUids?: string[];
   source: MomentSource;
   gameId?: string;
   huntSubmissionId?: string;

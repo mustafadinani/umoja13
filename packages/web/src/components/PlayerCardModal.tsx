@@ -2,8 +2,9 @@ import { useState } from "react";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useMoments } from "../hooks/useData";
-import { Drawer } from "./ui";
+import { Drawer, PrimaryButton } from "./ui";
 import { Lightbox } from "./Lightbox";
+import { MomentUploadModal } from "./MomentUploadModal";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
@@ -13,11 +14,22 @@ const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }>
   not_started: { label: "Check-in not started", color: theme.color.textMuted, bg: theme.color.bg },
 };
 
-export function PlayerCardModal({ player, teamName, onClose }: { player: RosterEntry; teamName: string; onClose: () => void }) {
+export function PlayerCardModal({
+  player,
+  teamId,
+  teamName,
+  onClose,
+}: {
+  player: RosterEntry;
+  teamId: string;
+  teamName: string;
+  onClose: () => void;
+}) {
   const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
   const { data: moments } = useMoments();
-  const playerMoments = moments.filter((m) => m.playerTagUid === player.userId).sort((a, b) => b.createdAt - a.createdAt);
+  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
+  const [addMomentOpen, setAddMomentOpen] = useState(false);
 
   return (
     <Drawer onClose={onClose}>
@@ -54,7 +66,7 @@ export function PlayerCardModal({ player, teamName, onClose }: { player: RosterE
         )}
 
         {player.badges && player.badges.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: playerMoments.length > 0 ? 20 : 0 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 20 }}>
             {player.badges.map((b) => (
               <div key={b} style={{ background: "#F7F0FF", borderRadius: 8, padding: "6px 10px", fontSize: 11.5, fontWeight: 700, color: theme.color.purple }}>
                 🏅 {b}
@@ -63,9 +75,22 @@ export function PlayerCardModal({ player, teamName, onClose }: { player: RosterE
           </div>
         )}
 
-        {playerMoments.length > 0 && (
-          <div style={{ width: "100%" }}>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, marginBottom: 8 }}>MOMENTS</div>
+        <div style={{ width: "100%" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15 }}>MOMENTS</div>
+            {playerMoments.length > 0 && (
+              <div onClick={() => setAddMomentOpen(true)} style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: theme.color.purple }}>
+                + Add
+              </div>
+            )}
+          </div>
+
+          {playerMoments.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "18px 10px", background: "#F7F6F3", borderRadius: theme.radius.sm }}>
+              <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 10 }}>No moments tagged yet.</div>
+              <PrimaryButton onClick={() => setAddMomentOpen(true)} style={{ fontSize: 13 }}>+ ADD A MOMENT</PrimaryButton>
+            </div>
+          ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
               {playerMoments.map((m) => (
                 <div
@@ -81,10 +106,17 @@ export function PlayerCardModal({ player, teamName, onClose }: { player: RosterE
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
+      {addMomentOpen && (
+        <MomentUploadModal
+          onClose={() => setAddMomentOpen(false)}
+          initialTeamTagIds={[teamId]}
+          initialPlayerTagUids={[player.userId]}
+        />
+      )}
     </Drawer>
   );
 }

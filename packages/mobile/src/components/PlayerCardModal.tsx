@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useMoments } from "../hooks/useData";
-import { Drawer } from "./ui";
+import { Drawer, PrimaryButton } from "./ui";
 import { LoadingImage } from "./LoadingImage";
 import { Lightbox } from "./Lightbox";
+import { MomentUploadModal } from "./MomentUploadModal";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
@@ -17,17 +18,20 @@ const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }>
 
 export function PlayerCardModal({
   player,
+  teamId,
   teamName,
   onClose,
 }: {
   player: RosterEntry;
+  teamId: string;
   teamName: string;
   onClose: () => void;
 }) {
   const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
   const { data: moments } = useMoments();
-  const playerMoments = moments.filter((m) => m.playerTagUid === player.userId).sort((a, b) => b.createdAt - a.createdAt);
+  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
+  const [addMomentOpen, setAddMomentOpen] = useState(false);
 
   return (
     <Drawer visible onClose={onClose}>
@@ -60,7 +64,7 @@ export function PlayerCardModal({
         )}
 
         {player.badges && player.badges.length > 0 && (
-          <View style={[styles.badgeRow, playerMoments.length > 0 && { marginBottom: 20 }]}>
+          <View style={[styles.badgeRow, { marginBottom: 20 }]}>
             {player.badges.map((b) => (
               <View key={b} style={styles.badge}>
                 <Text style={{ fontSize: 11.5, fontWeight: "700", color: theme.color.purple }}>🏅 {b}</Text>
@@ -69,9 +73,20 @@ export function PlayerCardModal({
           </View>
         )}
 
-        {playerMoments.length > 0 && (
-          <View style={{ width: "100%" }}>
+        <View style={{ width: "100%" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <Text style={styles.momentsTitle}>MOMENTS</Text>
+            {playerMoments.length > 0 && (
+              <Text onPress={() => setAddMomentOpen(true)} style={{ color: theme.color.purple, fontWeight: "700", fontSize: 12.5 }}>+ Add</Text>
+            )}
+          </View>
+
+          {playerMoments.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 10 }}>No moments tagged yet.</Text>
+              <PrimaryButton onPress={() => setAddMomentOpen(true)}>+ ADD A MOMENT</PrimaryButton>
+            </View>
+          ) : (
             <View style={styles.momentsGrid}>
               {playerMoments.map((m) => (
                 <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
@@ -85,10 +100,17 @@ export function PlayerCardModal({
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </View>
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
+      {addMomentOpen && (
+        <MomentUploadModal
+          onClose={() => setAddMomentOpen(false)}
+          initialTeamTagIds={[teamId]}
+          initialPlayerTagUids={[player.userId]}
+        />
+      )}
     </Drawer>
   );
 }
@@ -105,7 +127,8 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, color: theme.color.textMuted, marginTop: 2 },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" },
   badge: { backgroundColor: "#F7F0FF", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
-  momentsTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
+  momentsTitle: { fontWeight: "800", fontSize: 15 },
+  emptyState: { alignItems: "center", padding: 18, backgroundColor: "#F7F6F3", borderRadius: 10 },
   momentsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   momentTile: { width: 84, height: 84, borderRadius: 8 },
   momentTileVideo: { backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },

@@ -27,7 +27,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const teamMoments = moments.filter((m) => m.teamTagId === team.id).sort((a, b) => b.createdAt - a.createdAt);
+  const teamMoments = moments.filter((m) => m.teamTagIds?.includes(team.id)).sort((a, b) => b.createdAt - a.createdAt);
   const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
 
   async function saveNumber(userId: string) {
@@ -123,7 +123,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           </View>
         </View>
       )}
-      {openPlayer && <PlayerCardModal player={openPlayer} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
+      {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </ScrollView>
   );
