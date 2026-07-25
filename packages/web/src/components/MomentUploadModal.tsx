@@ -183,7 +183,8 @@ export function MomentUploadModal({
       {pickerOpen === "team" && (
         <TagPickerDrawer
           title="Tag a team"
-          items={teams.map((t) => ({ id: t.id, label: t.name, sublabel: categories.find((c) => c.id === t.categoryId)?.label }))}
+          items={teams.map((t) => ({ id: t.id, label: t.name, sublabel: categories.find((c) => c.id === t.categoryId)?.label, groupId: t.categoryId }))}
+          groups={categories.map((c) => ({ id: c.id, label: c.label }))}
           selected={teamTagIds}
           onConfirm={(ids) => { setTeamTagIds(ids); setPickerOpen(null); }}
           onClose={() => setPickerOpen(null)}

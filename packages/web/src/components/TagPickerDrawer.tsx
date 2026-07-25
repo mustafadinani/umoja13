@@ -1,37 +1,57 @@
 import { useState } from "react";
 import { theme } from "../lib/theme";
-import { Drawer, PrimaryButton } from "./ui";
+import { Drawer, Pill, PrimaryButton } from "./ui";
 
 export interface TagPickerItem {
   id: string;
   label: string;
   sublabel?: string;
+  /** Optional group (e.g. tournament category) this item belongs to, for the quick-filter chips. */
+  groupId?: string;
+}
+
+export interface TagPickerGroup {
+  id: string;
+  label: string;
 }
 
 export function TagPickerDrawer({
   title,
   items,
+  groups,
   selected,
   onConfirm,
   onClose,
 }: {
   title: string;
   items: TagPickerItem[];
+  /** When provided, renders "All" + one quick-filter chip per group above the list. */
+  groups?: TagPickerGroup[];
   selected: string[];
   onConfirm: (ids: string[]) => void;
   onClose: () => void;
 }) {
   const [working, setWorking] = useState<string[]>(selected);
   const [search, setSearch] = useState("");
+  const [group, setGroup] = useState<string | "all">("all");
 
-  const filtered = items.filter((i) => (i.label + " " + (i.sublabel ?? "")).toLowerCase().includes(search.toLowerCase()));
+  const filtered = items
+    .filter((i) => (i.label + " " + (i.sublabel ?? "")).toLowerCase().includes(search.toLowerCase()))
+    .filter((i) => group === "all" || i.groupId === group);
 
   function toggle(id: string) {
     setWorking((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   return (
-    <Drawer onClose={onClose}>
+    <Drawer
+      onClose={onClose}
+      footer={
+        <PrimaryButton onClick={() => onConfirm(working)} style={{ width: "100%" }}>
+          DONE {working.length > 0 ? `(${working.length})` : ""}
+        </PrimaryButton>
+      }
+    >
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 12 }}>{title}</div>
 
       <input
@@ -39,11 +59,21 @@ export function TagPickerDrawer({
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search…"
         autoFocus
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 6, fontSize: 13.5 }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5 }}
       />
+
+      {groups && groups.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          <Pill active={group === "all"} onClick={() => setGroup("all")}>All</Pill>
+          {groups.map((g) => (
+            <Pill key={g.id} active={group === g.id} onClick={() => setGroup(g.id)}>{g.label}</Pill>
+          ))}
+        </div>
+      )}
+
       <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 12 }}>{working.length} selected</div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {filtered.map((item) => {
           const active = working.includes(item.id);
           return (
@@ -84,10 +114,6 @@ export function TagPickerDrawer({
         })}
         {filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13, padding: "8px 10px" }}>No matches.</div>}
       </div>
-
-      <PrimaryButton onClick={() => onConfirm(working)} style={{ width: "100%" }}>
-        DONE {working.length > 0 ? `(${working.length})` : ""}
-      </PrimaryButton>
     </Drawer>
   );
 }

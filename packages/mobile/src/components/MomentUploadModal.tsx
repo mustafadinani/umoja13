@@ -7,7 +7,7 @@ import { COLLECTIONS, MOMENT_TAGS, type MomentSource } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useTeams } from "../hooks/useData";
+import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "./ui";
 import { TagPickerDrawer } from "./TagPickerDrawer";
 
@@ -26,6 +26,7 @@ export function MomentUploadModal({
 }) {
   const { user } = useAuth();
   const { data: teams } = useTeams();
+  const { data: categories } = useCategories();
   const [uri, setUri] = useState<string | null>(null);
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -172,7 +173,8 @@ export function MomentUploadModal({
       {pickerOpen === "team" && (
         <TagPickerDrawer
           title="Tag a team"
-          items={teams.map((t) => ({ id: t.id, label: t.name }))}
+          items={teams.map((t) => ({ id: t.id, label: t.name, sublabel: categories.find((c) => c.id === t.categoryId)?.label, groupId: t.categoryId }))}
+          groups={categories.map((c) => ({ id: c.id, label: c.label }))}
           selected={teamTagIds}
           onConfirm={(ids) => { setTeamTagIds(ids); setPickerOpen(null); }}
           onClose={() => setPickerOpen(null)}

@@ -1,44 +1,75 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
-import { Drawer, PrimaryButton } from "./ui";
+import { Drawer, Pill, PrimaryButton } from "./ui";
 
 export interface TagPickerItem {
   id: string;
   label: string;
   sublabel?: string;
+  /** Optional group (e.g. tournament category) this item belongs to, for the quick-filter chips. */
+  groupId?: string;
+}
+
+export interface TagPickerGroup {
+  id: string;
+  label: string;
 }
 
 export function TagPickerDrawer({
   title,
   items,
+  groups,
   selected,
   onConfirm,
   onClose,
 }: {
   title: string;
   items: TagPickerItem[];
+  /** When provided, renders "All" + one quick-filter chip per group above the list. */
+  groups?: TagPickerGroup[];
   selected: string[];
   onConfirm: (ids: string[]) => void;
   onClose: () => void;
 }) {
   const [working, setWorking] = useState<string[]>(selected);
   const [search, setSearch] = useState("");
+  const [group, setGroup] = useState<string | "all">("all");
 
-  const filtered = items.filter((i) => (i.label + " " + (i.sublabel ?? "")).toLowerCase().includes(search.toLowerCase()));
+  const filtered = items
+    .filter((i) => (i.label + " " + (i.sublabel ?? "")).toLowerCase().includes(search.toLowerCase()))
+    .filter((i) => group === "all" || i.groupId === group);
 
   function toggle(id: string) {
     setWorking((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   return (
-    <Drawer visible onClose={onClose}>
+    <Drawer
+      visible
+      onClose={onClose}
+      footer={
+        <PrimaryButton onPress={() => onConfirm(working)} style={{ width: "100%" }}>
+          DONE {working.length > 0 ? `(${working.length})` : ""}
+        </PrimaryButton>
+      }
+    >
       <Text style={styles.title}>{title}</Text>
 
       <TextInput value={search} onChangeText={setSearch} placeholder="Search…" style={styles.search} />
+
+      {groups && groups.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }} contentContainerStyle={{ gap: 6 }}>
+          <Pill active={group === "all"} onPress={() => setGroup("all")}>All</Pill>
+          {groups.map((g) => (
+            <Pill key={g.id} active={group === g.id} onPress={() => setGroup(g.id)}>{g.label}</Pill>
+          ))}
+        </ScrollView>
+      )}
+
       <Text style={styles.count}>{working.length} selected</Text>
 
-      <View style={{ marginBottom: 20 }}>
+      <View>
         {filtered.map((item) => {
           const active = working.includes(item.id);
           return (
@@ -55,17 +86,13 @@ export function TagPickerDrawer({
         })}
         {filtered.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13, padding: 8 }}>No matches.</Text>}
       </View>
-
-      <PrimaryButton onPress={() => onConfirm(working)} style={{ width: "100%" }}>
-        DONE {working.length > 0 ? `(${working.length})` : ""}
-      </PrimaryButton>
     </Drawer>
   );
 }
 
 const styles = StyleSheet.create({
   title: { fontWeight: "800", fontSize: 19, marginBottom: 12 },
-  search: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 6 },
+  search: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 10 },
   count: { fontSize: 12, color: theme.color.textMuted, marginBottom: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8 },
   rowActive: { backgroundColor: "#F7F0FF" },

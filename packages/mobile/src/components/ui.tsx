@@ -59,7 +59,18 @@ export function Modal({ visible, onClose, children }: { visible: boolean; onClos
   );
 }
 
-export function Drawer({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
+export function Drawer({
+  visible,
+  onClose,
+  children,
+  footer,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  /** Rendered outside the scrollable area, pinned to the bottom of the drawer — use for an always-reachable action like DONE on a long scrollable list. */
+  footer?: ReactNode;
+}) {
   return (
     <RNModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.drawerScrim} activeOpacity={1} onPress={onClose}>
@@ -71,6 +82,7 @@ export function Drawer({ visible, onClose, children }: { visible: boolean; onClo
           <ScrollView contentContainerStyle={styles.drawerContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
+          {footer && <View style={styles.drawerFooter}>{footer}</View>}
         </TouchableOpacity>
       </TouchableOpacity>
     </RNModal>
@@ -166,5 +178,11 @@ const styles = StyleSheet.create({
   drawerContent: {
     padding: 20,
     paddingTop: 24,
+  },
+  drawerFooter: {
+    padding: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: theme.color.border,
   },
 });

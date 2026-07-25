@@ -137,7 +137,18 @@ export function Modal({ children, onClose, width = 440 }: { children: ReactNode;
   );
 }
 
-export function Drawer({ children, onClose, width = 460 }: { children: ReactNode; onClose: () => void; width?: number }) {
+export function Drawer({
+  children,
+  footer,
+  onClose,
+  width = 460,
+}: {
+  children: ReactNode;
+  /** Rendered outside the scrollable area, pinned to the bottom of the drawer — use for an always-reachable action like DONE on a long scrollable list. */
+  footer?: ReactNode;
+  onClose: () => void;
+  width?: number;
+}) {
   return (
     <div
       onClick={onClose}
@@ -159,8 +170,8 @@ export function Drawer({ children, onClose, width = 460 }: { children: ReactNode
           width,
           maxWidth: "100%",
           height: "100%",
-          overflowY: "auto",
-          padding: 28,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <button
@@ -177,11 +188,13 @@ export function Drawer({ children, onClose, width = 460 }: { children: ReactNode
             color: theme.color.text,
             fontSize: 15,
             cursor: "pointer",
+            zIndex: 1,
           }}
         >
           ✕
         </button>
-        {children}
+        <div style={{ flex: 1, overflowY: "auto", padding: 28, paddingBottom: footer ? 12 : 28 }}>{children}</div>
+        {footer && <div style={{ padding: "12px 28px 28px", borderTop: `1px solid ${theme.color.border}` }}>{footer}</div>}
       </div>
     </div>
   );
