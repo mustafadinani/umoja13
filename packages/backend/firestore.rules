@@ -182,10 +182,13 @@ service cloud.firestore {
     // ---- Team channels: one-way staff broadcast + roster reply-back ----
     // Written only by the sendTeamMessage Cloud Function (Admin SDK, bypasses
     // rules), which derives `from` server-side from the caller's role/roster
-    // membership rather than trusting a client-set field. Publicly readable,
-    // same privacy posture as the team roster itself.
+    // membership rather than trusting a client-set field. Private to staff
+    // and that team's own roster — teams.rosterUids (kept in sync by
+    // onTeamWrite) is what makes a cheap membership check possible here,
+    // since roster itself is an array of objects rules can't filter by field.
     match /teamChannels/{teamId} {
-      allow read: if true;
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.rosterUids);
       allow write: if false;
     }
 

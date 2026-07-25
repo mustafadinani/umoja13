@@ -14,6 +14,10 @@ export interface Team {
   sponsorId?: string;
   captainUserId?: string;
   roster: RosterEntry[];
+  // Plain uid list mirroring roster, kept in sync by a Cloud Function
+  // trigger — lets Firestore rules check roster membership (e.g. for
+  // teamChannels reads) without being able to filter roster's objects.
+  rosterUids?: string[];
   // Aggregate stats, recomputed by a Cloud Function trigger whenever a game
   // in this category is set to "final". Never written directly by clients.
   stats: TeamStats;

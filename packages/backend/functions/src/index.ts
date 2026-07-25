@@ -11,6 +11,7 @@ export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
 export { createSponsorshipCheckout } from "./stripe/createSponsorshipCheckout.js";
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
+export { onTeamWrite } from "./triggers/onTeamWrite.js";
 export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";
