@@ -7,11 +7,11 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useTeam, useMyVolunteerTasks } from "../hooks/useData";
-import { fileIncident } from "../lib/callables";
 import { Card, Pill, PrimaryButton } from "../components/ui";
 import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
+import { RoleChannelPanel } from "../components/RoleChannelPanel";
 
 export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user, profile, signOut } = useAuth();
@@ -116,12 +116,9 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
 }
 
 function VolunteerShifts({ uid }: { uid: string | undefined }) {
-  const { profile } = useAuth();
   const { data: tasks } = useMyVolunteerTasks(uid);
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [tab, setTab] = useState<"shifts" | "channel">("shifts");
 
   async function markDone(task: VolunteerTask) {
     await updateDoc(doc(db, COLLECTIONS.volunteerTasks, task.id), { done: !task.done });
@@ -135,20 +132,17 @@ function VolunteerShifts({ uid }: { uid: string | undefined }) {
     });
   }
 
-  async function sendMessage() {
-    if (!profile || message.trim().length < 3) return;
-    setSending(true);
-    try {
-      await fileIncident({ source: "volunteer_message", filedByName: profile.displayName, filedByRole: "volunteer", text: message });
-      setMessage("");
-      setSent(true);
-    } finally {
-      setSending(false);
-    }
-  }
-
   return (
     <>
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+        <Pill active={tab === "shifts"} onPress={() => setTab("shifts")}>My Shifts</Pill>
+        <Pill active={tab === "channel"} onPress={() => setTab("channel")}>Channel</Pill>
+      </View>
+
+      {tab === "channel" ? (
+        <RoleChannelPanel role="volunteer" />
+      ) : (
+      <>
       {tasks.map((t) => (
         <Card key={t.id} style={{ marginBottom: 8 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
@@ -196,20 +190,8 @@ function VolunteerShifts({ uid }: { uid: string | undefined }) {
         </Card>
       ))}
       {tasks.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>No shifts assigned to you yet — check back soon.</Text>}
-
-      <Card>
-        <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Message the organizers</Text>
-        {sent && <Text style={{ color: theme.color.success, fontSize: 12.5, marginBottom: 8 }}>Sent — an organizer will follow up.</Text>}
-        <TextInput
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Question about a shift, or anything else…"
-          multiline
-          numberOfLines={3}
-          style={{ borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13, minHeight: 60, textAlignVertical: "top", marginBottom: 10 }}
-        />
-        <PrimaryButton disabled={sending || message.trim().length < 3} onPress={sendMessage}>{sending ? "Sending…" : "SEND"}</PrimaryButton>
-      </Card>
+      </>
+      )}
     </>
   );
 }

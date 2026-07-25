@@ -7,6 +7,8 @@ import type {
   SponsorTier,
   SponsorshipDonorType,
   TeamChannelMessage,
+  ChannelRole,
+  RoleChannelMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -111,3 +113,8 @@ export const sendTeamMessage = httpsCallable<
   { teamId: string; text: string },
   { message: TeamChannelMessage }
 >(functions, "sendTeamMessage");
+
+export const sendRoleMessage = httpsCallable<
+  { role: ChannelRole; text: string },
+  { message: RoleChannelMessage }
+>(functions, "sendRoleMessage");

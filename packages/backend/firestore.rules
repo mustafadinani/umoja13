@@ -189,6 +189,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- Role channels: one-way staff broadcast + member reply-back ----
+    // Same pattern as teamChannels, scoped by role (volunteer/referee)
+    // instead of team roster. Written only by sendRoleMessage.
+    match /roleChannels/{role} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

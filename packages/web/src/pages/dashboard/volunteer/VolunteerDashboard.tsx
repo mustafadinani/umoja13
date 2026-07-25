@@ -5,16 +5,16 @@ import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useMyVolunteerTasks } from "../../../hooks/useData";
-import { fileIncident } from "../../../lib/callables";
-import { Card, PrimaryButton, Pill } from "../../../components/ui";
+import { Card, Pill } from "../../../components/ui";
+import { RoleChannelPanel } from "../../../components/RoleChannelPanel";
+
+type Tab = "shifts" | "channel";
 
 export function VolunteerDashboard() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { data: tasks } = useMyVolunteerTasks(user?.uid);
+  const [tab, setTab] = useState<Tab>("shifts");
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   async function markDone(task: VolunteerTask) {
     await updateDoc(doc(db, COLLECTIONS.volunteerTasks, task.id), { done: !task.done });
@@ -28,22 +28,18 @@ export function VolunteerDashboard() {
     });
   }
 
-  async function sendMessage() {
-    if (!profile || message.trim().length < 3) return;
-    setSending(true);
-    try {
-      await fileIncident({ source: "volunteer_message", filedByName: profile.displayName, filedByRole: "volunteer", text: message });
-      setMessage("");
-      setSent(true);
-    } finally {
-      setSending(false);
-    }
-  }
-
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>MY SHIFTS</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>VOLUNTEER</div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <Pill active={tab === "shifts"} onClick={() => setTab("shifts")}>My Shifts</Pill>
+        <Pill active={tab === "channel"} onClick={() => setTab("channel")}>Channel</Pill>
+      </div>
+
+      {tab === "channel" ? (
+        <RoleChannelPanel role="volunteer" />
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {tasks.map((t) => (
           <Card key={t.id} style={{ padding: "14px 16px" }}>
@@ -84,19 +80,7 @@ export function VolunteerDashboard() {
         ))}
         {tasks.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No shifts assigned to you yet — check back soon.</div>}
       </div>
-
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MESSAGE THE ORGANIZERS</div>
-      <Card>
-        {sent && <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>Sent — an organizer will follow up.</div>}
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Question about a shift, or anything else…"
-          rows={3}
-          style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
-        />
-        <PrimaryButton disabled={sending || message.trim().length < 3} onClick={sendMessage}>{sending ? "Sending…" : "SEND"}</PrimaryButton>
-      </Card>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ export * from "./types/volunteer.js";
 export * from "./types/challenge.js";
 export * from "./types/sponsor.js";
 export * from "./types/teamChannel.js";
+export * from "./types/roleChannel.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/sponsors.js";

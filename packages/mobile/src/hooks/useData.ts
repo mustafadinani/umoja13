@@ -19,6 +19,8 @@ import {
   type ChallengeSubmission,
   type VolunteerTask,
   type TeamChannel,
+  type ChannelRole,
+  type RoleChannel,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 
@@ -42,6 +44,7 @@ export const useTeams = (categoryId?: string) =>
 
 export const useTeam = (teamId: string | undefined) => useDocument<Team>(COLLECTIONS.teams, teamId);
 export const useTeamChannel = (teamId: string | undefined) => useDocument<TeamChannel>(COLLECTIONS.teamChannels, teamId);
+export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(COLLECTIONS.roleChannels, role);
 
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
