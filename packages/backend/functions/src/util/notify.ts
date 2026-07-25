@@ -41,22 +41,31 @@ export async function notifyUsers(
     await writer.commit();
   }
 
-  const pushTokens = users
-    .map((u) => u.pushToken)
-    .filter((t): t is string => !!t && t.startsWith("ExponentPushToken"));
+  const pushRecipients = users
+    .filter((u): u is { uid: string; pushToken: string } => !!u.pushToken?.startsWith("ExponentPushToken"));
 
   let pushCount = 0;
-  for (const batch of chunk(pushTokens, 100)) {
-    const messages = batch.map((to) => ({ to, title, body, sound: "default" }));
+  for (const batch of chunk(pushRecipients, 100)) {
+    const messages = batch.map((r) => ({ to: r.pushToken, title, body, sound: "default" }));
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(messages),
       });
-      if (res.ok) pushCount += batch.length;
-    } catch {
-      // Best-effort: in-app notification docs are already written regardless of push delivery.
+      // Expo returns HTTP 200 even when individual messages fail (e.g. missing
+      // APNs credentials, stale token) — the real per-message result is only
+      // in the response body, so res.ok alone can't be trusted for pushCount.
+      const json = (await res.json()) as { data?: { status: string; message?: string }[] };
+      (json.data ?? []).forEach((ticket, i) => {
+        if (ticket.status === "ok") {
+          pushCount++;
+        } else {
+          console.error(`Push failed for uid ${batch[i]?.uid}:`, ticket.message ?? ticket.status);
+        }
+      });
+    } catch (err) {
+      console.error("Expo push request failed:", err);
     }
   }
 
