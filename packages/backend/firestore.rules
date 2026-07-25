@@ -191,11 +191,11 @@ service cloud.firestore {
 
     // ---- Role channels: one-way staff broadcast + member reply-back ----
     // Same pattern as teamChannels, scoped by role (volunteer/referee)
-    // instead of team roster. Written only by sendRoleMessage. The referee
-    // channel is restricted to staff + referees (referees asked to keep it
-    // private); volunteer stays publicly readable.
+    // instead of team roster. Written only by sendRoleMessage. Both
+    // channels are private to staff + the role's own members — players,
+    // fans, and other roles can't read them.
     match /roleChannels/{role} {
-      allow read: if role != 'referee' || isStaff() || hasRole('referee');
+      allow read: if isStaff() || hasRole(role);
       allow write: if false;
     }
 
