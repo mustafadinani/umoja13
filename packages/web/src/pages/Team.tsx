@@ -3,19 +3,17 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
-import { useAuth } from "../auth/AuthProvider";
-import { sendTeamMessage } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { TeamChannelPanel } from "../components/TeamChannelPanel";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
 
 export function Team() {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const { profile } = useAuth();
   const { data: team } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
@@ -25,8 +23,6 @@ export function Team() {
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -37,21 +33,7 @@ export function Team() {
   const teamMoments = moments
     .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
-  const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
-  const onRoster = profile ? rosterUids.has(profile.uid) : false;
-  const canPostToChannel = isStaff || onRoster;
-  const channelMessages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
-
-  async function sendChannelMessage() {
-    if (!draft.trim() || !team) return;
-    setSending(true);
-    try {
-      await sendTeamMessage({ teamId: team.id, text: draft });
-      setDraft("");
-    } finally {
-      setSending(false);
-    }
-  }
+  const channelMessages = channel?.messages ?? [];
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
@@ -147,50 +129,7 @@ export function Team() {
           )
         )}
 
-        {tab === "channel" && (
-          <div>
-            <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 14 }}>
-              One-way broadcast from organizers to this team — anyone on the roster can reply back.
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
-              {channelMessages.map((m) => (
-                <div
-                  key={m.id}
-                  style={{
-                    alignSelf: m.from === "admin" ? "flex-start" : "flex-end",
-                    background: m.from === "admin" ? theme.color.navy : "#F1EFF5",
-                    color: m.from === "admin" ? "#fff" : theme.color.text,
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    fontSize: 13.5,
-                    maxWidth: "75%",
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8, marginBottom: 2 }}>
-                    {m.from === "admin" ? "Organizers" : m.authorName}
-                  </div>
-                  {m.text}
-                </div>
-              ))}
-              {channelMessages.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</div>}
-            </div>
-
-            {canPostToChannel ? (
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendChannelMessage()}
-                  placeholder="Send a message…"
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-                />
-                <PrimaryButton disabled={sending || !draft.trim()} onClick={sendChannelMessage}>Send</PrimaryButton>
-              </div>
-            ) : (
-              <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers and players on this team can post here.</div>
-            )}
-          </div>
-        )}
+        {tab === "channel" && <TeamChannelPanel teamId={team.id} />}
       </div>
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
