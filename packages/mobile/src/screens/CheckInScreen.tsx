@@ -10,7 +10,8 @@ import {
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
-  CHECKIN_AI_BYPASS_COPY,
+  CHECKIN_AI_BYPASS_LABEL,
+  CHECKIN_AI_BYPASS_CAVEAT,
 } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
@@ -106,6 +107,11 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
     }
   }
 
+  function proceedToCapture(bypassAi: boolean) {
+    setAiBypass(bypassAi);
+    setStep("selfie");
+  }
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg, padding: 20 }}>
       {step === "confirm" && (
@@ -122,11 +128,12 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
       {step === "consent" && (
         <View>
-          <Text style={styles.h1}>Before we continue</Text>
-          <Text style={[styles.sub, { textAlign: "left" }]}>{CHECKIN_CONSENT_COPY}</Text>
+          <Text style={styles.h1}>Who's checking in?</Text>
 
-          <RadioRow label="I'm 18 or older, checking in for myself" checked={acceptedBy === "self"} onPress={() => setAcceptedBy("self")} />
-          <RadioRow label="I'm a parent/guardian checking in on behalf of a minor" checked={acceptedBy === "guardian"} onPress={() => setAcceptedBy("guardian")} />
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 16, marginTop: 8 }}>
+            <RoleCard icon="🧑" label="I'm 18+, checking in for myself" active={acceptedBy === "self"} onPress={() => setAcceptedBy("self")} />
+            <RoleCard icon="👨‍👩‍👧" label="I'm a parent/guardian, for a minor" active={acceptedBy === "guardian"} onPress={() => setAcceptedBy("guardian")} />
+          </View>
 
           {acceptedBy === "guardian" && (
             <TextInput
@@ -137,10 +144,16 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             />
           )}
 
-          <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
-          <CheckRow label={CHECKIN_AI_BYPASS_COPY} checked={aiBypass} onPress={() => setAiBypass(!aiBypass)} />
+          <Text style={[styles.sub, { textAlign: "left" }]}>{CHECKIN_CONSENT_COPY}</Text>
 
-          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("selfie")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
+          <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
+
+          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => proceedToCapture(false)} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
+
+          <TouchableOpacity disabled={!canContinueFromConsent} onPress={() => proceedToCapture(true)} style={{ marginTop: 16, alignItems: "center" }}>
+            <Text style={{ fontSize: 12.5, color: theme.color.textMuted, textDecorationLine: "underline" }}>{CHECKIN_AI_BYPASS_LABEL}</Text>
+            <Text style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{CHECKIN_AI_BYPASS_CAVEAT}</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -215,11 +228,11 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function RadioRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
+function RoleCard({ icon, label, active, onPress }: { icon: string; label: string; active: boolean; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.consentRow}>
-      <View style={[styles.radioOuter, checked && styles.radioOuterChecked]}>{checked && <View style={styles.radioInner} />}</View>
-      <Text style={styles.consentLabel}>{label}</Text>
+    <TouchableOpacity onPress={onPress} style={[styles.roleCard, active && styles.roleCardActive]}>
+      <Text style={{ fontSize: 28, marginBottom: 6 }}>{icon}</Text>
+      <Text style={styles.roleCardLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -242,9 +255,9 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 12, backgroundColor: "#fff" },
   consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
   consentLabel: { flex: 1, fontSize: 13, color: theme.color.text },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: theme.color.border, alignItems: "center", justifyContent: "center", marginTop: 1 },
-  radioOuterChecked: { borderColor: theme.color.purple },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.color.purple },
+  roleCard: { flex: 1, alignItems: "center", padding: 16, borderRadius: 12, borderWidth: 2, borderColor: theme.color.border, backgroundColor: "#fff" },
+  roleCardActive: { borderColor: theme.color.purple, backgroundColor: "#F1EFF5" },
+  roleCardLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
   checkboxOuter: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: theme.color.border, alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkboxOuterChecked: { borderColor: theme.color.purple, backgroundColor: theme.color.purple },
   checkboxMark: { color: "#fff", fontSize: 13, fontWeight: "800", lineHeight: 14 },

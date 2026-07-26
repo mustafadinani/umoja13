@@ -6,7 +6,8 @@ import {
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
-  CHECKIN_AI_BYPASS_COPY,
+  CHECKIN_AI_BYPASS_LABEL,
+  CHECKIN_AI_BYPASS_CAVEAT,
   type PlayerMembership,
 } from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
@@ -84,6 +85,11 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
     }
   }
 
+  function proceedToCapture(bypassAi: boolean) {
+    setAiBypass(bypassAi);
+    setStep("selfie");
+  }
+
   return (
     <Modal onClose={onClose}>
       {step === "confirm" && (
@@ -101,18 +107,11 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
 
       {step === "consent" && (
         <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Before we continue</div>
-          <div style={{ color: theme.color.textMuted, fontSize: 13, margin: "10px 0 16px" }}>{CHECKIN_CONSENT_COPY}</div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 12 }}>Who's checking in?</div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, cursor: "pointer" }}>
-              <input type="radio" checked={acceptedBy === "self"} onChange={() => setAcceptedBy("self")} style={{ marginTop: 3 }} />
-              I'm 18 or older, checking in for myself
-            </label>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, cursor: "pointer" }}>
-              <input type="radio" checked={acceptedBy === "guardian"} onChange={() => setAcceptedBy("guardian")} style={{ marginTop: 3 }} />
-              I'm a parent/guardian checking in on behalf of a minor
-            </label>
+          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+            <RoleCard icon="🧑" label="I'm 18+, checking in for myself" active={acceptedBy === "self"} onClick={() => setAcceptedBy("self")} />
+            <RoleCard icon="👨‍👩‍👧" label="I'm a parent/guardian, for a minor" active={acceptedBy === "guardian"} onClick={() => setAcceptedBy("guardian")} />
           </div>
 
           {acceptedBy === "guardian" && (
@@ -120,21 +119,36 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
               placeholder="Parent/guardian full name"
               value={guardianName}
               onChange={(e) => setGuardianName(e.target.value)}
-              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 14 }}
+              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 16 }}
             />
           )}
 
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 10 }}>
+          <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>{CHECKIN_CONSENT_COPY}</div>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 18 }}>
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
             I have read and agree to this identity-verification process.
           </label>
 
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 18 }}>
-            <input type="checkbox" checked={aiBypass} onChange={(e) => setAiBypass(e.target.checked)} style={{ marginTop: 3 }} />
-            {CHECKIN_AI_BYPASS_COPY}
-          </label>
+          <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => proceedToCapture(false)}>CONTINUE</PrimaryButton>
 
-          <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => setStep("selfie")}>CONTINUE</PrimaryButton>
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <button
+              disabled={!canContinueFromConsent}
+              onClick={() => proceedToCapture(true)}
+              style={{
+                background: "none",
+                border: "none",
+                color: canContinueFromConsent ? theme.color.textMuted : theme.color.border,
+                fontSize: 12.5,
+                textDecoration: "underline",
+                cursor: canContinueFromConsent ? "pointer" : "default",
+              }}
+            >
+              {CHECKIN_AI_BYPASS_LABEL}
+            </button>
+            <div style={{ color: theme.color.textMuted, fontSize: 11, marginTop: 4 }}>{CHECKIN_AI_BYPASS_CAVEAT}</div>
+          </div>
         </div>
       )}
 
@@ -183,6 +197,26 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
         />
       )}
     </Modal>
+  );
+}
+
+function RoleCard({ icon, label, active, onClick }: { icon: string; label: string; active: boolean; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        flex: 1,
+        cursor: "pointer",
+        textAlign: "center",
+        borderRadius: theme.radius.md,
+        border: `2px solid ${active ? theme.color.purple : theme.color.border}`,
+        background: active ? "#F1EFF5" : "#fff",
+        padding: "18px 10px",
+      }}
+    >
+      <div style={{ fontSize: 30, marginBottom: 8 }}>{icon}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 700 }}>{label}</div>
+    </div>
   );
 }
 

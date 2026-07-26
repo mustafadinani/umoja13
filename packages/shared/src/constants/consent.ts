@@ -12,5 +12,6 @@ export const CHECKIN_CONSENT_COPY =
   "verification and are visible to admins/the commissioner, kept only as long as the " +
   "tournament needs them.";
 
-export const CHECKIN_AI_BYPASS_COPY =
-  "Skip AI comparison — have a staff member review my photos and ID manually instead.";
+export const CHECKIN_AI_BYPASS_LABEL = "Skip AI — have a staff member review my photos and ID manually instead";
+
+export const CHECKIN_AI_BYPASS_CAVEAT = "This can take longer to get approved than AI verification.";
