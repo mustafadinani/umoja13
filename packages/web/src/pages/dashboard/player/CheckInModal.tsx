@@ -1,23 +1,35 @@
 import { useState } from "react";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, CATEGORIES, type PlayerMembership } from "@umoja/shared";
+import {
+  COLLECTIONS,
+  CATEGORIES,
+  CHECKIN_CONSENT_POLICY_VERSION,
+  CHECKIN_CONSENT_COPY,
+  CHECKIN_AI_BYPASS_COPY,
+  type PlayerMembership,
+} from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { verifyCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
-type Step = "confirm" | "selfie" | "govid" | "verifying" | "result";
+type Step = "confirm" | "consent" | "selfie" | "govid" | "verifying" | "result";
 
 export function CheckInModal({ membership, checkInId, onClose }: { membership: PlayerMembership; checkInId: string; onClose: () => void }) {
   const { user, profile } = useAuth();
   const [step, setStep] = useState<Step>("confirm");
+  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
+  const [guardianName, setGuardianName] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [aiBypass, setAiBypass] = useState(false);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [govId, setGovId] = useState<File | null>(null);
   const [result, setResult] = useState<{ status: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
+  const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
 
   async function submit() {
     if (!user || !profile || !selfie || !govId) return;
@@ -42,17 +54,28 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
           userId: user.uid,
           teamId: membership.teamId,
           categoryId: membership.categoryId,
-          status: "pending_review",
+          status: aiBypass ? "admin_review" : "pending_review",
           selfieUrl,
           govIdUrl,
           submittedAt: Date.now(),
           attempt,
+          consent: {
+            acceptedBy,
+            guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
+            acceptedAt: Date.now(),
+            policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
+          },
+          aiBypassRequested: aiBypass,
         },
         { merge: true }
       );
 
-      const res = await verifyCheckIn({ checkInId });
-      setResult(res.data);
+      if (aiBypass) {
+        setResult({ status: "admin_review" });
+      } else {
+        const res = await verifyCheckIn({ checkInId });
+        setResult(res.data);
+      }
       setStep("result");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong verifying your check-in.");
@@ -72,7 +95,46 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
             <Row label="Jersey" value={membership.jerseyNumber ? `#${membership.jerseyNumber}` : "—"} />
             <Row label="Waiver" value="Signed at registration ✓" valueColor={theme.color.success} />
           </div>
-          <PrimaryButton style={{ width: "100%" }} onClick={() => setStep("selfie")}>YES, THAT'S ME</PrimaryButton>
+          <PrimaryButton style={{ width: "100%" }} onClick={() => setStep("consent")}>YES, THAT'S ME</PrimaryButton>
+        </div>
+      )}
+
+      {step === "consent" && (
+        <div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Before we continue</div>
+          <div style={{ color: theme.color.textMuted, fontSize: 13, margin: "10px 0 16px" }}>{CHECKIN_CONSENT_COPY}</div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, cursor: "pointer" }}>
+              <input type="radio" checked={acceptedBy === "self"} onChange={() => setAcceptedBy("self")} style={{ marginTop: 3 }} />
+              I'm 18 or older, checking in for myself
+            </label>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, cursor: "pointer" }}>
+              <input type="radio" checked={acceptedBy === "guardian"} onChange={() => setAcceptedBy("guardian")} style={{ marginTop: 3 }} />
+              I'm a parent/guardian checking in on behalf of a minor
+            </label>
+          </div>
+
+          {acceptedBy === "guardian" && (
+            <input
+              placeholder="Parent/guardian full name"
+              value={guardianName}
+              onChange={(e) => setGuardianName(e.target.value)}
+              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 14 }}
+            />
+          )}
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 10 }}>
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
+            I have read and agree to this identity-verification process.
+          </label>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 18 }}>
+            <input type="checkbox" checked={aiBypass} onChange={(e) => setAiBypass(e.target.checked)} style={{ marginTop: 3 }} />
+            {CHECKIN_AI_BYPASS_COPY}
+          </label>
+
+          <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => setStep("selfie")}>CONTINUE</PrimaryButton>
         </div>
       )}
 
@@ -95,22 +157,30 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
           onPick={setGovId}
           capture="environment"
           onNext={submit}
-          nextLabel="SUBMIT FOR AI CHECK"
+          nextLabel={aiBypass ? "SUBMIT FOR STAFF REVIEW" : "SUBMIT FOR AI CHECK"}
         />
       )}
 
       {step === "verifying" && (
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <div className="um-spin" style={{ width: 40, height: 40, border: `4px solid ${theme.color.border}`, borderTopColor: theme.color.purple, borderRadius: "50%", margin: "0 auto 16px" }} />
-          <div style={{ fontWeight: 700 }}>Checking your details…</div>
+          <div style={{ fontWeight: 700 }}>{aiBypass ? "Sending to staff…" : "Checking your details…"}</div>
           <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
-            Matching your selfie to your registration photo and reading the date of birth on your ID.
+            {aiBypass
+              ? "Your photos and ID are on their way to an admin for a manual review."
+              : "Matching your selfie to your registration photo and reading the date of birth on your ID."}
           </div>
         </div>
       )}
 
       {step === "result" && result && (
-        <ResultStep result={result} error={error} onClose={onClose} onRetry={() => { setStep("selfie"); setSelfie(null); setGovId(null); }} />
+        <ResultStep
+          result={result}
+          error={error}
+          skippedAi={aiBypass}
+          onClose={onClose}
+          onRetry={() => { setStep("selfie"); setSelfie(null); setGovId(null); }}
+        />
       )}
     </Modal>
   );
@@ -145,7 +215,11 @@ function CaptureStep({
   );
 }
 
-function ResultStep({ result, error, onClose, onRetry }: { result: { status: string; reason?: string }; error: string | null; onClose: () => void; onRetry: () => void }) {
+function ResultStep({
+  result, error, skippedAi, onClose, onRetry,
+}: {
+  result: { status: string; reason?: string }; error: string | null; skippedAi: boolean; onClose: () => void; onRetry: () => void;
+}) {
   if (result.status === "approved") {
     return (
       <div style={{ textAlign: "center", padding: "10px 0" }}>
@@ -167,7 +241,9 @@ function ResultStep({ result, error, onClose, onRetry }: { result: { status: str
         <div style={{ fontSize: 40 }}>⏳</div>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginTop: 8 }}>Sent to an admin</div>
         <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
-          The automatic check didn't go through — a real person will review your photos and ID, usually within the hour.
+          {skippedAi
+            ? "You opted out of AI verification — a real person will review your photos and ID, usually within the hour."
+            : "The automatic check didn't go through — a real person will review your photos and ID, usually within the hour."}
         </div>
         <PrimaryButton style={{ marginTop: 16, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
       </div>

@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { View, Text, Image, ScrollView, StyleSheet } from "react-native";
+import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { COLLECTIONS, CATEGORIES } from "@umoja/shared";
+import {
+  COLLECTIONS,
+  CATEGORIES,
+  CHECKIN_CONSENT_POLICY_VERSION,
+  CHECKIN_CONSENT_COPY,
+  CHECKIN_AI_BYPASS_COPY,
+} from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -13,7 +19,7 @@ import { verifyCheckIn } from "../lib/callables";
 import { useCheckIn, usePass } from "../hooks/useData";
 import { PrimaryButton } from "../components/ui";
 
-type Step = "confirm" | "selfie" | "govid" | "verifying" | "result";
+type Step = "confirm" | "consent" | "selfie" | "govid" | "verifying" | "result";
 
 function checkInIdFor(uid: string, teamId: string, categoryId: string) {
   return `${uid}_${teamId}_${categoryId}`;
@@ -28,12 +34,17 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const category = CATEGORIES.find((c) => c.id === categoryId);
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
+  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
+  const [guardianName, setGuardianName] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [aiBypass, setAiBypass] = useState(false);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [govIdUri, setGovIdUri] = useState<string | null>(null);
   const [result, setResult] = useState<{ status: string; reason?: string } | null>(
     existingCheckIn?.status === "approved" ? { status: "approved" } : null
   );
   const [error, setError] = useState<string | null>(null);
+  const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
 
   async function capture(setUri: (u: string) => void) {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -61,11 +72,32 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
       const govIdUrl = await uploadUri(govIdUri, `checkins/${user.uid}/${checkInId}/govid-${Date.now()}.jpg`);
       await setDoc(
         doc(db, COLLECTIONS.checkIns, checkInId),
-        { id: checkInId, userId: user.uid, teamId, categoryId, status: "pending_review", selfieUrl, govIdUrl, submittedAt: Date.now(), attempt },
+        {
+          id: checkInId,
+          userId: user.uid,
+          teamId,
+          categoryId,
+          status: aiBypass ? "admin_review" : "pending_review",
+          selfieUrl,
+          govIdUrl,
+          submittedAt: Date.now(),
+          attempt,
+          consent: {
+            acceptedBy,
+            guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
+            acceptedAt: Date.now(),
+            policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
+          },
+          aiBypassRequested: aiBypass,
+        },
         { merge: true }
       );
-      const res = await verifyCheckIn({ checkInId });
-      setResult(res.data);
+      if (aiBypass) {
+        setResult({ status: "admin_review" });
+      } else {
+        const res = await verifyCheckIn({ checkInId });
+        setResult(res.data);
+      }
       setStep("result");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong verifying your check-in.");
@@ -84,7 +116,31 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             <Row label="Category" value={category?.label ?? categoryId} />
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
-          <PrimaryButton onPress={() => setStep("selfie")} style={{ width: "100%" }}>YES, THAT'S ME</PrimaryButton>
+          <PrimaryButton onPress={() => setStep("consent")} style={{ width: "100%" }}>YES, THAT'S ME</PrimaryButton>
+        </View>
+      )}
+
+      {step === "consent" && (
+        <View>
+          <Text style={styles.h1}>Before we continue</Text>
+          <Text style={[styles.sub, { textAlign: "left" }]}>{CHECKIN_CONSENT_COPY}</Text>
+
+          <RadioRow label="I'm 18 or older, checking in for myself" checked={acceptedBy === "self"} onPress={() => setAcceptedBy("self")} />
+          <RadioRow label="I'm a parent/guardian checking in on behalf of a minor" checked={acceptedBy === "guardian"} onPress={() => setAcceptedBy("guardian")} />
+
+          {acceptedBy === "guardian" && (
+            <TextInput
+              placeholder="Parent/guardian full name"
+              value={guardianName}
+              onChangeText={setGuardianName}
+              style={styles.input}
+            />
+          )}
+
+          <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
+          <CheckRow label={CHECKIN_AI_BYPASS_COPY} checked={aiBypass} onPress={() => setAiBypass(!aiBypass)} />
+
+          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("selfie")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
         </View>
       )}
 
@@ -102,13 +158,13 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           <Text style={styles.h1}>Government-issued ID</Text>
           <Text style={styles.sub}>For age verification only.</Text>
           {govIdUri ? <Image source={{ uri: govIdUri }} style={styles.preview} /> : <PrimaryButton onPress={() => capture(setGovIdUri)} style={{ marginBottom: 12 }}>📷 TAKE PHOTO OF ID</PrimaryButton>}
-          <PrimaryButton disabled={!govIdUri} onPress={submit} style={{ width: "100%" }}>SUBMIT FOR AI CHECK</PrimaryButton>
+          <PrimaryButton disabled={!govIdUri} onPress={submit} style={{ width: "100%" }}>{aiBypass ? "SUBMIT FOR STAFF REVIEW" : "SUBMIT FOR AI CHECK"}</PrimaryButton>
         </View>
       )}
 
       {step === "verifying" && (
         <View style={{ alignItems: "center", paddingTop: 40 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>Checking your details…</Text>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>{aiBypass ? "Sending to staff…" : "Checking your details…"}</Text>
         </View>
       )}
 
@@ -128,6 +184,11 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             <>
               <Text style={{ fontSize: 40 }}>⏳</Text>
               <Text style={styles.h1}>Sent to an admin</Text>
+              <Text style={styles.sub}>
+                {aiBypass
+                  ? "You opted out of AI verification — a real person will review your photos and ID, usually within the hour."
+                  : "The automatic check didn't go through — a real person will review your photos and ID, usually within the hour."}
+              </Text>
             </>
           ) : (
             <>
@@ -154,10 +215,37 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RadioRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.consentRow}>
+      <View style={[styles.radioOuter, checked && styles.radioOuterChecked]}>{checked && <View style={styles.radioInner} />}</View>
+      <Text style={styles.consentLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function CheckRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.consentRow}>
+      <View style={[styles.checkboxOuter, checked && styles.checkboxOuterChecked]}>{checked && <Text style={styles.checkboxMark}>✓</Text>}</View>
+      <Text style={styles.consentLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   h1: { fontWeight: "800", fontSize: 20, marginBottom: 8, textAlign: "center" },
   sub: { color: theme.color.textMuted, fontSize: 13, marginBottom: 14, textAlign: "center" },
   infoCard: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginVertical: 14 },
   preview: { width: "100%", height: 200, borderRadius: 12, marginBottom: 14 },
   qrBox: { width: 160, height: 160, backgroundColor: theme.color.navy, borderRadius: 8, alignItems: "center", justifyContent: "center", marginTop: 14 },
+  input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 12, backgroundColor: "#fff" },
+  consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
+  consentLabel: { flex: 1, fontSize: 13, color: theme.color.text },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: theme.color.border, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  radioOuterChecked: { borderColor: theme.color.purple },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.color.purple },
+  checkboxOuter: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: theme.color.border, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  checkboxOuterChecked: { borderColor: theme.color.purple, backgroundColor: theme.color.purple },
+  checkboxMark: { color: "#fff", fontSize: 13, fontWeight: "800", lineHeight: 14 },
 });

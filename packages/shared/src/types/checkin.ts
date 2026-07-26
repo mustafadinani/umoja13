@@ -25,6 +25,19 @@ export interface CheckIn {
   reviewedBy?: string; // admin uid, once escalated or manually approved/rejected
   reviewedAt?: number;
   rejectionReason?: string;
+  /** Recorded before any selfie/ID capture — required for verifyCheckIn to run at all. */
+  consent: CheckInConsent;
+  /** True if the player opted out of AI comparison; routes straight to admin_review instead of calling verifyCheckIn. */
+  aiBypassRequested?: boolean;
+}
+
+export interface CheckInConsent {
+  acceptedBy: "self" | "guardian";
+  /** Required (and only meaningful) when acceptedBy === "guardian". */
+  guardianName: string | null;
+  acceptedAt: number;
+  /** Lets us tell which version of the consent copy someone agreed to, if the policy text changes later. */
+  policyVersion: string;
 }
 
 export interface TournamentPass {

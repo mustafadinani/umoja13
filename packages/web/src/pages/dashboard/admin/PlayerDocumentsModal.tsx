@@ -32,6 +32,19 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
         <Photo label="Government ID" url={checkIn.govIdUrl} onExpand={setLightboxUrl} />
       </div>
 
+      {checkIn.aiBypassRequested && (
+        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, marginBottom: 16, fontWeight: 700 }}>
+          Player opted out of AI verification — this needs a manual look at the photos below.
+        </div>
+      )}
+
+      {checkIn.consent && (
+        <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 16 }}>
+          Consent: {checkIn.consent.acceptedBy === "guardian" ? `parent/guardian (${checkIn.consent.guardianName})` : "self"} ·{" "}
+          {new Date(checkIn.consent.acceptedAt).toLocaleString()}
+        </div>
+      )}
+
       {checkIn.aiVerification && (
         <div style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, fontSize: 13, marginBottom: 16 }}>
           <Row label="Face match" value={checkIn.aiVerification.faceMatch ? "✓ matched" : "✕ no match"} good={checkIn.aiVerification.faceMatch} />

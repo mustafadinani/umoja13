@@ -61,6 +61,10 @@ export const verifyCheckIn = onCall<VerifyCheckInRequest>(
     if (!snap.exists) throw new HttpsError("not-found", "Check-in not found.");
     const checkIn = snap.data() as CheckIn;
     if (checkIn.userId !== uid) throw new HttpsError("permission-denied", "Not your check-in.");
+    if (!checkIn.consent) throw new HttpsError("failed-precondition", "Consent is required before AI verification can run.");
+    if (checkIn.aiBypassRequested) {
+      throw new HttpsError("failed-precondition", "This check-in opted out of AI verification — it's waiting on a manual review instead.");
+    }
 
     const userSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
     const membership = (userSnap.data()?.playerOf ?? []).find(
