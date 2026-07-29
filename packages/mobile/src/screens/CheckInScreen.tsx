@@ -19,6 +19,7 @@ import { theme } from "../lib/theme";
 import { verifyCheckIn } from "../lib/callables";
 import { useCheckIn, usePass } from "../hooks/useData";
 import { PrimaryButton } from "../components/ui";
+import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
 type Step = "confirm" | "consent" | "selfie" | "govid" | "verifying" | "result";
 
@@ -46,7 +47,9 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
     existingCheckIn?.status === "approved" ? { status: "approved" } : null
   );
   const [error, setError] = useState<string | null>(null);
+  const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const isVolunteer = profile?.roles?.includes("volunteer") ?? false;
 
   async function capture(setUri: (u: string) => void) {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -214,7 +217,17 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               </PrimaryButton>
             </>
           )}
+
+          {(result.status === "approved" || result.status === "admin_review") && !isVolunteer && (
+            <TouchableOpacity onPress={() => setVolunteerSignupOpen(true)} style={{ marginTop: 20 }}>
+              <Text style={{ color: theme.color.purple, fontWeight: "700", fontSize: 13 }}>Want to help out too? SIGN UP TO VOLUNTEER</Text>
+            </TouchableOpacity>
+          )}
         </View>
+      )}
+
+      {volunteerSignupOpen && (
+        <VolunteerSignupModal onClose={() => setVolunteerSignupOpen(false)} initialName={membership?.playerName ?? profile?.displayName} />
       )}
     </ScrollView>
   );

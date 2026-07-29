@@ -12,10 +12,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (v: string) => EMAIL_RE.test(v.trim());
 const isValidPhone = (v: string) => v.replace(/\D/g, "").length >= 7;
 
-export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
+export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => void; initialName?: string }) {
   const { user, profile } = useAuth();
   const { data: categories } = useCategories();
-  const [name, setName] = useState(profile?.displayName ?? "");
+  const [name, setName] = useState(initialName ?? profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
   const [emergencyContact, setEmergencyContact] = useState("");

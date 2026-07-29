@@ -46,6 +46,15 @@ export const VOLUNTEER_TASK_TIMES = [
 
 export const VOLUNTEER_TASK_LOCATIONS = ["Main HQ", "Field 1–3", "Field 4–6", "Entrance", "Food court"] as const;
 
+export interface VolunteerTaskMessage {
+  id: string;
+  from: "admin" | "member";
+  authorUid: string;
+  authorName: string;
+  text: string;
+  createdAt: number;
+}
+
 /** A shift/task, either open (unassigned) or assigned to one volunteer. */
 export interface VolunteerTask {
   id: string;
@@ -60,4 +69,6 @@ export interface VolunteerTask {
   cantMakeReason?: string;
   createdAt: number;
   createdBy: string;
+  /** Contextual Q&A scoped to this one shift, so staff always know exactly which task a question is about. */
+  messages?: VolunteerTaskMessage[];
 }

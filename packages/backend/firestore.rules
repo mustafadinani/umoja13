@@ -138,10 +138,12 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
         request.resource.data.status == 'pending';
     }
-    // Tasks/shifts: publicly readable (matches games/moments), staff manage the
-    // task list, an assigned volunteer may only flag a conflict or mark done.
+    // Tasks/shifts: private to staff and the assigned volunteer now that a
+    // task carries a contextual Q&A thread — an assigned volunteer may only
+    // flag a conflict or mark done directly; messages are Cloud-Function-only
+    // (sendVolunteerTaskMessage) so `from` can't be spoofed.
     match /volunteerTasks/{taskId} {
-      allow read: if true;
+      allow read: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid);
       allow create, delete: if isStaff();
       allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done']));

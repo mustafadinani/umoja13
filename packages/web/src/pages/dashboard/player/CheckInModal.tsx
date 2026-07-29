@@ -15,6 +15,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { verifyCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
+import { BecomeVolunteerModal } from "../../../components/BecomeVolunteerModal";
 
 type Step = "confirm" | "consent" | "selfie" | "govid" | "verifying" | "result";
 
@@ -29,8 +30,10 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
   const [govId, setGovId] = useState<File | null>(null);
   const [result, setResult] = useState<{ status: string; reason?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const isVolunteer = profile?.roles.includes("volunteer") ?? false;
 
   async function submit() {
     if (!user || !profile || !selfie || !govId) return;
@@ -192,9 +195,15 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
           result={result}
           error={error}
           skippedAi={aiBypass}
+          showVolunteerCta={(result.status === "approved" || result.status === "admin_review") && !isVolunteer}
+          onVolunteer={() => setVolunteerSignupOpen(true)}
           onClose={onClose}
           onRetry={() => { setStep("selfie"); setSelfie(null); setGovId(null); }}
         />
+      )}
+
+      {volunteerSignupOpen && (
+        <BecomeVolunteerModal onClose={() => setVolunteerSignupOpen(false)} initialName={membership.playerName ?? profile?.displayName} />
       )}
     </Modal>
   );
@@ -250,9 +259,10 @@ function CaptureStep({
 }
 
 function ResultStep({
-  result, error, skippedAi, onClose, onRetry,
+  result, error, skippedAi, showVolunteerCta, onVolunteer, onClose, onRetry,
 }: {
-  result: { status: string; reason?: string }; error: string | null; skippedAi: boolean; onClose: () => void; onRetry: () => void;
+  result: { status: string; reason?: string }; error: string | null; skippedAi: boolean;
+  showVolunteerCta: boolean; onVolunteer: () => void; onClose: () => void; onRetry: () => void;
 }) {
   if (result.status === "approved") {
     return (
@@ -266,6 +276,11 @@ function ResultStep({
           Heads up: admins may randomly re-check verifications. If yours doesn't hold up, your check-in can be nullified — we'd notify you right away.
         </div>
         <PrimaryButton style={{ marginTop: 16, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
+        {showVolunteerCta && (
+          <div onClick={onVolunteer} style={{ marginTop: 14, color: theme.color.purple, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            Want to help out too? Sign up to volunteer
+          </div>
+        )}
       </div>
     );
   }
@@ -280,6 +295,11 @@ function ResultStep({
             : "The automatic check didn't go through — a real person will review your photos and ID, usually within the hour."}
         </div>
         <PrimaryButton style={{ marginTop: 16, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
+        {showVolunteerCta && (
+          <div onClick={onVolunteer} style={{ marginTop: 14, color: theme.color.purple, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            Want to help out too? Sign up to volunteer
+          </div>
+        )}
       </div>
     );
   }
