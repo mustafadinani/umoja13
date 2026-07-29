@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, type ViewStyle } from "react-native";
 import { theme } from "../lib/theme";
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -48,13 +48,15 @@ export function PrimaryButton({
 export function Modal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   return (
     <RNModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
-          <ScrollView contentContainerStyle={styles.modalCardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {children}
-          </ScrollView>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
+            <ScrollView contentContainerStyle={styles.modalCardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {children}
+            </ScrollView>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </KeyboardAvoidingView>
     </RNModal>
   );
 }

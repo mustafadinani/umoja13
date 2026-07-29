@@ -30,6 +30,7 @@ export const COLLECTIONS = {
   sponsorshipOrders: "sponsorshipOrders",
   teamChannels: "teamChannels",
   roleChannels: "roleChannels",
+  userChannels: "userChannels",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

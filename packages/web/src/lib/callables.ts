@@ -9,6 +9,7 @@ import type {
   TeamChannelMessage,
   ChannelRole,
   RoleChannelMessage,
+  UserChannelMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -124,3 +125,8 @@ export const sendRoleMessage = httpsCallable<
   { role: ChannelRole; text: string },
   { message: RoleChannelMessage }
 >(functions, "sendRoleMessage");
+
+export const sendUserMessage = httpsCallable<
+  { targetUid?: string; text: string },
+  { message: UserChannelMessage }
+>(functions, "sendUserMessage");

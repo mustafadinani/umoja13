@@ -16,3 +16,4 @@ export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";
 export { sendRoleMessage } from "./http/sendRoleMessage.js";
+export { sendUserMessage } from "./http/sendUserMessage.js";

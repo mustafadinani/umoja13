@@ -96,7 +96,7 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
         <div>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Is this you?</div>
           <div style={{ background: "#F7F6F3", borderRadius: theme.radius.md, padding: 16, margin: "12px 0" }}>
-            <Row label="Name" value={profile?.displayName ?? ""} />
+            <Row label="Name" value={membership.playerName ?? profile?.displayName ?? ""} />
             <Row label="Category" value={category?.label ?? membership.categoryId} />
             <Row label="Jersey" value={membership.jerseyNumber ? `#${membership.jerseyNumber}` : "—"} />
             <Row label="Waiver" value="Signed at registration ✓" valueColor={theme.color.success} />

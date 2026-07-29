@@ -13,6 +13,7 @@ export * from "./types/challenge.js";
 export * from "./types/sponsor.js";
 export * from "./types/teamChannel.js";
 export * from "./types/roleChannel.js";
+export * from "./types/userChannel.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/sponsors.js";

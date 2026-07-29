@@ -8,6 +8,10 @@ import { theme } from "../lib/theme";
 import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (v: string) => EMAIL_RE.test(v.trim());
+const isValidPhone = (v: string) => v.replace(/\D/g, "").length >= 7;
+
 export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
   const { data: categories } = useCategories();
@@ -28,17 +32,24 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
     setAvailability((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   }
 
+  const formValid =
+    !!name.trim() && isValidEmail(email) && isValidPhone(phone) && !!emergencyContact.trim() && availability.length > 0;
+
   async function submit() {
-    if (!user || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0) return;
+    if (!user || !formValid) return;
     setBusy(true);
     setError(null);
     try {
       let selfieUrl: string | undefined;
       if (file) {
-        const path = `volunteers/${user.uid}/${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, file);
-        selfieUrl = await getDownloadURL(storageRef);
+        try {
+          const path = `volunteers/${user.uid}/${Date.now()}-${file.name}`;
+          const storageRef = ref(storage, path);
+          await uploadBytes(storageRef, file);
+          selfieUrl = await getDownloadURL(storageRef);
+        } catch {
+          throw new Error("Couldn't upload your photo — check your connection and try again (or skip the photo).");
+        }
       }
 
       await addDoc(collection(db, COLLECTIONS.volunteerApplications), {
@@ -96,18 +107,27 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${email.trim() && !isValidEmail(email) ? theme.color.danger : theme.color.border}`, marginBottom: email.trim() && !isValidEmail(email) ? 4 : 12, fontSize: 13.5 }}
       />
+      {email.trim().length > 0 && !isValidEmail(email) && (
+        <div style={{ color: theme.color.danger, fontSize: 11.5, marginBottom: 12 }}>Enter a valid email address.</div>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Phone</div>
       <input
         type="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${phone.trim() && !isValidPhone(phone) ? theme.color.danger : theme.color.border}`, marginBottom: phone.trim() && !isValidPhone(phone) ? 4 : 12, fontSize: 13.5 }}
       />
+      {phone.trim().length > 0 && !isValidPhone(phone) && (
+        <div style={{ color: theme.color.danger, fontSize: 11.5, marginBottom: 12 }}>Enter a valid phone number.</div>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Emergency contact (name & phone)</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
+        Someone we can reach if we can't reach you during the tournament.
+      </div>
       <input
         value={emergencyContact}
         onChange={(e) => setEmergencyContact(e.target.value)}
@@ -156,11 +176,7 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
 
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-      <PrimaryButton
-        disabled={busy || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0}
-        onClick={submit}
-        style={{ width: "100%" }}
-      >
+      <PrimaryButton disabled={busy || !formValid} onClick={submit} style={{ width: "100%" }}>
         {busy ? "Submitting…" : "SUBMIT APPLICATION"}
       </PrimaryButton>
     </Modal>

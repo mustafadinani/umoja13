@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Keyboard } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
@@ -124,7 +124,12 @@ export function MomentUploadModal({
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {MOMENT_TAGS.map((t) => <Pill key={t} active={tag === t} onPress={() => setTag(t)}>{t}</Pill>)}
       </View>
-      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Add a comment (optional)</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <Text style={{ fontWeight: "700", fontSize: 13 }}>Add a comment (optional)</Text>
+        <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+          <Text style={{ fontSize: 12.5, fontWeight: "700", color: theme.color.purple }}>Done</Text>
+        </TouchableOpacity>
+      </View>
       <TextInput
         value={comment}
         onChangeText={setComment}

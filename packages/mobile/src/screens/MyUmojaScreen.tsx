@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type VolunteerTask } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, type PlayerMembership, type VolunteerTask } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -12,6 +12,11 @@ import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { RoleChannelPanel } from "../components/RoleChannelPanel";
+import { UserChannelPanel } from "../components/UserChannelPanel";
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
 
 export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user, profile, signOut } = useAuth();
@@ -19,13 +24,31 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeamId, setComplaintTeamId] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
+  const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
-  const myTeamIds = new Set(memberships.map((m) => m.teamId));
-  const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
-  const captainMemberships = memberships.filter((m) => m.isCaptain);
   const isVolunteer = profile?.roles?.includes("volunteer") ?? false;
 
+  // One parent account can hold memberships for several kids — group by
+  // whichever name each membership was joined under, so each kid gets their
+  // own tab instead of everything stacking under one flat list.
+  const kidGroups = useMemo(() => {
+    const groups = new Map<string, PlayerMembership[]>();
+    for (const m of memberships) {
+      const key = (m.playerName ?? profile?.displayName ?? "Player").trim();
+      groups.set(key, [...(groups.get(key) ?? []), m]);
+    }
+    return groups;
+  }, [memberships, profile?.displayName]);
+  const kidNames = [...kidGroups.keys()];
+  const selectedKid = activeKid && kidGroups.has(activeKid) ? activeKid : kidNames[0];
+  const activeMemberships = kidGroups.get(selectedKid ?? "") ?? [];
+
+  const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
+  const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
+  const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
+
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
         <View style={styles.avatar}><Text style={{ color: "#fff", fontWeight: "800" }}>{profile?.displayName?.slice(0, 2).toUpperCase()}</Text></View>
@@ -45,9 +68,17 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
         </View>
       ) : (
         <>
+          {kidNames.length > 1 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, marginBottom: 16 }}>
+              {kidNames.map((name) => (
+                <Pill key={name} active={selectedKid === name} onPress={() => setActiveKid(name)}>{firstName(name)}</Pill>
+              ))}
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>TOURNAMENT PASS</Text>
-            {memberships.map((m) => (
+            {activeMemberships.map((m) => (
               <Card key={m.teamId} onPress={() => navigation.getParent()?.navigate("CheckIn", { teamId: m.teamId, categoryId: m.categoryId })} style={{ marginBottom: 8 }}>
                 <Text style={{ fontWeight: "700" }}>{CATEGORIES.find((c) => c.id === m.categoryId)?.label ?? m.categoryId}</Text>
                 <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>Tap to check in / view pass</Text>
@@ -57,7 +88,7 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>MY TEAMS</Text>
-            {memberships.map((m) => <TeamRow key={m.teamId} teamId={m.teamId} onPress={() => navigation.getParent()?.navigate("Team", { teamId: m.teamId })} />)}
+            {activeMemberships.map((m) => <TeamRow key={m.teamId} teamId={m.teamId} onPress={() => navigation.getParent()?.navigate("Team", { teamId: m.teamId })} />)}
           </View>
 
           <View style={styles.section}>
@@ -97,6 +128,13 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>MESSAGE THE ORGANIZERS</Text>
+        <Card>
+          <UserChannelPanel uid={user?.uid ?? ""} />
+        </Card>
+      </View>
+
+      <View style={styles.section}>
         <Card onPress={() => navigation.getParent()?.navigate("Complaint")}>
           <Text style={{ fontWeight: "600" }}>Report an issue to the commissioner</Text>
         </Card>
@@ -110,8 +148,11 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeamId && <CaptainComplaintTeamWrapper teamId={complaintTeamId} onClose={() => setComplaintTeamId(null)} />}
-      {volunteerSignupOpen && <VolunteerSignupModal onClose={() => setVolunteerSignupOpen(false)} />}
+      {volunteerSignupOpen && (
+        <VolunteerSignupModal onClose={() => setVolunteerSignupOpen(false)} initialName={selectedKid ?? undefined} />
+      )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

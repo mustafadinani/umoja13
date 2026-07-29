@@ -23,8 +23,11 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
 
   return (
     <Modal onClose={onClose} width={480}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{user?.displayName ?? "Player"}</div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>{category?.label} · attempt {checkIn.attempt}</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{membership?.playerName ?? user?.displayName ?? "Player"}</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
+        {category?.label} · attempt {checkIn.attempt}
+        {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
+      </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
         <Photo label="Registration photo" url={membership?.registrationPhotoUrl} onExpand={setLightboxUrl} />

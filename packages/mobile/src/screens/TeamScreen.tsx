@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { doc, updateDoc } from "firebase/firestore";
@@ -71,6 +71,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={[styles.header, { backgroundColor: team.color }]}>
         <Text style={styles.teamName}>{team.name}</Text>
@@ -194,7 +195,11 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text }}>{m.text}</Text>
               </View>
             ))}
-            {channelMessages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</Text>}
+            {channelMessages.length === 0 && (
+              <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
+                {canPostToChannel ? "No messages yet — send the first one to your organizers below." : "No messages yet."}
+              </Text>
+            )}
           </View>
 
           {canPostToChannel ? (
@@ -202,7 +207,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               <TextInput
                 value={channelDraft}
                 onChangeText={setChannelDraft}
-                placeholder="Send a message…"
+                placeholder={channelMessages.length === 0 ? "Message your organizers…" : "Send a message…"}
                 style={styles.channelInput}
               />
               <PrimaryButton disabled={sending || !channelDraft.trim()} onPress={sendChannelMessage}>Send</PrimaryButton>
@@ -216,6 +221,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
       {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

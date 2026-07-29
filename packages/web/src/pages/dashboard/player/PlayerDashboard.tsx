@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeam } from "../../../hooks/useData";
-import { Card, PrimaryButton } from "../../../components/ui";
+import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { JoinTeamModal } from "../../../components/JoinTeamModal";
+import { UserChannelPanel } from "../../../components/UserChannelPanel";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
 import { ComplaintModal } from "./ComplaintModal";
+
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || name;
+}
 
 export function PlayerDashboard() {
   const { user, profile } = useAuth();
@@ -16,13 +21,29 @@ export function PlayerDashboard() {
   const { data: games } = useGames();
   const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
+  const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
+
+  // One parent account can hold memberships for several kids — group by
+  // whichever name each membership was joined under, so each kid gets their
+  // own tab instead of everything stacking under one flat list.
+  const kidGroups = useMemo(() => {
+    const groups = new Map<string, PlayerMembership[]>();
+    for (const m of memberships) {
+      const key = (m.playerName ?? profile?.displayName ?? "Player").trim();
+      groups.set(key, [...(groups.get(key) ?? []), m]);
+    }
+    return groups;
+  }, [memberships, profile?.displayName]);
+  const kidNames = [...kidGroups.keys()];
+  const selectedKid = activeKid && kidGroups.has(activeKid) ? activeKid : kidNames[0];
+  const activeMemberships = kidGroups.get(selectedKid ?? "") ?? [];
 
   if (!user || !profile) return null;
 
-  const myTeamIds = new Set(memberships.map((m) => m.teamId));
+  const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
-  const captainMemberships = memberships.filter((m) => m.isCaptain);
+  const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
@@ -38,14 +59,22 @@ export function PlayerDashboard() {
 
       {memberships.length > 0 && (
         <>
+          {kidNames.length > 1 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+              {kidNames.map((name) => (
+                <Pill key={name} active={selectedKid === name} onClick={() => setActiveKid(name)}>{firstName(name)}</Pill>
+              ))}
+            </div>
+          )}
+
           <SectionLabel>CHECK-IN</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-            {memberships.map((m) => <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />)}
+            {activeMemberships.map((m) => <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />)}
           </div>
 
           <SectionLabel>MY TEAMS & STANDINGS</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-            {memberships.map((m) => <TeamStandingRow key={m.teamId} teamId={m.teamId} onOpen={() => navigate(`/team/${m.teamId}`)} />)}
+            {activeMemberships.map((m) => <TeamStandingRow key={m.teamId} teamId={m.teamId} onOpen={() => navigate(`/team/${m.teamId}`)} />)}
           </div>
 
           <SectionLabel>MY GAMES</SectionLabel>
@@ -72,6 +101,11 @@ export function PlayerDashboard() {
           )}
         </>
       )}
+
+      <SectionLabel>MESSAGE THE ORGANIZERS</SectionLabel>
+      <Card style={{ marginBottom: 24 }}>
+        <UserChannelPanel uid={user.uid} />
+      </Card>
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}

@@ -110,7 +110,6 @@ export function MomentUploadModal({
         <input
           type="file"
           accept="image/*,video/*"
-          capture="environment"
           style={{ display: "none" }}
           onChange={(e) => onPick(e.target.files?.[0] ?? null)}
         />

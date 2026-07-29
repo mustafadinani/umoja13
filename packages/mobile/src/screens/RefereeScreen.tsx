@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { where } from "firebase/firestore";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CATEGORIES } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
@@ -20,6 +20,7 @@ export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
   const gateNeeded = sorted.filter((g) => g.status !== "final" && g.status !== "forfeited" && !g.gateCheck?.completedAt);
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
         <Text style={styles.title}>REFEREE</Text>
@@ -74,6 +75,7 @@ export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
         </>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

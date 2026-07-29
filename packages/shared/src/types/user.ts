@@ -25,4 +25,11 @@ export interface PlayerMembership {
   isCaptain: boolean;
   /** Player's registration-time photo, used as the AI face-match baseline at check-in. */
   registrationPhotoUrl?: string;
+  /**
+   * The actual player's name — distinct from the signed-in account's own
+   * displayName, since one parent account can hold memberships for several
+   * kids. Falls back to the account's displayName for memberships created
+   * before this field existed.
+   */
+  playerName?: string;
 }

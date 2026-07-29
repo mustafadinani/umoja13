@@ -1,28 +1,27 @@
 import { useState } from "react";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
-import { useTeam, useTeamChannel } from "../hooks/useData";
-import { sendTeamMessage } from "../lib/callables";
+import { useUserChannel } from "../hooks/useData";
+import { sendUserMessage } from "../lib/callables";
 import { PrimaryButton } from "./ui";
 
-/** One-way team channel: staff broadcast + roster reply-back. Used on the public Team page and the admin Team Channels tab. */
-export function TeamChannelPanel({ teamId }: { teamId: string }) {
+/** One-way "message the organizers" channel for a single user — used on that user's own profile and from the admin Messages tab. */
+export function UserChannelPanel({ uid }: { uid: string }) {
   const { profile } = useAuth();
-  const { data: team } = useTeam(teamId);
-  const { data: channel } = useTeamChannel(teamId);
+  const { data: channel } = useUserChannel(uid);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
-  const onRoster = profile && team ? team.roster.some((p) => p.userId === profile.uid) : false;
-  const canPost = isStaff || onRoster;
+  const isOwner = profile?.uid === uid;
+  const canPost = isStaff || isOwner;
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
   async function send() {
     if (!draft.trim()) return;
     setSending(true);
     try {
-      await sendTeamMessage({ teamId, text: draft });
+      await sendUserMessage({ targetUid: uid, text: draft });
       setDraft("");
     } finally {
       setSending(false);
@@ -32,7 +31,9 @@ export function TeamChannelPanel({ teamId }: { teamId: string }) {
   return (
     <div>
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 14 }}>
-        One-way broadcast from organizers to this team — anyone on the roster can reply back.
+        {isOwner
+          ? "Message the organizers directly — an admin or the commissioner will reply here."
+          : "One-way channel between this user and the organizers."}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
         {messages.map((m) => (
@@ -56,7 +57,7 @@ export function TeamChannelPanel({ teamId }: { teamId: string }) {
         ))}
         {messages.length === 0 && (
           <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
-            {canPost ? "No messages yet — send the first one to your organizers below." : "No messages yet."}
+            {canPost ? "No messages yet — send the first one below." : "No messages yet."}
           </div>
         )}
       </div>
@@ -67,13 +68,13 @@ export function TeamChannelPanel({ teamId }: { teamId: string }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={messages.length === 0 ? "Message your organizers…" : "Send a message…"}
+            placeholder={isOwner ? "Message the organizers…" : "Reply…"}
             style={{ flex: 1, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
           />
           <PrimaryButton disabled={sending || !draft.trim()} onClick={send}>Send</PrimaryButton>
         </div>
       ) : (
-        <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers and players on this team can post here.</div>
+        <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only this user and organizers can post here.</div>
       )}
     </div>
   );

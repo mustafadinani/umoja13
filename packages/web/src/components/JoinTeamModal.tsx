@@ -16,6 +16,7 @@ import { Modal, PrimaryButton, Pill } from "./ui";
  */
 export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
+  const [playerName, setPlayerName] = useState(profile?.displayName ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const { data: teams } = useTeams(categoryId ?? undefined);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
-    if (!user || !profile || !categoryId || !teamId || !file) return;
+    if (!user || !profile || !playerName.trim() || !categoryId || !teamId || !file) return;
     setBusy(true);
     setError(null);
     try {
@@ -40,6 +41,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined,
         isCaptain: false,
         registrationPhotoUrl,
+        playerName: playerName.trim(),
       };
 
       const nextRoles = Array.from(new Set([...(profile.roles ?? []), "player"]));
@@ -53,7 +55,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       await updateDoc(doc(db, COLLECTIONS.teams, teamId), {
         roster: arrayUnion({
           userId: user.uid,
-          displayName: profile.displayName,
+          displayName: playerName.trim(),
           jerseyNumber: membership.jerseyNumber ?? null,
           isCaptain: false,
           goals: 0,
@@ -74,8 +76,16 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Join a team</div>
       <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
-        Playing in more than one category? You'll do this once per category.
+        Playing in more than one category, or signing up more than one child? You'll do this once per player/category.
       </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Player's name</div>
+      <input
+        value={playerName}
+        onChange={(e) => setPlayerName(e.target.value)}
+        placeholder="Who's actually playing?"
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 14 }}
+      />
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Category</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
@@ -110,7 +120,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
 
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-      <PrimaryButton disabled={!categoryId || !teamId || !file || busy} onClick={submit} style={{ width: "100%" }}>
+      <PrimaryButton disabled={!playerName.trim() || !categoryId || !teamId || !file || busy} onClick={submit} style={{ width: "100%" }}>
         {busy ? "Joining…" : "JOIN TEAM"}
       </PrimaryButton>
     </Modal>

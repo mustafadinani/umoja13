@@ -12,6 +12,7 @@ import { Modal, Pill, PrimaryButton } from "./ui";
 
 export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
+  const [playerName, setPlayerName] = useState(profile?.displayName ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const { data: teams } = useTeams(categoryId ?? undefined);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   }
 
   async function submit() {
-    if (!user || !profile || !categoryId || !teamId || !uri) return;
+    if (!user || !profile || !playerName.trim() || !categoryId || !teamId || !uri) return;
     setBusy(true);
     setError(null);
     try {
@@ -40,6 +41,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
 
       const membership: PlayerMembership = {
         teamId, categoryId, jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined, isCaptain: false, registrationPhotoUrl,
+        playerName: playerName.trim(),
       };
       await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
         playerOf: arrayUnion(membership),
@@ -49,7 +51,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       });
       await updateDoc(doc(db, COLLECTIONS.teams, teamId), {
         roster: arrayUnion({
-          userId: user.uid, displayName: profile.displayName, jerseyNumber: membership.jerseyNumber ?? null,
+          userId: user.uid, displayName: playerName.trim(), jerseyNumber: membership.jerseyNumber ?? null,
           isCaptain: false, goals: 0, assists: 0, checkInStatus: "not_started",
         }),
       });
@@ -64,6 +66,12 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal visible onClose={onClose}>
       <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Join a team</Text>
+      <TextInput
+        placeholder="Player's name — who's actually playing?"
+        value={playerName}
+        onChangeText={setPlayerName}
+        style={{ borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12 }}
+      />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {CATEGORIES.map((c) => <Pill key={c.id} active={categoryId === c.id} onPress={() => { setCategoryId(c.id); setTeamId(null); }}>{c.label}</Pill>)}
       </View>
@@ -83,7 +91,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         <PrimaryButton onPress={pickPhoto} style={{ marginBottom: 12 }}>📷 Add registration photo</PrimaryButton>
       )}
       {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
-      <PrimaryButton disabled={!categoryId || !teamId || !uri || busy} onPress={submit} style={{ width: "100%" }}>
+      <PrimaryButton disabled={!playerName.trim() || !categoryId || !teamId || !uri || busy} onPress={submit} style={{ width: "100%" }}>
         {busy ? "Joining…" : "JOIN TEAM"}
       </PrimaryButton>
     </Modal>

@@ -215,6 +215,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- User channels: one-way "message the organizers" ----
+    // General contact channel scoped to a single user (not every user is on
+    // a team or holds a role like volunteer/referee). Written only by
+    // sendUserMessage. Private to staff and the channel's own owner.
+    match /userChannels/{uid} {
+      allow read: if isStaff() || isOwner(uid);
+      allow write: if false;
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

@@ -33,6 +33,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const { data: existingCheckIn } = useCheckIn(checkInId);
   const { data: pass } = usePass(checkInId);
   const category = CATEGORIES.find((c) => c.id === categoryId);
+  const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
@@ -118,7 +119,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
         <View>
           <Text style={styles.h1}>Is this you?</Text>
           <View style={styles.infoCard}>
-            <Row label="Name" value={profile?.displayName ?? ""} />
+            <Row label="Name" value={membership?.playerName ?? profile?.displayName ?? ""} />
             <Row label="Category" value={category?.label ?? categoryId} />
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
