@@ -6,6 +6,7 @@
  */
 export interface UatScenarioProgress {
   id: string; // matches UatScenario.id, e.g. "FAN-01"
+  round: number; // absent/undefined on legacy round-1 docs written before rounds existed
   done: boolean;
   doneByUid: string | null;
   doneByName: string | null;
@@ -17,6 +18,7 @@ export type UatBugSeverity = "critical" | "major" | "minor";
 
 export interface UatBugReport {
   id: string;
+  round: number; // absent/undefined on legacy round-1 docs written before rounds existed
   title: string;
   scenarioId: string;
   platform: string;
@@ -32,6 +34,7 @@ export interface UatBugReport {
 
 export interface UatSignoff {
   id: string;
+  round: number; // absent/undefined on legacy round-1 docs written before rounds existed
   testerName: string;
   platformsTested: string;
   scenariosCompleted: string;

@@ -17,11 +17,36 @@ export interface UatScenario {
 export const UAT_SECTIONS: UatSection[] = [
   { id: "fan", title: "Fan", desc: "The public-facing experience — anyone can sign up as a fan with no roster ties." },
   { id: "player", title: "Player", desc: "Sign in as player@umoja.demo, or join a team from any fan account." },
+  { id: "channels", title: "Channels & Messaging", desc: "New this round — team/role broadcasts with reply-back, and a direct line to the organizers." },
+  { id: "volunteer", title: "Volunteering", desc: "New this round — signing up, working a shift, and asking staff questions about it." },
   { id: "captain", title: "Captain", desc: "Sign in as captain@umoja.demo. Captains get everything a player has, plus roster and complaint tools." },
   { id: "referee", title: "Referee", desc: "Sign in as referee@umoja.demo (web only). This account is pre-assigned to the seeded live game." },
   { id: "commissioner", title: "Commissioner", desc: "Sign in as commissioner@umoja.demo (web only)." },
   { id: "admin", title: "Admin", desc: "Sign in as admin@umoja.demo (web only). Admin sees everything Commissioner does, plus these tools." },
   { id: "hunt-mobile", title: "The Hunt", desc: "Available to any signed-in account, web or mobile." },
+];
+
+export const CURRENT_UAT_ROUND = 2;
+
+export interface UatRound {
+  round: number;
+  label: string;
+  status: "current" | "archived";
+}
+
+export const UAT_ROUNDS: UatRound[] = [
+  { round: 2, label: "Round 2 — Post-Feature-Update", status: "current" },
+  { round: 1, label: "Round 1 — Initial UAT", status: "archived" },
+];
+
+/** Shown as a "what's new since Round 1" banner so testers know what to focus on. */
+export const UAT_ROUND_2_CHANGES = [
+  "Team channels & role channels (volunteer / referee) — staff broadcasts, with reply-back.",
+  '"Message the Organizers" — a private thread with staff, reachable from the icon next to the bell in My Umoja.',
+  "Check-in now has a consent step (self vs. parent/guardian) with an optional AI-bypass path.",
+  'Multi-kid households — each child has their own name, and "You"/kid tabs run across My Umoja, check-in, and Volunteering.',
+  "Volunteer sign-up is now offered right after check-in, plus a redesigned shift detail view (mark done / can't make it) with a per-shift Q&A thread to staff.",
+  "Moments fixes: web sharing no longer forces the camera; mobile photo/video viewing (zoom, playback) is fixed.",
 ];
 
 export const UAT_SCENARIOS: UatScenario[] = [
@@ -72,6 +97,35 @@ export const UAT_SCENARIOS: UatScenario[] = [
   { id: "PLAYER-04", section: "player", title: "Sign out", platform: "Web + Mobile",
     steps: ["Sign out from My Umoja."],
     expect: "Returns to the sign-in screen; signing back in restores the same account state." },
+  { id: "PLAYER-05", section: "player", title: "Check-in consent step", platform: "Web + Mobile",
+    steps: ["Start a Tournament Pass check-in.", 'On the new consent step, try both paths: "This is me" and "I\'m checking in my child."', 'Read the agreement, check the box, and continue. Separately, try the "skip the AI check" link and confirm it warns this may be slower.'],
+    expect: "Both self and parent/guardian paths require the agreement checkbox before continuing, and the AI-bypass path is a secondary option (not the default) that clearly flags the slower manual review." },
+  { id: "PLAYER-06", section: "player", title: "Multi-kid household", platform: "Web + Mobile",
+    steps: ["Using parent@umoja.demo / Umoja2026!, open My Umoja.", 'Confirm you see a "You" tab first, then a tab per child (Amara, Kwame).', "Switch between tabs and check that each child's team, check-in status, and volunteer shifts are independent of the others."],
+    expect: 'A "You" tab always appears first. Each child tab shows only that child\'s own team/roster/check-in/volunteer data — nothing bleeds across tabs.' },
+
+  { id: "CHAN-01", section: "channels", title: "Team channel — broadcast & reply", platform: "Web + Mobile",
+    steps: ["As a staff account (commissioner/admin), post an announcement into a team's channel.", "Sign in as a player/captain on that team's roster and open the team channel.", "Reply to the broadcast."],
+    expect: "The roster member sees the broadcast and can reply. Someone NOT on that roster (a different player, or a fan) cannot see or open this channel." },
+  { id: "CHAN-02", section: "channels", title: "Role channel — volunteer / referee", platform: "Web + Mobile",
+    steps: ["As staff, post into the Volunteer (or Referee) role channel.", "Sign in as an account holding that role and open the channel.", "Reply."],
+    expect: "Only accounts holding that specific role (plus staff) can read or reply in the channel; other signed-in users cannot see it." },
+  { id: "CHAN-03", section: "channels", title: "Message the Organizers", platform: "Web + Mobile",
+    steps: ["From My Umoja (mobile) or the nav bar (web), tap the message icon next to the notification bell.", "Send a message.", "As staff, find and reply to that specific user's thread."],
+    expect: "The message reaches staff and the reply comes back into the same private thread — no other signed-in user can see it." },
+
+  { id: "VOL-01", section: "volunteer", title: "Sign up to volunteer from check-in", platform: "Web + Mobile",
+    steps: ["Complete a check-in (through submission).", 'On the result screen, use the optional "Sign up to volunteer" link.', "Fill out and submit the volunteer application."],
+    expect: 'The application is filed under the name/person you checked in as, and a "pending" status shows for that specific person afterward — other people on the same account are unaffected.' },
+  { id: "VOL-02", section: "volunteer", title: "Work a shift", platform: "Web + Mobile",
+    steps: ["As a volunteer with an approved application and an assigned shift, open the Volunteer section.", "Tap into a shift to open its detail view.", 'Mark it "Done" or "Can\'t make it."'],
+    expect: "The detail view shows the shift's full context (title, time, location) and the status updates and persists after re-opening." },
+  { id: "VOL-03", section: "volunteer", title: "Ask a question about a specific shift", platform: "Web + Mobile",
+    steps: ["From a shift's detail view, send a message in its Q&A thread.", "As staff, open that same shift and reply."],
+    expect: "The question and reply are scoped to that one shift only — staff can tell exactly which shift/time/location the question is about without asking." },
+  { id: "VOL-04", section: "volunteer", title: "Multi-kid volunteer scoping", platform: "Mobile",
+    steps: ["Using parent@umoja.demo, approve/assign a shift under one child's name (or \"You\").", "Switch tabs in My Umoja's Volunteer section."],
+    expect: "The shift and its sign-up status only appear under the tab it belongs to — it does not show up under every tab on the account." },
 
   { id: "CAPTAIN-01", section: "captain", title: "View team roster", platform: "Web",
     steps: ["Open the Captain dashboard's roster view."],
