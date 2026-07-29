@@ -58,6 +58,9 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
           <Text style={{ fontWeight: "800", fontSize: 17 }}>{profile?.displayName}</Text>
           <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>{profile?.primaryRole}</Text>
         </View>
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("AskUmoja")} style={{ marginRight: 14 }}>
+          <Text style={{ fontSize: 20 }}>🤖</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.getParent()?.navigate("MessageOrganizers")} style={{ marginRight: 14 }}>
           <Text style={{ fontSize: 20 }}>💬</Text>
         </TouchableOpacity>

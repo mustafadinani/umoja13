@@ -47,6 +47,7 @@ export const UAT_ROUND_2_CHANGES = [
   'Multi-kid households — each child has their own name, and "You"/kid tabs run across My Umoja, check-in, and Volunteering.',
   "Volunteer sign-up is now offered right after check-in, plus a redesigned shift detail view (mark done / can't make it) with a per-shift Q&A thread to staff.",
   "Moments fixes: web sharing no longer forces the camera; mobile photo/video viewing (zoom, playback) is fixed.",
+  "Ask Umoja (the AI chat assistant) is now on mobile too, reachable from a 🤖 icon in My Umoja's header — not just web.",
 ];
 
 export const UAT_SCENARIOS: UatScenario[] = [
@@ -74,9 +75,9 @@ export const UAT_SCENARIOS: UatScenario[] = [
   { id: "FAN-08", section: "fan", title: "Follow a team", platform: "Web",
     steps: ["From your Fan dashboard, tap a team to follow it (star icon).", "Refresh the page."],
     expect: 'The team stays marked as followed and appears in a "followed teams" section.' },
-  { id: "FAN-09", section: "fan", title: "Ask Umoja (AI chat widget)", platform: "Web",
-    steps: ["Open the chat widget (bottom corner, on any page).", 'Ask something like "When does the Boys 12U bracket play?"', "Then try asking to speak with a real person / staff."],
-    expect: 'A relevant reply streams in. Asking for a human should hand off to a support ticket with a ticket number.' },
+  { id: "FAN-09", section: "fan", title: "Ask Umoja (AI chat assistant)", platform: "Web + Mobile",
+    steps: ['On web, open the chat widget (bottom corner, on any page). On mobile, tap the 🤖 icon in My Umoja\'s header.', 'Ask something like "When does the Boys 12U bracket play?"', 'Then use "Still stuck? Ask an organizer" to hand off to a person.'],
+    expect: 'A relevant reply comes back. Asking for a human hands off to a support ticket with a case number, on both platforms.' },
   { id: "FAN-10", section: "fan", title: "Notifications", platform: "Web + Mobile",
     steps: ["Open the notification bell / Notifications screen."],
     expect: "List renders without error (may be empty on a fresh account) and unread items are marked read after opening." },
