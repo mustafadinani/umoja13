@@ -10,6 +10,7 @@ import type {
   ChannelRole,
   RoleChannelMessage,
   UserChannelMessage,
+  VolunteerTaskMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -130,3 +131,8 @@ export const sendUserMessage = httpsCallable<
   { targetUid?: string; text: string },
   { message: UserChannelMessage }
 >(functions, "sendUserMessage");
+
+export const sendVolunteerTaskMessage = httpsCallable<
+  { taskId: string; text: string },
+  { message: VolunteerTaskMessage }
+>(functions, "sendVolunteerTaskMessage");
