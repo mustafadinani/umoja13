@@ -115,7 +115,7 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>VOLUNTEER</Text>
         {isVolunteer ? (
-          <VolunteerShifts uid={user?.uid} />
+          <VolunteerShifts uid={user?.uid} activeKidName={kidNames.length > 0 ? selectedKid : undefined} />
         ) : (
           <Card>
             <Text style={{ fontWeight: "700", marginBottom: 4 }}>Become a Volunteer</Text>
@@ -149,9 +149,14 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   );
 }
 
-function VolunteerShifts({ uid }: { uid: string | undefined }) {
-  const { data: tasks } = useMyVolunteerTasks(uid);
+function VolunteerShifts({ uid, activeKidName }: { uid: string | undefined; activeKidName?: string }) {
+  const { data: allTasks } = useMyVolunteerTasks(uid);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  // With a kid tab active, only show shifts filed under that kid's name —
+  // otherwise the same account-level shift shows up under every tab.
+  const tasks = activeKidName
+    ? allTasks.filter((t) => (t.assigneeName ?? "").trim() === activeKidName.trim())
+    : allTasks;
   const openTask = tasks.find((t) => t.id === openTaskId) ?? null;
 
   return (
@@ -170,7 +175,11 @@ function VolunteerShifts({ uid }: { uid: string | undefined }) {
           </View>
         </Card>
       ))}
-      {tasks.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>No shifts assigned to you yet — check back soon.</Text>}
+      {tasks.length === 0 && (
+        <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>
+          {activeKidName ? `No shifts assigned to ${firstName(activeKidName)} yet — check back soon.` : "No shifts assigned to you yet — check back soon."}
+        </Text>
+      )}
 
       {openTask && <VolunteerTaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </>
