@@ -12,6 +12,7 @@ const NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Standings & Bracket", to: "/standings" },
   { label: "Moments", to: "/moments" },
   { label: "The Hunt", to: "/hunt" },
+  { label: "Info", to: "/info" },
 ];
 
 export function Layout({ children }: { children: ReactNode }) {

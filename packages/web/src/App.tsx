@@ -13,6 +13,7 @@ import { Team } from "./pages/Team";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
+import { Info } from "./pages/Info";
 import { Uat } from "./pages/uat/Uat";
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
+            <Route path="/info" element={<Info />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/team/:teamId" element={<Team />} />
             <Route path="/login" element={<Login />} />

@@ -77,6 +77,13 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         </TouchableOpacity>
       )}
 
+      <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Info")} activeOpacity={0.85}>
+        <Card style={styles.infoTile}>
+          <Text style={{ fontWeight: "700", fontSize: 14 }}>EVENT INFO</Text>
+          <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginTop: 2 }}>FAQ, venue map & logistics, things to do nearby →</Text>
+        </Card>
+      </TouchableOpacity>
+
       <View style={styles.section}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
           <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>FRESH MOMENTS</Text>
@@ -183,6 +190,7 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   sectionTitle: { fontWeight: "800", fontSize: 16, marginBottom: 10, color: theme.color.text },
   huntTile: { marginHorizontal: 16, borderRadius: theme.radius.lg, padding: 18 },
+  infoTile: { marginHorizontal: 16, marginTop: 12 },
   huntTitle: { color: "#fff", fontWeight: "800", fontSize: 17 },
   huntSub: { color: "#fff", opacity: 0.9, marginTop: 4, fontSize: 13 },
   momentTile: { width: 100, height: 70, borderRadius: 10, backgroundColor: theme.color.purple, marginRight: 8, alignItems: "center", justifyContent: "center" },

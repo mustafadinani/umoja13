@@ -48,6 +48,7 @@ export const UAT_ROUND_2_CHANGES = [
   "Volunteer sign-up is now offered right after check-in, plus a redesigned shift detail view (mark done / can't make it) with a per-shift Q&A thread to staff.",
   "Moments fixes: web sharing no longer forces the camera; mobile photo/video viewing (zoom, playback) is fixed.",
   "Ask Umoja (the AI chat assistant) is now on mobile too, reachable from a 🤖 icon in My Umoja's header — not just web.",
+  'Ask Umoja now knows the app FAQ, venue/parking logistics, and nearby things to do — and there\'s a new "Info" page/screen with the same content for anyone who\'d rather just read it.',
 ];
 
 export const UAT_SCENARIOS: UatScenario[] = [
@@ -76,14 +77,17 @@ export const UAT_SCENARIOS: UatScenario[] = [
     steps: ["From your Fan dashboard, tap a team to follow it (star icon).", "Refresh the page."],
     expect: 'The team stays marked as followed and appears in a "followed teams" section.' },
   { id: "FAN-09", section: "fan", title: "Ask Umoja (AI chat assistant)", platform: "Web + Mobile",
-    steps: ['On web, open the chat widget (bottom corner, on any page). On mobile, tap the 🤖 icon in My Umoja\'s header.', 'Ask something like "When does the Boys 12U bracket play?"', 'Then use "Still stuck? Ask an organizer" to hand off to a person.'],
-    expect: 'A relevant reply comes back. Asking for a human hands off to a support ticket with a case number, on both platforms.' },
+    steps: ['On web, open the chat widget (bottom corner, on any page). On mobile, tap the 🤖 icon in My Umoja\'s header.', 'Ask a general question like "When does the Boys 12U bracket play?"', 'Then ask something from the new knowledge base, e.g. "Where can I park?" or "Anything fun to do nearby?"', 'Then use "Still stuck? Ask an organizer" to hand off to a person.'],
+    expect: 'General questions get a relevant reply. Parking/venue/local-area questions now pull from the venue & things-to-do info instead of a generic answer. Asking for a human hands off to a support ticket with a case number, on both platforms.' },
   { id: "FAN-10", section: "fan", title: "Notifications", platform: "Web + Mobile",
     steps: ["Open the notification bell / Notifications screen."],
     expect: "List renders without error (may be empty on a fresh account) and unread items are marked read after opening." },
   { id: "FAN-11", section: "fan", title: "Report an issue", platform: "Web + Mobile",
     steps: ['Find "Report an issue to the commissioner" and submit a short message.'],
     expect: "A confirmation screen with a case number." },
+  { id: "FAN-12", section: "fan", title: "Event Info page (FAQ, map, things to do)", platform: "Web + Mobile",
+    steps: ['On web, click "Info" in the nav bar. On mobile, tap the "EVENT INFO" tile on Home.', "Read through the FAQ, Special Events, Venue & Logistics, and Nearby Things To Do sections."],
+    expect: "All four sections render with content — no empty/broken sections. This is the same knowledge Ask Umoja draws on, so answers here and from the assistant should agree." },
 
   { id: "PLAYER-01", section: "player", title: "Join a team", platform: "Web + Mobile",
     steps: ['From a fan account with no roster ties, find "Join a team."', "Pick a category, then a team, then enter a jersey number.", "Attach a registration photo (camera or library).", "Submit."],

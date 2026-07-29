@@ -20,5 +20,6 @@ export * from "./constants/sponsors.js";
 export * from "./constants/huntMissions.js";
 export * from "./constants/moments.js";
 export * from "./constants/consent.js";
+export * from "./constants/knowledge.js";
 
 export * from "./firestore-paths.js";
