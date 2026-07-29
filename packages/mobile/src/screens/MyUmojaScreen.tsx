@@ -12,7 +12,6 @@ import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { RoleChannelPanel } from "../components/RoleChannelPanel";
-import { UserChannelPanel } from "../components/UserChannelPanel";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
@@ -56,6 +55,9 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
           <Text style={{ fontWeight: "800", fontSize: 17 }}>{profile?.displayName}</Text>
           <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>{profile?.primaryRole}</Text>
         </View>
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("MessageOrganizers")} style={{ marginRight: 14 }}>
+          <Text style={{ fontSize: 20 }}>💬</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Notifications")}><Text style={{ fontSize: 20 }}>🔔</Text></TouchableOpacity>
       </View>
 
@@ -125,13 +127,6 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
             <PrimaryButton onPress={() => setVolunteerSignupOpen(true)}>SIGN UP TO VOLUNTEER</PrimaryButton>
           </Card>
         )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>MESSAGE THE ORGANIZERS</Text>
-        <Card>
-          <UserChannelPanel uid={user?.uid ?? ""} />
-        </Card>
       </View>
 
       <View style={styles.section}>

@@ -6,7 +6,6 @@ import { theme } from "../../../lib/theme";
 import { useGames, useTeam } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { JoinTeamModal } from "../../../components/JoinTeamModal";
-import { UserChannelPanel } from "../../../components/UserChannelPanel";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
 import { ComplaintModal } from "./ComplaintModal";
@@ -101,11 +100,6 @@ export function PlayerDashboard() {
           )}
         </>
       )}
-
-      <SectionLabel>MESSAGE THE ORGANIZERS</SectionLabel>
-      <Card style={{ marginBottom: 24 }}>
-        <UserChannelPanel uid={user.uid} />
-      </Card>
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}

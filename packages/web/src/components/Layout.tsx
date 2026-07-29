@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { NotificationsBell } from "./NotificationsBell";
+import { MessagesBell } from "./MessagesBell";
 import { AskUmojaWidget } from "./AskUmojaWidget";
 
 const NAV_ITEMS: { label: string; to: string }[] = [
@@ -83,6 +84,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {user && profile ? (
               <>
+                <MessagesBell />
                 <NotificationsBell />
                 <Link
                   to="/dashboard"
