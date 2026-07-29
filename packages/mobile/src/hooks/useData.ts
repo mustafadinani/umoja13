@@ -18,6 +18,7 @@ import {
   type Challenge,
   type ChallengeSubmission,
   type VolunteerTask,
+  type VolunteerApplication,
   type TeamChannel,
   type ChannelRole,
   type RoleChannel,
@@ -96,3 +97,7 @@ export const useMyHuntSubmissions = (crewId: string | undefined) =>
 /** Shifts assigned to this volunteer. */
 export const useMyVolunteerTasks = (uid: string | undefined) =>
   useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, uid ? [where("assigneeUid", "==", uid)] : []);
+
+/** This account's own "Become a Volunteer" applications, so we can tell whether a specific kid's name has already applied. */
+export const useMyVolunteerApplications = (uid: string | undefined) =>
+  useCollection<VolunteerApplication>(COLLECTIONS.volunteerApplications, uid ? [where("filedByUid", "==", uid)] : []);

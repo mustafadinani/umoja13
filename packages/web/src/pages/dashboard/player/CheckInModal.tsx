@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   COLLECTIONS,
@@ -14,6 +14,7 @@ import { db, storage } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { verifyCheckIn } from "../../../lib/callables";
+import { useVolunteerApplications } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { BecomeVolunteerModal } from "../../../components/BecomeVolunteerModal";
 
@@ -33,7 +34,14 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
-  const isVolunteer = profile?.roles.includes("volunteer") ?? false;
+  const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
+  const playerName = (membership.playerName ?? profile?.displayName ?? "").trim();
+  // Checked per player name, not the account's overall volunteer role — a
+  // parent should still be able to sign up a different kid separately even
+  // after one kid's application is already approved.
+  const hasVolunteerApplication = volunteerApplications.some(
+    (a) => a.name.trim() === playerName && a.status !== "rejected"
+  );
 
   async function submit() {
     if (!user || !profile || !selfie || !govId) return;
@@ -195,7 +203,7 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
           result={result}
           error={error}
           skippedAi={aiBypass}
-          showVolunteerCta={(result.status === "approved" || result.status === "admin_review") && !isVolunteer}
+          showVolunteerCta={(result.status === "approved" || result.status === "admin_review") && !hasVolunteerApplication}
           onVolunteer={() => setVolunteerSignupOpen(true)}
           onClose={onClose}
           onRetry={() => { setStep("selfie"); setSelfie(null); setGovId(null); }}

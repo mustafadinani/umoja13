@@ -17,7 +17,7 @@ import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { verifyCheckIn } from "../lib/callables";
-import { useCheckIn, usePass } from "../hooks/useData";
+import { useCheckIn, usePass, useMyVolunteerApplications } from "../hooks/useData";
 import { PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
@@ -49,7 +49,14 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
-  const isVolunteer = profile?.roles?.includes("volunteer") ?? false;
+  const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
+  const playerName = (membership?.playerName ?? profile?.displayName ?? "").trim();
+  // Checked per player name, not the account's overall volunteer role — a
+  // parent should still be able to sign up a different kid separately even
+  // after one kid's application is already approved.
+  const hasVolunteerApplication = volunteerApplications.some(
+    (a) => a.name.trim() === playerName && a.status !== "rejected"
+  );
 
   async function capture(setUri: (u: string) => void) {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -218,7 +225,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             </>
           )}
 
-          {(result.status === "approved" || result.status === "admin_review") && !isVolunteer && (
+          {(result.status === "approved" || result.status === "admin_review") && !hasVolunteerApplication && (
             <TouchableOpacity onPress={() => setVolunteerSignupOpen(true)} style={{ marginTop: 20 }}>
               <Text style={{ color: theme.color.purple, fontWeight: "700", fontSize: 13 }}>Want to help out too? SIGN UP TO VOLUNTEER</Text>
             </TouchableOpacity>

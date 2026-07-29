@@ -4,7 +4,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useTeam, useMyVolunteerTasks } from "../hooks/useData";
+import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications } from "../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../components/ui";
 import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
@@ -23,7 +23,6 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
-  const isVolunteer = profile?.roles?.includes("volunteer") ?? false;
 
   // One parent account can hold memberships for several kids — group by
   // whichever name each membership was joined under, so each kid gets their
@@ -120,17 +119,7 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>VOLUNTEER</Text>
-        {isVolunteer ? (
-          <VolunteerShifts uid={user?.uid} activeKidName={selectedKid} />
-        ) : (
-          <Card>
-            <Text style={{ fontWeight: "700", marginBottom: 4 }}>Become a Volunteer</Text>
-            <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 12 }}>
-              Help us run Umoja Games — setup, check-in support, water/shade, pack-down, and more.
-            </Text>
-            <PrimaryButton onPress={() => setVolunteerSignupOpen(true)}>SIGN UP TO VOLUNTEER</PrimaryButton>
-          </Card>
-        )}
+        <VolunteerSection uid={user?.uid} activeKidName={selectedKid} onSignup={() => setVolunteerSignupOpen(true)} />
       </View>
 
       <View style={styles.section}>
@@ -155,15 +144,49 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
   );
 }
 
-function VolunteerShifts({ uid, activeKidName }: { uid: string | undefined; activeKidName?: string }) {
+/**
+ * Whether "Sign up to volunteer" / an application's status / the shift list
+ * shows is decided per active tab name, not by the account's overall
+ * volunteer role — otherwise once any one kid's application is approved,
+ * every other tab loses the ability to sign up separately.
+ */
+function VolunteerSection({
+  uid, activeKidName, onSignup,
+}: {
+  uid: string | undefined; activeKidName: string; onSignup: () => void;
+}) {
   const { data: allTasks } = useMyVolunteerTasks(uid);
+  const { data: allApplications } = useMyVolunteerApplications(uid);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-  // With a kid tab active, only show shifts filed under that kid's name —
-  // otherwise the same account-level shift shows up under every tab.
-  const tasks = activeKidName
-    ? allTasks.filter((t) => (t.assigneeName ?? "").trim() === activeKidName.trim())
-    : allTasks;
+
+  const tasks = allTasks.filter((t) => (t.assigneeName ?? "").trim() === activeKidName.trim());
+  const myApplication = allApplications
+    .filter((a) => a.name.trim() === activeKidName.trim())
+    .sort((a, b) => b.createdAt - a.createdAt)[0];
   const openTask = tasks.find((t) => t.id === openTaskId) ?? null;
+
+  if (tasks.length === 0 && myApplication?.status === "pending") {
+    return (
+      <Card>
+        <Text style={{ fontWeight: "700", marginBottom: 4 }}>Application submitted</Text>
+        <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>
+          An organizer will review {firstName(activeKidName)}'s application and follow up with shifts.
+        </Text>
+      </Card>
+    );
+  }
+
+  if (tasks.length === 0 && (!myApplication || myApplication.status === "rejected")) {
+    return (
+      <Card>
+        <Text style={{ fontWeight: "700", marginBottom: 4 }}>Become a Volunteer</Text>
+        <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 12 }}>
+          Help us run Umoja Games — setup, check-in support, water/shade, pack-down, and more.
+        </Text>
+        <PrimaryButton onPress={onSignup}>SIGN UP TO VOLUNTEER</PrimaryButton>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -183,7 +206,7 @@ function VolunteerShifts({ uid, activeKidName }: { uid: string | undefined; acti
       ))}
       {tasks.length === 0 && (
         <Text style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>
-          {activeKidName ? `No shifts assigned to ${firstName(activeKidName)} yet — check back soon.` : "No shifts assigned to you yet — check back soon."}
+          No shifts assigned to {firstName(activeKidName)} yet — check back soon.
         </Text>
       )}
 
