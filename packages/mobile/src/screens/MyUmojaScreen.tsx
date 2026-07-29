@@ -27,7 +27,11 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
 
   // One parent account can hold memberships for several kids — group by
   // whichever name each membership was joined under, so each kid gets their
-  // own tab instead of everything stacking under one flat list.
+  // own tab instead of everything stacking under one flat list. "You" is
+  // always offered as the first tab too, since the account holder might
+  // play themselves or want to volunteer as themselves rather than as one
+  // of the kids.
+  const selfName = (profile?.displayName ?? "Player").trim();
   const kidGroups = useMemo(() => {
     const groups = new Map<string, PlayerMembership[]>();
     for (const m of memberships) {
@@ -36,9 +40,11 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
     }
     return groups;
   }, [memberships, profile?.displayName]);
-  const kidNames = [...kidGroups.keys()];
-  const selectedKid = activeKid && kidGroups.has(activeKid) ? activeKid : kidNames[0];
-  const activeMemberships = kidGroups.get(selectedKid ?? "") ?? [];
+  const kidOnlyNames = [...kidGroups.keys()].filter((n) => n !== selfName);
+  const tabNames = ["You", ...kidOnlyNames];
+  const selectedTab = activeKid && tabNames.includes(activeKid) ? activeKid : tabNames[0];
+  const selectedKid = selectedTab === "You" ? selfName : selectedTab;
+  const activeMemberships = kidGroups.get(selectedKid) ?? [];
 
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
@@ -68,10 +74,10 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
         </View>
       ) : (
         <>
-          {kidNames.length > 1 && (
+          {tabNames.length > 1 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, marginBottom: 16 }}>
-              {kidNames.map((name) => (
-                <Pill key={name} active={selectedKid === name} onPress={() => setActiveKid(name)}>{firstName(name)}</Pill>
+              {tabNames.map((name) => (
+                <Pill key={name} active={selectedTab === name} onPress={() => setActiveKid(name)}>{name === "You" ? "You" : firstName(name)}</Pill>
               ))}
             </View>
           )}
@@ -115,7 +121,7 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>VOLUNTEER</Text>
         {isVolunteer ? (
-          <VolunteerShifts uid={user?.uid} activeKidName={kidNames.length > 0 ? selectedKid : undefined} />
+          <VolunteerShifts uid={user?.uid} activeKidName={selectedKid} />
         ) : (
           <Card>
             <Text style={{ fontWeight: "700", marginBottom: 4 }}>Become a Volunteer</Text>
