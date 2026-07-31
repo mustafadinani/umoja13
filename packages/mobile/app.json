@@ -8,7 +8,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.umojaoutreach.umoja13"
+      "bundleIdentifier": "com.umojaoutreach.umoja13",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.umojaoutreach.umoja13",
