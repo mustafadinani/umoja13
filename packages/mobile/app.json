@@ -23,6 +23,12 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ddf3e5f7-077c-4ace-8d2f-36b27fccc3c7"
+    },
     "extra": {
       "eas": {
         "projectId": "ddf3e5f7-077c-4ace-8d2f-36b27fccc3c7"
