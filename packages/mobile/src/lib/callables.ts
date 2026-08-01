@@ -72,8 +72,30 @@ export const escalateChat = httpsCallable<
 
 export const createComplaintCheckout = httpsCallable<
   { incidentId: string; successUrl: string; cancelUrl: string },
-  { checkoutUrl: string | null }
+  { checkoutUrl: string | null; sessionId: string }
 >(functions, "createComplaintCheckout");
+
+export const confirmIncidentPayment = httpsCallable<
+  { incidentId: string; sessionId: string },
+  { paid: boolean; stripeConfirmationId: string; alreadyRecorded: boolean }
+>(functions, "confirmIncidentPayment");
+
+export const createReportFeeIntent = httpsCallable<
+  Record<string, never>,
+  { clientSecret: string; paymentIntentId: string; publishableKey: string; amountCents: number }
+>(functions, "createReportFeeIntent");
+
+export const filePaidReport = httpsCallable<
+  {
+    text: string;
+    filedByName: string;
+    filedByRole: string;
+    paymentIntentId: string;
+    source?: "fan_message" | "captain_complaint";
+    complaintType?: string;
+  },
+  { id: string; caseNumber: string; stripeConfirmationId: string }
+>(functions, "filePaidReport");
 
 export const createSponsorshipCheckout = httpsCallable<
   {

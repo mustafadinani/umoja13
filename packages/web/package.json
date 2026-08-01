@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@rolldown/binding-darwin-arm64": "^1.1.5",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.12.1",
     "@umoja/shared": "*",
     "firebase": "^11.1.0",
     "react": "^19.2.7",

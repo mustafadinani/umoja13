@@ -12,7 +12,7 @@ const stripeSecretKeyLive = defineSecret("STRIPE_SECRET_KEY_LIVE");
 
 /** Publishable keys are safe to ship to clients (not secrets). */
 const STRIPE_PUBLISHABLE = {
-  test: "pk_test_51H3LYlElUGTUUmSH5tPbaECJFVPBtw5eq6UoQCCdcPJhQq1dZkKOTyEs1d8DevXxTs4KHjoI9DP5srq4cmqOYgFZ00wgqE3on8",
+  test: "pk_test_oUXnQJoAh67w87FY7aLkNm8A00xCvO8ra4",
   live: "pk_live_JBXpVErqOal4hOovV9km8CiV008EfzhYUJ",
 } as const;
 

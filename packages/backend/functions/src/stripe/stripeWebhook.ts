@@ -26,8 +26,20 @@ export const stripeWebhook = onRequest(
       const session = event.data.object as Stripe.Checkout.Session;
       const incidentId = session.metadata?.incidentId;
       if (incidentId) {
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? undefined;
+        const confirmationId = paymentIntentId ?? session.id;
         await db.collection(COLLECTIONS.incidents).doc(incidentId).set(
-          { "fee.paid": true, status: "submitted", updatedAt: Date.now() },
+          {
+            "fee.paid": true,
+            "fee.stripeCheckoutSessionId": session.id,
+            "fee.stripePaymentIntentId": paymentIntentId ?? null,
+            "fee.stripeConfirmationId": confirmationId,
+            status: "submitted",
+            updatedAt: Date.now(),
+          },
           { merge: true }
         );
       }

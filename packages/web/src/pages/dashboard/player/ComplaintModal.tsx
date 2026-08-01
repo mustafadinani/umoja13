@@ -37,7 +37,7 @@ export function ComplaintModal({ teamName, onClose }: { teamName: string; onClos
       try {
         const checkout = await createComplaintCheckout({
           incidentId: filed.data.id,
-          successUrl: `${window.location.origin}/dashboard?complaintPaid=1`,
+          successUrl: `${window.location.origin}/dashboard?complaintPaid=1&incidentId=${filed.data.id}&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/dashboard`,
         });
         setCheckoutUrl(checkout.data.checkoutUrl);

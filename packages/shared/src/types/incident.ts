@@ -33,10 +33,13 @@ export interface Incident {
   text: string;
   status: IncidentStatus;
   thread: IncidentMessage[];
-  /** Captain complaints only: $35 review fee, refunded if upheld. */
+  /** $35 review fee (captain complaints + report-to-commissioner). */
   fee?: {
     amountCents: number;
     stripeCheckoutSessionId?: string;
+    /** Stripe PaymentIntent id (`pi_…`) once Checkout completes — confirmation of payment. */
+    stripeConfirmationId?: string;
+    stripePaymentIntentId?: string;
     paid: boolean;
     refunded: boolean;
   };

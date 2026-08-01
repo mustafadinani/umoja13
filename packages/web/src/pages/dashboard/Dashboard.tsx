@@ -5,25 +5,39 @@ import { RefereeDashboard } from "./referee/RefereeDashboard";
 import { CommissionerDashboard } from "./commissioner/CommissionerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 import { VolunteerDashboard } from "./volunteer/VolunteerDashboard";
+import { ComplaintPaymentReturnBanner } from "./ComplaintPaymentReturnBanner";
 
 /** Renders the dashboard matching the signed-in user's primaryRole. */
 export function Dashboard() {
   const { profile } = useAuth();
   if (!profile) return null;
 
+  let body;
   switch (profile.primaryRole) {
     case "player":
     case "captain":
-      return <PlayerDashboard />;
+      body = <PlayerDashboard />;
+      break;
     case "volunteer":
-      return <VolunteerDashboard />;
+      body = <VolunteerDashboard />;
+      break;
     case "referee":
-      return <RefereeDashboard />;
+      body = <RefereeDashboard />;
+      break;
     case "commissioner":
-      return <CommissionerDashboard />;
+      body = <CommissionerDashboard />;
+      break;
     case "admin":
-      return <AdminDashboard />;
+      body = <AdminDashboard />;
+      break;
     default:
-      return <FanDashboard />;
+      body = <FanDashboard />;
   }
+
+  return (
+    <>
+      <ComplaintPaymentReturnBanner />
+      {body}
+    </>
+  );
 }

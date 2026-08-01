@@ -40,7 +40,7 @@ export function CaptainComplaintModal({ teamName, onClose }: { teamName: string;
       try {
         const checkout = await createComplaintCheckout({
           incidentId: filed.data.id,
-          successUrl: `${WEB_APP_URL}/dashboard?complaintPaid=1`,
+          successUrl: `${WEB_APP_URL}/dashboard?complaintPaid=1&incidentId=${filed.data.id}&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${WEB_APP_URL}/dashboard`,
         });
         setCheckoutUrl(checkout.data.checkoutUrl);

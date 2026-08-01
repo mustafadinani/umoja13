@@ -32,7 +32,7 @@ export const fileIncident = onCall<FileIncidentRequest>(async (request) => {
 
   const ref = db.collection(COLLECTIONS.incidents).doc();
   const fee =
-    source === "captain_complaint"
+    source === "captain_complaint" || source === "fan_message"
       ? { amountCents: 3500, paid: false, refunded: false }
       : undefined;
 
