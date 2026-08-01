@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { View, Text, TextInput, Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { addDoc, arrayUnion, collection, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { CATEGORIES, COLLECTIONS, type PlayerMembership } from "@umoja/shared";
-import { db, storage } from "../lib/firebase";
+import {
+  CATEGORIES,
+  COLLECTIONS,
+  PLAYERS_REGISTERED,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  type PlayerMembership,
+} from "@umoja/shared";
+import { db, defaultDb, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useTeams } from "../hooks/useData";
@@ -39,6 +46,32 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const registrationPhotoUrl = await getDownloadURL(storageRef);
 
+      const team = teams.find((t) => t.id === teamId);
+      const categoryLabel = CATEGORIES.find((c) => c.id === categoryId)?.label ?? "";
+      const parts = playerName.trim().split(/\s+/);
+      const firstName = parts[0] ?? playerName.trim();
+      const lastName = parts.slice(1).join(" ");
+
+      await addDoc(collection(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED), {
+        firstName,
+        lastName,
+        category: categoryLabel,
+        email: user.email ?? profile.email ?? "",
+        phone: "",
+        profilePicture: registrationPhotoUrl,
+        status: "Registered. Pending Manager Review",
+        teamId,
+        teamName: team?.name ?? "",
+        uid: user.uid,
+        timestamp: new Date(),
+        centerOptOut: false,
+        attestLiabilityAgreement: true,
+        attestParticipationAgreeement: true,
+        attestRefundPolicy: true,
+        pastGames: [],
+        ...(jerseyNumber ? { jerseyNumber: Number(jerseyNumber) } : {}),
+      });
+
       const membership: PlayerMembership = {
         teamId, categoryId, jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined, isCaptain: false, registrationPhotoUrl,
         playerName: playerName.trim(),
@@ -48,12 +81,6 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         roles: Array.from(new Set([...(profile.roles ?? []), "player"])),
         primaryRole: "player",
         updatedAt: Date.now(),
-      });
-      await updateDoc(doc(db, COLLECTIONS.teams, teamId), {
-        roster: arrayUnion({
-          userId: user.uid, displayName: playerName.trim(), jerseyNumber: membership.jerseyNumber ?? null,
-          isCaptain: false, goals: 0, assists: 0, checkInStatus: "not_started",
-        }),
       });
       onClose();
     } catch (e) {

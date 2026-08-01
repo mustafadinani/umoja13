@@ -184,12 +184,4 @@ export const UAT_SCENARIOS: UatScenario[] = [
     expect: 'Crews are ranked by points, with yours marked "(you)."' },
 ];
 
-export const UAT_DEMO_ACCOUNTS = [
-  { role: "Fan", email: "fan@umoja.demo", notes: "No team, no roster ties" },
-  { role: "Player", email: "player@umoja.demo", notes: "On Umoja FC roster, Men's Open, #21" },
-  { role: "Captain", email: "captain@umoja.demo", notes: "Captains Umoja FC, Men's Open, #7" },
-  { role: "Referee", email: "referee@umoja.demo", notes: "Assigned to the live seeded game" },
-  { role: "Commissioner", email: "commissioner@umoja.demo", notes: "Sees all games & incidents" },
-  { role: "Admin", email: "admin@umoja.demo", notes: "Full access" },
-];
-export const UAT_DEMO_PASSWORD = "Umoja2026!";
+export { UAT_DEMO_ACCOUNTS, UAT_DEMO_PASSWORD } from "@umoja/shared";

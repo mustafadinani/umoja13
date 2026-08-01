@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { AuthCard, authInputStyle, authButtonStyle, authErrorStyle } from "../components/AuthCard";
+import { AuthCard, AuthPasswordInput, authInputStyle, authButtonStyle, authErrorStyle } from "../components/AuthCard";
 
 export function Login() {
   const { signIn } = useAuth();
@@ -30,7 +30,7 @@ export function Login() {
     <AuthCard title="Sign in" subtitle="Welcome back to Umoja Games.">
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <input style={authInputStyle} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input style={authInputStyle} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <AuthPasswordInput placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <div style={authErrorStyle}>{error}</div>}
         <button style={authButtonStyle} disabled={busy} type="submit">{busy ? "Signing in…" : "SIGN IN"}</button>
       </form>

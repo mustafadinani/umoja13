@@ -14,7 +14,7 @@ type Tab = "roster" | "schedule" | "moments" | "channel";
 export function Team() {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const { data: team } = useTeam(teamId);
+  const { data: team, error: teamError } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
   const { data: moments } = useMoments();
@@ -81,7 +81,13 @@ export function Team() {
                 </div>
               </Card>
             ))}
-            {team.roster.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>Roster not published yet.</div>}
+            {team.roster.length === 0 && (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
+                {teamError
+                  ? `Couldn't load players: ${teamError}`
+                  : "No players found for this team in registration (playersRegistered)."}
+              </div>
+            )}
           </div>
         )}
 

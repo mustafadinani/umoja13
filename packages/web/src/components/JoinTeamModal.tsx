@@ -1,18 +1,23 @@
 import { useState } from "react";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { addDoc, arrayUnion, collection, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { CATEGORIES, COLLECTIONS, type PlayerMembership } from "@umoja/shared";
-import { db, storage } from "../lib/firebase";
+import {
+  CATEGORIES,
+  COLLECTIONS,
+  PLAYERS_REGISTERED,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  type PlayerMembership,
+} from "@umoja/shared";
+import { db, defaultDb, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { useTeams } from "../hooks/useData";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
 /**
- * Self-serve "join a team" flow — there's no separate admin registration/
- * import system yet, so this both records the membership on the user's
- * profile and adds a roster entry on the team doc. The photo captured here
- * becomes the AI check-in baseline (registrationPhotoUrl).
+ * Self-serve "join a team" — adds a playersRegistered row on `(default)`
+ * and records membership on the user's umoja13-app profile.
  */
 export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
@@ -35,6 +40,32 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       await uploadBytes(storageRef, file);
       const registrationPhotoUrl = await getDownloadURL(storageRef);
 
+      const team = teams.find((t) => t.id === teamId);
+      const categoryLabel = CATEGORIES.find((c) => c.id === categoryId)?.label ?? "";
+      const parts = playerName.trim().split(/\s+/);
+      const firstName = parts[0] ?? playerName.trim();
+      const lastName = parts.slice(1).join(" ");
+
+      await addDoc(collection(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED), {
+        firstName,
+        lastName,
+        category: categoryLabel,
+        email: user.email ?? profile.email ?? "",
+        phone: "",
+        profilePicture: registrationPhotoUrl,
+        status: "Registered. Pending Manager Review",
+        teamId,
+        teamName: team?.name ?? "",
+        uid: user.uid,
+        timestamp: new Date(),
+        centerOptOut: false,
+        attestLiabilityAgreement: true,
+        attestParticipationAgreeement: true,
+        attestRefundPolicy: true,
+        pastGames: [],
+        ...(jerseyNumber ? { jerseyNumber: Number(jerseyNumber) } : {}),
+      });
+
       const membership: PlayerMembership = {
         teamId,
         categoryId,
@@ -50,18 +81,6 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         roles: nextRoles,
         primaryRole: "player",
         updatedAt: Date.now(),
-      });
-
-      await updateDoc(doc(db, COLLECTIONS.teams, teamId), {
-        roster: arrayUnion({
-          userId: user.uid,
-          displayName: playerName.trim(),
-          jerseyNumber: membership.jerseyNumber ?? null,
-          isCaptain: false,
-          goals: 0,
-          assists: 0,
-          checkInStatus: "not_started",
-        }),
       });
 
       onClose();

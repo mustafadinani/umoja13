@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { AuthCard, authInputStyle, authButtonStyle, authErrorStyle } from "../components/AuthCard";
+import { AuthCard, AuthPasswordInput, authInputStyle, authButtonStyle, authErrorStyle } from "../components/AuthCard";
 
 export function Signup() {
   const { signUp } = useAuth();
@@ -32,7 +32,7 @@ export function Signup() {
       <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <input style={authInputStyle} type="text" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
         <input style={authInputStyle} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <input style={authInputStyle} type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+        <AuthPasswordInput placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
         {error && <div style={authErrorStyle}>{error}</div>}
         <button style={authButtonStyle} disabled={busy} type="submit">{busy ? "Creating account…" : "CREATE ACCOUNT"}</button>
       </form>

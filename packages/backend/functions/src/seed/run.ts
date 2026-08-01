@@ -2,12 +2,57 @@
  * Dev/emulator seed script. Run with `npm run seed --workspace packages/backend/functions`
  * against the Firebase emulator suite (start emulators first: `npm run emulators` at repo root).
  * Uses the Admin SDK, which needs FIRESTORE_EMULATOR_HOST set when targeting the emulator.
+ *
+ * Data layout reminder:
+ * - Seed/test users → Auth + umoja13-app / users
+ * - Teams & players for the app UI → (default) / uGames/2026/*Registered (not seeded here)
+ * - Everything else (categories, games fixtures, etc.) → umoja13-app
  */
-import { db } from "../util/admin.js";
-import { COLLECTIONS } from "@umoja/shared";
+import { auth, db } from "../util/admin.js";
+import {
+  COLLECTIONS,
+  UAT_DEMO_ACCOUNTS,
+  UAT_DEMO_PASSWORD,
+  type UserProfile,
+} from "@umoja/shared";
 import { CATEGORIES, SEED_SPONSORS, HUNT_MISSIONS, seedTeams } from "./data.js";
 
+async function seedDemoUsers() {
+  const now = Date.now();
+  for (const account of UAT_DEMO_ACCOUNTS) {
+    let uid: string;
+    try {
+      const existing = await auth.getUserByEmail(account.email);
+      uid = existing.uid;
+      await auth.updateUser(uid, { password: UAT_DEMO_PASSWORD, displayName: account.displayName });
+    } catch {
+      const created = await auth.createUser({
+        email: account.email,
+        password: UAT_DEMO_PASSWORD,
+        displayName: account.displayName,
+      });
+      uid = created.uid;
+    }
+
+    const profile: UserProfile = {
+      uid,
+      email: account.email,
+      displayName: account.displayName,
+      roles: [...account.roles],
+      primaryRole: account.primaryRole,
+      followedTeamIds: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.collection(COLLECTIONS.users).doc(uid).set(profile, { merge: true });
+    console.log(`  demo user ${account.email} → ${uid}`);
+  }
+}
+
 async function main() {
+  console.log("Seeding UAT demo Auth + umoja13-app / users…");
+  await seedDemoUsers();
+
   const batch = db.batch();
 
   for (const cat of CATEGORIES) {
@@ -29,7 +74,8 @@ async function main() {
 
   await batch.commit();
 
-  // Teams in a second batch (batches cap at 500 writes; keep collections separate to be safe).
+  // Local game fixtures still need team docs in umoja13-app so schedule rows
+  // have ids to point at. Live registration teams/players come from (default).
   const teamBatch = db.batch();
   const teamIdByName = new Map<string, string>();
   for (const team of seedTeams()) {
@@ -39,8 +85,6 @@ async function main() {
   }
   await teamBatch.commit();
 
-  // A handful of sample games so Schedule/Standings/Game/Team pages have something
-  // real to render in dev — mens-open group games plus one live game.
   const dmv = teamIdByName.get("DMV United");
   const lagos = teamIdByName.get("Lagos Legends");
   const umoja = teamIdByName.get("Umoja FC");
@@ -50,12 +94,12 @@ async function main() {
   if (dmv && lagos && umoja && harambee) {
     const games = [
       {
-        categoryId: "mens-open", day: "fri", kickoffTime: "10:40", field: "Field 1",
+        categoryId: CATEGORIES[0]?.id ?? "mens-open", day: "fri", kickoffTime: "10:40", field: "Field 1",
         homeTeamId: dmv, awayTeamId: lagos, status: "scheduled", round: "group",
         gateCheck: { homeClearedUids: [], awayClearedUids: [] }, events: [],
       },
       {
-        categoryId: "mens-open", day: "fri", kickoffTime: "11:30", field: "Field 2",
+        categoryId: CATEGORIES[0]?.id ?? "mens-open", day: "fri", kickoffTime: "11:30", field: "Field 2",
         homeTeamId: umoja, awayTeamId: harambee, status: "live", round: "group",
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
         events: [
@@ -65,7 +109,7 @@ async function main() {
         ],
       },
       {
-        categoryId: "mens-open", day: "sat", kickoffTime: "09:00", field: "Field 1",
+        categoryId: CATEGORIES[0]?.id ?? "mens-open", day: "sat", kickoffTime: "09:00", field: "Field 1",
         homeTeamId: lagos, awayTeamId: harambee, status: "final", round: "group",
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
         events: [
@@ -80,7 +124,7 @@ async function main() {
     await gameBatch.commit();
   }
 
-  console.log(`Seeded ${CATEGORIES.length} categories, ${SEED_SPONSORS.length} sponsors, ${HUNT_MISSIONS.length} hunt missions, teams, and sample games.`);
+  console.log(`Seeded ${UAT_DEMO_ACCOUNTS.length} demo users, ${CATEGORIES.length} categories, ${SEED_SPONSORS.length} sponsors, ${HUNT_MISSIONS.length} hunt missions, fixture teams, and sample games.`);
 }
 
 main()

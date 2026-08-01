@@ -4,7 +4,6 @@ import {
   COLLECTIONS,
   CATEGORIES,
   type Category,
-  type Team,
   type Game,
   type Moment,
   type Announcement,
@@ -25,6 +24,7 @@ import {
   type UserChannel,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
+import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
 
 const CATEGORY_ORDER = new Map(CATEGORIES.map((c, i) => [c.id, i]));
 
@@ -41,10 +41,9 @@ export const useSponsors = () => useCollection<Sponsor>(COLLECTIONS.sponsors);
 export const useAnnouncements = () => useCollection<Announcement>(COLLECTIONS.announcements, [orderBy("postedAt", "desc")]);
 export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.huntMissions);
 
-export const useTeams = (categoryId?: string) =>
-  useCollection<Team>(COLLECTIONS.teams, categoryId ? [where("categoryId", "==", categoryId)] : []);
+export const useTeams = (categoryId?: string) => useRegistrationTeams(categoryId);
 
-export const useTeam = (teamId: string | undefined) => useDocument<Team>(COLLECTIONS.teams, teamId);
+export const useTeam = (teamId: string | undefined) => useRegistrationTeam(teamId);
 export const useTeamChannel = (teamId: string | undefined) => useDocument<TeamChannel>(COLLECTIONS.teamChannels, teamId);
 export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(COLLECTIONS.roleChannels, role);
 export const useUserChannel = (uid: string | undefined) => useDocument<UserChannel>(COLLECTIONS.userChannels, uid);

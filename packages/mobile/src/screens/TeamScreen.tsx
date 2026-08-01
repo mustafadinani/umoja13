@@ -2,9 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type RosterEntry } from "@umoja/shared";
-import { db } from "../lib/firebase";
+import { CATEGORIES, type RosterEntry } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
@@ -20,7 +18,7 @@ type Tab = "roster" | "schedule" | "moments" | "channel";
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
   const { profile } = useAuth();
-  const { data: team } = useTeam(teamId);
+  const { data: team, error: teamError } = useTeam(teamId);
   const { data: games } = useGames();
   const { data: moments } = useMoments();
   const { data: channel } = useTeamChannel(teamId);
@@ -64,9 +62,9 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     if (!draft || Number.isNaN(num)) return setError("Enter a valid number.");
     const dup = team!.roster.some((p) => p.userId !== userId && p.jerseyNumber === num);
     if (dup) return setError("That number is already taken on this team.");
-    setError(null);
-    const roster = team!.roster.map((p) => (p.userId === userId ? { ...p, jerseyNumber: num } : p));
-    await updateDoc(doc(db, COLLECTIONS.teams, team!.id), { roster });
+    // Rosters come from `(default)` playersRegistered — jersey numbers aren't
+    // a registration field yet, so captain edits aren't persisted here.
+    setError("Jersey numbers can't be saved on registration rosters yet.");
     setEditingUserId(null);
   }
 
@@ -127,7 +125,13 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </Text>
             </Card>
           ))}
-          {team.roster.length === 0 && <Text style={{ color: theme.color.textMuted }}>Roster not published yet.</Text>}
+          {team.roster.length === 0 && (
+            <Text style={{ color: theme.color.textMuted }}>
+              {teamError
+                ? `Couldn't load players: ${teamError}`
+                : "No players found for this team in registration (playersRegistered)."}
+            </Text>
+          )}
           {isCaptain && error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 6 }}>{error}</Text>}
           {isCaptain && <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>Tap a jersey number to edit it.</Text>}
         </View>

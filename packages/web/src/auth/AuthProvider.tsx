@@ -7,13 +7,16 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
-import { COLLECTIONS, type UserProfile } from "@umoja/shared";
+import { doc, setDoc } from "firebase/firestore";
+import { COLLECTIONS, type ProfileSource, type UserProfile } from "@umoja/shared";
 import { auth, db } from "../lib/firebase";
+import { useResolvedProfile } from "../hooks/useResolvedProfile";
 
 interface AuthContextValue {
   user: FirebaseUser | null;
   profile: UserProfile | null;
+  /** Which Firestore DB the profile was loaded from (seed users vs Outreach). */
+  profileSource: ProfileSource | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -24,29 +27,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const { profile, profileSource, loading: profileLoading } = useResolvedProfile(user?.uid);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
-      if (!u) {
-        setProfile(null);
-        setProfileLoading(false);
-      }
     });
   }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    setProfileLoading(true);
-    return onSnapshot(doc(db, COLLECTIONS.users, user.uid), (snap) => {
-      setProfile(snap.exists() ? (snap.data() as UserProfile) : null);
-      setProfileLoading(false);
-    });
-  }, [user]);
 
   async function signIn(email: string, password: string) {
     await signInWithEmailAndPassword(auth, email, password);
@@ -66,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       createdAt: now,
       updatedAt: now,
     };
+    // New app signups land in umoja13-app / users (seed/test path), not Outreach profiles.
     await setDoc(doc(db, COLLECTIONS.users, cred.user.uid), newProfile);
   }
 
@@ -75,7 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading: authLoading || profileLoading, signIn, signUp, signOut }}
+      value={{
+        user,
+        profile,
+        profileSource,
+        loading: authLoading || (!!user && profileLoading),
+        signIn,
+        signUp,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
