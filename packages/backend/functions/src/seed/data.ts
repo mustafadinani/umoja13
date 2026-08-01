@@ -10,17 +10,17 @@ import type { Team } from "@umoja/shared";
  * with real registration data before go-live.
  */
 const REAL_TEAM_NAMES: Record<string, { name: string; color: string }[]> = {
-  "mens-open": [
+  "a71b598a-2b5e-4813-ac41-d610862a12de": [ // Men's Open
     { name: "DMV United", color: "#7B3FA4" },
     { name: "Lagos Legends", color: "#2E6BC0" },
     { name: "Umoja FC", color: "#9256C4" },
     { name: "Harambee SC", color: "#37B3A6" },
   ],
-  "boys-14u": [
+  "8df13d41-9f74-44c6-88fe-acaa9f3d7cf0": [ // Boy's 14 & Under
     { name: "Silver Spring SC", color: "#D8365D" },
     { name: "Takoma Stars", color: "#F2B95B" },
   ],
-  "womens-open": [{ name: "Queens United", color: "#6FC2B5" }, { name: "Zawadi FC", color: "#EF5A4C" }],
+  "edc8142f-2ef0-4586-a576-2444875c4167": [{ name: "Queens United", color: "#6FC2B5" }, { name: "Zawadi FC", color: "#EF5A4C" }], // Women's Open
 };
 
 const PLACEHOLDER_COLORS = ["#7B3FA4", "#2E6BC0", "#37B3A6", "#D8365D", "#F2B95B", "#9256C4"];
