@@ -58,6 +58,19 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
     (a) => a.name.trim() === playerName && a.status !== "rejected"
   );
 
+  if (!category) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.color.bg, padding: 20, justifyContent: "center" }}>
+        <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 8 }}>Category not found</Text>
+        <Text style={{ color: theme.color.textMuted, fontSize: 13, lineHeight: 20 }}>
+          This player is registered under a category that isn’t in the tournament list
+          {categoryId ? ` (id: ${categoryId})` : ""}. Valid categories look like Boy's 8 & Under.
+          Contact an admin to fix the assignment before check-in.
+        </Text>
+      </View>
+    );
+  }
+
   async function capture(setUri: (u: string) => void) {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return;

@@ -12,7 +12,7 @@ export function VolunteerDashboard() {
   const openTask = tasks.find((t) => t.id === openTaskId) ?? null;
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>VOLUNTEER</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>

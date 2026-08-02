@@ -39,7 +39,7 @@ export function ModerationOpsTab() {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
+      <div className="grid-kpi-4" style={{ marginBottom: 24 }}>
         <Kpi label="Checked in" value={`${checkedInPct}%`} />
         <Kpi label="Games total" value={String(games.length)} />
         <Kpi label="Uploads awaiting review" value={String(pendingMoments.length)} />

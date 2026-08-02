@@ -48,7 +48,7 @@ export function Schedule() {
   });
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>GAME DAY</div>
       <input
         placeholder="Search by team…"

@@ -18,7 +18,7 @@ export function VolunteersTab() {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 24 }}>
+      <div className="grid-kpi-4" style={{ marginBottom: 24 }}>
         <Kpi label="Volunteers" value={String(volunteers.length)} />
         <Kpi label="Pending applications" value={String(pending.length)} />
         <Kpi label="Shifts scheduled" value={String(tasks.length)} />

@@ -31,7 +31,7 @@ export function CommissionerDashboard() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm" style={{ maxWidth: 900 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>COMMISSIONER DESK</div>
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>GAME CARDS TO FINALIZE</div>

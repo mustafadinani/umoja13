@@ -123,7 +123,7 @@ export function RefereeGameConsole() {
           {/* Step 1: Gate check */}
           <div>
             <StepLabel n={1} title="GATE CHECK" done={gateComplete} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid-2-equal">
               <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
               <RosterColumn teamName={away.name} roster={away.roster} cleared={awayCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "away" })} />
             </div>
@@ -149,7 +149,7 @@ export function RefereeGameConsole() {
               <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 40, whiteSpace: "nowrap" }}>{homeGoals} – {awayGoals}</div>
               <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Score is driven only by Goal events below.</div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div className="grid-2-equal" style={{ marginBottom: 12 }}>
               {(["home", "away"] as const).map((side) => (
                 <div key={side} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted }}>{side === "home" ? home.name : away.name}</div>

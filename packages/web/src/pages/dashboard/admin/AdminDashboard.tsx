@@ -32,7 +32,7 @@ export function AdminDashboard() {
   const [tab, setTab] = useState<Tab>("games");
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell" style={{ maxWidth: 1000 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>ADMIN</div>
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {TABS.map((t) => (

@@ -39,7 +39,7 @@ export function Standings() {
   const bracketGames = games.filter((g) => g.categoryId === activeCategoryId && g.round !== "group");
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm" style={{ maxWidth: 900 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>STANDINGS & BRACKET</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
         {categories.map((c) => (
@@ -59,24 +59,26 @@ export function Standings() {
           {[...grouped.entries()].map(([group, list]) => (
             <div key={group} style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>GROUP {group}</div>
-              <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 10, padding: "10px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, borderBottom: `1px solid ${theme.color.border}` }}>
-                  <span>#</span><span>TEAM</span><span>PTS</span><span>GD</span><span>GF</span><span>W-D-L</span>
-                </div>
-                {list.map((t, i) => (
-                  <div
-                    key={t.id}
-                    onClick={() => navigate(`/team/${t.id}`)}
-                    style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 10, padding: "12px 14px", fontSize: 14, cursor: "pointer", borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined, background: i < 2 ? "#FBF8FF" : undefined }}
-                  >
-                    <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
-                    <span style={{ fontWeight: 600 }}>{t.name}</span>
-                    <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
-                    <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
-                    <span>{t.stats.goalsFor}</span>
-                    <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
+              <div className="standings-scroll">
+                <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 10, padding: "10px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, borderBottom: `1px solid ${theme.color.border}` }}>
+                    <span>#</span><span>TEAM</span><span>PTS</span><span>GD</span><span>GF</span><span>W-D-L</span>
                   </div>
-                ))}
+                  {list.map((t, i) => (
+                    <div
+                      key={t.id}
+                      onClick={() => navigate(`/team/${t.id}`)}
+                      style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: 10, padding: "12px 14px", fontSize: 14, cursor: "pointer", borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined, background: i < 2 ? "#FBF8FF" : undefined }}
+                    >
+                      <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
+                      <span style={{ fontWeight: 600 }}>{t.name}</span>
+                      <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
+                      <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
+                      <span>{t.stats.goalsFor}</span>
+                      <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

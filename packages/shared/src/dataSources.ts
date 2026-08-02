@@ -14,6 +14,7 @@ export const DATA_SOURCES = {
   registration: {
     databaseId: "(default)",
     profilesCollection: "profiles",
+    familyCollection: "families",
     teamsPath: ["uGames", "2026", "teamsRegistered"] as const,
     playersPath: ["uGames", "2026", "playersRegistered"] as const,
   },

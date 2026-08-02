@@ -36,8 +36,8 @@ export function Team() {
   const channelMessages = channel?.messages ?? [];
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
-      <div style={{ background: `linear-gradient(120deg, ${team.color}, ${theme.color.pink})`, color: "#fff", padding: 24 }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px", width: "100%" }}>
+      <div style={{ background: `linear-gradient(120deg, ${team.color}, ${theme.color.pink})`, color: "#fff", padding: "20px 16px" }}>
         <div onClick={() => navigate(-1)} style={{ fontSize: 13, opacity: 0.85, cursor: "pointer", marginBottom: 10 }}>‹ Back</div>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32 }}>{team.name}</div>
         <div style={{ fontSize: 13.5, opacity: 0.9, marginTop: 4 }}>
@@ -57,7 +57,7 @@ export function Team() {
         <Pill active={tab === "channel"} onClick={() => setTab("channel")}>Channel{channelMessages.length > 0 ? ` (${channelMessages.length})` : ""}</Pill>
       </div>
 
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: "20px 16px" }}>
         {tab === "roster" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.roster.map((p) => (
@@ -116,7 +116,7 @@ export function Team() {
                   + Add
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              <div className="grid-4">
                 {teamMoments.map((m) => (
                   <Card
                     key={m.id}

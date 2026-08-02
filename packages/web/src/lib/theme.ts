@@ -33,6 +33,11 @@ export const theme = {
   font: {
     display: "'Barlow Condensed', sans-serif",
   },
+  breakpoints: {
+    sm: 640,
+    md: 768,
+    lg: 1024,
+  },
 } as const;
 
 export const heroGradient = "linear-gradient(115deg,#8B2FD1 0%,#2563EB 55%,#0FAE9E 100%)";

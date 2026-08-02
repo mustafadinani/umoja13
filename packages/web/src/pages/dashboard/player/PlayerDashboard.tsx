@@ -45,7 +45,7 @@ export function PlayerDashboard() {
   const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>MY DASHBOARD</div>
 
       {memberships.length === 0 && (
@@ -66,9 +66,33 @@ export function PlayerDashboard() {
             </div>
           )}
 
+          <PlayerPhotosCard
+            playerName={selectedKid ?? profile.displayName}
+            accountPhotoUrl={profile.photoUrl}
+            registrationPhotoUrl={activeMemberships.find((m) => m.registrationPhotoUrl)?.registrationPhotoUrl}
+          />
+
           <SectionLabel>CHECK-IN</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-            {activeMemberships.map((m) => <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />)}
+            {(() => {
+              const valid = activeMemberships.filter((m) => CATEGORIES.some((c) => c.id === m.categoryId));
+              if (valid.length > 0) {
+                return valid.map((m) => (
+                  <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />
+                ));
+              }
+              if (activeMemberships.length > 0) {
+                return (
+                  <Card style={{ padding: 16 }}>
+                    <div style={{ fontWeight: 700 }}>Registration issue</div>
+                    <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 4, lineHeight: 1.45 }}>
+                      We found a registration but ran into an issue matching it to a tournament category. Please contact Umoja so we can correct it.
+                    </div>
+                  </Card>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <SectionLabel>MY TEAMS & STANDINGS</SectionLabel>
@@ -116,6 +140,61 @@ export function PlayerDashboard() {
 
 function SectionLabel({ children }: { children: string }) {
   return <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>{children}</div>;
+}
+
+function PlayerPhotosCard({
+  playerName,
+  accountPhotoUrl,
+  registrationPhotoUrl,
+}: {
+  playerName: string;
+  accountPhotoUrl?: string;
+  registrationPhotoUrl?: string;
+}) {
+  return (
+    <Card style={{ padding: 16, marginBottom: 20 }}>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{playerName}</div>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <PhotoSlot label="Account holder" url={accountPhotoUrl} name={playerName} />
+        <PhotoSlot label="Registration" url={registrationPhotoUrl} name={playerName} />
+      </div>
+    </Card>
+  );
+}
+
+function PhotoSlot({ label, url, name }: { label: string; url?: string; name: string }) {
+  const initials = name.trim().slice(0, 2).toUpperCase() || "?";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 88 }}>
+      {url ? (
+        <img
+          src={url}
+          alt={`${label} photo`}
+          style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: `2px solid ${theme.color.border}`, background: "#fff" }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: "50%",
+            background: theme.color.navy,
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 800,
+            fontSize: 18,
+            fontFamily: theme.font.display,
+          }}
+        >
+          {initials}
+        </div>
+      )}
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted, letterSpacing: 0.3 }}>{label.toUpperCase()}</div>
+      {!url && <div style={{ fontSize: 11, color: theme.color.textMuted }}>No photo</div>}
+    </div>
+  );
 }
 
 function TeamStandingRow({ teamId, onOpen }: { teamId: string; onOpen: () => void }) {

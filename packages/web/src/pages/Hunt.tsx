@@ -69,7 +69,7 @@ export function Hunt() {
 
   return (
     <div>
-      <div style={{ background: hunterGradient, color: "#fff", padding: "36px 24px" }}>
+      <div style={{ background: hunterGradient, color: "#fff", padding: "28px 16px" }}>
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 36 }}>🧭 THE HUNT</div>
           <div style={{ fontSize: 14, opacity: 0.92, marginTop: 6 }}>
@@ -107,7 +107,7 @@ export function Hunt() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 24px 48px" }}>
+      <div className="page-shell-sm" style={{ paddingTop: 24 }}>
         {!user ? (
           <Card>
             <div style={{ fontWeight: 700 }}>Sign in to join The Hunt</div>

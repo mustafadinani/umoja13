@@ -33,6 +33,13 @@ export function resolveCategoryId(registrationCategory: string | undefined): str
   return loose?.id ?? registrationCategory;
 }
 
+/** Prefer an explicit categoryId on the registration row, else map from the label. */
+export function resolvePlayerCategoryId(player: Pick<RegisteredPlayer, "category" | "categoryId">): string {
+  const id = player.categoryId?.trim();
+  if (id) return id;
+  return resolveCategoryId(player.category);
+}
+
 function colorForTeamId(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;

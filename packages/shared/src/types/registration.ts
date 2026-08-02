@@ -34,7 +34,10 @@ export interface RegisteredPlayer {
   id: string;
   firstName: string;
   lastName: string;
+  /** Human-readable category label from registration (e.g. "Boy's 8 & Under"). */
   category?: string;
+  /** Canonical category id from umoja13-app / categories when set/corrected. */
+  categoryId?: string;
   email?: string;
   phone?: string;
   profilePicture?: string;
@@ -44,6 +47,8 @@ export interface RegisteredPlayer {
   teamName?: string;
   /** Firebase Auth uid (may be a client-generated id in older rows) */
   uid: string;
+  /** Outreach profile id when present — matches `families.members[].id` / `profiles/{id}`. */
+  profileId?: string;
   dob?: unknown;
   centerOptOut?: boolean;
   mosque?: string | null;

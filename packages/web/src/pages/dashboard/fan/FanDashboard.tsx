@@ -24,7 +24,7 @@ export function FanDashboard() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>MY DASHBOARD</div>
 
       <div style={{ background: hunterGradient, color: "#fff", borderRadius: theme.radius.lg, padding: 18, marginBottom: 16, cursor: "pointer" }} onClick={() => navigate("/hunt")}>

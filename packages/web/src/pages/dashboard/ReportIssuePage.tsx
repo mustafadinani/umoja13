@@ -127,7 +127,8 @@ export function ReportIssuePage() {
 const pageStyle = {
   maxWidth: 520,
   margin: "0 auto",
-  padding: "28px 24px 48px",
+  padding: "24px 16px 48px",
+  width: "100%",
 } as const;
 
 const doneWrap = {

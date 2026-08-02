@@ -35,7 +35,7 @@ export function NotificationsBell() {
         )}
       </button>
       {open && (
-        <div style={{ position: "absolute", right: 0, top: "110%", width: 300, background: "#fff", borderRadius: theme.radius.md, boxShadow: "0 10px 30px rgba(0,0,0,.2)", color: theme.color.text, zIndex: 60, maxHeight: 360, overflowY: "auto" }}>
+        <div style={{ position: "absolute", right: 0, top: "110%", width: "min(300px, calc(100vw - 24px))", background: "#fff", borderRadius: theme.radius.md, boxShadow: "0 10px 30px rgba(0,0,0,.2)", color: theme.color.text, zIndex: 60, maxHeight: 360, overflowY: "auto" }}>
           {notifications.length === 0 && <div style={{ padding: 16, fontSize: 13.5, color: theme.color.textMuted }}>Nothing new.</div>}
           {notifications.map((n) => (
             <div key={n.id} style={{ padding: "10px 14px", borderBottom: `1px solid ${theme.color.border}` }}>

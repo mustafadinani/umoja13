@@ -39,8 +39,8 @@ export function Moments() {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "28px 24px 48px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+    <div className="page-shell" style={{ maxWidth: 1000 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32 }}>MOMENTS</div>
         {user && <PrimaryButton onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>}
       </div>
@@ -48,7 +48,7 @@ export function Moments() {
         From the games, The Hunt, and the community — all in one feed.
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 220px), 1fr))", gap: 14 }}>
         {moments.map((m) => {
           const liked = user ? m.likeUids.includes(user.uid) : false;
           const isOwn = user?.uid === m.postedBy;

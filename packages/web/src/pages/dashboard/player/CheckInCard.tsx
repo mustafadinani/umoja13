@@ -19,11 +19,14 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const status = checkIn?.status ?? "not_started";
 
+  // Parent dashboard hides unknown categories when another valid membership exists.
+  if (!category) return null;
+
   return (
     <Card style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontWeight: 700 }}>{category?.label ?? membership.categoryId}</div>
+          <div style={{ fontWeight: 700 }}>{category.label}</div>
           <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{statusLabel(status)}</div>
         </div>
         {status === "approved" && pass ? (
@@ -35,7 +38,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
           <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Checking…</div>
         ) : status === "admin_review" ? (
           <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Pending review</div>
-        ) : (
+        ) : status === "rejected" ? null : (
           <PrimaryButton onClick={() => setOpen(true)}>Check in</PrimaryButton>
         )}
       </div>
@@ -44,12 +47,12 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
       )}
 
       {open && <CheckInModal membership={membership} checkInId={checkInId} onClose={() => setOpen(false)} />}
-      {passOpen && (
+      {passOpen && pass && (
         <Modal onClose={() => setPassOpen(false)} width={320}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>TOURNAMENT PASS</div>
-            <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>{category?.label}</div>
-            {pass?.status === "approved" ? (
+            <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>{category.label}</div>
+            {pass.status === "approved" ? (
               <>
                 <div style={{ width: 180, height: 180, margin: "0 auto", background: `repeating-linear-gradient(45deg, #211A33, #211A33 6px, #fff 6px, #fff 12px)`, borderRadius: 8 }} />
                 <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 8 }}>{pass.passId}</div>

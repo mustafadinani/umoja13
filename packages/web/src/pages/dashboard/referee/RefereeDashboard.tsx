@@ -20,7 +20,7 @@ export function RefereeDashboard() {
   const gateNeeded = sorted.filter((g) => g.status !== "final" && g.status !== "forfeited" && !g.gateCheck?.completedAt);
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "28px 24px 48px" }}>
+    <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>REFEREE</div>
       <div style={{ color: theme.color.textMuted, fontSize: 14, marginBottom: 20 }}>
         Tap into your game for gate check, match console, and game-card submission.

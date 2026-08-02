@@ -4,7 +4,7 @@ import { Card } from "../components/ui";
 
 export function Info() {
   return (
-    <div style={{ maxWidth: 780, margin: "0 auto", padding: "28px 24px 64px" }}>
+    <div className="page-shell-sm" style={{ maxWidth: 780 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>EVENT INFO</div>
       <p style={{ color: theme.color.textMuted, fontSize: 14.5, margin: "0 0 28px" }}>
         {VENUE.name} · {VENUE.address} · {VENUE.dates}

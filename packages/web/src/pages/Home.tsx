@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
+import { useIsMobile } from "../hooks/useMediaQuery";
 import { useAnnouncements, useGames, useHuntCrews, useMoments, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
 import { VENUE } from "@umoja/shared";
@@ -11,6 +12,7 @@ import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 export function Home() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const isMobile = useIsMobile();
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
@@ -36,34 +38,34 @@ export function Home() {
   return (
     <div>
       <div style={{ background: heroGradient, color: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 24px 40px", display: "flex", alignItems: "flex-end", gap: 40, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 380 }}>
-            <img src="/logo-icon.png" alt="" style={{ height: 54, width: "auto", marginBottom: 12 }} />
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "28px 16px 32px" : "44px 24px 40px", display: "flex", alignItems: "flex-end", gap: isMobile ? 24 : 40, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+            <img src="/logo-icon.png" alt="" style={{ height: isMobile ? 44 : 54, width: "auto", marginBottom: 12 }} />
+            <div style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>
               {VENUE.name.toUpperCase()} · {VENUE.dates.toUpperCase()}
             </div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 56, lineHeight: 0.98, marginTop: 10 }}>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 36 : 56, lineHeight: 0.98, marginTop: 10 }}>
               UNITED WE STAND.<br />TOGETHER WE WIN.
             </div>
-            <div style={{ marginTop: 14, fontSize: 17, opacity: 0.9, maxWidth: 520 }}>
+            <div style={{ marginTop: 14, fontSize: isMobile ? 15 : 17, opacity: 0.9, maxWidth: 520 }}>
               Three days, {teams.length ? new Set(teams.map((t) => t.categoryId)).size : 14} categories, one community. Follow every game, share every moment.
             </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+            <div className="hero-cta-row">
               <button
                 onClick={() => navigate("/schedule")}
-                style={{ background: "#fff", color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, border: "none", cursor: "pointer" }}
+                style={{ background: "#fff", color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, border: "none", cursor: "pointer" }}
               >
                 TODAY'S GAMES
               </button>
               <button
                 onClick={() => navigate("/moments")}
-                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 FRESH MOMENTS
               </button>
               <button
                 onClick={() => (user ? setVolunteerOpen(true) : navigate("/signup"))}
-                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 🙋 BECOME A VOLUNTEER
               </button>
@@ -72,7 +74,7 @@ export function Home() {
           {liveGame && (
             <div
               onClick={() => navigate(`/game/${liveGame.id}`)}
-              style={{ width: 340, background: "rgba(17,12,32,.35)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 18, padding: 18, cursor: "pointer" }}
+              style={{ width: isMobile ? "100%" : 340, maxWidth: "100%", background: "rgba(17,12,32,.35)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 18, padding: 18, cursor: "pointer" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF7A8A", animation: "umPulse 1.6s infinite" }} />
@@ -87,7 +89,7 @@ export function Home() {
       </div>
 
       {profile && (
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 0" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px 16px 0" : "20px 24px 0" }}>
           <div
             onClick={() => navigate("/dashboard")}
             style={{ background: theme.color.navy, color: "#fff", borderRadius: 16, padding: "16px 22px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}
@@ -104,11 +106,11 @@ export function Home() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 48px", display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, alignItems: "start" }}>
+      <div className="page-shell grid-2">
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div>
             <SectionHeader title="UP NEXT TODAY" actionLabel="Full schedule →" onAction={() => navigate("/schedule")} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="grid-3">
               {upNext.map((g) => {
                 const home = teamById.get(g.homeTeamId);
                 const away = teamById.get(g.awayTeamId);
@@ -131,7 +133,7 @@ export function Home() {
           </div>
           <div>
             <SectionHeader title="FRESH MOMENTS" actionLabel="See all →" onAction={() => navigate("/moments")} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="grid-3">
               {moments.slice(0, 3).map((m) => (
                 <Card key={m.id} style={{ padding: 0, overflow: "hidden" }} onClick={() => navigate("/moments")}>
                   <div style={{ height: 110, background: theme.color.purple, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>

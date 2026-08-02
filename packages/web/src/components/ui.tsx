@@ -128,7 +128,7 @@ export function Modal({ children, onClose, width = 440 }: { children: ReactNode;
           maxWidth: "100%",
           maxHeight: "90vh",
           overflowY: "auto",
-          padding: 24,
+          padding: "clamp(16px, 4vw, 24px)",
         }}
       >
         {children}

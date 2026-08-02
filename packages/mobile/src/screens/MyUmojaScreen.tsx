@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications } from "../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../components/ui";
+import { CheckInCard } from "../components/CheckInCard";
 import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
@@ -53,7 +54,11 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
-        <View style={styles.avatar}><Text style={{ color: "#fff", fontWeight: "800" }}>{profile?.displayName?.slice(0, 2).toUpperCase()}</Text></View>
+        {profile?.photoUrl ? (
+          <Image source={{ uri: profile.photoUrl }} style={styles.avatarImg} />
+        ) : (
+          <View style={styles.avatar}><Text style={{ color: "#fff", fontWeight: "800" }}>{profile?.displayName?.slice(0, 2).toUpperCase()}</Text></View>
+        )}
         <View style={{ flex: 1 }}>
           <Text style={{ fontWeight: "800", fontSize: 17 }}>{profile?.displayName}</Text>
           <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>{profile?.primaryRole}</Text>
@@ -85,13 +90,40 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
           )}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>TOURNAMENT PASS</Text>
-            {activeMemberships.map((m) => (
-              <Card key={m.teamId} onPress={() => navigation.getParent()?.navigate("CheckIn", { teamId: m.teamId, categoryId: m.categoryId })} style={{ marginBottom: 8 }}>
-                <Text style={{ fontWeight: "700" }}>{CATEGORIES.find((c) => c.id === m.categoryId)?.label ?? m.categoryId}</Text>
-                <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>Tap to check in / view pass</Text>
-              </Card>
-            ))}
+            <PlayerPhotosCard
+              playerName={selectedKid}
+              accountPhotoUrl={profile?.photoUrl}
+              registrationPhotoUrl={activeMemberships.find((m) => m.registrationPhotoUrl)?.registrationPhotoUrl}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>CHECK-IN</Text>
+            {user &&
+              (() => {
+                const valid = activeMemberships.filter((m) => CATEGORIES.some((c) => c.id === m.categoryId));
+                if (valid.length > 0) {
+                  return valid.map((m) => (
+                    <CheckInCard
+                      key={`${m.teamId}-${m.categoryId}`}
+                      uid={user.uid}
+                      membership={m}
+                      onCheckIn={() => navigation.getParent()?.navigate("CheckIn", { teamId: m.teamId, categoryId: m.categoryId })}
+                    />
+                  ));
+                }
+                if (activeMemberships.length > 0) {
+                  return (
+                    <Card style={{ marginBottom: 8 }}>
+                      <Text style={{ fontWeight: "700" }}>Registration issue</Text>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4, lineHeight: 18 }}>
+                        We found a registration but ran into an issue matching it to a tournament category. Please contact Umoja so we can correct it.
+                      </Text>
+                    </Card>
+                  );
+                }
+                return null;
+              })()}
           </View>
 
           <View style={styles.section}>
@@ -218,6 +250,43 @@ function VolunteerSection({
   );
 }
 
+function PlayerPhotosCard({
+  playerName,
+  accountPhotoUrl,
+  registrationPhotoUrl,
+}: {
+  playerName: string;
+  accountPhotoUrl?: string;
+  registrationPhotoUrl?: string;
+}) {
+  return (
+    <Card>
+      <Text style={{ fontWeight: "700", fontSize: 15, marginBottom: 12 }}>{playerName}</Text>
+      <View style={{ flexDirection: "row", gap: 16, flexWrap: "wrap" }}>
+        <PhotoSlot label="Account holder" url={accountPhotoUrl} name={playerName} />
+        <PhotoSlot label="Registration" url={registrationPhotoUrl} name={playerName} />
+      </View>
+    </Card>
+  );
+}
+
+function PhotoSlot({ label, url, name }: { label: string; url?: string; name: string }) {
+  const initials = name.trim().slice(0, 2).toUpperCase() || "?";
+  return (
+    <View style={{ alignItems: "center", minWidth: 88, gap: 6 }}>
+      {url ? (
+        <Image source={{ uri: url }} style={styles.photoSlotImg} />
+      ) : (
+        <View style={styles.photoSlotFallback}>
+          <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{initials}</Text>
+        </View>
+      )}
+      <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.textMuted }}>{label.toUpperCase()}</Text>
+      {!url && <Text style={{ fontSize: 11, color: theme.color.textMuted }}>No photo</Text>}
+    </View>
+  );
+}
+
 function TeamRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
   const { data: team } = useTeam(teamId);
   if (!team) return null;
@@ -249,6 +318,16 @@ function CaptainComplaintTeamWrapper({ teamId, onClose }: { teamId: string; onCl
 const styles = StyleSheet.create({
   header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 46, height: 46, borderRadius: 12, backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
+  avatarImg: { width: 46, height: 46, borderRadius: 12, backgroundColor: theme.color.border },
+  photoSlotImg: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.color.border, borderWidth: 2, borderColor: theme.color.border },
+  photoSlotFallback: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: theme.color.navy,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   section: { paddingHorizontal: 16, marginBottom: 20 },
   sectionTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
 });

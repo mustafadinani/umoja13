@@ -80,8 +80,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+const hmrFallback: AuthContextValue = {
+  user: null,
+  profile: null,
+  profileSource: null,
+  loading: true,
+  signIn: async () => {
+    throw new Error("useAuth must be used within AuthProvider");
+  },
+  signUp: async () => {
+    throw new Error("useAuth must be used within AuthProvider");
+  },
+  signOut: async () => {
+    throw new Error("useAuth must be used within AuthProvider");
+  },
+};
+
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  // Vite HMR can briefly remount Layout outside AuthProvider; don't crash the tree.
+  if (!ctx) return hmrFallback;
   return ctx;
 }

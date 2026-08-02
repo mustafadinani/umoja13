@@ -25,6 +25,7 @@ export * from "./constants/knowledge.js";
 export * from "./firestore-paths.js";
 export * from "./types/registration.js";
 export * from "./types/outreachProfile.js";
+export * from "./types/family.js";
 export * from "./registration/mapRegistration.js";
 export * from "./dataSources.js";
 export * from "./constants/demoAccounts.js";

@@ -171,7 +171,7 @@ export function TeamsAdminTab() {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+      <div className="grid-kpi-3" style={{ marginBottom: 20 }}>
         <Kpi label="Teams" value={loading ? "…" : String(teams.length)} />
         <Kpi label="Players assigned" value={loading ? "…" : String(players.filter((p) => p.teamId?.trim()).length)} />
         <Kpi

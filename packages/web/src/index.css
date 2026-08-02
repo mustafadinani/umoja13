@@ -6,6 +6,7 @@ body {
   color: #211A33;
   font-family: 'Barlow', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
@@ -18,3 +19,123 @@ input, textarea, select { font-family: inherit; }
 }
 @keyframes umSpin { to { transform: rotate(360deg); } }
 .um-spin { animation: umSpin 1s linear infinite; }
+
+/* ---- Responsive helpers (media queries can't live in inline styles) ---- */
+
+.page-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  width: 100%;
+}
+
+.page-shell-sm {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  width: 100%;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.grid-kpi-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.grid-kpi-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.grid-2-equal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.hero-cta-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+
+.standings-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.standings-scroll > * {
+  min-width: 520px;
+}
+
+@media (max-width: 767px) {
+  .page-shell,
+  .page-shell-sm {
+    padding: 20px 16px 40px;
+  }
+
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .grid-kpi-3,
+  .grid-kpi-4,
+  .grid-2-equal {
+    grid-template-columns: 1fr;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .nav-desktop {
+    display: none !important;
+  }
+
+  .nav-mobile-only {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .nav-mobile-only {
+    display: none !important;
+  }
+
+  .nav-desktop {
+    display: flex !important;
+  }
+
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .grid-3,
+  .grid-kpi-3,
+  .grid-kpi-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

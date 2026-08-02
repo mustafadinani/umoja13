@@ -32,4 +32,9 @@ export interface PlayerMembership {
    * before this field existed.
    */
   playerName?: string;
+  /**
+   * Outreach profile id for this player — used to match `(default)/families`
+   * `members[].id` and load `(default)/profiles/{profileId}` photos.
+   */
+  profileId?: string;
 }

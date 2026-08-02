@@ -45,8 +45,8 @@ export function Game() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
-      <div style={{ background: theme.color.navy, color: "#fff", padding: "24px" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px", width: "100%" }}>
+      <div style={{ background: theme.color.navy, color: "#fff", padding: "20px 16px" }}>
         <div onClick={() => navigate(-1)} style={{ fontSize: 13, color: "#A79FC0", cursor: "pointer", marginBottom: 10 }}>‹ Back</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <StatusBadge status={game.status} />
@@ -56,7 +56,7 @@ export function Game() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 10, textAlign: "center", marginTop: 18 }}>
           <TeamAvatar name={home?.name} color={home?.color} onClick={() => home && navigate(`/team/${home.id}`)} />
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 56, whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: "clamp(36px, 10vw, 56px)", whiteSpace: "nowrap" }}>
             {game.status === "scheduled" ? game.kickoffTime : `${homeGoals}–${awayGoals}`}
           </div>
           <TeamAvatar name={away?.name} color={away?.color} onClick={() => away && navigate(`/team/${away.id}`)} />
@@ -71,7 +71,7 @@ export function Game() {
         )}
       </div>
 
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
         <PrimaryButton style={{ width: "100%" }} onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>
 
         {roster.length > 0 && (
@@ -125,7 +125,7 @@ export function Game() {
         {gameMoments.length > 0 && (
           <div>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>MOMENTS FROM THIS GAME</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div className="grid-3">
               {gameMoments.map((m) => (
                 <Card key={m.id} style={{ padding: 0, overflow: "hidden" }}>
                   {m.mediaType === "video" ? (

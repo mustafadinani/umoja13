@@ -1,7 +1,7 @@
 import type { Role } from "./roles.js";
 import type { PlayerMembership, UserProfile } from "./user.js";
 import type { RegisteredPlayer } from "./registration.js";
-import { resolveCategoryId } from "../registration/mapRegistration.js";
+import { resolvePlayerCategoryId } from "../registration/mapRegistration.js";
 
 /**
  * Loose shape for `(default)/profiles/{uid}` docs from the Outreach app.
@@ -20,6 +20,8 @@ export interface OutreachProfile {
   phone?: string;
   roles?: Role[];
   primaryRole?: Role;
+  /** Doc id in `(default)/families/{familyId}` when this profile belongs to a household. */
+  family?: string;
 }
 
 function displayNameFromOutreach(raw: OutreachProfile, fallbackEmail?: string): string {
@@ -42,10 +44,12 @@ export function mapOutreachProfileToUserProfile(
     .filter((p) => p.uid === uid || p.id === uid)
     .map((p) => ({
       teamId: p.teamId,
-      categoryId: resolveCategoryId(p.category),
+      categoryId: resolvePlayerCategoryId(p),
       isCaptain: false,
       registrationPhotoUrl: p.profilePicture,
       playerName: `${p.firstName} ${p.lastName}`.trim(),
+      // Prefer explicit profileId; otherwise the playersRegistered doc id is often the profile id.
+      profileId: p.profileId?.trim() || p.id,
     }));
 
   const roles: Role[] =

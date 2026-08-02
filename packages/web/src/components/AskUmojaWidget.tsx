@@ -57,9 +57,9 @@ export function AskUmojaWidget() {
   if (!user) return null;
 
   return (
-    <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 90 }}>
+    <div style={{ position: "fixed", bottom: 16, right: 16, left: "auto", zIndex: 90, maxWidth: "calc(100vw - 32px)" }}>
       {open && (
-        <div style={{ width: 320, height: 420, background: "#fff", borderRadius: theme.radius.lg, boxShadow: "0 10px 40px rgba(0,0,0,.2)", display: "flex", flexDirection: "column", marginBottom: 10, overflow: "hidden" }}>
+        <div style={{ width: "min(320px, calc(100vw - 32px))", height: "min(420px, calc(100vh - 120px))", background: "#fff", borderRadius: theme.radius.lg, boxShadow: "0 10px 40px rgba(0,0,0,.2)", display: "flex", flexDirection: "column", marginBottom: 10, overflow: "hidden" }}>
           <div style={{ background: theme.color.navy, color: "#fff", padding: "12px 16px", fontWeight: 700 }}>Ask Umoja</div>
 
           {mode === "chat" && (
