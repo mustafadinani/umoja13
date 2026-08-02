@@ -3,10 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { theme } from "../../lib/theme";
 import { confirmIncidentPayment } from "../../lib/callables";
 
-/**
- * After Stripe Checkout redirects back with session_id + incidentId, confirm
- * payment and write stripeConfirmationId onto the incident.
- */
+/** Handles legacy Stripe Checkout return: complaintPaid + session_id + incidentId */
 export function ComplaintPaymentReturnBanner() {
   const [params, setParams] = useSearchParams();
   const [message, setMessage] = useState<string | null>(null);
@@ -14,12 +11,14 @@ export function ComplaintPaymentReturnBanner() {
   const ran = useRef(false);
 
   useEffect(() => {
+    if (ran.current) return;
+
     const sessionId = params.get("session_id");
     const incidentId = params.get("incidentId");
     const paidFlag = params.get("complaintPaid");
-    if (!paidFlag || !sessionId || !incidentId || ran.current) return;
-    ran.current = true;
+    if (!paidFlag || !sessionId || !incidentId) return;
 
+    ran.current = true;
     (async () => {
       try {
         const res = await confirmIncidentPayment({ incidentId, sessionId });

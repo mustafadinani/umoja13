@@ -11,6 +11,7 @@ import { Moments } from "./pages/Moments";
 import { Game } from "./pages/Game";
 import { Team } from "./pages/Team";
 import { Dashboard } from "./pages/dashboard/Dashboard";
+import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
 import { Info } from "./pages/Info";
@@ -37,6 +38,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/report-issue"
+              element={
+                <ProtectedRoute>
+                  <ReportIssuePage />
                 </ProtectedRoute>
               }
             />

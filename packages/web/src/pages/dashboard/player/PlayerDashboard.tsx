@@ -9,7 +9,6 @@ import { JoinTeamModal } from "../../../components/JoinTeamModal";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
 import { ComplaintModal } from "./ComplaintModal";
-import { ReportIssueModal } from "../ReportIssueModal";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
@@ -21,7 +20,6 @@ export function PlayerDashboard() {
   const { data: games } = useGames();
   const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
 
@@ -105,12 +103,11 @@ export function PlayerDashboard() {
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}
-      {reportOpen && <ReportIssueModal onClose={() => setReportOpen(false)} />}
 
       <div style={{ marginTop: 32 }}>
-        <Card onClick={() => setReportOpen(true)} style={{ cursor: "pointer" }}>
+        <Card onClick={() => navigate("/dashboard/report-issue")} style={{ cursor: "pointer" }}>
           <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
-          <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test Stripe Checkout)</div>
+          <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test card payment)</div>
         </Card>
       </div>
     </div>

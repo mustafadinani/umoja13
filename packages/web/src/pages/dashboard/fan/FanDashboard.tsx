@@ -8,14 +8,12 @@ import { theme, hunterGradient } from "../../../lib/theme";
 import { useTeams } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { JoinTeamModal } from "../../../components/JoinTeamModal";
-import { ReportIssueModal } from "../ReportIssueModal";
 
 export function FanDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: teams } = useTeams();
   const [joinOpen, setJoinOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
   const followed = new Set(profile?.followedTeamIds ?? []);
 
   async function toggleFollow(teamId: string) {
@@ -81,11 +79,10 @@ export function FanDashboard() {
       )}
 
       {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
-      {reportOpen && <ReportIssueModal onClose={() => setReportOpen(false)} />}
 
-      <Card style={{ marginTop: 24, cursor: "pointer" }} onClick={() => setReportOpen(true)}>
+      <Card style={{ marginTop: 24, cursor: "pointer" }} onClick={() => navigate("/dashboard/report-issue")}>
         <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
-        <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test Stripe Checkout)</div>
+        <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test card payment)</div>
       </Card>
     </div>
   );

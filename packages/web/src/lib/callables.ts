@@ -14,7 +14,7 @@ import type {
 } from "@umoja/shared";
 import { app } from "./firebase";
 
-const functions = getFunctions(app);
+const functions = getFunctions(app, "us-central1");
 
 interface OcrResult {
   readScore: string | null;

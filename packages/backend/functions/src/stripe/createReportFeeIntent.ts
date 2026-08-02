@@ -24,7 +24,8 @@ export const createReportFeeIntent = onCall(
       const paymentIntent = await stripe.paymentIntents.create({
         amount: COMPLAINT_FEE_CENTS,
         currency: "usd",
-        automatic_payment_methods: { enabled: true },
+        // Card only — avoids Link / bank methods that force a full-page redirect.
+        payment_method_types: ["card"],
         description: "Umoja Games — commissioner report review fee",
         metadata: {
           purpose: "report_to_commissioner",

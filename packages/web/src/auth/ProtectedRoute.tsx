@@ -6,7 +6,9 @@ import { useAuth } from "./AuthProvider";
 export function ProtectedRoute({ children, requireRole }: { children: ReactNode; requireRole?: Role[] }) {
   const { user, profile, loading } = useAuth();
 
-  if (loading) return null;
+  // Don't unmount the page on brief profile reloads — that was wiping the
+  // report-to-commissioner modal (including the Stripe card step).
+  if (loading && !user) return null;
   if (!user) return <Navigate to="/login" replace />;
   if (requireRole && profile && !requireRole.some((r) => profile.roles.includes(r))) {
     return <Navigate to="/dashboard" replace />;
