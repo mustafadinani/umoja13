@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
 import {
   COLLECTIONS,
@@ -10,8 +10,8 @@ import {
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useAllUsers, usePod, usePods, useVolunteers } from "../../../hooks/useData";
-import { useRegisteredPlayers } from "../../../hooks/useRegistration";
+import { usePod, usePods, useVolunteers } from "../../../hooks/useData";
+import { getPodMemberNames } from "../../../lib/callables";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 
 interface Assignee {
@@ -23,15 +23,15 @@ interface Assignee {
  * Opened either from the general Volunteers tab (no pod context — assignee
  * pool is everyone with the "volunteer" role) or from a Pod's Tasks view
  * (`initialPodId` set, pod locked — assignee pool is that pod's own roster,
- * since most pod members won't hold the volunteer role at all).
+ * since most pod members won't hold the volunteer role at all). Anyone on
+ * the pod, not just staff, can open this from a Pod's Tasks view.
  */
 export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () => void; initialPodId?: string }) {
   const { user } = useAuth();
   const { data: volunteers } = useVolunteers();
   const { data: pods } = usePods();
   const { data: lockedPod } = usePod(initialPodId);
-  const { data: allUsers } = useAllUsers();
-  const { data: registeredPlayers } = useRegisteredPlayers();
+  const [podMembers, setPodMembers] = useState<Assignee[]>([]);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<VolunteerTaskType | null>(null);
   const [time, setTime] = useState<string | null>(null);
@@ -40,14 +40,17 @@ export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () =
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!initialPodId) return;
+    getPodMemberNames({ podId: initialPodId })
+      .then((res) => setPodMembers(res.data.members))
+      .catch((e) => console.error("getPodMemberNames failed:", e));
+  }, [initialPodId]);
+
   const assigneeChoices: Assignee[] = useMemo(() => {
     if (!initialPodId) return volunteers.map((v) => ({ uid: v.uid, displayName: v.displayName }));
-    if (!lockedPod) return [];
-    const nameByUid = new Map<string, string>();
-    for (const u of allUsers) nameByUid.set(u.uid, u.displayName);
-    for (const p of registeredPlayers) if (p.uid && !nameByUid.has(p.uid)) nameByUid.set(p.uid, `${p.firstName} ${p.lastName}`.trim());
-    return lockedPod.memberUids.map((uid) => ({ uid, displayName: nameByUid.get(uid) ?? uid }));
-  }, [initialPodId, lockedPod, volunteers, allUsers, registeredPlayers]);
+    return podMembers;
+  }, [initialPodId, volunteers, podMembers]);
 
   async function submit() {
     if (!user || !title.trim() || !type || !time || !location) return;

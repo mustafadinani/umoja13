@@ -1,32 +1,27 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
 import { COLLECTIONS } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useAllUsers, usePod } from "../hooks/useData";
-import { useRegisteredPlayers } from "../hooks/useRegistration";
+import { getPodMemberNames } from "../lib/callables";
 import { Modal, Pill, PrimaryButton } from "./ui";
 
 /** A simple general prep checklist item for a pod — no time/location, just a title and an optional assignee from the pod's own roster. */
 export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: () => void }) {
   const { user } = useAuth();
-  const { data: pod } = usePod(podId);
-  const { data: allUsers } = useAllUsers();
-  const { data: registeredPlayers } = useRegisteredPlayers();
+  const [members, setMembers] = useState<{ uid: string; displayName: string }[]>([]);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const members = useMemo(() => {
-    if (!pod) return [];
-    const nameByUid = new Map<string, string>();
-    for (const u of allUsers) nameByUid.set(u.uid, u.displayName);
-    for (const p of registeredPlayers) if (p.uid && !nameByUid.has(p.uid)) nameByUid.set(p.uid, `${p.firstName} ${p.lastName}`.trim());
-    return pod.memberUids.map((uid) => ({ uid, displayName: nameByUid.get(uid) ?? uid }));
-  }, [pod, allUsers, registeredPlayers]);
+  useEffect(() => {
+    getPodMemberNames({ podId })
+      .then((res) => setMembers(res.data.members))
+      .catch((e) => console.error("getPodMemberNames failed:", e));
+  }, [podId]);
 
   async function submit() {
     if (!user || !title.trim()) return;

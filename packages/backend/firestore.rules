@@ -143,12 +143,21 @@ service cloud.firestore {
     // — anyone on that pod's roster. A task carries a contextual Q&A thread;
     // an assigned volunteer may only flag a conflict or mark done directly;
     // messages are Cloud-Function-only (sendVolunteerTaskMessage) so `from`
-    // can't be spoofed.
+    // can't be spoofed. Beyond staff, any pod member can also create a shift
+    // for their own pod (self-serve, not just admin-scheduled) and assign it
+    // to anyone else on that same pod's roster; they can also delete a shift
+    // they created themselves.
     match /volunteerTasks/{taskId} {
       allow read: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid) ||
         (isSignedIn() && resource.data.get('podId', null) != null &&
           request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
-      allow create, delete: if isStaff();
+      allow create: if isStaff() ||
+        (isSignedIn() && request.resource.data.podId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids &&
+          request.resource.data.createdBy == request.auth.uid &&
+          (request.resource.data.assigneeUid == null ||
+            request.resource.data.assigneeUid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids));
+      allow delete: if isStaff() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
       allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done', 'steps']));
     }
@@ -254,11 +263,20 @@ service cloud.firestore {
     // General tournament-prep checklist items scoped to a pod — distinct
     // from volunteerTasks (a scheduled shift). Any pod member can toggle
     // `done` on a shared item, not just a single assignee, since this is a
-    // team checklist rather than a personal shift assignment.
+    // team checklist rather than a personal shift assignment. Any pod member
+    // can also add an item for their own pod (not just staff) and assign it
+    // to anyone else on that pod's roster, and can delete an item they
+    // created themselves.
     match /podTasks/{taskId} {
       allow read: if isStaff() ||
         (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
-      allow create, delete: if isStaff();
+      allow create: if isStaff() ||
+        (isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids &&
+          request.resource.data.createdBy == request.auth.uid &&
+          (request.resource.data.assigneeUid == null ||
+            request.resource.data.assigneeUid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids));
+      allow delete: if isStaff() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
       allow update: if isStaff() ||
         (isSignedIn() &&
           request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids &&

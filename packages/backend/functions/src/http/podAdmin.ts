@@ -99,6 +99,45 @@ export const deletePod = onCall<DeletePodRequest>(async (request) => {
   return { ok: true };
 });
 
+interface GetPodMemberNamesRequest {
+  podId: string;
+}
+
+/**
+ * Any pod member (or staff) can resolve display names for their own pod's
+ * roster — a targeted Admin SDK read, since `users/{uid}` reads are locked
+ * to the owner or staff and a regular member has no other way to see who
+ * "uid abc123" is when picking an assignee for a task/shift they're adding.
+ */
+export const getPodMemberNames = onCall<GetPodMemberNamesRequest>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const { podId } = request.data;
+  if (!podId) throw new HttpsError("invalid-argument", "podId is required.");
+
+  const podSnap = await db.collection(COLLECTIONS.pods).doc(podId).get();
+  if (!podSnap.exists) throw new HttpsError("not-found", "Pod not found.");
+  const pod = podSnap.data() as Pod;
+
+  const callerSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
+  const roles: string[] = callerSnap.data()?.roles ?? [];
+  const isStaff = roles.includes("admin") || roles.includes("commissioner");
+  if (!isStaff && !pod.memberUids.includes(uid)) {
+    throw new HttpsError("permission-denied", "Not a member of this pod.");
+  }
+
+  const memberDocs = await Promise.all(
+    pod.memberUids.map((memberUid) => db.collection(COLLECTIONS.users).doc(memberUid).get())
+  );
+  const members = memberDocs.map((snap, i) => ({
+    uid: pod.memberUids[i],
+    displayName: (snap.data()?.displayName as string | undefined) ?? pod.memberUids[i],
+  }));
+
+  return { members };
+});
+
 /**
  * Ensures the General pod document exists. Normally created the first time
  * ensureInGeneralPod runs off a role change (setUserRole /

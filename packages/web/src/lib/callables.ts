@@ -180,6 +180,11 @@ export const sendPodMessage = httpsCallable<
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
 
+export const getPodMemberNames = httpsCallable<
+  { podId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getPodMemberNames");
+
 export const lookupUserByEmail = httpsCallable<
   { email: string },
   { user: { uid: string; email: string; displayName: string } | null }

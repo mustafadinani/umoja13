@@ -100,9 +100,11 @@ export function PodTaskList({ podId }: { podId: string }) {
     await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });
   }
 
+  const canAdd = isStaff || isPodMember;
+
   return (
     <div>
-      {isStaff && (
+      {canAdd && (
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <PrimaryButton onClick={() => setAddTaskOpen(true)}>+ ADD TASK</PrimaryButton>
           <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>
