@@ -1,0 +1,38 @@
+name: Deploy Firebase (functions + Firestore rules)
+
+# Manual trigger only — this deploys to the live umoja-app Firebase project,
+# so it doesn't run automatically on push. Trigger it from the Actions tab
+# once you're ready to ship what's on the chosen branch.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        default: "functions,firestore:rules"
+        type: choice
+        options:
+          - "functions,firestore:rules"
+          - "functions"
+          - "firestore:rules"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Deploy
+        run: npx firebase-tools deploy --only "${{ inputs.target }}" --project umoja-app --non-interactive
