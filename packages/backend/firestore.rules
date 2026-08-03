@@ -150,7 +150,7 @@ service cloud.firestore {
           request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
       allow create, delete: if isStaff();
       allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done']));
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done', 'steps']));
     }
 
     // ---- The Hunt ----

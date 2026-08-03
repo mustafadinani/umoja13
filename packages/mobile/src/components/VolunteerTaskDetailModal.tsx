@@ -14,12 +14,27 @@ export function VolunteerTaskDetailModal({ task, onClose }: { task: VolunteerTas
   const [reason, setReason] = useState(task.cantMakeReason ?? "");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [newStep, setNewStep] = useState("");
 
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isAssignee = profile?.uid === task.assigneeUid;
   const canPost = isStaff || isAssignee;
+  const canManageSteps = isStaff || isAssignee;
+  const steps = task.steps ?? [];
   const messages = [...(task.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
   const typeLabel = VOLUNTEER_TASK_TYPES.find((t) => t.id === task.type)?.label ?? task.type;
+
+  async function addStep() {
+    if (!newStep.trim()) return;
+    const step = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, title: newStep.trim(), done: false };
+    await updateDoc(doc(db, COLLECTIONS.volunteerTasks, task.id), { steps: [...steps, step] });
+    setNewStep("");
+  }
+
+  async function toggleStep(stepId: string) {
+    const updated = steps.map((s) => (s.id === stepId ? { ...s, done: !s.done } : s));
+    await updateDoc(doc(db, COLLECTIONS.volunteerTasks, task.id), { steps: updated });
+  }
 
   async function markDone() {
     await updateDoc(doc(db, COLLECTIONS.volunteerTasks, task.id), { done: !task.done });
@@ -55,6 +70,39 @@ export function VolunteerTaskDetailModal({ task, onClose }: { task: VolunteerTas
         {task.cantMake && <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>Can't make it</Pill>}
         {!task.done && !task.cantMake && <Pill bg="#F1EFF5" fg={theme.color.textMuted}>Upcoming</Pill>}
       </View>
+
+      {(steps.length > 0 || canManageSteps) && (
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ fontWeight: "800", fontSize: 14, marginBottom: 10 }}>STEPS</Text>
+          <View style={{ gap: 6, marginBottom: canManageSteps ? 8 : 0 }}>
+            {steps.map((s) => (
+              <TouchableOpacity key={s.id} onPress={() => canManageSteps && toggleStep(s.id)} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <View
+                  style={{
+                    width: 17,
+                    height: 17,
+                    borderRadius: 4,
+                    borderWidth: 2,
+                    borderColor: s.done ? theme.color.navy : theme.color.border,
+                    backgroundColor: s.done ? theme.color.navy : "transparent",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {s.done && <Text style={{ color: "#fff", fontSize: 11, fontWeight: "800" }}>✓</Text>}
+                </View>
+                <Text style={{ fontSize: 13, textDecorationLine: s.done ? "line-through" : "none", color: s.done ? theme.color.textMuted : theme.color.text }}>
+                  {s.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            {steps.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No steps yet.</Text>}
+          </View>
+          {canManageSteps && (
+            <TextInput value={newStep} onChangeText={setNewStep} onSubmitEditing={addStep} placeholder="Add a step…" style={styles.input} />
+          )}
+        </View>
+      )}
 
       {isAssignee && (
         <View style={{ marginBottom: 20 }}>

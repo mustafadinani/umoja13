@@ -55,6 +55,13 @@ export interface VolunteerTaskMessage {
   createdAt: number;
 }
 
+/** A step inside one shift (e.g. "Set up," "Restock at 9:30," "Break down") — distinct from a pod-wide PodTask, which isn't tied to any one shift. */
+export interface VolunteerTaskStep {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 /** A shift/task, either open (unassigned) or assigned to one volunteer. */
 export interface VolunteerTask {
   id: string;
@@ -73,4 +80,6 @@ export interface VolunteerTask {
   createdBy: string;
   /** Contextual Q&A scoped to this one shift, so staff always know exactly which task a question is about. */
   messages?: VolunteerTaskMessage[];
+  /** Internal checklist for this one shift — separate from the pod-wide TASKS list. */
+  steps?: VolunteerTaskStep[];
 }
