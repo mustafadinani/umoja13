@@ -5,11 +5,13 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { getPodMemberNames } from "../lib/callables";
+import { usePod } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "./ui";
 
 /** A simple general prep checklist item for a pod — no time/location, just a title and an optional assignee from the pod's own roster. */
 export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: () => void }) {
   const { user } = useAuth();
+  const { data: pod } = usePod(podId);
   const [members, setMembers] = useState<{ uid: string; displayName: string }[]>([]);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -52,7 +54,7 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
 
   return (
     <Modal onClose={onClose} width={420}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>Add a task</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>Add a task{pod && <span style={{ color: theme.color.textMuted }}> — {pod.name}</span>}</div>
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 16 }}>General prep, not a scheduled shift — anyone on this pod can check it off.</div>
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Title</div>

@@ -81,7 +81,9 @@ export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () =
 
   return (
     <Modal onClose={onClose} width={460}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 16 }}>Add a shift</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 16 }}>
+        Add a shift{initialPodId && lockedPod && <span style={{ color: theme.color.textMuted }}> — {lockedPod.name}</span>}
+      </div>
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Title</div>
       <input
