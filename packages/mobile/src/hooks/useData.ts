@@ -54,12 +54,15 @@ export const useUserChannel = (uid: string | undefined) => useDocument<UserChann
 export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
 export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
 
-/** Pods a uid belongs to — client-filtered from the full list, mirroring the web hook. */
-export const useMyPods = (uid: string | undefined) => {
-  const result = usePods();
-  const mine = useMemo(() => result.data.filter((p) => !!uid && p.memberUids.includes(uid)), [result.data, uid]);
-  return { ...result, data: mine };
-};
+/**
+ * Pods a uid belongs to — its own array-contains query, not a client filter
+ * over usePods()'s unscoped list. That unscoped list only succeeds for
+ * staff (the pods/{id} rule's non-staff branch is per-document, so
+ * Firestore rejects an unscoped list outright for anyone relying on it),
+ * so a plain fan/player pod member got silently zero pods back.
+ */
+export const useMyPods = (uid: string | undefined) =>
+  useCollection<Pod>(COLLECTIONS.pods, uid ? [where("memberUids", "array-contains", uid)] : []);
 
 export const useVolunteerTasksByPod = (podId: string | undefined) =>
   useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, podId ? [where("podId", "==", podId)] : []);

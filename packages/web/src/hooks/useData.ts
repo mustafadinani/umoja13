@@ -60,12 +60,18 @@ export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
 export const usePod = (podId: string | undefined) => useDocument<Pod>(COLLECTIONS.pods, podId);
 export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
 
-/** Pods a uid belongs to — client-filtered from the full list rather than an array-contains query, since usePods() is already loaded by every screen that needs this (admin tab + every pod-eligible dashboard). */
-export const useMyPods = (uid: string | undefined) => {
-  const result = usePods();
-  const mine = useMemo(() => result.data.filter((p) => !!uid && p.memberUids.includes(uid)), [result.data, uid]);
-  return { ...result, data: mine };
-};
+/**
+ * Pods a uid belongs to. Deliberately its own array-contains query, not a
+ * client-side filter over usePods()'s full unscoped list — that unscoped
+ * list only succeeds for staff, since the pods/{id} rule's non-staff branch
+ * depends on per-document data. Firestore rejects an unscoped list query
+ * outright for anyone that branch would be needed for (a plain fan/player
+ * pod member), because it can't prove the query is safe without the query
+ * itself being scoped to match — so a non-staff caller got silently zero
+ * pods back, not just their own trimmed down.
+ */
+export const useMyPods = (uid: string | undefined) =>
+  useCollection<Pod>(COLLECTIONS.pods, uid ? [where("memberUids", "array-contains", uid)] : []);
 
 export const useGames = (constraints: QueryConstraint[] = []) =>
   useCollection<Game>(COLLECTIONS.games, constraints);
