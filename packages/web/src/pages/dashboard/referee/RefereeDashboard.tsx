@@ -7,9 +7,8 @@ import { theme } from "../../../lib/theme";
 import { useGames } from "../../../hooks/useData";
 import { Card, Pill, StatusBadge } from "../../../components/ui";
 import { RoleChannelPanel } from "../../../components/RoleChannelPanel";
-import { MyPodsPanel } from "../../../components/MyPodsPanel";
 
-type Tab = "assignments" | "channel" | "pods";
+type Tab = "assignments" | "channel";
 
 export function RefereeDashboard() {
   const { user } = useAuth();
@@ -30,12 +29,9 @@ export function RefereeDashboard() {
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <Pill active={tab === "assignments"} onClick={() => setTab("assignments")}>Assignments</Pill>
         <Pill active={tab === "channel"} onClick={() => setTab("channel")}>Channel</Pill>
-        <Pill active={tab === "pods"} onClick={() => setTab("pods")}>Pods</Pill>
       </div>
 
-      {tab === "pods" ? (
-        <MyPodsPanel />
-      ) : tab === "channel" ? (
+      {tab === "channel" ? (
         <RoleChannelPanel role="referee" />
       ) : (
         <>

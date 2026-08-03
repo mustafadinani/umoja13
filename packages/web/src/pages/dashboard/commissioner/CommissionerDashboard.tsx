@@ -7,7 +7,6 @@ import { callItFinal } from "../../../lib/callables";
 import { Card, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { IncidentReplyModal } from "../../../components/IncidentReplyModal";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
-import { MyPodsPanel } from "../../../components/MyPodsPanel";
 
 export function CommissionerDashboard() {
   const { data: awaitingGames } = useGames([where("gameCard.status", "==", "awaiting_commissioner")]);
@@ -68,9 +67,6 @@ export function CommissionerDashboard() {
         ))}
         {incidents.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Nothing here.</div>}
       </div>
-
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>PODS</div>
-      <MyPodsPanel />
 
       {openIncident && <IncidentReplyModal incident={openIncident} onClose={() => setOpenIncidentId(null)} />}
       {cardPhotoUrl && <GameCardPhotoModal url={cardPhotoUrl} onClose={() => setCardPhotoUrl(null)} />}
