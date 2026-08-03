@@ -17,6 +17,7 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
   const [title, setTitle] = useState("");
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const members = useMemo(() => {
     if (!pod) return [];
@@ -29,6 +30,7 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
   async function submit() {
     if (!user || !title.trim()) return;
     setBusy(true);
+    setError(null);
     try {
       const assignee = members.find((m) => m.uid === assigneeUid);
       await addDoc(collection(db, COLLECTIONS.podTasks), {
@@ -41,6 +43,8 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
         createdBy: user.uid,
       });
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add this task.");
     } finally {
       setBusy(false);
     }
@@ -65,6 +69,11 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
         {members.map((m) => <Pill key={m.uid} active={assigneeUid === m.uid} onClick={() => setAssigneeUid(m.uid)}>{m.displayName}</Pill>)}
       </div>
 
+      {error && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          {error}
+        </div>
+      )}
       <PrimaryButton disabled={busy || !title.trim()} onClick={submit} style={{ width: "100%" }}>
         {busy ? "Adding…" : "ADD TASK"}
       </PrimaryButton>

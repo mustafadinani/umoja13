@@ -29,7 +29,7 @@ export function PodTaskList({ podId }: { podId: string }) {
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
-  const sortedTasks = [...tasks].sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
+  const sortedTasks = [...tasks].sort((a, b) => (a.done !== b.done ? (a.done ? 1 : -1) : b.createdAt - a.createdAt));
 
   async function toggleTaskDone(taskId: string, done: boolean) {
     await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });

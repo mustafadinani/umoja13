@@ -67,8 +67,9 @@ export const useVolunteerTasksByPod = (podId: string | undefined) =>
 export const useGamesByPod = (podId: string | undefined) =>
   useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
 
+/** No orderBy here on purpose — where(podId) + orderBy(createdAt) needs a composite index; sorted client-side in PodTaskList instead. */
 export const usePodTasksByPod = (podId: string | undefined) =>
-  useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId), orderBy("createdAt", "desc")] : []);
+  useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId)] : []);
 
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
