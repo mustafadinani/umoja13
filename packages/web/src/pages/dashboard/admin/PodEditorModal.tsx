@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FIELDS, type Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllUsers } from "../../../hooks/useData";
@@ -36,10 +36,18 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   const [fields, setFields] = useState<string[]>(pod?.fields ?? []);
   const [memberUids, setMemberUids] = useState<string[]>(pod?.memberUids ?? []);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailLookup, setEmailLookup] = useState<{ status: "idle" | "loading" | "done"; result: Candidate | null }>({ status: "idle", result: null });
   const [foundByEmail, setFoundByEmail] = useState<Candidate[]>([]);
+
+  // Debounced so the ~1050-candidate filter (users + every registered player)
+  // runs once per pause in typing, not synchronously on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const nameByUid = useMemo(() => {
     const map = new Map<string, string>();
@@ -51,18 +59,30 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
     return map;
   }, [users, registeredPlayers, foundByEmail]);
 
+  // Pre-lowercase once per data change, not once per keystroke.
+  const searchableUsers = useMemo(
+    () => users.map((u) => ({ uid: u.uid, displayName: u.displayName, sublabel: u.primaryRole, needle: u.displayName.toLowerCase() })),
+    [users]
+  );
+  const searchablePlayers = useMemo(
+    () =>
+      registeredPlayers
+        .filter((p) => !!p.uid)
+        .map((p) => {
+          const displayName = `${p.firstName} ${p.lastName}`.trim();
+          return { uid: p.uid, displayName, sublabel: "registered player", needle: displayName.toLowerCase() };
+        }),
+    [registeredPlayers]
+  );
+
   const nameResults: Candidate[] = useMemo(() => {
-    const needle = search.trim().toLowerCase();
+    const needle = debouncedSearch.trim().toLowerCase();
     if (!needle) return [];
-    const fromUsers: Candidate[] = users
-      .filter((u) => u.displayName.toLowerCase().includes(needle))
-      .map((u) => ({ uid: u.uid, displayName: u.displayName, sublabel: u.primaryRole }));
+    const fromUsers = searchableUsers.filter((u) => u.needle.includes(needle));
     const seen = new Set(fromUsers.map((c) => c.uid));
-    const fromPlayers: Candidate[] = registeredPlayers
-      .filter((p) => p.uid && !seen.has(p.uid) && `${p.firstName} ${p.lastName}`.toLowerCase().includes(needle))
-      .map((p) => ({ uid: p.uid, displayName: `${p.firstName} ${p.lastName}`.trim(), sublabel: "registered player" }));
+    const fromPlayers = searchablePlayers.filter((p) => !seen.has(p.uid) && p.needle.includes(needle));
     return [...fromUsers, ...fromPlayers].filter((c) => !memberUids.includes(c.uid)).slice(0, 8);
-  }, [search, users, registeredPlayers, memberUids]);
+  }, [debouncedSearch, searchableUsers, searchablePlayers, memberUids]);
 
   async function runEmailLookup() {
     const email = search.trim();
