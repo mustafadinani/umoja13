@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { FIELDS, type Pod, type UserProfile } from "@umoja/shared";
+import { FIELDS, type Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllUsers } from "../../../hooks/useData";
 import { createPod, updatePod } from "../../../lib/callables";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 
-const POD_ELIGIBLE_ROLES = ["admin", "commissioner", "referee", "volunteer"] as const;
-
-function isPodEligible(u: UserProfile): boolean {
-  return u.roles.some((r) => (POD_ELIGIBLE_ROLES as readonly string[]).includes(r));
-}
-
-/** Create or edit a Pod: name, field coverage, and member roster. Editing the General pod's fields/name is allowed, but it can never be deleted (handled by the caller, not here). */
+/**
+ * Create or edit a Pod: name, field coverage, and member roster. Membership
+ * search covers every registered user, not just people already holding a
+ * staff role — pods are how you recruit someone onto the event team in the
+ * first place (a parent, a player, anyone), not just a grouping for people
+ * who are already staff. Editing the General pod's fields/name is allowed,
+ * but it can never be deleted (handled by the caller, not here).
+ */
 export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => void }) {
   const { data: users } = useAllUsers();
-  const eligible = users.filter(isPodEligible);
 
   const [name, setName] = useState(pod?.name ?? "");
   const [fields, setFields] = useState<string[]>(pod?.fields ?? []);
@@ -23,7 +23,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   const [busy, setBusy] = useState(false);
 
   const searchResults = search.trim()
-    ? eligible.filter((u) => !memberUids.includes(u.uid) && u.displayName.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 8)
+    ? users.filter((u) => !memberUids.includes(u.uid) && u.displayName.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 8)
     : [];
 
   function toggleField(f: string) {
@@ -79,7 +79,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search admin/commissioner/referee/volunteer…"
+        placeholder="Search by name…"
         style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: searchResults.length > 0 ? 8 : 0 }}
       />
       {searchResults.length > 0 && (
