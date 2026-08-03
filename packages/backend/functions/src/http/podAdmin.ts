@@ -1,6 +1,14 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { COLLECTIONS, GENERAL_POD_ID, type Pod } from "@umoja/shared";
-import { db } from "../util/admin.js";
+import {
+  COLLECTIONS,
+  GENERAL_POD_ID,
+  PLAYERS_REGISTERED,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  type Pod,
+  type RegisteredPlayer,
+} from "@umoja/shared";
+import { db, defaultDb } from "../util/admin.js";
 import { notifyUsers } from "../util/notify.js";
 
 async function requireStaff(uid: string | undefined): Promise<void> {
@@ -130,10 +138,29 @@ export const getPodMemberNames = onCall<GetPodMemberNamesRequest>(async (request
   const memberDocs = await Promise.all(
     pod.memberUids.map((memberUid) => db.collection(COLLECTIONS.users).doc(memberUid).get())
   );
-  const members = memberDocs.map((snap, i) => ({
-    uid: pod.memberUids[i],
-    displayName: (snap.data()?.displayName as string | undefined) ?? pod.memberUids[i],
-  }));
+  const nameByUid = new Map<string, string>();
+  memberDocs.forEach((snap, i) => {
+    const displayName = snap.data()?.displayName as string | undefined;
+    if (displayName) nameByUid.set(pod.memberUids[i], displayName);
+  });
+
+  // Some pod members are registration-only rows (e.g. a board member or
+  // player who never signed into the app) whose "uid" is a client-generated
+  // placeholder id with no users/{uid} doc — look those up in registration
+  // data instead, the same fallback the client used before this callable
+  // existed.
+  const unresolvedUids = pod.memberUids.filter((memberUid) => !nameByUid.has(memberUid));
+  const playersCol = defaultDb.collection(REGISTRATION_ROOT).doc(REGISTRATION_YEAR).collection(PLAYERS_REGISTERED);
+  for (let i = 0; i < unresolvedUids.length; i += 30) {
+    const chunk = unresolvedUids.slice(i, i + 30);
+    const snap = await playersCol.where("uid", "in", chunk).get();
+    for (const doc of snap.docs) {
+      const p = doc.data() as RegisteredPlayer;
+      if (p.uid && !nameByUid.has(p.uid)) nameByUid.set(p.uid, `${p.firstName} ${p.lastName}`.trim());
+    }
+  }
+
+  const members = pod.memberUids.map((memberUid) => ({ uid: memberUid, displayName: nameByUid.get(memberUid) ?? memberUid }));
 
   return { members };
 });
