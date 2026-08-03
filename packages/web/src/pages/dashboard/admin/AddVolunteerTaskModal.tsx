@@ -38,6 +38,7 @@ export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () =
   const [location, setLocation] = useState<string | null>(null);
   const [podId, setPodId] = useState<string | null>(initialPodId ?? null);
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -51,6 +52,8 @@ export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () =
     if (!initialPodId) return volunteers.map((v) => ({ uid: v.uid, displayName: v.displayName }));
     return podMembers;
   }, [initialPodId, volunteers, podMembers]);
+
+  const visibleAssigneeChoices = assigneeChoices.filter((v) => v.displayName.toLowerCase().includes(assigneeSearch.trim().toLowerCase()));
 
   async function submit() {
     if (!user || !title.trim() || !type || !time || !location) return;
@@ -122,11 +125,22 @@ export function AddVolunteerTaskModal({ onClose, initialPodId }: { onClose: () =
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
         Assign to (optional){initialPodId && lockedPod && ` — ${lockedPod.name} members`}
       </div>
+      {assigneeChoices.length > 5 && (
+        <input
+          value={assigneeSearch}
+          onChange={(e) => setAssigneeSearch(e.target.value)}
+          placeholder="Search…"
+          style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13 }}
+        />
+      )}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
         <Pill active={!assigneeUid} onClick={() => setAssigneeUid(null)}>Unassigned</Pill>
-        {assigneeChoices.map((v) => <Pill key={v.uid} active={assigneeUid === v.uid} onClick={() => setAssigneeUid(v.uid)}>{v.displayName}</Pill>)}
+        {visibleAssigneeChoices.map((v) => <Pill key={v.uid} active={assigneeUid === v.uid} onClick={() => setAssigneeUid(v.uid)}>{v.displayName}</Pill>)}
         {initialPodId && assigneeChoices.length === 0 && (
           <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No members on this pod yet.</div>
+        )}
+        {assigneeSearch && assigneeChoices.length > 0 && visibleAssigneeChoices.length === 0 && (
+          <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No matches for "{assigneeSearch}".</div>
         )}
       </div>
 

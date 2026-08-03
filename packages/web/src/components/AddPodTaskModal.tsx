@@ -14,8 +14,11 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const visibleMembers = members.filter((m) => m.displayName.toLowerCase().includes(assigneeSearch.trim().toLowerCase()));
 
   useEffect(() => {
     getPodMemberNames({ podId })
@@ -69,9 +72,20 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
       />
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Assign to (optional)</div>
+      {members.length > 5 && (
+        <input
+          value={assigneeSearch}
+          onChange={(e) => setAssigneeSearch(e.target.value)}
+          placeholder="Search this pod's members…"
+          style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13 }}
+        />
+      )}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
         <Pill active={!assigneeUid} onClick={() => setAssigneeUid(null)}>Unassigned</Pill>
-        {members.map((m) => <Pill key={m.uid} active={assigneeUid === m.uid} onClick={() => setAssigneeUid(m.uid)}>{m.displayName}</Pill>)}
+        {visibleMembers.map((m) => <Pill key={m.uid} active={assigneeUid === m.uid} onClick={() => setAssigneeUid(m.uid)}>{m.displayName}</Pill>)}
+        {assigneeSearch && visibleMembers.length === 0 && (
+          <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No pod members match "{assigneeSearch}".</div>
+        )}
       </div>
 
       {error && (
