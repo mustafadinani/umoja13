@@ -15,6 +15,7 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
   const { data: allUsers } = useAllUsers();
   const { data: registeredPlayers } = useRegisteredPlayers();
   const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
         podId,
         title: title.trim(),
         done: false,
+        dueDate: dueDate || null,
         assigneeUid: assignee?.uid ?? null,
         assigneeName: assignee?.displayName ?? null,
         createdAt: Date.now(),
@@ -60,6 +62,14 @@ export function AddPodTaskModal({ podId, onClose }: { podId: string; onClose: ()
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="e.g. Finalize Rules & Regulations"
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
+      />
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Due date (optional)</div>
+      <input
+        type="date"
+        value={dueDate}
+        onChange={(e) => setDueDate(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
       />
 

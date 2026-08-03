@@ -11,6 +11,8 @@ export interface PodTask {
   podId: string;
   title: string;
   done: boolean;
+  /** ISO date ("YYYY-MM-DD"), optional — a general prep item doesn't always have one. */
+  dueDate?: string | null;
   assigneeUid?: string | null;
   assigneeName?: string | null;
   createdAt: number;

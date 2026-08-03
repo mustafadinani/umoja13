@@ -9,6 +9,11 @@ import { AddVolunteerTaskModal } from "../pages/dashboard/admin/AddVolunteerTask
 import { AddPodTaskModal } from "./AddPodTaskModal";
 import { Card, Pill, PrimaryButton, StatusBadge } from "./ui";
 
+function formatDueDate(dueDate: string, todayStr: string): string {
+  const label = new Date(`${dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return dueDate < todayStr ? `Overdue · was due ${label}` : `Due ${label}`;
+}
+
 /**
  * Rollup of everything tied to this pod, in two distinct kinds: general prep
  * TASKS (no time/location, toggleable by any pod member — a shared
@@ -29,7 +34,14 @@ export function PodTaskList({ podId }: { podId: string }) {
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
-  const sortedTasks = [...tasks].sort((a, b) => (a.done !== b.done ? (a.done ? 1 : -1) : b.createdAt - a.createdAt));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return b.createdAt - a.createdAt;
+  });
 
   async function toggleTaskDone(taskId: string, done: boolean) {
     await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });
@@ -59,6 +71,8 @@ export function PodTaskList({ podId }: { podId: string }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sortedTasks.map((t) => {
                 const canToggle = isStaff || isPodMember;
+                const isOverdue = !t.done && !!t.dueDate && t.dueDate < todayStr;
+                const details = [t.dueDate ? formatDueDate(t.dueDate, todayStr) : null, t.assigneeName].filter(Boolean).join(" · ");
                 return (
                   <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
                     <input
@@ -72,7 +86,11 @@ export function PodTaskList({ podId }: { podId: string }) {
                       <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
                         {t.title}
                       </div>
-                      {t.assigneeName && <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{t.assigneeName}</div>}
+                      {details && (
+                        <div style={{ fontSize: 12, color: isOverdue ? theme.color.danger : theme.color.textMuted, fontWeight: isOverdue ? 700 : 400, marginTop: 2 }}>
+                          {details}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 );

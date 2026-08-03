@@ -7,6 +7,11 @@ import { useAuth } from "../auth/AuthProvider";
 import { useGamesByPod, useMyPods, usePodTasksByPod, useVolunteerTasksByPod } from "../hooks/useData";
 import { Card, Pill, StatusBadge } from "./ui";
 
+function formatDueDate(dueDate: string, todayStr: string): string {
+  const label = new Date(`${dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return dueDate < todayStr ? `Overdue · was due ${label}` : `Due ${label}`;
+}
+
 function Checkbox({ checked, disabled, onPress }: { checked: boolean; disabled: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
@@ -46,7 +51,14 @@ export function PodTaskList({ podId }: { podId: string }) {
   const isPodMember = myPods.some((p) => p.id === podId);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
-  const sortedTasks = [...tasks].sort((a, b) => (a.done !== b.done ? (a.done ? 1 : -1) : b.createdAt - a.createdAt));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return b.createdAt - a.createdAt;
+  });
 
   async function toggleTaskDone(taskId: string, done: boolean) {
     await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });
@@ -68,6 +80,8 @@ export function PodTaskList({ podId }: { podId: string }) {
           <View style={{ gap: 8 }}>
             {sortedTasks.map((t) => {
               const canToggle = isStaff || isPodMember;
+              const isOverdue = !t.done && !!t.dueDate && t.dueDate < todayStr;
+              const details = [t.dueDate ? formatDueDate(t.dueDate, todayStr) : null, t.assigneeName].filter(Boolean).join(" · ");
               return (
                 <Card key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Checkbox checked={t.done} disabled={!canToggle} onPress={() => toggleTaskDone(t.id, t.done)} />
@@ -75,7 +89,11 @@ export function PodTaskList({ podId }: { podId: string }) {
                     <Text style={{ fontWeight: "700", fontSize: 13.5, textDecorationLine: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
                       {t.title}
                     </Text>
-                    {t.assigneeName && <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{t.assigneeName}</Text>}
+                    {!!details && (
+                      <Text style={{ fontSize: 12, color: isOverdue ? theme.color.danger : theme.color.textMuted, fontWeight: isOverdue ? "700" : "400", marginTop: 2 }}>
+                        {details}
+                      </Text>
+                    )}
                   </View>
                 </Card>
               );
