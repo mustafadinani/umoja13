@@ -251,6 +251,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // General tournament-prep checklist items scoped to a pod — distinct
+    // from volunteerTasks (a scheduled shift). Any pod member can toggle
+    // `done` on a shared item, not just a single assignee, since this is a
+    // team checklist rather than a personal shift assignment.
+    match /podTasks/{taskId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
+      allow create, delete: if isStaff();
+      allow update: if isStaff() ||
+        (isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']));
+    }
+
     // ---- notifications & chat escalations: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;

@@ -15,6 +15,7 @@ export * from "./types/teamChannel.js";
 export * from "./types/roleChannel.js";
 export * from "./types/userChannel.js";
 export * from "./types/pod.js";
+export * from "./types/podTask.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/sponsors.js";

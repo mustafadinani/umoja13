@@ -1,41 +1,117 @@
 import { useState } from "react";
-import { CATEGORIES } from "@umoja/shared";
+import { doc, updateDoc } from "firebase/firestore";
+import { CATEGORIES, COLLECTIONS } from "@umoja/shared";
+import { db } from "../lib/firebase";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
-import { useGamesByPod, useVolunteerTasksByPod } from "../hooks/useData";
+import { useGamesByPod, usePod, usePodTasksByPod, useVolunteerTasksByPod } from "../hooks/useData";
 import { AddVolunteerTaskModal } from "../pages/dashboard/admin/AddVolunteerTaskModal";
+import { AddPodTaskModal } from "./AddPodTaskModal";
 import { Card, Pill, PrimaryButton, StatusBadge } from "./ui";
 
 /**
- * Rollup of everything tagged to this pod — games on its fields and volunteer
- * shifts assigned to it — so a pod's members have one place to see "what's
- * happening/needed here." Staff can add a shift directly from here (locked
- * to this pod, assignable to this pod's own roster); claiming/completing an
- * existing shift still happens through the existing volunteer flow.
+ * Rollup of everything tied to this pod, in two distinct kinds: general prep
+ * TASKS (no time/location, toggleable by any pod member — a shared
+ * checklist) and scheduled SHIFTS (time/location/assignee, toggleable only
+ * by that shift's assignee or staff) — plus a read-only view of games on the
+ * pod's fields. Staff can add either kind directly from here.
  */
 export function PodTaskList({ podId }: { podId: string }) {
   const { profile } = useAuth();
+  const { data: pod } = usePod(podId);
   const { data: games } = useGamesByPod(podId);
-  const { data: tasks } = useVolunteerTasksByPod(podId);
+  const { data: shifts } = useVolunteerTasksByPod(podId);
+  const { data: tasks } = usePodTasksByPod(podId);
+  const [addShiftOpen, setAddShiftOpen] = useState(false);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
+  const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
-  const sortedTasks = [...tasks].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedTasks = [...tasks].sort((a, b) => (a.done === b.done ? 0 : a.done ? 1 : -1));
+
+  async function toggleTaskDone(taskId: string, done: boolean) {
+    await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });
+  }
+
+  async function toggleShiftDone(shiftId: string, done: boolean) {
+    await updateDoc(doc(db, COLLECTIONS.volunteerTasks, shiftId), { done: !done });
+  }
 
   return (
     <div>
       {isStaff && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <PrimaryButton onClick={() => setAddTaskOpen(true)}>+ ADD TASK</PrimaryButton>
+          <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>
         </div>
       )}
 
-      {sortedGames.length === 0 && sortedTasks.length === 0 && (
+      {sortedGames.length === 0 && sortedShifts.length === 0 && sortedTasks.length === 0 && (
         <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>Nothing tagged to this pod yet.</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {sortedTasks.length > 0 && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>TASKS</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sortedTasks.map((t) => {
+                const canToggle = isStaff || isPodMember;
+                return (
+                  <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={t.done}
+                      disabled={!canToggle}
+                      onChange={() => toggleTaskDone(t.id, t.done)}
+                      style={{ width: 18, height: 18, cursor: canToggle ? "pointer" : "default" }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
+                        {t.title}
+                      </div>
+                      {t.assigneeName && <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{t.assigneeName}</div>}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {sortedShifts.length > 0 && (
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>SHIFTS</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sortedShifts.map((t) => {
+                const canToggle = isStaff || t.assigneeUid === profile?.uid;
+                return (
+                  <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={t.done}
+                      disabled={!canToggle}
+                      onChange={() => toggleShiftDone(t.id, t.done)}
+                      style={{ width: 18, height: 18, cursor: canToggle ? "pointer" : "default" }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
+                        {t.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                        {t.time} · {t.location} {t.assigneeName ? `· ${t.assigneeName}` : "· Unassigned"}
+                      </div>
+                    </div>
+                    {t.cantMake && <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>Can't make it</Pill>}
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {sortedGames.length > 0 && (
           <div>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>GAMES</div>
@@ -52,31 +128,10 @@ export function PodTaskList({ podId }: { podId: string }) {
             </div>
           </div>
         )}
-
-        {sortedTasks.length > 0 && (
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>SHIFTS</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {sortedTasks.map((t) => (
-                <Card key={t.id} style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.title}</div>
-                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                      {t.time} · {t.location} {t.assigneeName ? `· ${t.assigneeName}` : "· Unassigned"}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {t.done && <Pill bg={theme.color.successBg} fg={theme.color.success}>Done</Pill>}
-                    {t.cantMake && <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>Can't make it</Pill>}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {addTaskOpen && <AddVolunteerTaskModal initialPodId={podId} onClose={() => setAddTaskOpen(false)} />}
+      {addTaskOpen && <AddPodTaskModal podId={podId} onClose={() => setAddTaskOpen(false)} />}
+      {addShiftOpen && <AddVolunteerTaskModal initialPodId={podId} onClose={() => setAddShiftOpen(false)} />}
     </div>
   );
 }

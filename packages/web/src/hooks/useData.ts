@@ -26,6 +26,7 @@ import {
   type UserChannel,
   type Pod,
   type PodChannel,
+  type PodTask,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -141,6 +142,9 @@ export const useVolunteerTasksByPod = (podId: string | undefined) =>
 
 export const useGamesByPod = (podId: string | undefined) =>
   useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
+
+export const usePodTasksByPod = (podId: string | undefined) =>
+  useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId), orderBy("createdAt", "desc")] : []);
 
 export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
 

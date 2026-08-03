@@ -33,6 +33,7 @@ export const COLLECTIONS = {
   userChannels: "userChannels",
   pods: "pods",
   podChannels: "podChannels",
+  podTasks: "podTasks",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
