@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, type VolunteerApplication } from "@umoja/shared";
 import { auth, db } from "../util/admin.js";
+import { ensureInGeneralPod } from "../util/generalPod.js";
 
 interface ReviewVolunteerApplicationRequest {
   applicationId: string;
@@ -50,6 +51,7 @@ export const reviewVolunteerApplication = onCall<ReviewVolunteerApplicationReque
       { merge: true }
     );
     await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now }, { merge: true });
+    await ensureInGeneralPod(application.filedByUid);
     return { status: "approved" };
   }
 

@@ -31,6 +31,8 @@ export const COLLECTIONS = {
   teamChannels: "teamChannels",
   roleChannels: "roleChannels",
   userChannels: "userChannels",
+  pods: "pods",
+  podChannels: "podChannels",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

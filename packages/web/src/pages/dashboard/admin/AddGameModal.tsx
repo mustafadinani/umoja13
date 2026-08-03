@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, FIELDS, type Game } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, FIELDS, podForField, type Game } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
-import { useReferees, useTeams } from "../../../hooks/useData";
+import { usePods, useReferees, useTeams } from "../../../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 
 const DAYS: { id: Game["day"]; label: string }[] = [
@@ -25,6 +25,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
 
   const { data: teams } = useTeams(categoryId ?? undefined);
   const { data: referees } = useReferees();
+  const { data: pods } = usePods();
 
   async function submit() {
     if (!categoryId || !homeTeamId || !awayTeamId || !day || !field) return;
@@ -35,6 +36,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
         day,
         kickoffTime,
         field,
+        podId: podForField(pods, field) ?? null,
         homeTeamId,
         awayTeamId,
         status: "scheduled",

@@ -10,16 +10,18 @@ import {
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useVolunteers } from "../../../hooks/useData";
+import { usePods, useVolunteers } from "../../../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 
 export function AddVolunteerTaskModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { data: volunteers } = useVolunteers();
+  const { data: pods } = usePods();
   const [title, setTitle] = useState("");
   const [type, setType] = useState<VolunteerTaskType | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [location, setLocation] = useState<string | null>(null);
+  const [podId, setPodId] = useState<string | null>(null);
   const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -33,6 +35,7 @@ export function AddVolunteerTaskModal({ onClose }: { onClose: () => void }) {
         type,
         time,
         location,
+        podId: podId ?? null,
         assigneeUid: assignee?.uid ?? null,
         assigneeName: assignee?.displayName ?? null,
         done: false,
@@ -77,6 +80,12 @@ export function AddVolunteerTaskModal({ onClose }: { onClose: () => void }) {
         {VOLUNTEER_TASK_LOCATIONS.map((l) => (
           <Pill key={l} active={location === l} onClick={() => setLocation(l)}>{l}</Pill>
         ))}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Pod (optional)</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+        <Pill active={!podId} onClick={() => setPodId(null)}>None</Pill>
+        {pods.map((p) => <Pill key={p.id} active={podId === p.id} onClick={() => setPodId(p.id)}>{p.name}</Pill>)}
       </div>
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Assign to (optional)</div>

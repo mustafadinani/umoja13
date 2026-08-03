@@ -22,6 +22,8 @@ import {
   type ChannelRole,
   type RoleChannel,
   type UserChannel,
+  type Pod,
+  type PodChannel,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -47,6 +49,22 @@ export const useTeam = (teamId: string | undefined) => useRegistrationTeam(teamI
 export const useTeamChannel = (teamId: string | undefined) => useDocument<TeamChannel>(COLLECTIONS.teamChannels, teamId);
 export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(COLLECTIONS.roleChannels, role);
 export const useUserChannel = (uid: string | undefined) => useDocument<UserChannel>(COLLECTIONS.userChannels, uid);
+
+export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
+export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
+
+/** Pods a uid belongs to — client-filtered from the full list, mirroring the web hook. */
+export const useMyPods = (uid: string | undefined) => {
+  const result = usePods();
+  const mine = useMemo(() => result.data.filter((p) => !!uid && p.memberUids.includes(uid)), [result.data, uid]);
+  return { ...result, data: mine };
+};
+
+export const useVolunteerTasksByPod = (podId: string | undefined) =>
+  useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, podId ? [where("podId", "==", podId)] : []);
+
+export const useGamesByPod = (podId: string | undefined) =>
+  useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
 
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);

@@ -12,8 +12,9 @@ import { SponsorsAdminTab } from "./SponsorsAdminTab";
 import { NotificationsAdminTab } from "./NotificationsAdminTab";
 import { TeamChannelsAdminTab } from "./TeamChannelsAdminTab";
 import { UserChannelsAdminTab } from "./UserChannelsAdminTab";
+import { PodsAdminTab } from "./PodsAdminTab";
 
-type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages";
+type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods";
 const TABS: { id: Tab; label: string }[] = [
   { id: "games", label: "All Games" },
   { id: "teams", label: "Teams" },
@@ -26,6 +27,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "notifications", label: "Notifications" },
   { id: "teamChannels", label: "Team Channels" },
   { id: "messages", label: "Messages" },
+  { id: "pods", label: "Pods" },
 ];
 
 export function AdminDashboard() {
@@ -50,6 +52,7 @@ export function AdminDashboard() {
       {tab === "notifications" && <NotificationsAdminTab />}
       {tab === "teamChannels" && <TeamChannelsAdminTab />}
       {tab === "messages" && <UserChannelsAdminTab />}
+      {tab === "pods" && <PodsAdminTab />}
     </div>
   );
 }

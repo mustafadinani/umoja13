@@ -24,6 +24,8 @@ import {
   type ChannelRole,
   type RoleChannel,
   type UserChannel,
+  type Pod,
+  type PodChannel,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -52,6 +54,17 @@ export const useTeam = (teamId: string | undefined) => useRegistrationTeam(teamI
 export const useTeamChannel = (teamId: string | undefined) => useDocument<TeamChannel>(COLLECTIONS.teamChannels, teamId);
 export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(COLLECTIONS.roleChannels, role);
 export const useUserChannel = (uid: string | undefined) => useDocument<UserChannel>(COLLECTIONS.userChannels, uid);
+
+export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
+export const usePod = (podId: string | undefined) => useDocument<Pod>(COLLECTIONS.pods, podId);
+export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
+
+/** Pods a uid belongs to — client-filtered from the full list rather than an array-contains query, since usePods() is already loaded by every screen that needs this (admin tab + every pod-eligible dashboard). */
+export const useMyPods = (uid: string | undefined) => {
+  const result = usePods();
+  const mine = useMemo(() => result.data.filter((p) => !!uid && p.memberUids.includes(uid)), [result.data, uid]);
+  return { ...result, data: mine };
+};
 
 export const useGames = (constraints: QueryConstraint[] = []) =>
   useCollection<Game>(COLLECTIONS.games, constraints);
@@ -122,6 +135,12 @@ export const useMyVolunteerTasks = (uid: string | undefined) =>
     COLLECTIONS.volunteerTasks,
     uid ? [where("assigneeUid", "==", uid)] : []
   );
+
+export const useVolunteerTasksByPod = (podId: string | undefined) =>
+  useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, podId ? [where("podId", "==", podId)] : []);
+
+export const useGamesByPod = (podId: string | undefined) =>
+  useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
 
 export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
 

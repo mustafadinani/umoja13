@@ -1,6 +1,9 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, ROLES, type Role } from "@umoja/shared";
 import { auth, db } from "../util/admin.js";
+import { ensureInGeneralPod } from "../util/generalPod.js";
+
+const POD_ELIGIBLE_ROLES: Role[] = ["admin", "commissioner", "referee", "volunteer"];
 
 interface SetUserRoleRequest {
   targetUid: string;
@@ -39,6 +42,10 @@ export const setUserRole = onCall<SetUserRoleRequest>(async (request) => {
     { roles, primaryRole, updatedAt: Date.now() },
     { merge: true }
   );
+
+  if (roles.some((r) => POD_ELIGIBLE_ROLES.includes(r))) {
+    await ensureInGeneralPod(targetUid);
+  }
 
   return { ok: true };
 });

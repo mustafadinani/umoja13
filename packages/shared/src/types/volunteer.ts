@@ -62,6 +62,8 @@ export interface VolunteerTask {
   type: VolunteerTaskType;
   time: string;
   location: string;
+  /** Optional pod this shift belongs to, set explicitly when creating the shift — `location` is free text and doesn't reliably map onto a pod's fields. */
+  podId?: string;
   assigneeUid: string | null;
   assigneeName: string | null;
   done: boolean;

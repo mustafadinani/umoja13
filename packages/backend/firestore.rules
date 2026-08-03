@@ -138,12 +138,16 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
         request.resource.data.status == 'pending';
     }
-    // Tasks/shifts: private to staff and the assigned volunteer now that a
-    // task carries a contextual Q&A thread — an assigned volunteer may only
-    // flag a conflict or mark done directly; messages are Cloud-Function-only
-    // (sendVolunteerTaskMessage) so `from` can't be spoofed.
+    // Tasks/shifts: private to staff, the assigned volunteer, and — since a
+    // Pod Hub shows every shift tagged to its pod, not just the viewer's own
+    // — anyone on that pod's roster. A task carries a contextual Q&A thread;
+    // an assigned volunteer may only flag a conflict or mark done directly;
+    // messages are Cloud-Function-only (sendVolunteerTaskMessage) so `from`
+    // can't be spoofed.
     match /volunteerTasks/{taskId} {
-      allow read: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid);
+      allow read: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid) ||
+        (isSignedIn() && resource.data.get('podId', null) != null &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
       allow create, delete: if isStaff();
       allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done']));
@@ -223,6 +227,27 @@ service cloud.firestore {
     // sendUserMessage. Private to staff and the channel's own owner.
     match /userChannels/{uid} {
       allow read: if isStaff() || isOwner(uid);
+      allow write: if false;
+    }
+
+    // ---- Pods: staffing-zone roster + flat peer group chat ----
+    // Pod docs carry an explicit memberUids roster (admin-curated, like
+    // teams.rosterUids) rather than being derived from role — membership is
+    // "whoever's assigned to this zone," not "everyone with a role." Only
+    // staff can create/edit/delete pods (via createPod/updatePod/deletePod);
+    // a member (or staff) can read their own pod.
+    match /pods/{podId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in resource.data.memberUids);
+      allow write: if false;
+    }
+
+    // Chat is a flat peer group (no staff/member distinction, unlike
+    // teamChannels/roleChannels/userChannels) — written only by
+    // sendPodMessage, which re-derives membership server-side.
+    match /podChannels/{podId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/pods/$(podId)).data.memberUids);
       allow write: if false;
     }
 

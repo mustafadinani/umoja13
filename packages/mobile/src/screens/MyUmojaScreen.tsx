@@ -1,16 +1,17 @@
 import { useMemo, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
+import { CATEGORIES, type PlayerMembership, type Pod } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications } from "../hooks/useData";
+import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications, useMyPods } from "../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../components/ui";
 import { CheckInCard } from "../components/CheckInCard";
 import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { VolunteerTaskDetailModal } from "../components/VolunteerTaskDetailModal";
+import { PodHubModal } from "../components/PodHubModal";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
@@ -157,6 +158,8 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
         <VolunteerSection uid={user?.uid} activeKidName={selectedKid} onSignup={() => setVolunteerSignupOpen(true)} />
       </View>
 
+      <MyPodsSection uid={user?.uid} />
+
       <View style={styles.section}>
         <Card onPress={() => navigation.getParent()?.navigate("Complaint")}>
           <Text style={{ fontWeight: "600" }}>Report an issue to the commissioner</Text>
@@ -247,6 +250,30 @@ function VolunteerSection({
 
       {openTask && <VolunteerTaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </>
+  );
+}
+
+/** Only rendered for admin/commissioner/referee/volunteer accounts — anyone on at least one pod. Players/fans with no pod see nothing here. */
+function MyPodsSection({ uid }: { uid: string | undefined }) {
+  const { data: pods } = useMyPods(uid);
+  const [openPod, setOpenPod] = useState<Pod | null>(null);
+  const sorted = [...pods].sort((a, b) => (a.isGeneral ? 1 : b.isGeneral ? -1 : a.name.localeCompare(b.name)));
+
+  if (sorted.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>MY PODS</Text>
+      <View style={{ gap: 8 }}>
+        {sorted.map((p) => (
+          <Card key={p.id} onPress={() => setOpenPod(p)} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontWeight: "700", fontSize: 14 }}>{p.name}</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>{p.memberUids.length} member{p.memberUids.length === 1 ? "" : "s"}</Text>
+          </Card>
+        ))}
+      </View>
+      {openPod && <PodHubModal pod={openPod} onClose={() => setOpenPod(null)} />}
+    </View>
   );
 }
 

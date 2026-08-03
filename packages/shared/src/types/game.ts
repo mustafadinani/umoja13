@@ -45,6 +45,8 @@ export interface Game {
   day: "fri" | "sat" | "sun";
   kickoffTime: string; // "10:40"
   field: string; // "Field 1"
+  /** Derived from `field` at creation via podForField() — lets a Pod Hub show its games without a fields<->pod join at read time. */
+  podId?: string;
   homeTeamId: string;
   awayTeamId: string;
   status: GameStatus;
