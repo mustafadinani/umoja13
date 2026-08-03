@@ -37,6 +37,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   const [memberUids, setMemberUids] = useState<string[]>(pod?.memberUids ?? []);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [emailLookup, setEmailLookup] = useState<{ status: "idle" | "loading" | "done"; result: Candidate | null }>({ status: "idle", result: null });
   const [foundByEmail, setFoundByEmail] = useState<Candidate[]>([]);
 
@@ -99,6 +100,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   async function submit() {
     if (!name.trim()) return;
     setBusy(true);
+    setError(null);
     try {
       if (pod) {
         await updatePod({ podId: pod.id, name, fields, memberUids });
@@ -106,6 +108,8 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
         await createPod({ name, fields, memberUids });
       }
       onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save this pod.");
     } finally {
       setBusy(false);
     }
@@ -201,6 +205,11 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
         {memberUids.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No members yet.</div>}
       </div>
 
+      {error && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+          {error}
+        </div>
+      )}
       <PrimaryButton disabled={busy || !name.trim()} onClick={submit} style={{ width: "100%" }}>
         {busy ? "Saving…" : pod ? "SAVE CHANGES" : "CREATE POD"}
       </PrimaryButton>
