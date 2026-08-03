@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { useMyPods } from "../hooks/useData";
 import { NotificationsBell } from "./NotificationsBell";
 import { MessagesBell } from "./MessagesBell";
 import { AskUmojaWidget } from "./AskUmojaWidget";
 
-const NAV_ITEMS: { label: string; to: string }[] = [
+const BASE_NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Home", to: "/" },
   { label: "Game Day", to: "/schedule" },
   { label: "Standings & Bracket", to: "/standings" },
@@ -22,6 +23,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, profile, signOut } = useAuth();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Only shown to someone actually on a pod — most users never will be, so this doesn't clutter the nav for everyone else.
+  const { data: myPods } = useMyPods(user?.uid);
+  const NAV_ITEMS = myPods.length > 0 ? [...BASE_NAV_ITEMS, { label: "My Pods", to: "/pods" }] : BASE_NAV_ITEMS;
 
   useEffect(() => {
     setMenuOpen(false);

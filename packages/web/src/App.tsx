@@ -15,6 +15,7 @@ import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
 import { Info } from "./pages/Info";
+import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
 
 export default function App() {
@@ -46,6 +47,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ReportIssuePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pods"
+              element={
+                <ProtectedRoute>
+                  <Pods />
                 </ProtectedRoute>
               }
             />
