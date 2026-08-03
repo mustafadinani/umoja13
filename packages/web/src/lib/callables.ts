@@ -179,3 +179,8 @@ export const sendPodMessage = httpsCallable<
   { podId: string; text: string },
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
+
+export const lookupUserByEmail = httpsCallable<
+  { email: string },
+  { user: { uid: string; email: string; displayName: string } | null }
+>(functions, "lookupUserByEmail");

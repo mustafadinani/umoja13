@@ -23,3 +23,4 @@ export { sendUserMessage } from "./http/sendUserMessage.js";
 export { sendVolunteerTaskMessage } from "./http/sendVolunteerTaskMessage.js";
 export { createPod, updatePod, deletePod, ensurePodsSeeded } from "./http/podAdmin.js";
 export { sendPodMessage } from "./http/sendPodMessage.js";
+export { lookupUserByEmail } from "./http/lookupUserByEmail.js";

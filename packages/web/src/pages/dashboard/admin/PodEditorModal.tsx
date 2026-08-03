@@ -1,30 +1,86 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FIELDS, type Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllUsers } from "../../../hooks/useData";
-import { createPod, updatePod } from "../../../lib/callables";
+import { useRegisteredPlayers } from "../../../hooks/useRegistration";
+import { createPod, updatePod, lookupUserByEmail } from "../../../lib/callables";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
+
+interface Candidate {
+  uid: string;
+  displayName: string;
+  sublabel: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Create or edit a Pod: name, field coverage, and member roster. Membership
- * search covers every registered user, not just people already holding a
- * staff role — pods are how you recruit someone onto the event team in the
- * first place (a parent, a player, anyone), not just a grouping for people
- * who are already staff. Editing the General pod's fields/name is allowed,
- * but it can never be deleted (handled by the caller, not here).
+ * search covers three sources, since most real people in this org aren't
+ * `users` docs at all — that collection is only people who've signed into
+ * the umoja13-app tournament features specifically:
+ *  - umoja13-app `users` (staff/volunteers who've used the tournament app)
+ *  - Outreach `playersRegistered` (every real registered player already
+ *    carries a Firebase Auth uid, so these are safe to add directly)
+ *  - direct email lookup (for family managers/parents, who only exist in
+ *    Outreach data as an email on `families.managers` with no name to
+ *    search by — you look them up by the one identifier that's reliable)
+ * Editing the General pod's fields/name is allowed, but it can never be
+ * deleted (handled by the caller, not here).
  */
 export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => void }) {
   const { data: users } = useAllUsers();
+  const { data: registeredPlayers } = useRegisteredPlayers();
 
   const [name, setName] = useState(pod?.name ?? "");
   const [fields, setFields] = useState<string[]>(pod?.fields ?? []);
   const [memberUids, setMemberUids] = useState<string[]>(pod?.memberUids ?? []);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [emailLookup, setEmailLookup] = useState<{ status: "idle" | "loading" | "done"; result: Candidate | null }>({ status: "idle", result: null });
+  const [foundByEmail, setFoundByEmail] = useState<Candidate[]>([]);
 
-  const searchResults = search.trim()
-    ? users.filter((u) => !memberUids.includes(u.uid) && u.displayName.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 8)
-    : [];
+  const nameByUid = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of users) map.set(u.uid, u.displayName);
+    for (const p of registeredPlayers) {
+      if (p.uid && !map.has(p.uid)) map.set(p.uid, `${p.firstName} ${p.lastName}`.trim());
+    }
+    for (const c of foundByEmail) if (!map.has(c.uid)) map.set(c.uid, c.displayName);
+    return map;
+  }, [users, registeredPlayers, foundByEmail]);
+
+  const nameResults: Candidate[] = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return [];
+    const fromUsers: Candidate[] = users
+      .filter((u) => u.displayName.toLowerCase().includes(needle))
+      .map((u) => ({ uid: u.uid, displayName: u.displayName, sublabel: u.primaryRole }));
+    const seen = new Set(fromUsers.map((c) => c.uid));
+    const fromPlayers: Candidate[] = registeredPlayers
+      .filter((p) => p.uid && !seen.has(p.uid) && `${p.firstName} ${p.lastName}`.toLowerCase().includes(needle))
+      .map((p) => ({ uid: p.uid, displayName: `${p.firstName} ${p.lastName}`.trim(), sublabel: "registered player" }));
+    return [...fromUsers, ...fromPlayers].filter((c) => !memberUids.includes(c.uid)).slice(0, 8);
+  }, [search, users, registeredPlayers, memberUids]);
+
+  async function runEmailLookup() {
+    const email = search.trim();
+    if (!EMAIL_RE.test(email)) return;
+    setEmailLookup({ status: "loading", result: null });
+    try {
+      const res = await lookupUserByEmail({ email });
+      const user = res.data.user;
+      if (user) {
+        const candidate: Candidate = { uid: user.uid, displayName: user.displayName, sublabel: user.email };
+        setFoundByEmail((prev) => (prev.some((c) => c.uid === candidate.uid) ? prev : [...prev, candidate]));
+        setEmailLookup({ status: "done", result: candidate });
+      } else {
+        setEmailLookup({ status: "done", result: null });
+      }
+    } catch {
+      setEmailLookup({ status: "done", result: null });
+    }
+  }
 
   function toggleField(f: string) {
     setFields((prev) => (prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f]));
@@ -33,6 +89,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   function addMember(uid: string) {
     setMemberUids((prev) => [...prev, uid]);
     setSearch("");
+    setEmailLookup({ status: "idle", result: null });
   }
 
   function removeMember(uid: string) {
@@ -53,6 +110,9 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
       setBusy(false);
     }
   }
+
+  const looksLikeEmail = EMAIL_RE.test(search.trim());
+  const emailAlreadyAMember = emailLookup.result ? memberUids.includes(emailLookup.result.uid) : false;
 
   return (
     <Modal onClose={onClose} width={520}>
@@ -76,34 +136,68 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
       </div>
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Members</div>
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name…"
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: searchResults.length > 0 ? 8 : 0 }}
-      />
-      {searchResults.length > 0 && (
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <input
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setEmailLookup({ status: "idle", result: null }); }}
+          onKeyDown={(e) => e.key === "Enter" && looksLikeEmail && runEmailLookup()}
+          placeholder="Search by name, or paste an email…"
+          style={{ flex: 1, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+        />
+        {looksLikeEmail && (
+          <button
+            onClick={runEmailLookup}
+            disabled={emailLookup.status === "loading"}
+            style={{ padding: "0 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, fontWeight: 700, background: "none", cursor: "pointer" }}
+          >
+            {emailLookup.status === "loading" ? "Looking up…" : "Look up"}
+          </button>
+        )}
+      </div>
+
+      {nameResults.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
-          {searchResults.map((u) => (
+          {nameResults.map((c) => (
             <div
-              key={u.uid}
-              onClick={() => addMember(u.uid)}
+              key={c.uid}
+              onClick={() => addMember(c.uid)}
               style={{ padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, cursor: "pointer", fontSize: 13.5 }}
             >
-              {u.displayName} <span style={{ color: theme.color.textMuted, fontSize: 12 }}>· {u.primaryRole}</span>
+              {c.displayName} <span style={{ color: theme.color.textMuted, fontSize: 12 }}>· {c.sublabel}</span>
             </div>
           ))}
         </div>
       )}
+
+      {emailLookup.status === "done" && (
+        <div style={{ marginBottom: 10 }}>
+          {emailLookup.result ? (
+            <div
+              onClick={() => !emailAlreadyAMember && addMember(emailLookup.result!.uid)}
+              style={{
+                padding: "8px 10px",
+                borderRadius: theme.radius.sm,
+                border: `1px solid ${theme.color.border}`,
+                cursor: emailAlreadyAMember ? "default" : "pointer",
+                fontSize: 13.5,
+                opacity: emailAlreadyAMember ? 0.6 : 1,
+              }}
+            >
+              {emailLookup.result.displayName} <span style={{ color: theme.color.textMuted, fontSize: 12 }}>· {emailLookup.result.sublabel}</span>
+              {emailAlreadyAMember && <span style={{ color: theme.color.textMuted, fontSize: 12 }}> · already added</span>}
+            </div>
+          ) : (
+            <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No account found for that email.</div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
-        {memberUids.map((uid) => {
-          const u = users.find((x) => x.uid === uid);
-          return (
-            <Pill key={uid} onClick={() => removeMember(uid)}>
-              {u?.displayName ?? uid} ✕
-            </Pill>
-          );
-        })}
+        {memberUids.map((uid) => (
+          <Pill key={uid} onClick={() => removeMember(uid)}>
+            {nameByUid.get(uid) ?? uid} ✕
+          </Pill>
+        ))}
         {memberUids.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No members yet.</div>}
       </div>
 
