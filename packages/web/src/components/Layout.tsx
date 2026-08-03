@@ -25,8 +25,13 @@ export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Only shown to someone actually on a pod — most users never will be, so this doesn't clutter the nav for everyone else.
+  // Named directly by the pod itself (e.g. "Board Members") rather than a generic "My Pods" label, so membership is
+  // visible at a glance instead of requiring a click-through to find out which pod(s) you're actually on.
   const { data: myPods } = useMyPods(user?.uid);
-  const NAV_ITEMS = myPods.length > 0 ? [...BASE_NAV_ITEMS, { label: "My Pods", to: "/pods" }] : BASE_NAV_ITEMS;
+  const namedPods = myPods.filter((p) => !p.isGeneral);
+  const podNavLabel =
+    namedPods.length === 1 ? namedPods[0].name : namedPods.length > 1 ? `My Pods (${namedPods.length})` : myPods.length > 0 ? "My Pods" : null;
+  const NAV_ITEMS = podNavLabel ? [...BASE_NAV_ITEMS, { label: podNavLabel, to: "/pods" }] : BASE_NAV_ITEMS;
 
   useEffect(() => {
     setMenuOpen(false);

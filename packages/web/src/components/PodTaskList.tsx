@@ -7,6 +7,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { useGamesByPod, usePod, usePodTasksByPod, useVolunteerTasksByPod } from "../hooks/useData";
 import { AddVolunteerTaskModal } from "../pages/dashboard/admin/AddVolunteerTaskModal";
 import { AddPodTaskModal } from "./AddPodTaskModal";
+import { RecruitVolunteerModal } from "./RecruitVolunteerModal";
 import { Card, Pill, PrimaryButton, StatusBadge } from "./ui";
 
 function formatDueDate(dueDate: string, todayStr: string): string {
@@ -82,9 +83,12 @@ export function PodTaskList({ podId }: { podId: string }) {
   const { data: tasks } = usePodTasksByPod(podId);
   const [addShiftOpen, setAddShiftOpen] = useState(false);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [recruitOpen, setRecruitOpen] = useState(false);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
+  const isVolunteer = profile?.roles.includes("volunteer") ?? false;
+  const canRecruit = isStaff || (isPodMember && isVolunteer);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -104,10 +108,11 @@ export function PodTaskList({ podId }: { podId: string }) {
 
   return (
     <div>
-      {canAdd && (
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <PrimaryButton onClick={() => setAddTaskOpen(true)}>+ ADD TASK</PrimaryButton>
-          <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>
+      {(canAdd || canRecruit) && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {canAdd && <PrimaryButton onClick={() => setAddTaskOpen(true)}>+ ADD TASK</PrimaryButton>}
+          {canAdd && <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>}
+          {canRecruit && <PrimaryButton onClick={() => setRecruitOpen(true)}>+ RECRUIT VOLUNTEER</PrimaryButton>}
         </div>
       )}
 
@@ -204,6 +209,7 @@ export function PodTaskList({ podId }: { podId: string }) {
 
       {addTaskOpen && <AddPodTaskModal podId={podId} onClose={() => setAddTaskOpen(false)} />}
       {addShiftOpen && <AddVolunteerTaskModal initialPodId={podId} onClose={() => setAddShiftOpen(false)} />}
+      {recruitOpen && <RecruitVolunteerModal podId={podId} podName={pod?.name} onClose={() => setRecruitOpen(false)} />}
     </div>
   );
 }

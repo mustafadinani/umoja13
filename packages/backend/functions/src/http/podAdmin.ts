@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { FieldValue } from "firebase-admin/firestore";
 import {
   COLLECTIONS,
   GENERAL_POD_ID,
@@ -163,6 +164,94 @@ export const getPodMemberNames = onCall<GetPodMemberNamesRequest>(async (request
   const members = pod.memberUids.map((memberUid) => ({ uid: memberUid, displayName: nameByUid.get(memberUid) ?? memberUid }));
 
   return { members };
+});
+
+interface GetRecruitableVolunteersRequest {
+  podId: string;
+}
+
+/**
+ * Lets a pod's own volunteer members (not just staff) find other registered
+ * volunteers to recruit onto the pod — pod *creation* stays staff-only, but
+ * growing an existing pod's roster shouldn't require an admin in the loop.
+ * Reads across `users` with an Admin SDK query since a plain volunteer can't
+ * run `where("roles", "array-contains", "volunteer")` themselves (rules only
+ * allow reading your own user doc, or staff reading anyone's).
+ */
+export const getRecruitableVolunteers = onCall<GetRecruitableVolunteersRequest>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const { podId } = request.data;
+  if (!podId) throw new HttpsError("invalid-argument", "podId is required.");
+
+  const podSnap = await db.collection(COLLECTIONS.pods).doc(podId).get();
+  if (!podSnap.exists) throw new HttpsError("not-found", "Pod not found.");
+  const pod = podSnap.data() as Pod;
+
+  const callerSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
+  const callerRoles: string[] = callerSnap.data()?.roles ?? [];
+  const isStaffCaller = callerRoles.includes("admin") || callerRoles.includes("commissioner");
+  const isRecruiter = isStaffCaller || (pod.memberUids.includes(uid) && callerRoles.includes("volunteer"));
+  if (!isRecruiter) {
+    throw new HttpsError("permission-denied", "Only this pod's volunteer members (or staff) can recruit.");
+  }
+
+  const volunteersSnap = await db.collection(COLLECTIONS.users).where("roles", "array-contains", "volunteer").get();
+  const candidates = volunteersSnap.docs
+    .filter((d) => !pod.memberUids.includes(d.id))
+    .map((d) => ({ uid: d.id, displayName: (d.data().displayName as string | undefined) ?? "Unknown" }));
+
+  return { candidates };
+});
+
+interface AddPodVolunteerRequest {
+  podId: string;
+  uidToAdd: string;
+}
+
+/**
+ * Adds one volunteer to a pod's roster. Callable by staff, or by any existing
+ * volunteer member of that same pod recruiting a fellow registered volunteer
+ * (target must hold the "volunteer" role too, so this can't be used to pull
+ * in arbitrary strangers — only people who've already signed up to
+ * volunteer). Unlike `updatePod`, this takes a single uid and unions it in
+ * server-side rather than trusting a client-supplied full roster replace.
+ */
+export const addPodVolunteer = onCall<AddPodVolunteerRequest>(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const { podId, uidToAdd } = request.data;
+  if (!podId || !uidToAdd) throw new HttpsError("invalid-argument", "podId and uidToAdd are required.");
+
+  const ref = db.collection(COLLECTIONS.pods).doc(podId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Pod not found.");
+  const pod = snap.data() as Pod;
+
+  const callerSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
+  const callerRoles: string[] = callerSnap.data()?.roles ?? [];
+  const isStaffCaller = callerRoles.includes("admin") || callerRoles.includes("commissioner");
+  const isRecruiter = isStaffCaller || (pod.memberUids.includes(uid) && callerRoles.includes("volunteer"));
+  if (!isRecruiter) {
+    throw new HttpsError("permission-denied", "Only this pod's volunteer members (or staff) can recruit.");
+  }
+
+  if (pod.memberUids.includes(uidToAdd)) return { ok: true };
+
+  if (!isStaffCaller) {
+    const targetSnap = await db.collection(COLLECTIONS.users).doc(uidToAdd).get();
+    const targetRoles: string[] = targetSnap.data()?.roles ?? [];
+    if (!targetRoles.includes("volunteer")) {
+      throw new HttpsError("failed-precondition", "You can only recruit registered volunteers.");
+    }
+  }
+
+  await ref.update({ memberUids: FieldValue.arrayUnion(uidToAdd), updatedAt: Date.now() });
+  await notifyUsers([uidToAdd], `Added to ${pod.name}`, `You've been added to the ${pod.name} pod.`);
+
+  return { ok: true };
 });
 
 /**

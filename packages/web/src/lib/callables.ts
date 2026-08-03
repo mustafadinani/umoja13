@@ -185,6 +185,16 @@ export const getPodMemberNames = httpsCallable<
   { members: { uid: string; displayName: string }[] }
 >(functions, "getPodMemberNames");
 
+export const getRecruitableVolunteers = httpsCallable<
+  { podId: string },
+  { candidates: { uid: string; displayName: string }[] }
+>(functions, "getRecruitableVolunteers");
+
+export const addPodVolunteer = httpsCallable<{ podId: string; uidToAdd: string }, { ok: true }>(
+  functions,
+  "addPodVolunteer"
+);
+
 export const lookupUserByEmail = httpsCallable<
   { email: string },
   { user: { uid: string; email: string; displayName: string } | null }

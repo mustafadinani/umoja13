@@ -21,6 +21,14 @@ export { sendTeamMessage } from "./http/sendTeamMessage.js";
 export { sendRoleMessage } from "./http/sendRoleMessage.js";
 export { sendUserMessage } from "./http/sendUserMessage.js";
 export { sendVolunteerTaskMessage } from "./http/sendVolunteerTaskMessage.js";
-export { createPod, updatePod, deletePod, ensurePodsSeeded, getPodMemberNames } from "./http/podAdmin.js";
+export {
+  createPod,
+  updatePod,
+  deletePod,
+  ensurePodsSeeded,
+  getPodMemberNames,
+  getRecruitableVolunteers,
+  addPodVolunteer,
+} from "./http/podAdmin.js";
 export { sendPodMessage } from "./http/sendPodMessage.js";
 export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
