@@ -13,6 +13,7 @@ import { NotificationsAdminTab } from "./NotificationsAdminTab";
 import { TeamChannelsAdminTab } from "./TeamChannelsAdminTab";
 import { UserChannelsAdminTab } from "./UserChannelsAdminTab";
 import { PodsAdminTab } from "./PodsAdminTab";
+import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
 type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods";
 const TABS: { id: Tab; label: string }[] = [
@@ -36,6 +37,7 @@ export function AdminDashboard() {
   return (
     <div className="page-shell" style={{ maxWidth: 1000 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>ADMIN</div>
+      <MyPodTasksSection />
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {TABS.map((t) => (
           <Pill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Pill>

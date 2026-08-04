@@ -4,6 +4,7 @@ import { theme } from "../../../lib/theme";
 import { useMyVolunteerTasks } from "../../../hooks/useData";
 import { Card, Pill } from "../../../components/ui";
 import { VolunteerTaskDetailModal } from "../../../components/VolunteerTaskDetailModal";
+import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
 export function VolunteerDashboard() {
   const { user } = useAuth();
@@ -14,6 +15,8 @@ export function VolunteerDashboard() {
   return (
     <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>VOLUNTEER</div>
+
+      <MyPodTasksSection />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {tasks.map((t) => (

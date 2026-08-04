@@ -74,6 +74,9 @@ export const useGamesByPod = (podId: string | undefined) =>
 export const usePodTasksByPod = (podId: string | undefined) =>
   useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId)] : []);
 
+export const useMyPodTasks = (uid: string | undefined) =>
+  useCollection<PodTask>(COLLECTIONS.podTasks, uid ? [where("assigneeUid", "==", uid)] : []);
+
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
 

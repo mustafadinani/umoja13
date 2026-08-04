@@ -12,6 +12,7 @@ import type {
   UserChannelMessage,
   VolunteerTaskMessage,
   PodChannelMessage,
+  PodTaskMessage,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -153,6 +154,11 @@ export const sendVolunteerTaskMessage = httpsCallable<
   { taskId: string; text: string },
   { message: VolunteerTaskMessage }
 >(functions, "sendVolunteerTaskMessage");
+
+export const sendPodTaskMessage = httpsCallable<
+  { taskId: string; text: string },
+  { message: PodTaskMessage }
+>(functions, "sendPodTaskMessage");
 
 export const sendPodMessage = httpsCallable<
   { podId: string; text: string },

@@ -153,6 +153,9 @@ export const useGamesByPod = (podId: string | undefined) =>
 export const usePodTasksByPod = (podId: string | undefined) =>
   useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId)] : []);
 
+export const useMyPodTasks = (uid: string | undefined) =>
+  useCollection<PodTask>(COLLECTIONS.podTasks, uid ? [where("assigneeUid", "==", uid)] : []);
+
 export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
 
 export const useChallengeSubmissions = (constraints: QueryConstraint[] = []) =>

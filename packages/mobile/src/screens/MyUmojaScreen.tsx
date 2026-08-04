@@ -4,13 +4,14 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { CATEGORIES, type PlayerMembership, type Pod } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications, useMyPods } from "../hooks/useData";
+import { useGames, useTeam, useMyVolunteerTasks, useMyVolunteerApplications, useMyPods, useMyPodTasks } from "../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../components/ui";
 import { CheckInCard } from "../components/CheckInCard";
 import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { VolunteerTaskDetailModal } from "../components/VolunteerTaskDetailModal";
+import { PodTaskDetailModal } from "../components/PodTaskDetailModal";
 import { PodHubModal } from "../components/PodHubModal";
 
 function firstName(name: string) {
@@ -158,6 +159,8 @@ export function MyUmojaScreen({ navigation }: BottomTabScreenProps<any>) {
         <VolunteerSection uid={user?.uid} activeKidName={selectedKid} onSignup={() => setVolunteerSignupOpen(true)} />
       </View>
 
+      <MyPodTasksSection uid={user?.uid} />
+
       <MyPodsSection uid={user?.uid} />
 
       <View style={styles.section}>
@@ -250,6 +253,52 @@ function VolunteerSection({
 
       {openTask && <VolunteerTaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </>
+  );
+}
+
+function formatTaskDueDate(dueDate: string, todayStr: string): string {
+  const label = new Date(`${dueDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return dueDate < todayStr ? `Overdue · was due ${label}` : `Due ${label}`;
+}
+
+/** Pod tasks assigned specifically to you, across every pod you're on. Renders nothing if you have no pending tasks. */
+function MyPodTasksSection({ uid }: { uid: string | undefined }) {
+  const { data: tasks } = useMyPodTasks(uid);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const pending = tasks
+    .filter((t) => !t.done)
+    .sort((a, b) => {
+      if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return b.createdAt - a.createdAt;
+    });
+  const openTask = pending.find((t) => t.id === openTaskId) ?? null;
+
+  if (pending.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>TASKS DUE FROM YOU</Text>
+      <View style={{ gap: 8 }}>
+        {pending.map((t) => {
+          const isOverdue = !!t.dueDate && t.dueDate < todayStr;
+          return (
+            <Card key={t.id} onPress={() => setOpenTaskId(t.id)} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ fontWeight: "700", fontSize: 14 }}>{t.title}</Text>
+              {!!t.dueDate && (
+                <Text style={{ fontSize: 12, color: isOverdue ? theme.color.danger : theme.color.textMuted, fontWeight: isOverdue ? "700" : "400" }}>
+                  {formatTaskDueDate(t.dueDate, todayStr)}
+                </Text>
+              )}
+            </Card>
+          );
+        })}
+      </View>
+      {openTask && <PodTaskDetailModal task={openTask} canPost onClose={() => setOpenTaskId(null)} />}
+    </View>
   );
 }
 

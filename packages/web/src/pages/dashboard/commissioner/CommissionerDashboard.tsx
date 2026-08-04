@@ -7,6 +7,7 @@ import { callItFinal } from "../../../lib/callables";
 import { Card, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { IncidentReplyModal } from "../../../components/IncidentReplyModal";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
+import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
 export function CommissionerDashboard() {
   const { data: awaitingGames } = useGames([where("gameCard.status", "==", "awaiting_commissioner")]);
@@ -33,6 +34,8 @@ export function CommissionerDashboard() {
   return (
     <div className="page-shell-sm" style={{ maxWidth: 900 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>COMMISSIONER DESK</div>
+
+      <MyPodTasksSection />
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>GAME CARDS TO FINALIZE</div>
       {finalizeError && (

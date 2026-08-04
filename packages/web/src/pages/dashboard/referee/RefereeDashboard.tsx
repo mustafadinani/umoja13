@@ -7,6 +7,7 @@ import { theme } from "../../../lib/theme";
 import { useGames } from "../../../hooks/useData";
 import { Card, Pill, StatusBadge } from "../../../components/ui";
 import { RoleChannelPanel } from "../../../components/RoleChannelPanel";
+import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
 type Tab = "assignments" | "channel";
 
@@ -25,6 +26,8 @@ export function RefereeDashboard() {
       <div style={{ color: theme.color.textMuted, fontSize: 14, marginBottom: 20 }}>
         Tap into your game for gate check, match console, and game-card submission.
       </div>
+
+      <MyPodTasksSection />
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <Pill active={tab === "assignments"} onClick={() => setTab("assignments")}>Assignments</Pill>

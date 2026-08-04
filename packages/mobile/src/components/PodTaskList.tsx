@@ -6,6 +6,8 @@ import { db } from "../lib/firebase";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useGamesByPod, useMyPods, usePodTasksByPod, useVolunteerTasksByPod } from "../hooks/useData";
+import { PodTaskDetailModal } from "./PodTaskDetailModal";
+import { VolunteerTaskDetailModal } from "./VolunteerTaskDetailModal";
 import { Card, Pill, StatusBadge } from "./ui";
 
 function formatDueDate(dueDate: string, todayStr: string): string {
@@ -89,6 +91,8 @@ export function PodTaskList({ podId }: { podId: string }) {
   const { data: games } = useGamesByPod(podId);
   const { data: shifts } = useVolunteerTasksByPod(podId);
   const { data: tasks } = usePodTasksByPod(podId);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [openShiftId, setOpenShiftId] = useState<string | null>(null);
 
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isPodMember = myPods.some((p) => p.id === podId);
@@ -111,6 +115,9 @@ export function PodTaskList({ podId }: { podId: string }) {
     await updateDoc(doc(db, COLLECTIONS.volunteerTasks, shiftId), { done: !done });
   }
 
+  const openTask = sortedTasks.find((t) => t.id === openTaskId) ?? null;
+  const openShift = sortedShifts.find((t) => t.id === openShiftId) ?? null;
+
   if (sortedGames.length === 0 && sortedShifts.length === 0 && sortedTasks.length === 0) {
     return <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>Nothing tagged to this pod yet.</Text>;
   }
@@ -125,6 +132,7 @@ export function PodTaskList({ podId }: { podId: string }) {
               const canToggle = isStaff || isPodMember;
               const isOverdue = !t.done && !!t.dueDate && t.dueDate < todayStr;
               const details = [t.dueDate ? formatDueDate(t.dueDate, todayStr) : null, t.assigneeName].filter(Boolean).join(" · ");
+              const commentCount = t.messages?.length ?? 0;
               return (
                 <Card key={t.id} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
                   <Checkbox checked={t.done} disabled={!canToggle} onPress={() => toggleTaskDone(t.id, t.done)} />
@@ -138,6 +146,11 @@ export function PodTaskList({ podId }: { podId: string }) {
                       </Text>
                     )}
                   </View>
+                  <TouchableOpacity onPress={() => setOpenTaskId(t.id)} style={{ padding: 6 }}>
+                    <Text style={{ color: theme.color.textMuted, fontSize: 12.5, fontWeight: "700" }}>
+                      💬 {commentCount > 0 ? commentCount : "Comment"}
+                    </Text>
+                  </TouchableOpacity>
                 </Card>
               );
             })}
@@ -151,6 +164,7 @@ export function PodTaskList({ podId }: { podId: string }) {
           <View style={{ gap: 8 }}>
             {sortedShifts.map((t) => {
               const canToggle = isStaff || t.assigneeUid === profile?.uid;
+              const commentCount = t.messages?.length ?? 0;
               return (
                 <Card key={t.id}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -164,6 +178,11 @@ export function PodTaskList({ podId }: { podId: string }) {
                       </Text>
                     </View>
                     {t.cantMake && <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>Can't make it</Pill>}
+                    <TouchableOpacity onPress={() => setOpenShiftId(t.id)} style={{ padding: 6 }}>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12.5, fontWeight: "700" }}>
+                        💬 {commentCount > 0 ? commentCount : "Comment"}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   <ShiftSteps shift={t} canManage={canToggle} />
                 </Card>
@@ -189,6 +208,9 @@ export function PodTaskList({ podId }: { podId: string }) {
           </View>
         </View>
       )}
+
+      {openTask && <PodTaskDetailModal task={openTask} canPost={isStaff || isPodMember} onClose={() => setOpenTaskId(null)} />}
+      {openShift && <VolunteerTaskDetailModal task={openShift} onClose={() => setOpenShiftId(null)} />}
     </View>
   );
 }
