@@ -91,9 +91,32 @@ export const onGameWrite = onDocumentWritten(
     stats.groupRank = i + 1;
   });
 
+  // Per-player goal counts, same source data as the team-stats pass above
+  // (final/forfeited games only) — the roster view reads roster[i].goals
+  // directly rather than deriving it from events itself, so this is the
+  // only place that ever populates it (it's hardcoded to 0 at registration
+  // import and never touched again otherwise). No assist event type exists
+  // yet, so assists stays whatever it already was.
+  const goalsByTeamAndPlayer = new Map<string, Map<string, number>>();
+  for (const gdoc of gamesSnap.docs) {
+    const g = gdoc.data() as Game;
+    if (g.status !== "final" && g.status !== "forfeited") continue;
+    for (const e of g.events) {
+      if (e.type !== "goal") continue;
+      const byPlayer = goalsByTeamAndPlayer.get(e.teamId) ?? new Map<string, number>();
+      byPlayer.set(e.playerId, (byPlayer.get(e.playerId) ?? 0) + 1);
+      goalsByTeamAndPlayer.set(e.teamId, byPlayer);
+    }
+  }
+
   const batch = db.batch();
-  for (const [teamId, stats] of statsByTeam) {
-    batch.set(db.collection(COLLECTIONS.teams).doc(teamId), { stats }, { merge: true });
+  for (const teamDoc of teamsSnap.docs) {
+    const team = teamDoc.data() as Team;
+    const stats = statsByTeam.get(teamDoc.id);
+    if (!stats) continue;
+    const goalsByPlayer = goalsByTeamAndPlayer.get(teamDoc.id);
+    const roster = (team.roster ?? []).map((p) => ({ ...p, goals: goalsByPlayer?.get(p.userId) ?? 0 }));
+    batch.set(teamDoc.ref, { stats, roster }, { merge: true });
   }
   await batch.commit();
 });

@@ -23,6 +23,10 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const [customAmount, setCustomAmount] = useState("");
   const [customNote, setCustomNote] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [socialUrl, setSocialUrl] = useState("");
+  const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +69,10 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
         ...(tier.priceCents == null
           ? { customAmountCents, ...(customNote.trim() ? { customNote: customNote.trim() } : {}) }
           : {}),
+        ...(websiteUrl.trim() ? { websiteUrl: websiteUrl.trim() } : {}),
+        ...(instagramUrl.trim() ? { instagramUrl: instagramUrl.trim() } : {}),
+        ...(socialUrl.trim() ? { socialUrl: socialUrl.trim() } : {}),
+        ...(description.trim() ? { description: description.trim() } : {}),
         successUrl: `${window.location.origin}/?sponsored=1`,
         cancelUrl: window.location.origin,
       });
@@ -182,6 +190,33 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
               <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
             </>
           )}
+
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, marginTop: 4 }}>Show off your support (all optional)</div>
+          <input
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            placeholder="Website (https://…)"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+          />
+          <input
+            value={instagramUrl}
+            onChange={(e) => setInstagramUrl(e.target.value)}
+            placeholder="Instagram handle or link"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+          />
+          <input
+            value={socialUrl}
+            onChange={(e) => setSocialUrl(e.target.value)}
+            placeholder="Another social media page (optional)"
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="A short description of your business or why you're supporting Umoja (optional)"
+            style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
+          />
 
           {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
           <PrimaryButton disabled={!canSubmit || busy} onClick={checkout} style={{ width: "100%" }}>

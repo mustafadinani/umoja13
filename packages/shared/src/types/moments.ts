@@ -38,11 +38,16 @@ export interface Sponsor {
   logoUrl: string;
   tagline: string;
   story: string;
+  /** Optional longer write-up, distinct from the one-line tagline/story — shown if the sponsor wants more detail. */
+  description?: string;
   sponsoredTeamIds: string[];
   tier: SponsorTier;
   /** Manual sort position within a tier (lower shows first). */
   order: number;
   websiteUrl?: string;
+  instagramUrl?: string;
+  /** Any other social media page (Facebook, TikTok, LinkedIn, etc.). */
+  socialUrl?: string;
   /** Staff can hide a sponsor without deleting it (e.g. a deal that lapsed). */
   visible: boolean;
 }

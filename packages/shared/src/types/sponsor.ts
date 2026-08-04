@@ -102,6 +102,11 @@ export interface SponsorshipOrder {
   companyLogoUrl?: string;
   /** Free-text notes for the "Build Your Own" custom tier. */
   customNote?: string;
+  /** Optional — carried onto the public Sponsor entry once converted. */
+  websiteUrl?: string;
+  instagramUrl?: string;
+  socialUrl?: string;
+  description?: string;
   status: SponsorshipOrderStatus;
   stripeCheckoutSessionId?: string;
   filedByUid: string;

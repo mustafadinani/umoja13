@@ -32,10 +32,13 @@ function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
         logoUrl: order.companyLogoUrl ?? "",
         tagline: SPONSORSHIP_TIERS.find((t) => t.id === order.tierId)?.label ?? "",
         story: order.customNote ?? "",
+        ...(order.description ? { description: order.description } : {}),
         sponsoredTeamIds: [],
         tier: order.tierId,
         order: nextOrder,
-        websiteUrl: "",
+        websiteUrl: order.websiteUrl ?? "",
+        ...(order.instagramUrl ? { instagramUrl: order.instagramUrl } : {}),
+        ...(order.socialUrl ? { socialUrl: order.socialUrl } : {}),
         visible: true,
       });
       await updateDoc(doc(db, COLLECTIONS.sponsorshipOrders, order.id), {
@@ -72,6 +75,12 @@ function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
               {SPONSOR_TIER_LABELS[o.tierId]} · {o.email}{o.phone ? ` · ${o.phone}` : ""}
             </div>
             {o.customNote && <div style={{ fontSize: 12.5, marginTop: 6 }}>"{o.customNote}"</div>}
+            {o.description && <div style={{ fontSize: 12.5, marginTop: 6, color: theme.color.textMuted }}>{o.description}</div>}
+            {(o.websiteUrl || o.instagramUrl || o.socialUrl) && (
+              <div style={{ fontSize: 12, color: theme.color.blue, marginTop: 6 }}>
+                {[o.websiteUrl, o.instagramUrl, o.socialUrl].filter(Boolean).join(" · ")}
+              </div>
+            )}
             {o.companyLogoUrl && <img src={o.companyLogoUrl} alt="" style={{ height: 28, marginTop: 8, objectFit: "contain" }} />}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
               <span
@@ -132,7 +141,7 @@ export function SponsorsAdminTab() {
     });
   }
 
-  async function updateField(s: Sponsor, field: "name" | "websiteUrl", value: string) {
+  async function updateField(s: Sponsor, field: "name" | "websiteUrl" | "instagramUrl" | "socialUrl" | "description", value: string) {
     await updateDoc(doc(db, COLLECTIONS.sponsors, s.id), { [field]: value });
   }
 
@@ -190,34 +199,56 @@ export function SponsorsAdminTab() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {tierSponsors.map((s, i) => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <label style={{ width: 80, height: 50, borderRadius: 8, border: `1px dashed ${theme.color.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, overflow: "hidden" }}>
-                    <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && uploadLogo(s, e.target.files[0])} />
-                    {busyId === s.id ? (
-                      <span style={{ fontSize: 11, color: theme.color.textMuted }}>…</span>
-                    ) : s.logoUrl ? (
-                      <img src={s.logoUrl} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-                    ) : (
-                      <span style={{ fontSize: 10, color: theme.color.textMuted, textAlign: "center" }}>logo</span>
-                    )}
-                  </label>
-                  <input
-                    defaultValue={s.name}
-                    onBlur={(e) => updateField(s, "name", e.target.value)}
-                    style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, fontWeight: 700 }}
-                  />
-                  <input
-                    defaultValue={s.websiteUrl ?? ""}
-                    placeholder="https://…"
-                    onBlur={(e) => updateField(s, "websiteUrl", e.target.value)}
-                    style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-                  />
-                  <button disabled={i === 0} onClick={() => move(tierSponsors, i, -1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === 0 ? 0.4 : 1 }}>↑</button>
-                  <button disabled={i === tierSponsors.length - 1} onClick={() => move(tierSponsors, i, 1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === tierSponsors.length - 1 ? 0.4 : 1 }}>↓</button>
-                  <button onClick={() => toggleVisible(s)} title={s.visible ?? true ? "Visible — click to hide" : "Hidden — click to show"} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: (s.visible ?? true) ? "#fff" : theme.color.warningBg }}>
-                    {(s.visible ?? true) ? "👁" : "🚫"}
-                  </button>
-                  <button onClick={() => removeSponsor(s.id)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.danger}`, background: "#fff", color: theme.color.danger }}>🗑</button>
+                <div key={s.id} style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <label style={{ width: 80, height: 50, borderRadius: 8, border: `1px dashed ${theme.color.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, overflow: "hidden" }}>
+                      <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && uploadLogo(s, e.target.files[0])} />
+                      {busyId === s.id ? (
+                        <span style={{ fontSize: 11, color: theme.color.textMuted }}>…</span>
+                      ) : s.logoUrl ? (
+                        <img src={s.logoUrl} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      ) : (
+                        <span style={{ fontSize: 10, color: theme.color.textMuted, textAlign: "center" }}>logo</span>
+                      )}
+                    </label>
+                    <input
+                      defaultValue={s.name}
+                      onBlur={(e) => updateField(s, "name", e.target.value)}
+                      style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, fontWeight: 700 }}
+                    />
+                    <input
+                      defaultValue={s.websiteUrl ?? ""}
+                      placeholder="Website https://…"
+                      onBlur={(e) => updateField(s, "websiteUrl", e.target.value)}
+                      style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+                    />
+                    <button disabled={i === 0} onClick={() => move(tierSponsors, i, -1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === 0 ? 0.4 : 1 }}>↑</button>
+                    <button disabled={i === tierSponsors.length - 1} onClick={() => move(tierSponsors, i, 1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === tierSponsors.length - 1 ? 0.4 : 1 }}>↓</button>
+                    <button onClick={() => toggleVisible(s)} title={s.visible ?? true ? "Visible — click to hide" : "Hidden — click to show"} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: (s.visible ?? true) ? "#fff" : theme.color.warningBg }}>
+                      {(s.visible ?? true) ? "👁" : "🚫"}
+                    </button>
+                    <button onClick={() => removeSponsor(s.id)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.danger}`, background: "#fff", color: theme.color.danger }}>🗑</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8, paddingLeft: 90 }}>
+                    <input
+                      defaultValue={s.instagramUrl ?? ""}
+                      placeholder="Instagram (optional)"
+                      onBlur={(e) => updateField(s, "instagramUrl", e.target.value)}
+                      style={{ flex: 1, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                    />
+                    <input
+                      defaultValue={s.socialUrl ?? ""}
+                      placeholder="Other social link (optional)"
+                      onBlur={(e) => updateField(s, "socialUrl", e.target.value)}
+                      style={{ flex: 1, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                    />
+                    <input
+                      defaultValue={s.description ?? ""}
+                      placeholder="Description (optional)"
+                      onBlur={(e) => updateField(s, "description", e.target.value)}
+                      style={{ flex: 2, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                    />
+                  </div>
                 </div>
               ))}
               {tierSponsors.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13 }}>No sponsors in this tier yet.</div>}

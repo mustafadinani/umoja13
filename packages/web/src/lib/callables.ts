@@ -110,6 +110,10 @@ export const createSponsorshipCheckout = httpsCallable<
     companyLogoUrl?: string;
     customNote?: string;
     customAmountCents?: number;
+    websiteUrl?: string;
+    instagramUrl?: string;
+    socialUrl?: string;
+    description?: string;
     successUrl: string;
     cancelUrl: string;
   },

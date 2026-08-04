@@ -12,6 +12,10 @@ interface CreateSponsorshipCheckoutRequest {
   companyLogoUrl?: string;
   customNote?: string;
   customAmountCents?: number;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  socialUrl?: string;
+  description?: string;
   successUrl: string;
   cancelUrl: string;
 }
@@ -37,6 +41,10 @@ export const createSponsorshipCheckout = onCall<CreateSponsorshipCheckoutRequest
       companyLogoUrl,
       customNote,
       customAmountCents,
+      websiteUrl,
+      instagramUrl,
+      socialUrl,
+      description,
       successUrl,
       cancelUrl,
     } = request.data;
@@ -67,6 +75,10 @@ export const createSponsorshipCheckout = onCall<CreateSponsorshipCheckoutRequest
       ...(phone?.trim() ? { phone: phone.trim() } : {}),
       ...(companyLogoUrl ? { companyLogoUrl } : {}),
       ...(customNote?.trim() ? { customNote: customNote.trim() } : {}),
+      ...(websiteUrl?.trim() ? { websiteUrl: websiteUrl.trim() } : {}),
+      ...(instagramUrl?.trim() ? { instagramUrl: instagramUrl.trim() } : {}),
+      ...(socialUrl?.trim() ? { socialUrl: socialUrl.trim() } : {}),
+      ...(description?.trim() ? { description: description.trim() } : {}),
       status: "pending",
       filedByUid: uid,
       createdAt: Date.now(),

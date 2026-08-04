@@ -64,10 +64,29 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
         <Modal onClose={() => setOpen(null)}>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>{open.name}</div>
           <div style={{ fontSize: 13, color: theme.color.textMuted, margin: "4px 0 14px" }}>{open.tagline}</div>
-          <div style={{ fontSize: 15, lineHeight: 1.6, marginBottom: open.websiteUrl ? 16 : 0 }}>{open.story}</div>
-          {open.websiteUrl && (
-            <PrimaryButton onClick={() => window.open(open.websiteUrl, "_blank")} style={{ width: "100%" }}>VISIT WEBSITE</PrimaryButton>
-          )}
+          <div style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 12 }}>{open.story}</div>
+          {open.description && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: theme.color.textMuted, marginBottom: 16 }}>{open.description}</div>}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {open.websiteUrl && (
+              <PrimaryButton onClick={() => window.open(open.websiteUrl, "_blank")} style={{ width: "100%" }}>VISIT WEBSITE</PrimaryButton>
+            )}
+            {open.instagramUrl && (
+              <button
+                onClick={() => window.open(open.instagramUrl!.startsWith("http") ? open.instagramUrl : `https://instagram.com/${open.instagramUrl!.replace(/^@/, "")}`, "_blank")}
+                style={{ width: "100%", background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "10px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+              >
+                📷 INSTAGRAM
+              </button>
+            )}
+            {open.socialUrl && (
+              <button
+                onClick={() => window.open(open.socialUrl, "_blank")}
+                style={{ width: "100%", background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "10px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
+              >
+                🔗 MORE SOCIAL LINKS
+              </button>
+            )}
+          </div>
         </Modal>
       )}
       {checkoutOpen && <SponsorshipCheckoutModal onClose={() => setCheckoutOpen(false)} />}

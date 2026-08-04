@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useAnnouncements, useGames, useHuntCrews, useMoments, useTeams } from "../hooks/useData";
+import { useAnnouncements, useGames, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
 import { VENUE } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
 import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
+import { SponsorStrip } from "../components/SponsorStrip";
+import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
 
 export function Home() {
   const navigate = useNavigate();
@@ -18,8 +20,10 @@ export function Home() {
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
   const { data: crews } = useHuntCrews();
+  const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [volunteerOpen, setVolunteerOpen] = useState(false);
+  const [sponsorOpen, setSponsorOpen] = useState(false);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -68,6 +72,12 @@ export function Home() {
                 style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 🙋 BECOME A VOLUNTEER
+              </button>
+              <button
+                onClick={() => (user ? setSponsorOpen(true) : navigate("/signup"))}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
+              >
+                🤝 BECOME A SPONSOR
               </button>
             </div>
           </div>
@@ -177,8 +187,13 @@ export function Home() {
         </div>
       </div>
 
+      <div className="page-shell" style={{ paddingTop: 0 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
+
       {openAnnouncement && <AnnouncementModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />}
       {volunteerOpen && <BecomeVolunteerModal onClose={() => setVolunteerOpen(false)} />}
+      {sponsorOpen && <SponsorshipCheckoutModal onClose={() => setSponsorOpen(false)} />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
 import { Pill, StatusBadge } from "../components/ui";
 import { SponsorStrip } from "../components/SponsorStrip";
+import { SoccerPlexFieldMap } from "../components/SoccerPlexFieldMap";
 
 const DAYS: { id: Game["day"]; label: string }[] = [
   { id: "fri", label: "Fri" },
@@ -50,6 +51,9 @@ export function Schedule() {
   return (
     <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>GAME DAY</div>
+      <div style={{ marginBottom: 14 }}>
+        <SoccerPlexFieldMap />
+      </div>
       <input
         placeholder="Search by team…"
         value={search}
