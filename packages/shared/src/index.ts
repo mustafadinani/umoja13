@@ -23,6 +23,7 @@ export * from "./constants/huntMissions.js";
 export * from "./constants/moments.js";
 export * from "./constants/consent.js";
 export * from "./constants/knowledge.js";
+export * from "./constants/experiences.js";
 
 export * from "./firestore-paths.js";
 export * from "./types/registration.js";
