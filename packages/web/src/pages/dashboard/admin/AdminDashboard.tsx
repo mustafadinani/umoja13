@@ -13,9 +13,10 @@ import { NotificationsAdminTab } from "./NotificationsAdminTab";
 import { TeamChannelsAdminTab } from "./TeamChannelsAdminTab";
 import { UserChannelsAdminTab } from "./UserChannelsAdminTab";
 import { PodsAdminTab } from "./PodsAdminTab";
+import { UsersAdminTab } from "./UsersAdminTab";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
-type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods";
+type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods" | "users";
 const TABS: { id: Tab; label: string }[] = [
   { id: "games", label: "All Games" },
   { id: "teams", label: "Teams" },
@@ -29,6 +30,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "teamChannels", label: "Team Channels" },
   { id: "messages", label: "Messages" },
   { id: "pods", label: "Pods" },
+  { id: "users", label: "Users" },
 ];
 
 export function AdminDashboard() {
@@ -55,6 +57,7 @@ export function AdminDashboard() {
       {tab === "teamChannels" && <TeamChannelsAdminTab />}
       {tab === "messages" && <UserChannelsAdminTab />}
       {tab === "pods" && <PodsAdminTab />}
+      {tab === "users" && <UsersAdminTab />}
     </div>
   );
 }

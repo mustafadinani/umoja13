@@ -1,4 +1,5 @@
 export { setUserRole } from "./http/setUserRole.js";
+export { setActiveRole } from "./http/setActiveRole.js";
 export { reviewVolunteerApplication } from "./http/reviewVolunteerApplication.js";
 export { reviewChallengeSubmission } from "./http/reviewChallengeSubmission.js";
 export { adminReviewCheckIn } from "./http/adminReviewCheckIn.js";
