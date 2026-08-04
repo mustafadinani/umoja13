@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
+import { HuntFeed } from "../components/HuntFeed";
 import { CrewCreateWizard } from "./hunt/CrewCreateWizard";
 import { InvitesBanner } from "./hunt/InvitesBanner";
 import { MissionDetailModal } from "./hunt/MissionDetailModal";
@@ -45,7 +46,7 @@ export function Hunt() {
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
   const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
   const { data: leaderboard } = useHuntCrews();
-  const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard">("missions");
+  const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard" | "feed">("missions");
   const [typeFilter, setTypeFilter] = useState<HuntMissionType | null>(null);
   const [dayFilter, setDayFilter] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<HuntMission | null>(null);
@@ -115,18 +116,21 @@ export function Hunt() {
         ) : (
           <>
             <InvitesBanner />
-            {!crew ? (
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              <Pill active={seg === "missions"} onClick={() => setSeg("missions")}>MISSIONS</Pill>
+              <Pill active={seg === "challenges"} onClick={() => setSeg("challenges")}>
+                ⚡ CHALLENGES{activeChallenges.length > 0 ? ` (${activeChallenges.length})` : ""}
+              </Pill>
+              <Pill active={seg === "leaderboard"} onClick={() => setSeg("leaderboard")}>LEADERBOARD</Pill>
+              <Pill active={seg === "feed"} onClick={() => setSeg("feed")}>📸 FEED</Pill>
+            </div>
+
+            {seg === "feed" ? (
+              <HuntFeed />
+            ) : !crew ? (
               <CrewCreateWizard />
             ) : (
               <>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <Pill active={seg === "missions"} onClick={() => setSeg("missions")}>MISSIONS</Pill>
-                  <Pill active={seg === "challenges"} onClick={() => setSeg("challenges")}>
-                    ⚡ CHALLENGES{activeChallenges.length > 0 ? ` (${activeChallenges.length})` : ""}
-                  </Pill>
-                  <Pill active={seg === "leaderboard"} onClick={() => setSeg("leaderboard")}>LEADERBOARD</Pill>
-                </div>
-
                 {seg === "missions" && (
                   <>
                     <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>

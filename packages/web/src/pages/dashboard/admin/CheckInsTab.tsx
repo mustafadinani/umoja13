@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, type CheckIn, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers } from "../../../hooks/useData";
 import { Card, Pill } from "../../../components/ui";
@@ -18,9 +18,10 @@ export function CheckInsTab() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [openCheckIn, setOpenCheckIn] = useState<CheckIn | null>(null);
+  const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
   const filtered = checkIns.filter((c) => {
     if (categoryId && c.categoryId !== categoryId) return false;
@@ -52,7 +53,7 @@ export function CheckInsTab() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((c) => (
-          <Card key={c.id} onClick={() => setOpenCheckIn(c)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{userById.get(c.userId)?.displayName ?? c.userId}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}</div>
@@ -63,7 +64,7 @@ export function CheckInsTab() {
         {filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No check-ins match.</div>}
       </div>
 
-      {openCheckIn && <PlayerDocumentsModal checkIn={openCheckIn} user={userById.get(openCheckIn.userId)} onClose={() => setOpenCheckIn(null)} />}
+      {openCheckIn && <PlayerDocumentsModal checkIn={openCheckIn} user={userById.get(openCheckIn.userId)} onClose={() => setOpenCheckInId(null)} />}
     </div>
   );
 }

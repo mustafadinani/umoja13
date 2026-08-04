@@ -107,6 +107,20 @@ export const useAllMoments = () => useCollection<Moment>(COLLECTIONS.moments, [o
 export const useMyMoments = (uid: string | undefined) =>
   useCollection<Moment>(COLLECTIONS.moments, uid ? [where("postedBy", "==", uid), orderBy("createdAt", "desc")] : []);
 
+/**
+ * The browsable Hunt feed — approved mission/challenge submissions only.
+ * Both HuntAdminTab.reviewSubmission and reviewChallengeSubmission mirror an
+ * approved photo/video submission onto `moments` with source:"hunt" the
+ * moment it's approved, so this is exactly the already-vetted subset —
+ * pending/rejected submissions never make it into `moments` at all.
+ */
+export const useHuntMoments = () =>
+  useCollection<Moment>(COLLECTIONS.moments, [
+    where("source", "==", "hunt"),
+    where("moderationStatus", "==", "approved"),
+    orderBy("createdAt", "desc"),
+  ]);
+
 /** Staff-only: full user directory, used to resolve display names next to check-ins/rosters. */
 export const useAllUsers = () => useCollection<UserProfile>(COLLECTIONS.users);
 

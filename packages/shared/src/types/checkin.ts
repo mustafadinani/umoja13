@@ -1,5 +1,31 @@
 import type { CheckInStatus } from "./team.js";
 
+/** Pre-filled reasons an admin can attach to an internal check-in note — "other" pairs with a free-text field for anything not covered here. */
+export const CHECKIN_NOTE_REASONS = [
+  "ID doesn't clearly match selfie",
+  "Photo quality too poor to verify",
+  "Suspected duplicate check-in",
+  "Age/DOB discrepancy",
+  "Missing guardian consent",
+  "Waiting on additional documentation",
+  "Escalated by volunteer at gate",
+  "Other",
+] as const;
+
+export type CheckInNoteReason = (typeof CHECKIN_NOTE_REASONS)[number];
+
+/** An internal, staff-only note logged against a check-in — never shown to the player. */
+export interface CheckInNote {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  reason: CheckInNoteReason;
+  /** Only populated when reason === "Other". */
+  reasonOther?: string;
+  text: string;
+  createdAt: number;
+}
+
 /**
  * One check-in per player per category they play in (a player in 2
  * categories checks in twice, each producing its own pass).
@@ -25,6 +51,8 @@ export interface CheckIn {
   reviewedBy?: string; // admin uid, once escalated or manually approved/rejected
   reviewedAt?: number;
   rejectionReason?: string;
+  /** Running, internal-only record of admin notes on this check-in — never rendered to the player-facing CheckInCard. */
+  internalNotes?: CheckInNote[];
   /** Recorded before any selfie/ID capture — required for verifyCheckIn to run at all. */
   consent: CheckInConsent;
   /** True if the player opted out of AI comparison; routes straight to admin_review instead of calling verifyCheckIn. */

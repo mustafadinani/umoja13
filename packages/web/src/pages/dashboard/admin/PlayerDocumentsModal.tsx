@@ -1,15 +1,24 @@
 import { useState } from "react";
-import { CATEGORIES, type CheckIn, type UserProfile } from "@umoja/shared";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { CATEGORIES, CHECKIN_NOTE_REASONS, COLLECTIONS, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
+import { db } from "../../../lib/firebase";
+import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { adminReviewCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
 export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: CheckIn; user?: UserProfile; onClose: () => void }) {
+  const { profile } = useAuth();
   const [busy, setBusy] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [noteReason, setNoteReason] = useState<CheckInNoteReason>(CHECKIN_NOTE_REASONS[0]);
+  const [noteReasonOther, setNoteReasonOther] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const category = CATEGORIES.find((c) => c.id === checkIn.categoryId);
   const membership = user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
+  const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
 
   async function decide(decision: "approve" | "reject" | "nullify" | "restore") {
     setBusy(true);
@@ -18,6 +27,28 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
       onClose();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function addNote() {
+    if (!profile || !noteText.trim()) return;
+    if (noteReason === "Other" && !noteReasonOther.trim()) return;
+    setSavingNote(true);
+    try {
+      const note: CheckInNote = {
+        id: crypto.randomUUID(),
+        authorUid: profile.uid,
+        authorName: profile.displayName,
+        reason: noteReason,
+        ...(noteReason === "Other" ? { reasonOther: noteReasonOther.trim() } : {}),
+        text: noteText.trim(),
+        createdAt: Date.now(),
+      };
+      await updateDoc(doc(db, COLLECTIONS.checkIns, checkIn.id), { internalNotes: arrayUnion(note) });
+      setNoteText("");
+      setNoteReasonOther("");
+    } finally {
+      setSavingNote(false);
     }
   }
 
@@ -63,6 +94,71 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
           Decided by {checkIn.reviewedBy} at {checkIn.reviewedAt ? new Date(checkIn.reviewedAt).toLocaleString() : ""}
         </div>
       )}
+
+      <div style={{ borderTop: `1px solid ${theme.color.border}`, paddingTop: 14, marginBottom: 16 }}>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 14, marginBottom: 2 }}>INTERNAL NOTES</div>
+        <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 10 }}>Staff only — never shown to the player.</div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {notes.map((n) => (
+            <div key={n.id} style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.navy }}>
+                  {n.reason === "Other" ? n.reasonOther || "Other" : n.reason}
+                </span>
+                <span style={{ fontSize: 11, color: theme.color.textMuted, whiteSpace: "nowrap" }}>
+                  {n.authorName} · {new Date(n.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: theme.color.text }}>{n.text}</div>
+            </div>
+          ))}
+          {notes.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No notes yet.</div>}
+        </div>
+
+        <select
+          value={noteReason}
+          onChange={(e) => setNoteReason(e.target.value as CheckInNoteReason)}
+          style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, marginBottom: 8 }}
+        >
+          {CHECKIN_NOTE_REASONS.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+        {noteReason === "Other" && (
+          <input
+            value={noteReasonOther}
+            onChange={(e) => setNoteReasonOther(e.target.value)}
+            placeholder="Describe the reason…"
+            style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, marginBottom: 8 }}
+          />
+        )}
+        <textarea
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          placeholder="Add a note about this check-in…"
+          rows={2}
+          style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, marginBottom: 8, resize: "none" }}
+        />
+        <button
+          disabled={savingNote || !noteText.trim() || (noteReason === "Other" && !noteReasonOther.trim())}
+          onClick={addNote}
+          style={{
+            width: "100%",
+            background: theme.color.navy,
+            color: "#fff",
+            border: "none",
+            borderRadius: theme.radius.sm,
+            padding: "9px",
+            fontWeight: 700,
+            fontSize: 12.5,
+            cursor: "pointer",
+            opacity: savingNote || !noteText.trim() ? 0.6 : 1,
+          }}
+        >
+          {savingNote ? "Adding…" : "ADD NOTE"}
+        </button>
+      </div>
 
       <div style={{ display: "flex", gap: 8 }}>
         {(checkIn.status === "pending_review" || checkIn.status === "admin_review" || checkIn.status === "rejected") && (
