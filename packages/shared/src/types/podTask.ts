@@ -6,6 +6,14 @@
  * them (a shared team checklist), not gated to a single assignee the way a
  * shift is.
  */
+export interface PodTaskMessage {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  text: string;
+  createdAt: number;
+}
+
 export interface PodTask {
   id: string;
   podId: string;
@@ -17,4 +25,6 @@ export interface PodTask {
   assigneeName?: string | null;
   createdAt: number;
   createdBy: string;
+  /** Discussion thread scoped to this one task — open to any pod member, not just an assignee, since a task isn't gated to one owner the way a shift is. */
+  messages?: PodTaskMessage[];
 }

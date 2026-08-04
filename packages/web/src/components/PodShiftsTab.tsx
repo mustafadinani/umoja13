@@ -7,6 +7,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { useGamesByPod, usePod, useVolunteerTasksByPod } from "../hooks/useData";
 import { AddVolunteerTaskModal } from "../pages/dashboard/admin/AddVolunteerTaskModal";
 import { RecruitVolunteerModal } from "./RecruitVolunteerModal";
+import { VolunteerTaskDetailModal } from "./VolunteerTaskDetailModal";
 import { Card, Pill, PrimaryButton, StatusBadge } from "./ui";
 
 async function toggleShiftDone(shiftId: string, done: boolean) {
@@ -69,6 +70,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
   const { data: shifts } = useVolunteerTasksByPod(podId);
   const [addShiftOpen, setAddShiftOpen] = useState(false);
   const [recruitOpen, setRecruitOpen] = useState(false);
+  const [openShiftId, setOpenShiftId] = useState<string | null>(null);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
@@ -77,6 +79,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
   const canRecruit = isStaff || (isPodMember && isVolunteer);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
+  const openShift = sortedShifts.find((t) => t.id === openShiftId) ?? null;
 
   return (
     <div>
@@ -98,6 +101,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sortedShifts.map((t) => {
                 const canToggle = isStaff || t.assigneeUid === profile?.uid;
+                const commentCount = t.messages?.length ?? 0;
                 return (
                   <Card key={t.id} style={{ padding: "12px 14px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -117,6 +121,13 @@ export function PodShiftsTab({ podId }: { podId: string }) {
                         </div>
                       </div>
                       {t.cantMake && <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>Can't make it</Pill>}
+                      <button
+                        type="button"
+                        onClick={() => setOpenShiftId(t.id)}
+                        style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "6px 8px", whiteSpace: "nowrap" }}
+                      >
+                        💬 {commentCount > 0 ? commentCount : "Comment"}
+                      </button>
                     </div>
                     <ShiftSteps shift={t} canManage={canToggle} />
                   </Card>
@@ -146,6 +157,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
 
       {addShiftOpen && <AddVolunteerTaskModal initialPodId={podId} onClose={() => setAddShiftOpen(false)} />}
       {recruitOpen && <RecruitVolunteerModal podId={podId} podName={pod?.name} onClose={() => setRecruitOpen(false)} />}
+      {openShift && <VolunteerTaskDetailModal task={openShift} onClose={() => setOpenShiftId(null)} />}
     </div>
   );
 }

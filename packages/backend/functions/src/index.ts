@@ -21,6 +21,7 @@ export { sendTeamMessage } from "./http/sendTeamMessage.js";
 export { sendRoleMessage } from "./http/sendRoleMessage.js";
 export { sendUserMessage } from "./http/sendUserMessage.js";
 export { sendVolunteerTaskMessage } from "./http/sendVolunteerTaskMessage.js";
+export { sendPodTaskMessage } from "./http/sendPodTaskMessage.js";
 export {
   createPod,
   updatePod,

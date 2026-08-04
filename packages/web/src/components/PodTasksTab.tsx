@@ -6,6 +6,7 @@ import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { usePod, usePodTasksByPod } from "../hooks/useData";
 import { AddPodTaskModal } from "./AddPodTaskModal";
+import { PodTaskDetailModal } from "./PodTaskDetailModal";
 import { Card, PrimaryButton } from "./ui";
 
 function formatDueDate(dueDate: string, todayStr: string): string {
@@ -19,6 +20,7 @@ export function PodTasksTab({ podId }: { podId: string }) {
   const { data: pod } = usePod(podId);
   const { data: tasks } = usePodTasksByPod(podId);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
@@ -35,6 +37,8 @@ export function PodTasksTab({ podId }: { podId: string }) {
   async function toggleTaskDone(taskId: string, done: boolean) {
     await updateDoc(doc(db, COLLECTIONS.podTasks, taskId), { done: !done });
   }
+
+  const openTask = sortedTasks.find((t) => t.id === openTaskId) ?? null;
 
   return (
     <div>
@@ -53,6 +57,7 @@ export function PodTasksTab({ podId }: { podId: string }) {
           const canToggle = isStaff || isPodMember;
           const isOverdue = !t.done && !!t.dueDate && t.dueDate < todayStr;
           const details = [t.dueDate ? formatDueDate(t.dueDate, todayStr) : null, t.assigneeName].filter(Boolean).join(" · ");
+          const commentCount = t.messages?.length ?? 0;
           return (
             <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
               <input
@@ -72,12 +77,20 @@ export function PodTasksTab({ podId }: { podId: string }) {
                   </div>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => setOpenTaskId(t.id)}
+                style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "6px 8px", whiteSpace: "nowrap" }}
+              >
+                💬 {commentCount > 0 ? commentCount : "Comment"}
+              </button>
             </Card>
           );
         })}
       </div>
 
       {addTaskOpen && <AddPodTaskModal podId={podId} onClose={() => setAddTaskOpen(false)} />}
+      {openTask && <PodTaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </div>
   );
 }
