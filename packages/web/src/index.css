@@ -73,6 +73,13 @@ input, textarea, select { font-family: inherit; }
   gap: 16px;
 }
 
+.pods-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
 .hero-cta-row {
   display: flex;
   gap: 12px;
@@ -101,7 +108,8 @@ input, textarea, select { font-family: inherit; }
   .grid-4,
   .grid-kpi-3,
   .grid-kpi-4,
-  .grid-2-equal {
+  .grid-2-equal,
+  .pods-layout {
     grid-template-columns: 1fr;
   }
 

@@ -149,7 +149,7 @@ export const useVolunteerTasksByPod = (podId: string | undefined) =>
 export const useGamesByPod = (podId: string | undefined) =>
   useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
 
-/** No orderBy here on purpose — where(podId) + orderBy(createdAt) needs a composite index; sorted client-side in PodTaskList instead. */
+/** No orderBy here on purpose — where(podId) + orderBy(createdAt) needs a composite index; sorted client-side in PodTasksTab instead. */
 export const usePodTasksByPod = (podId: string | undefined) =>
   useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId)] : []);
 
