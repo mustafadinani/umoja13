@@ -29,12 +29,12 @@ export function AllGamesTab() {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <input
           placeholder="Search by team…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+          style={{ flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
         />
         <PrimaryButton onClick={() => setAddOpen(true)}>+ ADD GAME</PrimaryButton>
       </div>
@@ -48,8 +48,8 @@ export function AllGamesTab() {
           const home = teamById.get(g.homeTeamId);
           const away = teamById.get(g.awayTeamId);
           return (
-            <Card key={g.id} onClick={() => setDetailGame(g)} data-testid="admin-game-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+            <Card key={g.id} onClick={() => setDetailGame(g)} data-testid="admin-game-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
                   {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {g.kickoffTime}

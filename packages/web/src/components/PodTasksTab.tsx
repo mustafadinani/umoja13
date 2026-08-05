@@ -59,7 +59,7 @@ export function PodTasksTab({ podId }: { podId: string }) {
           const details = [t.dueDate ? formatDueDate(t.dueDate, todayStr) : null, t.assigneeName].filter(Boolean).join(" · ");
           const commentCount = t.messages?.length ?? 0;
           return (
-            <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <Card key={t.id} style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input
                 type="checkbox"
                 checked={t.done}
@@ -67,7 +67,7 @@ export function PodTasksTab({ podId }: { podId: string }) {
                 onChange={() => toggleTaskDone(t.id, t.done)}
                 style={{ width: 18, height: 18, cursor: canToggle ? "pointer" : "default" }}
               />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
                   {t.title}
                 </div>

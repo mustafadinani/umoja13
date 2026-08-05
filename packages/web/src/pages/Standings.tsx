@@ -90,7 +90,7 @@ export function Standings() {
                 <div
                   key={g.id}
                   onClick={() => navigate(`/game/${g.id}`)}
-                  style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between" }}
+                  style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}
                 >
                   <span style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted }}>{ROUND_LABELS[g.round] ?? g.round.toUpperCase()}</span>
                   <span style={{ fontWeight: 600 }}>{g.field} · {g.kickoffTime}</span>

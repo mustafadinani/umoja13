@@ -43,14 +43,14 @@ export function Team() {
         <div style={{ fontSize: 13.5, opacity: 0.9, marginTop: 4 }}>
           {categories.find((c) => c.id === team.categoryId)?.label ?? team.categoryId} · Group {team.group ?? "—"} · Rank #{team.stats.groupRank ?? "—"}
         </div>
-        <div style={{ display: "flex", gap: 18, marginTop: 14, fontSize: 13.5, fontWeight: 600 }}>
+        <div style={{ display: "flex", gap: 18, marginTop: 14, fontSize: 13.5, fontWeight: 600, flexWrap: "wrap" }}>
           <span>{team.stats.wins}W-{team.stats.draws}D-{team.stats.losses}L</span>
           <span>GD {team.stats.goalDiff >= 0 ? "+" : ""}{team.stats.goalDiff}</span>
           <span>{team.stats.points} PTS</span>
         </div>
       </div>
 
-      <div style={{ padding: "16px 24px 0", display: "flex", gap: 8 }}>
+      <div style={{ padding: "16px 24px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Pill active={tab === "roster"} onClick={() => setTab("roster")}>Roster</Pill>
         <Pill active={tab === "schedule"} onClick={() => setTab("schedule")}>Schedule</Pill>
         <Pill active={tab === "moments"} onClick={() => setTab("moments")}>Moments{teamMoments.length > 0 ? ` (${teamMoments.length})` : ""}</Pill>

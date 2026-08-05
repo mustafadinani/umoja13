@@ -6,7 +6,7 @@ import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
 import { Pill, StatusBadge } from "../components/ui";
 import { SponsorStrip } from "../components/SponsorStrip";
-import { SoccerPlexFieldMap } from "../components/SoccerPlexFieldMap";
+import { FieldMapCard } from "../components/FieldMapCard";
 
 const DAYS: { id: Game["day"]; label: string }[] = [
   { id: "fri", label: "Fri" },
@@ -42,95 +42,104 @@ export function Schedule() {
     if (search) {
       const home = teamById.get(g.homeTeamId)?.name ?? "";
       const away = teamById.get(g.awayTeamId)?.name ?? "";
+      const category = categories.find((c) => c.id === g.categoryId)?.label ?? "";
       const q = search.toLowerCase();
-      if (!home.toLowerCase().includes(q) && !away.toLowerCase().includes(q)) return false;
+      const matches = [home, away, category, g.field].some((v) => v.toLowerCase().includes(q));
+      if (!matches) return false;
     }
     return true;
   });
 
   return (
-    <div className="page-shell-sm">
+    <div className="page-shell">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>GAME DAY</div>
-      <div style={{ marginBottom: 14 }}>
-        <SoccerPlexFieldMap />
-      </div>
-      <input
-        placeholder="Search by team…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: "100%", padding: "11px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 14.5, margin: "14px 0" }}
-      />
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <Pill active={!day} onClick={() => setDay(null)}>All days</Pill>
-        {DAYS.map((d) => (
-          <Pill key={d.id} active={day === d.id} onClick={() => setDay(d.id)}>{d.label}</Pill>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <Pill active={!categoryId} onClick={() => setCategoryId(null)}>All categories</Pill>
-        {categories.map((c) => (
-          <Pill key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!field} onClick={() => setField(null)}>All fields</Pill>
-        {FIELDS.map((f) => (
-          <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>
-        ))}
-        {profile && (
-          <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
-            ★ My teams
-          </Pill>
-        )}
+      <div style={{ color: theme.color.textMuted, fontSize: 14, marginBottom: 18 }}>
+        Search teams, tap a field on the map to filter, or browse below.
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {filtered.map((g) => {
-          const home = teamById.get(g.homeTeamId);
-          const away = teamById.get(g.awayTeamId);
-          const isMine = myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId);
-          const followedTeam = myTeamIds.has(g.homeTeamId) ? home : myTeamIds.has(g.awayTeamId) ? away : null;
-          const homeGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.homeTeamId).length;
-          const awayGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.awayTeamId).length;
+      <div className="grid-2" style={{ alignItems: "start" }}>
+        <div>
+          <input
+            placeholder="Search by team, category, or field…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", padding: "11px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 14.5, marginBottom: 14 }}
+          />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            <Pill active={!day} onClick={() => setDay(null)}>All days</Pill>
+            {DAYS.map((d) => (
+              <Pill key={d.id} active={day === d.id} onClick={() => setDay(d.id)}>{d.label}</Pill>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            <Pill active={!categoryId} onClick={() => setCategoryId(null)}>All categories</Pill>
+            {categories.map((c) => (
+              <Pill key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <Pill active={!field} onClick={() => setField(null)}>All fields</Pill>
+            {FIELDS.map((f) => (
+              <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>
+            ))}
+            {profile && (
+              <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
+                ★ My teams
+              </Pill>
+            )}
+          </div>
 
-          return (
-            <div
-              key={g.id}
-              onClick={() => navigate(`/game/${g.id}`)}
-              style={{
-                background: isMine ? "#EFFBF3" : "#fff",
-                border: `1px solid ${isMine ? theme.color.success : theme.color.border}`,
-                borderRadius: theme.radius.md,
-                padding: 14,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 4 }}>
-                  {categories.find((c) => c.id === g.categoryId)?.label ?? g.categoryId} · {g.field}
-                  {followedTeam && (
-                    <span style={{ marginLeft: 8, color: followedTeam.color, fontWeight: 700 }}>★ {followedTeam.name.toUpperCase()}</span>
-                  )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filtered.map((g) => {
+              const home = teamById.get(g.homeTeamId);
+              const away = teamById.get(g.awayTeamId);
+              const isMine = myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId);
+              const followedTeam = myTeamIds.has(g.homeTeamId) ? home : myTeamIds.has(g.awayTeamId) ? away : null;
+              const homeGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.homeTeamId).length;
+              const awayGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.awayTeamId).length;
+
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => navigate(`/game/${g.id}`)}
+                  style={{
+                    background: isMine ? "#EFFBF3" : "#fff",
+                    border: `1px solid ${isMine ? theme.color.success : theme.color.border}`,
+                    borderRadius: theme.radius.md,
+                    padding: 14,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 4 }}>
+                      {categories.find((c) => c.id === g.categoryId)?.label ?? g.categoryId} · {g.field}
+                      {followedTeam && (
+                        <span style={{ marginLeft: 8, color: followedTeam.color, fontWeight: 700 }}>★ {followedTeam.name.toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <StatusBadge status={g.status} />
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginTop: 6 }}>
+                      {g.status === "scheduled" ? g.kickoffTime : `${homeGoals}–${awayGoals}`}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 14.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <StatusBadge status={g.status} />
-                <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginTop: 6 }}>
-                  {g.status === "scheduled" ? g.kickoffTime : `${homeGoals}–${awayGoals}`}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {filtered.length === 0 && <div style={{ color: theme.color.textMuted, padding: 20, textAlign: "center" }}>No games match those filters.</div>}
-      </div>
+              );
+            })}
+            {filtered.length === 0 && <div style={{ color: theme.color.textMuted, padding: 20, textAlign: "center" }}>No games match those filters.</div>}
+          </div>
+        </div>
 
-      <div style={{ marginTop: 32 }}>
-        <SponsorStrip sponsors={sponsors} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <FieldMapCard games={games} selectedField={field} onSelectField={setField} />
+          <SponsorStrip sponsors={sponsors} />
+        </div>
       </div>
     </div>
   );

@@ -47,7 +47,7 @@ export function CheckInsTab() {
         <Pill active={!categoryId} onClick={() => setCategoryId(null)}>All categories</Pill>
         {CATEGORIES.map((c) => <Pill key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>)}
       </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {STATUS_FILTERS.map((s) => <Pill key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</Pill>)}
       </div>
 

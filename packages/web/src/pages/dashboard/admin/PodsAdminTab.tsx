@@ -53,7 +53,7 @@ export function PodsAdminTab() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>PODS</div>
         <PrimaryButton onClick={() => setEditing("new")}>+ NEW POD</PrimaryButton>
       </div>
@@ -71,10 +71,12 @@ export function PodsAdminTab() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
               border: selectedId === p.id ? `1px solid ${theme.color.navy}` : `1px solid ${theme.color.border}`,
             }}
           >
-            <div>
+            <div style={{ minWidth: 160 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>
                 {p.name} {p.isGeneral && <span style={{ color: theme.color.textMuted, fontWeight: 600, fontSize: 12 }}>· default</span>}
               </div>

@@ -200,7 +200,7 @@ export function SponsorsAdminTab() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {tierSponsors.map((s, i) => (
                 <div key={s.id} style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                     <label style={{ width: 80, height: 50, borderRadius: 8, border: `1px dashed ${theme.color.border}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, overflow: "hidden" }}>
                       <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && uploadLogo(s, e.target.files[0])} />
                       {busyId === s.id ? (
@@ -214,13 +214,13 @@ export function SponsorsAdminTab() {
                     <input
                       defaultValue={s.name}
                       onBlur={(e) => updateField(s, "name", e.target.value)}
-                      style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, fontWeight: 700 }}
+                      style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, fontWeight: 700 }}
                     />
                     <input
                       defaultValue={s.websiteUrl ?? ""}
                       placeholder="Website https://…"
                       onBlur={(e) => updateField(s, "websiteUrl", e.target.value)}
-                      style={{ flex: 1, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+                      style={{ flex: 1, minWidth: 120, padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
                     />
                     <button disabled={i === 0} onClick={() => move(tierSponsors, i, -1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === 0 ? 0.4 : 1 }}>↑</button>
                     <button disabled={i === tierSponsors.length - 1} onClick={() => move(tierSponsors, i, 1)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.border}`, background: "#fff", opacity: i === tierSponsors.length - 1 ? 0.4 : 1 }}>↓</button>
@@ -229,24 +229,24 @@ export function SponsorsAdminTab() {
                     </button>
                     <button onClick={() => removeSponsor(s.id)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${theme.color.danger}`, background: "#fff", color: theme.color.danger }}>🗑</button>
                   </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, paddingLeft: 90 }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8, paddingLeft: 90, flexWrap: "wrap" }}>
                     <input
                       defaultValue={s.instagramUrl ?? ""}
                       placeholder="Instagram (optional)"
                       onBlur={(e) => updateField(s, "instagramUrl", e.target.value)}
-                      style={{ flex: 1, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                      style={{ flex: 1, minWidth: 120, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
                     />
                     <input
                       defaultValue={s.socialUrl ?? ""}
                       placeholder="Other social link (optional)"
                       onBlur={(e) => updateField(s, "socialUrl", e.target.value)}
-                      style={{ flex: 1, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                      style={{ flex: 1, minWidth: 120, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
                     />
                     <input
                       defaultValue={s.description ?? ""}
                       placeholder="Description (optional)"
                       onBlur={(e) => updateField(s, "description", e.target.value)}
-                      style={{ flex: 2, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
+                      style={{ flex: 2, minWidth: 160, padding: 8, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}
                     />
                   </div>
                 </div>

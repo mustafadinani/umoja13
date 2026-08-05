@@ -103,7 +103,7 @@ export function PlayerDashboard() {
           <SectionLabel>MY GAMES</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
             {myGames.map((g) => (
-              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
                 <span
                   onClick={(e) => { e.stopPropagation(); navigate(`/schedule`); }}
                   style={{ fontSize: 12.5, color: theme.color.blue, fontWeight: 700, cursor: "pointer" }}
@@ -201,7 +201,7 @@ function TeamStandingRow({ teamId, onOpen }: { teamId: string; onOpen: () => voi
   const { data: team } = useTeam(teamId);
   if (!team) return null;
   return (
-    <Card onClick={onOpen} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <Card onClick={onOpen} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
       <span style={{ fontWeight: 700, color: team.color }}>{team.name}</span>
       <span style={{ fontSize: 13, color: theme.color.textMuted }}>
         #{team.stats.groupRank ?? "—"} · {team.stats.wins}-{team.stats.draws}-{team.stats.losses} · {team.stats.points} PTS

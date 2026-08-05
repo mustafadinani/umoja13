@@ -104,7 +104,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
                 const commentCount = t.messages?.length ?? 0;
                 return (
                   <Card key={t.id} style={{ padding: "12px 14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       <input
                         type="checkbox"
                         checked={t.done}
@@ -112,7 +112,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
                         onChange={() => toggleShiftDone(t.id, t.done)}
                         style={{ width: 18, height: 18, cursor: canToggle ? "pointer" : "default" }}
                       />
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, minWidth: 120 }}>
                         <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: t.done ? "line-through" : "none", color: t.done ? theme.color.textMuted : theme.color.text }}>
                           {t.title}
                         </div>
@@ -142,8 +142,8 @@ export function PodShiftsTab({ podId }: { podId: string }) {
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>GAMES</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sortedGames.map((g) => (
-                <Card key={g.id} style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
+                <Card key={g.id} style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ minWidth: 120 }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5 }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</div>
                     <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{g.day.toUpperCase()} · {g.field} · {g.kickoffTime}</div>
                   </div>

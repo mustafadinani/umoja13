@@ -104,14 +104,14 @@ export function Home() {
             onClick={() => navigate("/dashboard")}
             style={{ background: theme.color.navy, color: "#fff", borderRadius: 16, padding: "16px 22px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}
           >
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(120deg, ${theme.color.purple}, ${theme.color.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: theme.font.display, fontWeight: 800, fontSize: 17 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(120deg, ${theme.color.purple}, ${theme.color.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, flexShrink: 0 }}>
               {profile.displayName.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>My Dashboard</div>
-              <div style={{ fontSize: 13.5, color: "#A79FC0" }}>Viewing as {profile.primaryRole}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>My Dashboard</div>
+              <div style={{ fontSize: 13.5, color: "#A79FC0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Viewing as {profile.primaryRole}</div>
             </div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, color: theme.color.gold, letterSpacing: 1 }}>OPEN →</div>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, color: theme.color.gold, letterSpacing: 1, flexShrink: 0 }}>OPEN →</div>
           </div>
         </div>
       )}

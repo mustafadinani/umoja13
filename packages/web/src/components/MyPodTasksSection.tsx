@@ -39,9 +39,9 @@ export function MyPodTasksSection() {
             <Card
               key={t.id}
               onClick={() => setOpenTaskId(t.id)}
-              style={{ padding: "12px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}
+              style={{ padding: "12px 14px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}
             >
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.title}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5, minWidth: 120 }}>{t.title}</div>
               {t.dueDate && (
                 <div style={{ fontSize: 12, color: isOverdue ? theme.color.danger : theme.color.textMuted, fontWeight: isOverdue ? 700 : 400, whiteSpace: "nowrap" }}>
                   {formatDueDate(t.dueDate, todayStr)}

@@ -97,14 +97,14 @@ function FinalizeRow({
 
   return (
     <Card style={{ padding: "14px 16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ minWidth: 160 }}>
           <div style={{ fontWeight: 700 }}>{home.name} {homeGoals}–{awayGoals} {away.name}</div>
           <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
             {CATEGORIES.find((c) => c.id === home.categoryId)?.label} {motmPlayer && `· MOTM: ${motmPlayer.displayName}`}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {cardPhotoUrl && (
             <button onClick={() => onViewCard(cardPhotoUrl)} style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 12px", fontSize: 12.5, fontWeight: 600 }}>
               View card photo

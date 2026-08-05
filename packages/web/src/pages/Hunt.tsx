@@ -133,7 +133,7 @@ export function Hunt() {
               <>
                 {seg === "missions" && (
                   <>
-                    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
                       <Pill active={!dayFilter} onClick={() => setDayFilter(null)}>All days</Pill>
                       {["1", "2", "3", "open"].map((d) => <Pill key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>{DAY_LABELS[d]}</Pill>)}
                     </div>

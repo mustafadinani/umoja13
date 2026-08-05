@@ -68,7 +68,7 @@ export function RecruitVolunteerModal({ podId, podName, onClose }: { podId: stri
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
           {visible.map((c) => (
-            <div key={c.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <div key={c.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.displayName}</span>
               <PrimaryButton disabled={busyUid === c.uid} onClick={() => recruit(c)} style={{ padding: "6px 14px", fontSize: 12.5 }}>
                 {busyUid === c.uid ? "Adding…" : "ADD"}

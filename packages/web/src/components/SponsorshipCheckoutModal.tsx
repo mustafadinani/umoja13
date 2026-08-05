@@ -103,7 +103,7 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
                 padding: "12px 14px",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
                 <div style={{ fontWeight: 800, fontSize: 16 }}>{t.label}</div>
                 <div style={{ fontWeight: 800, fontSize: 15, color: theme.color.purple }}>
                   {t.priceCents != null ? formatDollars(t.priceCents) : "Name your amount"}

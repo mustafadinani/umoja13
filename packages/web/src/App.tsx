@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { Home } from "./pages/Home";
 import { Schedule } from "./pages/Schedule";
+import { FieldMapPage } from "./pages/FieldMapPage";
 import { Standings } from "./pages/Standings";
 import { Moments } from "./pages/Moments";
 import { Game } from "./pages/Game";
@@ -27,6 +28,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/schedule/map" element={<FieldMapPage />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
