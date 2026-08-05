@@ -9,11 +9,11 @@ import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
-  pending_review: { label: "Pending review", color: theme.color.warning, bg: theme.color.warningBg },
-  admin_review: { label: "Under admin review", color: theme.color.warning, bg: theme.color.warningBg },
-  rejected: { label: "Not cleared", color: theme.color.danger, bg: theme.color.dangerBg },
-  not_started: { label: "Check-in not started", color: theme.color.textMuted, bg: theme.color.bg },
+  approved: { label: "✓ Verified", color: theme.color.success, bg: theme.color.successBg },
+  pending_review: { label: "Admin Review", color: theme.color.warning, bg: theme.color.warningBg },
+  admin_review: { label: "Admin Review", color: theme.color.warning, bg: theme.color.warningBg },
+  rejected: { label: "Pending", color: theme.color.danger, bg: theme.color.dangerBg },
+  not_started: { label: "Pending", color: theme.color.textMuted, bg: theme.color.bg },
 };
 
 export function PlayerCardModal({

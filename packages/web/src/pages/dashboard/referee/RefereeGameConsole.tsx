@@ -260,7 +260,18 @@ function RosterColumn({
         {roster.map((p) => (
           <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
             <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>
-            {cleared.includes(p.userId) && <span style={{ color: theme.color.success, fontWeight: 800 }}>✓</span>}
+            <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {p.checkInStatus === "approved" && (
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.color.success, background: theme.color.successBg, borderRadius: 999, padding: "2px 8px" }}>
+                  VERIFIED
+                </span>
+              )}
+              {cleared.includes(p.userId) && (
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.color.blue, background: "#E8EEFC", borderRadius: 999, padding: "2px 8px" }}>
+                  CHECKED-IN
+                </span>
+              )}
+            </span>
           </Card>
         ))}
         {roster.length === 0 && <div style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</div>}

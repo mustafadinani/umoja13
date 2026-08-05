@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { CATEGORIES, CHECKIN_NOTE_REASONS, COLLECTIONS, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
+import { CATEGORIES, CHECKIN_NOTE_REASONS, COLLECTIONS, checkInStatusLabel, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
@@ -54,7 +54,10 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
 
   return (
     <Modal onClose={onClose} width={480}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{membership?.playerName ?? user?.displayName ?? "Player"}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? "Player"}</div>
+        <StatusPill status={checkIn.status} />
+      </div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
         {category?.label} · attempt {checkIn.attempt}
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
@@ -70,16 +73,6 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
         <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 16 }}>
           Consent: {checkIn.consent.acceptedBy === "guardian" ? `parent/guardian (${checkIn.consent.guardianName})` : "self"} ·{" "}
           {new Date(checkIn.consent.acceptedAt).toLocaleString()}
-        </div>
-      )}
-
-      {checkIn.aiVerification && (
-        <div style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, fontSize: 13, marginBottom: 16 }}>
-          <Row label="Face match" value={checkIn.aiVerification.faceMatch ? "✓ matched" : "✕ no match"} good={checkIn.aiVerification.faceMatch} />
-          <Row label="Confidence" value={`${Math.round(checkIn.aiVerification.faceMatchConfidence * 100)}%`} />
-          <Row label="DOB read" value={checkIn.aiVerification.dobExtracted ?? "unreadable"} />
-          <Row label="Age eligible" value={checkIn.aiVerification.ageEligible ? "✓ eligible" : "✕ not eligible"} good={checkIn.aiVerification.ageEligible} />
-          <div style={{ marginTop: 8, color: theme.color.textMuted, fontSize: 12.5 }}>{checkIn.aiVerification.reasoning}</div>
         </div>
       )}
 
@@ -158,7 +151,7 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
         {(checkIn.status === "pending_review" || checkIn.status === "admin_review" || checkIn.status === "rejected") && (
           <>
             <PrimaryButton disabled={busy} onClick={() => decide("approve")} style={{ flex: 1 }}>APPROVE</PrimaryButton>
-            <button disabled={busy} onClick={() => decide("reject")} style={{ flex: 1, background: "none", border: `1px solid ${theme.color.danger}`, color: theme.color.danger, borderRadius: theme.radius.sm, fontWeight: 700 }}>REJECT</button>
+            <button disabled={busy} onClick={() => decide("reject")} style={{ flex: 1, background: "none", border: `1px solid ${theme.color.danger}`, color: theme.color.danger, borderRadius: theme.radius.sm, fontWeight: 700 }}>DECLINE</button>
           </>
         )}
         {checkIn.status === "approved" && (
@@ -182,11 +175,16 @@ function Photo({ label, url, onExpand }: { label: string; url?: string; onExpand
   );
 }
 
-function Row({ label, value, good }: { label: string; value: string; good?: boolean }) {
+function StatusPill({ status }: { status: CheckIn["status"] }) {
+  const { bg, fg } =
+    status === "approved"
+      ? { bg: theme.color.successBg, fg: theme.color.success }
+      : status === "admin_review" || status === "pending_review"
+      ? { bg: theme.color.warningBg, fg: theme.color.warning }
+      : { bg: theme.color.dangerBg, fg: theme.color.danger };
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-      <span style={{ color: theme.color.textMuted }}>{label}</span>
-      <span style={{ fontWeight: 700, color: good === undefined ? theme.color.text : good ? theme.color.success : theme.color.danger }}>{value}</span>
-    </div>
+    <span style={{ background: bg, color: fg, fontWeight: 700, fontSize: 12, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
+      {checkInStatusLabel(status)}
+    </span>
   );
 }

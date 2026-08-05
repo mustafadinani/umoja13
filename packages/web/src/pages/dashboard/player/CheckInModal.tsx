@@ -240,7 +240,7 @@ function ResultStep({
     return (
       <div style={{ textAlign: "center", padding: "10px 0" }}>
         <div style={{ fontSize: 40 }}>⏳</div>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginTop: 8 }}>Sent to staff</div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginTop: 8 }}>Admin Review</div>
         <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
           A staff member will review your photos and ID, usually within the hour.
         </div>

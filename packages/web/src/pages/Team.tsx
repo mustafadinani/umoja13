@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { RosterEntry } from "@umoja/shared";
+import { checkInStatusLabel, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
@@ -76,7 +76,7 @@ export function Team() {
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>
                   {p.goals}G {p.assists}A ·{" "}
                   <span style={{ fontWeight: 700, color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning }}>
-                    {p.checkInStatus === "approved" ? "Cleared" : p.checkInStatus === "pending_review" ? "Pending" : p.checkInStatus}
+                    {checkInStatusLabel(p.checkInStatus)}
                   </span>
                 </div>
               </Card>

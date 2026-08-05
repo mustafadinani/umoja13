@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers } from "../../../hooks/useData";
 import { Card, Pill } from "../../../components/ui";
@@ -7,9 +7,9 @@ import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
 const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "needs_review", label: "Needs review" },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
+  { id: "needs_review", label: "Admin Review" },
+  { id: "approved", label: "Verified" },
+  { id: "rejected", label: "Pending" },
 ];
 
 export function CheckInsTab() {
@@ -70,13 +70,13 @@ export function CheckInsTab() {
 }
 
 function StatusChip({ status }: { status: CheckInStatus }) {
-  const map: Record<CheckInStatus, { bg: string; fg: string; label: string }> = {
-    not_started: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Not started" },
-    pending_review: { bg: theme.color.warningBg, fg: theme.color.warning, label: "Needs review" },
-    admin_review: { bg: theme.color.warningBg, fg: theme.color.warning, label: "Needs review" },
-    approved: { bg: theme.color.successBg, fg: theme.color.success, label: "Approved" },
-    rejected: { bg: theme.color.dangerBg, fg: theme.color.danger, label: "Rejected" },
+  const map: Record<CheckInStatus, { bg: string; fg: string }> = {
+    not_started: { bg: "#F1EFF5", fg: theme.color.textMuted },
+    pending_review: { bg: theme.color.warningBg, fg: theme.color.warning },
+    admin_review: { bg: theme.color.warningBg, fg: theme.color.warning },
+    approved: { bg: theme.color.successBg, fg: theme.color.success },
+    rejected: { bg: theme.color.dangerBg, fg: theme.color.danger },
   };
   const s = map[status];
-  return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
+  return <Pill bg={s.bg} fg={s.fg}>{checkInStatusLabel(status)}</Pill>;
 }

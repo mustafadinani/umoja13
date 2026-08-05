@@ -190,17 +190,17 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           {result.status === "approved" ? (
             <>
               <Text style={{ fontSize: 40 }}>✓</Text>
-              <Text style={styles.h1}>You're cleared to play!</Text>
+              <Text style={styles.h1}>You're verified!</Text>
               {pass?.qrPayload ? (
                 <View style={styles.qrBox}><Text style={{ fontSize: 11, color: theme.color.textMuted }}>{pass.passId}</Text></View>
               ) : (
-                <Text style={{ color: theme.color.warning, fontWeight: "700", marginTop: 10 }}>PENDING REVIEW</Text>
+                <Text style={{ color: theme.color.warning, fontWeight: "700", marginTop: 10 }}>PENDING</Text>
               )}
             </>
           ) : result.status === "admin_review" ? (
             <>
               <Text style={{ fontSize: 40 }}>⏳</Text>
-              <Text style={styles.h1}>Sent to staff</Text>
+              <Text style={styles.h1}>Admin Review</Text>
               <Text style={styles.sub}>A staff member will review your photos and ID, usually within the hour.</Text>
             </>
           ) : (

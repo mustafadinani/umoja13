@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, type RosterEntry } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
@@ -121,7 +121,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               )}
               <Text style={{ fontWeight: "600", flex: 1 }}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
               <Text style={{ color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 12 }}>
-                {p.checkInStatus === "approved" ? "Cleared" : "Pending"}
+                {checkInStatusLabel(p.checkInStatus)}
               </Text>
             </Card>
           ))}

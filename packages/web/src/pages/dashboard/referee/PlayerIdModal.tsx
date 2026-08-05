@@ -1,4 +1,4 @@
-import type { RosterEntry, Category } from "@umoja/shared";
+import { checkInStatusLabel, type RosterEntry, type Category } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
@@ -40,18 +40,18 @@ export function PlayerIdModal({
         {approved ? (
           <>
             <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: "8px 12px", fontSize: 13, fontWeight: 700, marginTop: 16 }}>
-              Tournament Pass approved ✓
+              Verified ✓
             </div>
             <PrimaryButton
               style={{ marginTop: 16, width: "100%", background: cleared ? theme.color.success : theme.color.navy }}
               onClick={onToggleClear}
             >
-              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR TO PLAY"}
+              {cleared ? "CHECKED-IN — TAP TO UNDO" : "PHOTO MATCHES — CHECK IN"}
             </PrimaryButton>
           </>
         ) : (
           <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "12px", fontSize: 13, fontWeight: 700, marginTop: 16 }}>
-            NOT CLEARED — {player.checkInStatus === "not_started" ? "hasn't checked in" : "pending admin approval"}
+            NOT VERIFIED — {checkInStatusLabel(player.checkInStatus)}
           </div>
         )}
         <button onClick={onClose} style={{ marginTop: 14, background: "none", border: "none", color: theme.color.textMuted, fontSize: 13 }}>Close</button>

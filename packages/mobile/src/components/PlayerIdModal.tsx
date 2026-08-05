@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
-import type { RosterEntry, Category } from "@umoja/shared";
+import { checkInStatusLabel, type RosterEntry, type Category } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
 import { Lightbox } from "./Lightbox";
@@ -50,19 +50,19 @@ export function PlayerIdModal({
         {approved ? (
           <>
             <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
-              <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Tournament Pass approved ✓</Text>
+              <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Verified ✓</Text>
             </View>
             <PrimaryButton
               onPress={onToggleClear}
               style={{ marginTop: 16, width: "100%", backgroundColor: cleared ? theme.color.success : theme.color.navy }}
             >
-              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR TO PLAY"}
+              {cleared ? "CHECKED-IN — TAP TO UNDO" : "PHOTO MATCHES — CHECK IN"}
             </PrimaryButton>
           </>
         ) : (
           <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginTop: 16, width: "100%" }}>
             <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 13, textAlign: "center" }}>
-              NOT CLEARED — {player.checkInStatus === "not_started" ? "hasn't checked in" : "pending admin approval"}
+              NOT VERIFIED — {checkInStatusLabel(player.checkInStatus)}
             </Text>
           </View>
         )}

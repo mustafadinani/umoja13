@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATEGORIES, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useDocument } from "../../../hooks/firestore";
 import { COLLECTIONS } from "@umoja/shared";
@@ -27,7 +27,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div style={{ minWidth: 120 }}>
           <div style={{ fontWeight: 700 }}>{category.label}</div>
-          <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{statusLabel(status)}</div>
+          <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{checkInStatusLabel(status)}</div>
         </div>
         {status === "approved" && pass ? (
           <div onClick={() => setPassOpen(true)} style={{ cursor: "pointer", textAlign: "center" }}>
@@ -35,7 +35,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
             <div style={{ fontSize: 10.5, color: theme.color.textMuted, marginTop: 2 }}>View pass</div>
           </div>
         ) : status === "pending_review" || status === "admin_review" ? (
-          <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Pending review</div>
+          <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Admin Review</div>
         ) : status === "rejected" ? null : (
           <PrimaryButton onClick={() => setOpen(true)}>Check in</PrimaryButton>
         )}
@@ -52,25 +52,40 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
             <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>{category.label}</div>
             {pass.status === "approved" ? (
               <>
-                <div style={{ width: 180, height: 180, margin: "0 auto", background: `repeating-linear-gradient(45deg, #211A33, #211A33 6px, #fff 6px, #fff 12px)`, borderRadius: 8 }} />
-                <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 8 }}>{pass.passId}</div>
+                <div style={{ position: "relative", width: 180, height: 180, margin: "0 auto", borderRadius: 16, overflow: "hidden", background: theme.color.navy }}>
+                  {pass.selfieUrl ? (
+                    <img src={pass.selfieUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 48 }}>👤</div>
+                  )}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 20,
+                      right: -42,
+                      width: 160,
+                      transform: "rotate(45deg)",
+                      background: theme.color.success,
+                      color: "#fff",
+                      textAlign: "center",
+                      fontWeight: 800,
+                      fontSize: 13,
+                      letterSpacing: 1,
+                      padding: "5px 0",
+                      boxShadow: "0 2px 6px rgba(0,0,0,.3)",
+                    }}
+                  >
+                    VERIFIED
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 10 }}>{pass.passId}</div>
               </>
             ) : (
-              <div style={{ padding: "40px 0", color: theme.color.warning, fontWeight: 800, letterSpacing: 1 }}>PENDING REVIEW</div>
+              <div style={{ padding: "40px 0", color: theme.color.warning, fontWeight: 800, letterSpacing: 1 }}>PENDING</div>
             )}
           </div>
         </Modal>
       )}
     </Card>
   );
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "approved": return "Cleared to play ✓";
-    case "pending_review":
-    case "admin_review": return "Sent to staff for review";
-    case "rejected": return "Needs another look — please retry";
-    default: return "Not checked in yet";
-  }
 }

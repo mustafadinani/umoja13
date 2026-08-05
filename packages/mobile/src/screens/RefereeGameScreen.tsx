@@ -265,7 +265,18 @@ function RosterColumn({
         {roster.map((p) => (
           <TouchableOpacity key={p.userId} onPress={() => onPick(p)} style={styles.rosterRow}>
             <Text style={{ fontSize: 13, flex: 1 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
-            {cleared.includes(p.userId) && <Text style={{ color: theme.color.success, fontWeight: "800" }}>✓</Text>}
+            <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
+              {p.checkInStatus === "approved" && (
+                <View style={{ backgroundColor: theme.color.successBg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: "800", color: theme.color.success }}>VERIFIED</Text>
+                </View>
+              )}
+              {cleared.includes(p.userId) && (
+                <View style={{ backgroundColor: "#E8EEFC", borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: "800", color: theme.color.blue }}>CHECKED-IN</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         ))}
         {roster.length === 0 && <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</Text>}

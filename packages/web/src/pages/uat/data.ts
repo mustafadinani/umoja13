@@ -166,8 +166,8 @@ export const UAT_SCENARIOS: UatScenario[] = [
     expect: "The reply/resolution is saved and reflected in the list." },
 
   { id: "ADMIN-01", section: "admin", title: "Manually review a check-in", platform: "Web",
-    steps: ['Open the Check-ins tab and filter to "Rejected" or "Pending" (this is where the check-ins from PLAYER-02 will land, given the known AI-verification gap).', "Open one and manually approve it."],
-    expect: "Status updates to Approved, and that player's Tournament Pass now shows as cleared." },
+    steps: ['Open the Check-ins tab and filter to "Admin Review" (this is where every submission from PLAYER-02 lands — there is no automated step). Open one and approve it.'],
+    expect: "Status updates to Verified, and that player's Tournament Pass now shows their photo with a VERIFIED ribbon." },
   { id: "ADMIN-02", section: "admin", title: "All Games overview", platform: "Web",
     steps: ["Open the All Games tab.", 'Add a new game via "Add Game" — pick a category, two different teams, day/time/field, and (optionally) a referee.'],
     expect: "You can't accidentally pick the same team for both sides. The new game appears in the schedule immediately." },

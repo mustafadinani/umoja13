@@ -40,15 +40,6 @@ export interface CheckIn {
   govIdUrl: string;
   submittedAt: number;
   attempt: number;
-  /** Legacy — populated by the AI verification step this app used to run. No longer written by new check-ins (every submission now goes to manual staff review), kept only so older records still render their history. */
-  aiVerification?: {
-    faceMatch: boolean;
-    faceMatchConfidence: number;
-    dobExtracted: string | null;
-    ageEligible: boolean;
-    reasoning: string;
-    checkedAt: number;
-  };
   reviewedBy?: string; // admin uid, once escalated or manually approved/rejected
   reviewedAt?: number;
   rejectionReason?: string;
@@ -73,8 +64,30 @@ export interface TournamentPass {
   teamId: string;
   categoryId: string;
   status: CheckInStatus;
-  /** Only populated once status === "approved"; blank + "PENDING REVIEW" otherwise. */
+  /** Only populated once status === "approved"; blank + "PENDING" otherwise. */
   qrPayload?: string;
   passId?: string;
   selfieUrl: string;
+}
+
+/**
+ * The one check-in status vocabulary shown anywhere in the app, player- or
+ * staff-facing: submissions start/land back on PENDING (not yet submitted,
+ * or sent back after a decline — either way the player needs to check in),
+ * move to ADMIN REVIEW once submitted, then a staff decision either marks
+ * them VERIFIED or reverts them to PENDING for a resubmit. There is no
+ * automated step in this lifecycle — every decision is a human one.
+ */
+export function checkInStatusLabel(status: CheckInStatus | undefined): string {
+  switch (status) {
+    case "approved":
+      return "Verified";
+    case "admin_review":
+    case "pending_review": // legacy value, no longer produced
+      return "Admin Review";
+    case "rejected":
+    case "not_started":
+    default:
+      return "Pending";
+  }
 }

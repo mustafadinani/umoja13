@@ -1,26 +1,12 @@
 import { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { CATEGORIES, COLLECTIONS, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
+import { View, Text, Image, StyleSheet } from "react-native";
+import { CATEGORIES, COLLECTIONS, checkInStatusLabel, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useDocument } from "../hooks/firestore";
 import { Card, PrimaryButton, Modal } from "./ui";
 
 function checkInIdFor(uid: string, membership: PlayerMembership): string {
   return `${uid}_${membership.teamId}_${membership.categoryId}`;
-}
-
-function statusLabel(status: string): string {
-  switch (status) {
-    case "approved":
-      return "Cleared to play ✓";
-    case "pending_review":
-    case "admin_review":
-      return "Sent to staff for review";
-    case "rejected":
-      return "Needs another look — please retry";
-    default:
-      return "Not checked in yet";
-  }
 }
 
 /** Same check-in card UX as web: button only for known categories. */
@@ -48,14 +34,14 @@ export function CheckInCard({
       <View style={styles.row}>
         <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ fontWeight: "700" }}>{category.label}</Text>
-          <Text style={styles.status}>{statusLabel(status)}</Text>
+          <Text style={styles.status}>{checkInStatusLabel(status)}</Text>
         </View>
         {status === "approved" && pass ? (
           <PrimaryButton onPress={() => setPassOpen(true)} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
             VIEW PASS
           </PrimaryButton>
         ) : status === "pending_review" || status === "admin_review" ? (
-          <Text style={styles.pending}>Pending review</Text>
+          <Text style={styles.pending}>Admin Review</Text>
         ) : status === "rejected" ? null : (
           <PrimaryButton onPress={onCheckIn} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
             CHECK IN
@@ -73,11 +59,20 @@ export function CheckInCard({
         <Text style={[styles.status, { textAlign: "center", marginBottom: 12 }]}>{category.label}</Text>
         {pass?.status === "approved" ? (
           <>
-            <View style={styles.qrPlaceholder} />
-            <Text style={[styles.status, { textAlign: "center", marginTop: 8 }]}>{pass.passId}</Text>
+            <View style={styles.photoBox}>
+              {pass.selfieUrl ? (
+                <Image source={{ uri: pass.selfieUrl }} style={styles.photo} />
+              ) : (
+                <Text style={styles.photoFallback}>👤</Text>
+              )}
+              <View style={styles.ribbon}>
+                <Text style={styles.ribbonText}>VERIFIED</Text>
+              </View>
+            </View>
+            <Text style={[styles.status, { textAlign: "center", marginTop: 10 }]}>{pass.passId}</Text>
           </>
         ) : (
-          <Text style={styles.passPending}>PENDING REVIEW</Text>
+          <Text style={styles.passPending}>PENDING</Text>
         )}
       </Modal>
     </Card>
@@ -89,12 +84,33 @@ const styles = StyleSheet.create({
   status: { color: theme.color.textMuted, fontSize: 12, marginTop: 2 },
   pending: { color: theme.color.warning, fontSize: 12.5, fontWeight: "700" },
   passTitle: { fontWeight: "800", fontSize: 18, textAlign: "center" },
-  qrPlaceholder: {
+  photoBox: {
     width: 180,
     height: 180,
     alignSelf: "center",
-    borderRadius: 8,
+    borderRadius: 16,
     backgroundColor: theme.color.navy,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photo: { width: "100%", height: "100%" },
+  photoFallback: { fontSize: 48 },
+  ribbon: {
+    position: "absolute",
+    top: 20,
+    right: -42,
+    width: 160,
+    paddingVertical: 5,
+    backgroundColor: theme.color.success,
+    transform: [{ rotate: "45deg" }],
+  },
+  ribbonText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 13,
+    letterSpacing: 1,
+    textAlign: "center",
   },
   passPending: {
     paddingVertical: 40,

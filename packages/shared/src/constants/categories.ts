@@ -20,7 +20,7 @@ export const CATEGORIES: Category[] = [
   { id: "38dcf88a-e524-4de3-9459-4614421fa801", label: "Girls 10 & Under", format: "7-aside", minPlayersToStart: 5 },
 ];
 
-/** Age-eligibility DOB cutoff per category — "born on/after" this date qualifies. Undefined = no age restriction (Open categories). */
+/** Age-eligibility DOB cutoff per category — "born on/after" this date qualifies. Undefined = no age restriction (Open categories). Not currently read anywhere — age eligibility is confirmed by staff during manual check-in review, not computed automatically. */
 export const CATEGORY_DOB_CUTOFF: Record<string, string | undefined> = {
   "a71b598a-2b5e-4813-ac41-d610862a12de": undefined, // Men's Open
   "06f2f800-563c-4dcc-81a2-25dc1a37e118": "1986-12-31", // Men's 40 & Over -> 40+ or turning 40 in 2026

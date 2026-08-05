@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, type Team } from "@umoja/shared";
+import { COLLECTIONS, checkInStatusLabel, type Team } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { Card } from "../../../components/ui";
@@ -26,7 +26,7 @@ export function CaptainRoster({ team }: { team: Team }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>CHECK-IN TRACKER</div>
-        <div style={{ fontSize: 13, color: theme.color.textMuted }}>{clearedCount}/{team.roster.length} cleared</div>
+        <div style={{ fontSize: 13, color: theme.color.textMuted }}>{clearedCount}/{team.roster.length} verified</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
@@ -52,7 +52,7 @@ export function CaptainRoster({ team }: { team: Team }) {
             )}
             <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning }}>
-              {p.checkInStatus === "approved" ? "Cleared" : "Pending"}
+              {checkInStatusLabel(p.checkInStatus)}
             </span>
           </Card>
         ))}
