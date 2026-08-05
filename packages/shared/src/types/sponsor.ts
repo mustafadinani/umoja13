@@ -75,7 +75,8 @@ export interface SponsorInquiry {
   email: string;
   phone?: string;
   message?: string;
-  filedByUid: string;
+  /** Absent for a guest inquiry — sending one doesn't require an account. */
+  filedByUid?: string;
   status: SponsorInquiryStatus;
   createdAt: number;
 }
@@ -109,7 +110,8 @@ export interface SponsorshipOrder {
   description?: string;
   status: SponsorshipOrderStatus;
   stripeCheckoutSessionId?: string;
-  filedByUid: string;
+  /** Absent for a guest checkout — sponsoring doesn't require an account. */
+  filedByUid?: string;
   createdAt: number;
   paidAt?: number;
   convertedSponsorId?: string;

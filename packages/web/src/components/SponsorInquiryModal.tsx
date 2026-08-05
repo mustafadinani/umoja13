@@ -18,7 +18,7 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState(false);
 
   async function submit() {
-    if (!user || !orgName.trim() || !contactName.trim() || !email.trim()) return;
+    if (!orgName.trim() || !contactName.trim() || !email.trim()) return;
     setBusy(true);
     setError(null);
     try {
@@ -28,7 +28,7 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
         email: email.trim(),
         ...(phone.trim() ? { phone: phone.trim() } : {}),
         ...(message.trim() ? { message: message.trim() } : {}),
-        filedByUid: user.uid,
+        ...(user ? { filedByUid: user.uid } : {}),
         status: "new",
         createdAt: Date.now(),
       });
@@ -38,15 +38,6 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
     } finally {
       setBusy(false);
     }
-  }
-
-  if (!user) {
-    return (
-      <Modal onClose={onClose}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Become a Sponsor</div>
-        <div style={{ fontSize: 14, color: theme.color.textMuted }}>Sign in first, then come back to send your inquiry.</div>
-      </Modal>
-    );
   }
 
   if (done) {

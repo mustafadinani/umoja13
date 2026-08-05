@@ -21,7 +21,10 @@ interface CreateSponsorshipCheckoutRequest {
 }
 
 /**
- * Creates a Stripe Checkout session for a sponsorship purchase. Writes a
+ * Creates a Stripe Checkout session for a sponsorship purchase. Deliberately
+ * does NOT require sign-in — a donor is a guest transaction, not an app
+ * account holder, so this mirrors a normal e-commerce "guest checkout"
+ * rather than gating a one-time payment behind account creation. Writes a
  * pending sponsorshipOrders doc up front, then the webhook (see
  * stripeWebhook.ts) marks it "paid" once the session completes. An admin
  * later converts a paid order into a public Sponsor entry.
@@ -30,7 +33,6 @@ export const createSponsorshipCheckout = onCall<CreateSponsorshipCheckoutRequest
   { secrets: [stripeSecretKey] },
   async (request) => {
     const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     const {
       tierId,
@@ -80,7 +82,7 @@ export const createSponsorshipCheckout = onCall<CreateSponsorshipCheckoutRequest
       ...(socialUrl?.trim() ? { socialUrl: socialUrl.trim() } : {}),
       ...(description?.trim() ? { description: description.trim() } : {}),
       status: "pending",
-      filedByUid: uid,
+      ...(uid ? { filedByUid: uid } : {}),
       createdAt: Date.now(),
     });
 

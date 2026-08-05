@@ -5,7 +5,7 @@ import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useAnnouncements, useGames, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
-import { VENUE } from "@umoja/shared";
+import { CATEGORIES, VENUE } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
 import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 import { SponsorStrip } from "../components/SponsorStrip";
@@ -74,7 +74,7 @@ export function Home() {
                 🙋 BECOME A VOLUNTEER
               </button>
               <button
-                onClick={() => (user ? setSponsorOpen(true) : navigate("/signup"))}
+                onClick={() => setSponsorOpen(true)}
                 style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 🤝 BECOME A SPONSOR
@@ -127,7 +127,7 @@ export function Home() {
                 return (
                   <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)}>
                     <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 8 }}>
-                      {home?.categoryId ?? g.categoryId} · {g.field}
+                      {CATEGORIES.find((c) => c.id === (home?.categoryId ?? g.categoryId))?.label ?? g.categoryId} · {g.field}
                     </div>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{home?.name ?? "TBD"}</div>
                     <div style={{ fontSize: 12, color: theme.color.textMuted, margin: "2px 0" }}>vs</div>

@@ -32,15 +32,6 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
 
   if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
 
-  if (!user) {
-    return (
-      <Modal visible onClose={onClose}>
-        <Text style={{ fontWeight: "800", fontSize: 19, marginBottom: 8 }}>Become a Sponsor</Text>
-        <Text style={{ fontSize: 14, color: theme.color.textMuted }}>Sign in first, then come back to choose a tier.</Text>
-      </Modal>
-    );
-  }
-
   const tier = SPONSORSHIP_TIERS.find((t) => t.id === tierId) ?? null;
   const customAmountCents = Math.round(parseFloat(customAmount || "0") * 100);
   const validCustomAmount = tier?.priceCents == null ? customAmountCents >= 100 : true;
@@ -54,7 +45,7 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   }
 
   async function checkout() {
-    if (!user || !tier || !canSubmit) return;
+    if (!tier || !canSubmit) return;
     setBusy(true);
     setError(null);
     try {
@@ -62,7 +53,7 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
       if (donorType === "business" && logoUri) {
         const response = await fetch(logoUri);
         const blob = await response.blob();
-        const storageRef = ref(storage, `sponsorshipLogos/${user.uid}/${Date.now()}.jpg`);
+        const storageRef = ref(storage, `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}.jpg`);
         await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
         companyLogoUrl = await getDownloadURL(storageRef);
       }

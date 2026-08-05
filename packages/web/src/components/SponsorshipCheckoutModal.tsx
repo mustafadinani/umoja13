@@ -32,15 +32,6 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
 
   if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
 
-  if (!user) {
-    return (
-      <Modal onClose={onClose}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Become a Sponsor</div>
-        <div style={{ fontSize: 14, color: theme.color.textMuted }}>Sign in first, then come back to choose a tier.</div>
-      </Modal>
-    );
-  }
-
   const tier = SPONSORSHIP_TIERS.find((t) => t.id === tierId) ?? null;
   const customAmountCents = Math.round(parseFloat(customAmount || "0") * 100);
   const validCustomAmount = tier?.priceCents == null ? customAmountCents >= 100 : true;
@@ -53,7 +44,7 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
     try {
       let companyLogoUrl: string | undefined;
       if (donorType === "business" && logoFile) {
-        const path = `sponsorshipLogos/${user!.uid}/${Date.now()}-${logoFile.name}`;
+        const path = `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}-${logoFile.name}`;
         const storageRef = ref(storage, path);
         await uploadBytes(storageRef, logoFile, { contentType: logoFile.type });
         companyLogoUrl = await getDownloadURL(storageRef);

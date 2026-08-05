@@ -190,10 +190,17 @@ service cloud.firestore {
     }
 
     // ---- Sponsorship inquiries ("Become a Sponsor" CTA) ----
+    // Deliberately allows an anonymous (signed-out) create — sending an
+    // inquiry, like the paid checkout flow, shouldn't require an account.
+    // A signed-in caller must still tag it with their own uid (no
+    // impersonating another user); an anonymous caller must leave
+    // filedByUid unset rather than fake one.
     match /sponsorInquiries/{id} {
       allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
-        request.resource.data.status == 'new';
+      allow create: if request.resource.data.status == 'new' &&
+        (isSignedIn()
+          ? request.resource.data.filedByUid == request.auth.uid
+          : !('filedByUid' in request.resource.data));
       allow update: if isStaff();
     }
 

@@ -55,12 +55,13 @@ service firebase.storage {
     }
 
     // Business-donor company logo uploaded during sponsorship checkout —
-    // self-serve, owner-scoped write; public read since it may become a
-    // public Sponsor logo once an admin converts the order.
-    match /sponsorshipLogos/{uid}/{fileName} {
+    // guest checkout, so this is deliberately not scoped to auth.uid
+    // (sponsoring shouldn't require an account); bounded by size/type
+    // only. Public read since it may become a public Sponsor logo once an
+    // admin converts the order.
+    match /sponsorshipLogos/{ownerId}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == uid &&
-        request.resource.size < 5 * 1024 * 1024 &&
+      allow write: if request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
   }
