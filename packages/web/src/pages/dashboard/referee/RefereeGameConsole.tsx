@@ -22,9 +22,9 @@ export function RefereeGameConsole() {
   const { gameId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: game } = useGame(gameId);
-  const { data: home } = useTeam(game?.homeTeamId);
-  const { data: away } = useTeam(game?.awayTeamId);
+  const { data: game, loading: gameLoading } = useGame(gameId);
+  const { data: home, loading: homeLoading } = useTeam(game?.homeTeamId);
+  const { data: away, loading: awayLoading } = useTeam(game?.awayTeamId);
   const [idModalPlayer, setIdModalPlayer] = useState<{ player: RosterEntry; side: "home" | "away" } | null>(null);
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
@@ -39,7 +39,21 @@ export function RefereeGameConsole() {
     [game?.events]
   );
 
-  if (!game || !home || !away) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
+  // Each hook's own `loading` flag is what actually distinguishes "still in flight" from
+  // "fetch finished, nothing found" — checking bare truthiness of `data` can't tell those
+  // apart. Without this, a game whose team ids don't resolve (e.g. missing/mismatched
+  // registration data) got permanently stuck showing "Loading…" forever, since `!home`/`!away`
+  // is true both while genuinely loading and once a lookup has already come back empty.
+  if (gameLoading) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
+  if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Game not found.</div>;
+  if (homeLoading || awayLoading) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
+  if (!home || !away) {
+    return (
+      <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>
+        Couldn't load one of this game's teams — its registration record may be missing. Contact an admin.
+      </div>
+    );
+  }
   if (user && game.refereeUid !== user.uid) {
     return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>You're not assigned to this game.</div>;
   }
