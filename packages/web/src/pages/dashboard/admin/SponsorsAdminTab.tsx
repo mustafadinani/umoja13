@@ -67,8 +67,8 @@ function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {orders.map((o) => (
           <div key={o.id} style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <div style={{ fontWeight: 700, fontSize: 14 }}>{o.donorName} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>({o.donorType})</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, minWidth: 120 }}>{o.donorName} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>({o.donorType})</span></div>
               <div style={{ fontWeight: 800, color: theme.color.purple }}>{formatDollars(o.amountCents)}</div>
             </div>
             <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
@@ -82,7 +82,7 @@ function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
               </div>
             )}
             {o.companyLogoUrl && <img src={o.companyLogoUrl} alt="" style={{ height: 28, marginTop: 8, objectFit: "contain" }} />}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, flexWrap: "wrap", gap: 8 }}>
               <span
                 style={{
                   fontSize: 11.5,
@@ -190,7 +190,7 @@ export function SponsorsAdminTab() {
         const tierSponsors = sponsors.filter((s) => (s.tier ?? "community_supporter") === tier).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         return (
           <div key={tier} style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 18, marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
               <div style={{ fontWeight: 800, fontSize: 15 }}>{SPONSOR_TIER_LABELS[tier]} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>{tierSponsors.length}</span></div>
               <button onClick={() => addSponsor(tier)} style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 999, padding: "6px 14px", fontWeight: 700, fontSize: 12.5 }}>
                 + Add

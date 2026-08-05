@@ -58,8 +58,8 @@ export function CommissionerDashboard() {
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>NEEDS YOUR ATTENTION</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {incidents.map((i) => (
-          <Card key={i.id} onClick={() => setOpenIncidentId(i.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
+          <Card key={i.id} onClick={() => setOpenIncidentId(i.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>
                 {sourceIcon(i.source)} {i.filedByName} — {i.source.replace("_", " ")}
               </div>

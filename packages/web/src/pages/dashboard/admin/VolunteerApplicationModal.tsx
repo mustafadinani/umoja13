@@ -55,7 +55,7 @@ export function VolunteerApplicationModal({ application, onClose }: { applicatio
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", flexWrap: "wrap", gap: 8 }}>
       <span style={{ color: theme.color.textMuted }}>{label}</span>
       <span style={{ fontWeight: 700 }}>{value}</span>
     </div>

@@ -82,12 +82,12 @@ export function ChallengesAdminTab() {
           const challenge = challenges.find((c) => c.id === s.challengeId);
           const crew = crews.find((c) => c.id === s.crewId);
           return (
-            <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+            <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <div
                 onClick={() => setLightbox({ src: s.mediaUrl, mediaType: s.mediaType })}
                 style={{ width: 60, height: 44, borderRadius: 6, background: `url(${s.mediaUrl}) center/cover`, flexShrink: 0, cursor: "zoom-in" }}
               />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{challenge?.title ?? s.challengeId}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted }}>{crew?.name ?? s.crewId} · {s.submittedByName}</div>
               </div>
@@ -213,8 +213,8 @@ export function ChallengesAdminTab() {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {challenges.map((c) => (
           <Card key={c.id} style={{ padding: "10px 14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontWeight: 600, fontSize: 13.5, minWidth: 120 }}>{c.title}</div>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.purple }}>+{c.points} pts</div>
             </div>
             <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>

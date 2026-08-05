@@ -168,7 +168,7 @@ export function RefereeGameConsole() {
             <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>MATCH LOG</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {game.events.map((e) => (
-                <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 10px", background: "#fff", borderRadius: 6, border: `1px solid ${theme.color.border}` }}>
+                <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 10px", background: "#fff", borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
                   <span>{e.minute}' {e.type.replace("_", " ")} #{e.playerNumber}</span>
                   <button onClick={() => undoEvent(e.id)} style={{ background: "none", border: "none", color: theme.color.danger, fontSize: 12 }}>Undo</button>
                 </div>
@@ -258,7 +258,7 @@ function RosterColumn({
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {roster.map((p) => (
-          <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
             <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>
             {cleared.includes(p.userId) && <span style={{ color: theme.color.success, fontWeight: 800 }}>✓</span>}
           </Card>

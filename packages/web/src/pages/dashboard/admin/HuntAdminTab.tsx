@@ -110,14 +110,14 @@ export function HuntAdminTab() {
           const mission = missions.find((m) => m.id === s.missionId);
           const crew = crews.find((c) => c.id === s.crewId);
           return (
-            <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+            <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {s.mediaUrl && (
                 <div
                   onClick={() => setLightbox({ src: s.mediaUrl!, mediaType: s.mediaType === "video" ? "video" : "photo" })}
                   style={{ width: 60, height: 44, borderRadius: 6, background: `url(${s.mediaUrl}) center/cover`, cursor: "zoom-in", flexShrink: 0 }}
                 />
               )}
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontWeight: 600, fontSize: 13.5 }}>{mission?.title ?? s.missionId}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted }}>
                   {crew?.name ?? s.crewId} · {s.submittedByName} {s.textAnswer && `· "${s.textAnswer}"`}
@@ -164,8 +164,8 @@ export function HuntAdminTab() {
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MISSION LIBRARY ({missions.length})</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {missions.map((m) => (
-          <Card key={m.id} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
+          <Card key={m.id} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5 }}>{TYPES.find((t) => t.id === m.type)?.label} {m.title}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted }}>{m.subtitle} · {m.points} pts</div>
             </div>

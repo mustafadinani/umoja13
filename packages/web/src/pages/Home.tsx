@@ -177,7 +177,7 @@ export function Home() {
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>JOIN THE HUNT</div>
             <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>45 missions across 3 days. $500 grand prize at Sunday's ceremony.</div>
             {topCrews.map((c, i) => (
-              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)" }}>
+              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)", flexWrap: "wrap", gap: 6 }}>
                 <span>{i + 1}. {c.name}</span>
                 <span>{c.points} pts</span>
               </div>
@@ -200,7 +200,7 @@ export function Home() {
 
 function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel: string; onAction: () => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24, letterSpacing: 0.5 }}>{title}</div>
       <div onClick={onAction} style={{ fontSize: 14, fontWeight: 600, color: theme.color.blue, cursor: "pointer" }}>{actionLabel}</div>
     </div>

@@ -54,9 +54,9 @@ export function UserChannelsAdminTab() {
             <Card
               key={c.id}
               onClick={() => setSelectedUid(c.id)}
-              style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", flexWrap: "wrap", gap: 8 }}
             >
-              <div>
+              <div style={{ minWidth: 120 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{u?.displayName ?? c.id}</div>
                 {last && <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{last.text}</div>}
               </div>

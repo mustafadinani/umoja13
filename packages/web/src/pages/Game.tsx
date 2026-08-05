@@ -48,7 +48,7 @@ export function Game() {
     <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px", width: "100%" }}>
       <div style={{ background: theme.color.navy, color: "#fff", padding: "20px 16px" }}>
         <div onClick={() => navigate(-1)} style={{ fontSize: 13, color: "#A79FC0", cursor: "pointer", marginBottom: 10 }}>‹ Back</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <StatusBadge status={game.status} />
           <div style={{ fontSize: 12, color: "#A79FC0" }}>
             {categories.find((c) => c.id === game.categoryId)?.label ?? game.categoryId} · {game.field}
@@ -94,8 +94,8 @@ export function Game() {
                       borderRadius: theme.radius.sm, padding: "8px 12px",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, fontWeight: 600 }}>
-                      <span>{isMyVote && "✓ "}#{p.jerseyNumber} {p.displayName}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, fontWeight: 600, flexWrap: "wrap", gap: 6 }}>
+                      <span style={{ minWidth: 120 }}>{isMyVote && "✓ "}#{p.jerseyNumber} {p.displayName}</span>
                       <span>{pct}%</span>
                     </div>
                     <div style={{ height: 6, background: "#F1EFF5", borderRadius: 99, marginTop: 6 }}>

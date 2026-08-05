@@ -220,6 +220,7 @@ export function TeamsAdminTab() {
               alignItems: "center",
               gap: 12,
               cursor: "pointer",
+              flexWrap: "wrap",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>

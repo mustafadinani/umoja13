@@ -30,8 +30,8 @@ export function VolunteersTab() {
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>APPLICATIONS TO REVIEW</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
             {pending.map((a) => (
-              <Card key={a.id} onClick={() => setOpenApplication(a)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
+              <Card key={a.id} onClick={() => setOpenApplication(a)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ minWidth: 120 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5 }}>{a.name}</div>
                   <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{a.email} · available {a.availability.join(", ")}</div>
                 </div>
@@ -59,14 +59,14 @@ export function VolunteersTab() {
         </>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>ALL SHIFTS</div>
         <PrimaryButton onClick={() => setAddTaskOpen(true)}>+ ADD SHIFT</PrimaryButton>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {tasks.map((t) => (
-          <Card key={t.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
+          <Card key={t.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.title}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
                 {t.assigneeName ?? "Unassigned"} · {t.time} · {t.location}

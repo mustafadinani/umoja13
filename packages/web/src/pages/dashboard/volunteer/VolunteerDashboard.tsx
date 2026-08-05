@@ -21,8 +21,8 @@ export function VolunteerDashboard() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {tasks.map((t) => (
           <Card key={t.id} onClick={() => setOpenTaskId(t.id)} style={{ padding: "14px 16px", cursor: "pointer" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 120 }}>
                 <div style={{ fontWeight: 700, fontSize: 14.5 }}>{t.title}</div>
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{t.time} · {t.location}</div>
               </div>

@@ -49,9 +49,9 @@ export function ModerationOpsTab() {
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MODERATION QUEUE</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
         {pendingMoments.map((m) => (
-          <Card key={m.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Card key={m.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div style={{ width: 60, height: 44, borderRadius: 6, background: m.mediaUrl ? `url(${m.mediaUrl}) center/cover` : theme.color.purple }} />
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
               <div style={{ fontWeight: 600, fontSize: 13.5 }}>{m.caption}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted }}>{m.postedByName} · {m.source}</div>
             </div>

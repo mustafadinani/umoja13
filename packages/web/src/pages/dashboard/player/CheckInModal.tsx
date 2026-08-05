@@ -239,7 +239,7 @@ function RoleCard({ icon, label, active, onClick }: { icon: string; label: strin
 
 function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13.5 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13.5, flexWrap: "wrap", gap: 8 }}>
       <span style={{ color: theme.color.textMuted }}>{label}</span>
       <span style={{ fontWeight: 600, color: valueColor }}>{value}</span>
     </div>

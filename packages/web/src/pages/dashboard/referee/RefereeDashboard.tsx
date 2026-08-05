@@ -48,8 +48,8 @@ export function RefereeDashboard() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {sorted.map((g) => (
-              <Card key={g.id} onClick={() => navigate(`/referee/game/${g.id}`)} style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
+              <Card key={g.id} onClick={() => navigate(`/referee/game/${g.id}`)} style={{ padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ minWidth: 120 }}>
                   <div style={{ fontWeight: 700 }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</div>
                   <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
                     {g.day.toUpperCase()} · {g.field} · {g.kickoffTime}

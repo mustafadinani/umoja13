@@ -24,13 +24,13 @@ export function CaptainRoster({ team }: { team: Team }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>CHECK-IN TRACKER</div>
         <div style={{ fontSize: 13, color: theme.color.textMuted }}>{clearedCount}/{team.roster.length} cleared</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
-          <Card key={p.userId} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <Card key={p.userId} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {editing === p.userId ? (
               <>
                 <input
@@ -50,7 +50,7 @@ export function CaptainRoster({ team }: { team: Team }) {
                 #{p.jerseyNumber ?? "—"}
               </span>
             )}
-            <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
+            <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning }}>
               {p.checkInStatus === "approved" ? "Cleared" : "Pending"}
             </span>

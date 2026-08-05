@@ -61,8 +61,8 @@ export function Team() {
         {tab === "roster" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.roster.map((p) => (
-              <Card key={p.userId} onClick={() => setOpenPlayer(p)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Card key={p.userId} onClick={() => setOpenPlayer(p)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   {p.selfieUrl ? (
                     <img src={p.selfieUrl} alt={p.displayName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
                   ) : (
@@ -94,7 +94,7 @@ export function Team() {
         {tab === "schedule" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {teamGames.map((g) => (
-              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
                 <span style={{ fontSize: 13.5 }}>{g.day.toUpperCase()} · {g.field}</span>
                 <StatusBadge status={g.status} />
               </Card>

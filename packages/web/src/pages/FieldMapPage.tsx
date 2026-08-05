@@ -72,7 +72,7 @@ export function FieldMapPage() {
             </Pill>
           </div>
 
-          <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
+          <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
             <span>ON NOW &amp; NEXT</span>
             {liveCount > 0 && <span style={{ color: theme.color.danger }}>{liveCount} LIVE</span>}
           </div>

@@ -96,7 +96,7 @@ function ScenarioCard({
         transition: "opacity 120ms ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <input
           type="checkbox"
           checked={done}
@@ -108,7 +108,7 @@ function ScenarioCard({
         <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: theme.color.purple, background: theme.color.purpleLight + "33", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>
           {scenario.id}
         </span>
-        <span style={{ fontWeight: 800, fontSize: 15.5, flex: 1 }}>{scenario.title}</span>
+        <span style={{ fontWeight: 800, fontSize: 15.5, flex: 1, minWidth: 120 }}>{scenario.title}</span>
         <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, padding: "3px 8px", borderRadius: 99, background: "#F7F6F3", color: theme.color.textMuted, border: `1px solid ${theme.color.border}`, whiteSpace: "nowrap" }}>
           {scenario.platform}
         </span>

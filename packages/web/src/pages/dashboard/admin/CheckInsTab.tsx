@@ -53,8 +53,8 @@ export function CheckInsTab() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((c) => (
-          <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
+          <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{userById.get(c.userId)?.displayName ?? c.userId}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}</div>
             </div>

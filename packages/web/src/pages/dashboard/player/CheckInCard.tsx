@@ -24,8 +24,8 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
 
   return (
     <Card style={{ padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ minWidth: 120 }}>
           <div style={{ fontWeight: 700 }}>{category.label}</div>
           <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{statusLabel(status)}</div>
         </div>

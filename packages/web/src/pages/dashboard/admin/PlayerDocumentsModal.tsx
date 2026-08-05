@@ -102,7 +102,7 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           {notes.map((n) => (
             <div key={n.id} style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.navy }}>
                   {n.reason === "Other" ? n.reasonOther || "Other" : n.reason}
                 </span>

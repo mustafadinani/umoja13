@@ -79,8 +79,8 @@ export function Hunt() {
 
           {crew && (
             <div style={{ background: "rgba(255,255,255,.16)", borderRadius: theme.radius.lg, padding: "16px 18px", marginTop: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
-                <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ minWidth: 120 }}>
                   <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>{crew.name}</div>
                   {myRank > 0 && <div style={{ fontSize: 12.5, opacity: 0.85 }}>Rank #{myRank} of {leaderboard.length}</div>}
                 </div>
@@ -145,11 +145,11 @@ export function Hunt() {
                           const mySubmission = myHuntSubmissions.find((s) => s.missionId === m.id) ?? null;
                           const pendingReview = !isDone && mySubmission?.status === "pending";
                           return (
-                            <Card key={m.id} onClick={() => setOpenMission(m)} data-testid="mission-row" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                            <Card key={m.id} onClick={() => setOpenMission(m)} data-testid="mission-row" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                               <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
                                 {isDone ? "✓" : TYPE_LABELS[m.type].split(" ")[0]}
                               </div>
-                              <div style={{ flex: 1 }}>
+                              <div style={{ flex: 1, minWidth: 120 }}>
                                 <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</div>
                                 <div style={{ fontSize: 12, color: isDone ? theme.color.success : pendingReview ? theme.color.warning : theme.color.textMuted, marginTop: 2, fontWeight: isDone || pendingReview ? 700 : 400 }}>
                                   {isDone ? `Done ✓ — +${m.points} pts earned` : pendingReview ? "Submitted — pending review" : m.subtitle}
@@ -189,12 +189,12 @@ export function Hunt() {
                           <Card
                             key={c.id}
                             onClick={() => setOpenChallenge(c)}
-                            style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55, border: `1px solid ${isDone ? theme.color.success : theme.color.pink}33` }}
+                            style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, opacity: isActive || isDone ? 1 : 0.55, border: `1px solid ${isDone ? theme.color.success : theme.color.pink}33`, flexWrap: "wrap" }}
                           >
                             <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : "#FFF0E8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
                               {isDone ? "✓" : "⚡"}
                             </div>
-                            <div style={{ flex: 1 }}>
+                            <div style={{ flex: 1, minWidth: 120 }}>
                               <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.title}</div>
                               <div style={{ fontSize: 12, color: isDone ? theme.color.success : mySubmission?.status === "pending" ? theme.color.warning : theme.color.textMuted, marginTop: 2, fontWeight: isDone || mySubmission?.status === "pending" ? 700 : 400 }}>
                                 {isDone
@@ -229,12 +229,12 @@ export function Hunt() {
                 {seg === "leaderboard" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {leaderboard.map((c, i) => (
-                      <Card key={c.id} onClick={() => setOpenCrewId(c.id)} data-testid="leaderboard-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Card key={c.id} onClick={() => setOpenCrewId(c.id)} data-testid="leaderboard-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           <span style={{ fontFamily: theme.font.display, fontWeight: 800, width: 28, fontSize: i < 3 ? 20 : 15 }}>
                             {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                           </span>
-                          <div>
+                          <div style={{ minWidth: 120 }}>
                             <div style={{ fontWeight: 700, fontSize: 13.5 }}>{c.name}{c.id === crew.id && " (you)"}</div>
                             <div style={{ fontSize: 12, color: theme.color.textMuted }}>{c.missionsCompleted.length + (c.challengesCompleted?.length ?? 0)} completed</div>
                           </div>
