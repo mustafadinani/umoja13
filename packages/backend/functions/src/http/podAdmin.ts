@@ -272,3 +272,62 @@ export const ensurePodsSeeded = onCall(async (request) => {
   }
   return { ok: true };
 });
+
+/** Roles that can see and join pods on their own — same set ensureInGeneralPod treats as pod-eligible. */
+const POD_ELIGIBLE_ROLES = ["admin", "commissioner", "referee", "volunteer"];
+
+async function requirePodEligible(uid: string | undefined): Promise<string[]> {
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  const snap = await db.collection(COLLECTIONS.users).doc(uid).get();
+  const roles: string[] = snap.data()?.roles ?? [];
+  if (!roles.some((r) => POD_ELIGIBLE_ROLES.includes(r))) {
+    throw new HttpsError("permission-denied", "Sign up as a volunteer to join a pod.");
+  }
+  return roles;
+}
+
+interface ListOpenPodsResponse {
+  pods: { id: string; name: string; memberCount: number }[];
+}
+
+/**
+ * Pods a pod-eligible user isn't a member of yet, so they can browse and
+ * self-enroll instead of waiting for an admin or an existing member to add
+ * them. Uses the Admin SDK so this doesn't need a Firestore rule change —
+ * membership itself stays exactly as protected as it already is.
+ */
+export const listOpenPods = onCall(async (request): Promise<ListOpenPodsResponse> => {
+  const uid = request.auth?.uid;
+  await requirePodEligible(uid);
+
+  const podsSnap = await db.collection(COLLECTIONS.pods).get();
+  const pods = podsSnap.docs
+    .filter((d) => !(d.data() as Pod).memberUids.includes(uid!))
+    .map((d) => {
+      const pod = d.data() as Pod;
+      return { id: d.id, name: pod.name, memberCount: pod.memberUids.length };
+    });
+  return { pods };
+});
+
+interface JoinPodRequest {
+  podId: string;
+}
+
+/** Self-service enrollment — a pod-eligible user adds themselves to a pod, no recruiter or admin required. */
+export const joinPod = onCall<JoinPodRequest>(async (request) => {
+  const uid = request.auth?.uid;
+  await requirePodEligible(uid);
+
+  const { podId } = request.data;
+  if (!podId) throw new HttpsError("invalid-argument", "podId is required.");
+
+  const ref = db.collection(COLLECTIONS.pods).doc(podId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Pod not found.");
+  const pod = snap.data() as Pod;
+  if (pod.memberUids.includes(uid!)) return { ok: true };
+
+  await ref.update({ memberUids: FieldValue.arrayUnion(uid), updatedAt: Date.now() });
+  return { ok: true };
+});

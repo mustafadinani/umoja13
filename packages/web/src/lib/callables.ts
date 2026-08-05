@@ -196,6 +196,13 @@ export const addPodVolunteer = httpsCallable<{ podId: string; uidToAdd: string }
   "addPodVolunteer"
 );
 
+export const listOpenPods = httpsCallable<
+  Record<string, never>,
+  { pods: { id: string; name: string; memberCount: number }[] }
+>(functions, "listOpenPods");
+
+export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
+
 export const lookupUserByEmail = httpsCallable<
   { email: string },
   { user: { uid: string; email: string; displayName: string } | null }

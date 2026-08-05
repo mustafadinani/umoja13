@@ -3,11 +3,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useMyPods } from "../hooks/useData";
 import { NotificationsBell } from "./NotificationsBell";
 import { MessagesBell } from "./MessagesBell";
 import { AskUmojaWidget } from "./AskUmojaWidget";
 
+// Shown to everyone signed in, whether or not they're on a pod yet — the
+// /pods page itself handles the two cases: prompts a non-volunteer to sign
+// up, or shows a volunteer/staff member their pods plus open ones to join.
 const BASE_NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Home", to: "/" },
   { label: "Game Day", to: "/schedule" },
@@ -17,6 +19,7 @@ const BASE_NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Experiences", to: "/experiences" },
   { label: "Info", to: "/info" },
 ];
+const SIGNED_IN_NAV_ITEMS = [...BASE_NAV_ITEMS, { label: "Pods", to: "/pods" }];
 
 export function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -25,11 +28,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Only shown to someone actually on a pod — most users never will be, so this doesn't clutter the nav for everyone else.
-  // Kept as a generic category label ("Pods") rather than naming the specific pod — a nav item should read like a
-  // section, not a status readout. The /pods page itself is responsible for making clear which pod(s) you're on.
-  const { data: myPods } = useMyPods(user?.uid);
-  const NAV_ITEMS = myPods.length > 0 ? [...BASE_NAV_ITEMS, { label: "Pods", to: "/pods" }] : BASE_NAV_ITEMS;
+  const NAV_ITEMS = user ? SIGNED_IN_NAV_ITEMS : BASE_NAV_ITEMS;
 
   useEffect(() => {
     setMenuOpen(false);
