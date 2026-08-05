@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode, MouseEventHandler } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type MouseEventHandler } from "react";
 import { theme } from "../lib/theme";
 
 export function Card({
@@ -62,6 +62,105 @@ export function Pill({
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * Single-select filter, collapsed behind a button until tapped — replaces a
+ * wall of always-visible option pills with a short popover list. Shows the
+ * active choice as the button's own label; clearing it happens via the chip
+ * row the caller renders alongside (see Schedule.tsx for the pattern).
+ */
+export function FilterDropdown<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T | null;
+  options: { id: T; label: string }[];
+  onChange: (value: T | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const activeLabel = value ? options.find((o) => o.id === value)?.label : null;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "9px 14px",
+          borderRadius: theme.radius.sm,
+          border: `1px solid ${activeLabel ? theme.color.purple : theme.color.border}`,
+          background: "#fff",
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: theme.color.text,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {activeLabel ?? label}
+        <span style={{ fontSize: 10, color: theme.color.textMuted }}>▾</span>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            zIndex: 20,
+            background: "#fff",
+            border: `1px solid ${theme.color.border}`,
+            borderRadius: theme.radius.md,
+            boxShadow: "0 10px 30px -10px rgba(17,12,32,.35)",
+            padding: 6,
+            minWidth: 190,
+            maxHeight: 320,
+            overflowY: "auto",
+          }}
+        >
+          <DropdownOption label={`All ${label.toLowerCase()}`} selected={!value} onClick={() => { onChange(null); setOpen(false); }} />
+          {options.map((o) => (
+            <DropdownOption key={o.id} label={o.label} selected={value === o.id} onClick={() => { onChange(o.id); setOpen(false); }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropdownOption({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: "9px 12px",
+        borderRadius: theme.radius.sm,
+        fontSize: 13.5,
+        fontWeight: selected ? 700 : 500,
+        color: selected ? theme.color.purple : theme.color.text,
+        background: selected ? "#F1EFF5" : "transparent",
+        cursor: "pointer",
+      }}
+    >
+      {label}
     </div>
   );
 }

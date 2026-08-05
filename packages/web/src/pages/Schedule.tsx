@@ -4,7 +4,7 @@ import { FIELDS, type Game } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
-import { Pill, StatusBadge } from "../components/ui";
+import { FilterDropdown, Pill, StatusBadge } from "../components/ui";
 import { SponsorStrip } from "../components/SponsorStrip";
 import { FieldMapCard } from "../components/FieldMapCard";
 
@@ -59,35 +59,37 @@ export function Schedule() {
 
       <div className="grid-2" style={{ alignItems: "start" }}>
         <div>
-          <input
-            placeholder="Search by team, category, or field…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "11px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 14.5, marginBottom: 14 }}
-          />
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-            <Pill active={!day} onClick={() => setDay(null)}>All days</Pill>
-            {DAYS.map((d) => (
-              <Pill key={d.id} active={day === d.id} onClick={() => setDay(d.id)}>{d.label}</Pill>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-            <Pill active={!categoryId} onClick={() => setCategoryId(null)}>All categories</Pill>
-            {categories.map((c) => (
-              <Pill key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            <Pill active={!field} onClick={() => setField(null)}>All fields</Pill>
-            {FIELDS.map((f) => (
-              <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>
-            ))}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+            <input
+              placeholder="Search by team, category, or field…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ flex: "1 1 200px", padding: "10px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 14 }}
+            />
+            <FilterDropdown<Game["day"]> label="Day" value={day} options={DAYS} onChange={setDay} />
+            <FilterDropdown label="Category" value={categoryId} options={categories.map((c) => ({ id: c.id, label: c.label }))} onChange={setCategoryId} />
+            <FilterDropdown label="Field" value={field} options={FIELDS.map((f) => ({ id: f, label: f }))} onChange={setField} />
             {profile && (
               <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
                 ★ My teams
               </Pill>
             )}
           </div>
+
+          {(day || categoryId || field || myTeamsOnly) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {day && <FilterChip label={DAYS.find((d) => d.id === day)?.label ?? day} onRemove={() => setDay(null)} />}
+              {categoryId && <FilterChip label={categories.find((c) => c.id === categoryId)?.label ?? categoryId} onRemove={() => setCategoryId(null)} />}
+              {field && <FilterChip label={field} onRemove={() => setField(null)} />}
+              {myTeamsOnly && <FilterChip label="★ My teams" onRemove={() => setMyTeamsOnly(false)} />}
+              <div
+                onClick={() => { setDay(null); setCategoryId(null); setField(null); setMyTeamsOnly(false); }}
+                style={{ display: "flex", alignItems: "center", fontSize: 12, fontWeight: 600, color: theme.color.textMuted, cursor: "pointer", padding: "5px 6px" }}
+              >
+                Clear all
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {filtered.map((g) => {
@@ -141,6 +143,30 @@ export function Schedule() {
           <SponsorStrip sponsors={sponsors} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div
+      onClick={onRemove}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#F1EFF5",
+        color: theme.color.purple,
+        padding: "5px 6px 5px 12px",
+        borderRadius: theme.radius.pill,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+      <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(139,47,209,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>✕</span>
     </div>
   );
 }
