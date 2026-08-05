@@ -100,7 +100,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 {p.checkInStatus === "approved" && <VerifiedBadge size={14} />}
               </View>
               {(() => {
-                const locked = Date.now() >= TOURNAMENT_START_AT && p.jerseyNumber != null;
+                const locked = Date.now() >= TOURNAMENT_START_AT;
                 if (isCaptain && editingUserId === p.userId) {
                   return (
                     <>

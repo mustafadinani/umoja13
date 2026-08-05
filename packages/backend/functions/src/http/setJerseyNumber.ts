@@ -8,7 +8,6 @@ import {
   TOURNAMENT_START_AT,
   rosterCheckInIdFor,
   type RegisteredTeam,
-  type RosterCheckIn,
   type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../util/admin.js";
@@ -24,11 +23,12 @@ interface SetJerseyNumberRequest {
 /**
  * Sets a player's jersey number on their rosterCheckIns overlay doc — either
  * the player setting their own (optional, offered during check-in) or their
- * team's captain/manager setting it on their behalf. Once a number is on
- * file AND the tournament has started, nobody (player or captain) can
- * change it — the whole point is that a player uses the same number for
- * the entire tournament. Setting a number for the first time still works
- * even after the tournament has started (a late arrival's first check-in).
+ * team's captain/manager setting it on their behalf. Jersey numbers are
+ * completely locked the moment the tournament starts (TOURNAMENT_START_AT)
+ * — no sets, no changes, for anyone, whether or not one was ever entered.
+ * The captain/manager is expected to input and lock in every number before
+ * then; check-in itself stops offering the jersey-number question once
+ * that date passes.
  */
 export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) => {
   const uid = request.auth?.uid;
@@ -61,19 +61,16 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     }
   }
 
+  // Hard cutoff — nobody (player, captain, or staff through this same path) can
+  // set or change a jersey number once the tournament has started, whether or
+  // not one was ever entered. A genuine correction after that point should go
+  // through direct Firestore access, not this callable.
+  if (Date.now() >= TOURNAMENT_START_AT) {
+    throw new HttpsError("failed-precondition", "Jersey numbers are locked now that the tournament has started.");
+  }
+
   const id = rosterCheckInIdFor(teamId, userId, categoryId);
   const ref = db.collection(COLLECTIONS.rosterCheckIns).doc(id);
-  const existing = (await ref.get()).data() as RosterCheckIn | undefined;
-
-  // Once a number is on file and the tournament has started, it's locked — for
-  // everyone, including staff going through this same path (a genuine
-  // correction should go through direct Firestore access, not this callable).
-  if (existing?.jerseyNumber != null && Date.now() >= TOURNAMENT_START_AT) {
-    throw new HttpsError(
-      "failed-precondition",
-      "This player's jersey number is locked for the rest of the tournament."
-    );
-  }
 
   if (jerseyNumber !== null) {
     const dupeSnap = await db

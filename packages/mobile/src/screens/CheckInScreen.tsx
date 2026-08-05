@@ -11,6 +11,7 @@ import {
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  TOURNAMENT_START_AT,
   rosterCheckInIdFor,
 } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
@@ -37,6 +38,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const category = CATEGORIES.find((c) => c.id === categoryId);
   const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(categoryId);
+  const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
@@ -51,7 +53,8 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   );
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
-  const canContinueFromConfirm = rosterInfo?.jerseyNumber != null || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
+  const canContinueFromConfirm =
+    rosterInfo?.jerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
   const playerName = (membership?.playerName ?? profile?.displayName ?? "").trim();
@@ -122,7 +125,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
         { merge: true }
       );
 
-      if (rosterInfo?.jerseyNumber == null && jerseyNumberDraft.trim()) {
+      if (!jerseyNumbersLocked && rosterInfo?.jerseyNumber == null && jerseyNumberDraft.trim()) {
         await setJerseyNumber({
           teamId,
           userId: user.uid,
@@ -153,22 +156,26 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
 
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number (optional)</Text>
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number</Text>
           {rosterInfo?.jerseyNumber != null ? (
             <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
-              #{rosterInfo.jerseyNumber} — set already. Ask your captain to change this before the tournament starts.
+              #{rosterInfo.jerseyNumber} — set by your captain/manager.
+            </Text>
+          ) : jerseyNumbersLocked ? (
+            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
+              Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
             </Text>
           ) : (
             <>
               <TextInput
                 keyboardType="number-pad"
-                placeholder="e.g. 7 — leave blank if you don't know it yet"
+                placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
                 value={jerseyNumberDraft}
                 onChangeText={(t) => setJerseyNumberDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
                 style={styles.input}
               />
               <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
-                You'll use this number for the whole tournament — your captain can also set/fix it later.
+                This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
               </Text>
             </>
           )}

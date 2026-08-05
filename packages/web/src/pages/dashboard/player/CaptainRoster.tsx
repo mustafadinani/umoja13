@@ -36,7 +36,7 @@ export function CaptainRoster({ team }: { team: Team }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => {
-          const locked = tournamentStarted && p.jerseyNumber != null;
+          const locked = tournamentStarted;
           return (
             <Card key={p.userId} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {editing === p.userId ? (
@@ -97,7 +97,7 @@ export function CaptainRoster({ team }: { team: Team }) {
       {error && <div style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 6 }}>{error}</div>}
       {tournamentStarted && (
         <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>
-          🔒 Jersey numbers already on file are locked now that the tournament has started.
+          🔒 Jersey numbers are locked now that the tournament has started.
         </div>
       )}
     </div>

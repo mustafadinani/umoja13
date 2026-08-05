@@ -7,6 +7,7 @@ import {
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  TOURNAMENT_START_AT,
   type PlayerMembership,
 } from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
@@ -45,7 +46,9 @@ export function CheckInModal({
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(membership.categoryId);
-  const canContinueFromConfirm = existingJerseyNumber != null || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
+  const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
+  const canContinueFromConfirm =
+    existingJerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
   const playerName = (membership.playerName ?? profile?.displayName ?? "").trim();
@@ -95,7 +98,7 @@ export function CheckInModal({
         { merge: true }
       );
 
-      if (existingJerseyNumber == null && jerseyNumberDraft.trim()) {
+      if (!jerseyNumbersLocked && existingJerseyNumber == null && jerseyNumberDraft.trim()) {
         await setJerseyNumber({
           teamId: membership.teamId,
           userId: user.uid,
@@ -127,22 +130,24 @@ export function CheckInModal({
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number (optional)</div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number</div>
             {existingJerseyNumber != null ? (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>#{existingJerseyNumber} — set by your captain/manager.</div>
+            ) : jerseyNumbersLocked ? (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
-                #{existingJerseyNumber} — set already. Ask your captain to change this before the tournament starts.
+                Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
               </div>
             ) : (
               <>
                 <input
                   inputMode="numeric"
-                  placeholder="e.g. 7 — leave blank if you don't know it yet"
+                  placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
                   value={jerseyNumberDraft}
                   onChange={(e) => setJerseyNumberDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
                   style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
                 />
                 <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
-                  You'll use this number for the whole tournament — your captain can also set/fix it later.
+                  This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
                 </div>
               </>
             )}
