@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS, type ChannelRole, type RoleChannelMessage, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
+import { resolveAuthorName } from "../util/authorName.js";
 import { notifyUsers } from "../util/notify.js";
 
 interface SendRoleMessageRequest {
@@ -37,7 +38,7 @@ export const sendRoleMessage = onCall<SendRoleMessageRequest>(async (request) =>
     id: db.collection(COLLECTIONS.roleChannels).doc().id,
     from: isStaffCaller ? "admin" : "member",
     authorUid: uid,
-    authorName: profile?.displayName ?? "Someone",
+    authorName: await resolveAuthorName(uid, profile?.displayName),
     text: text.trim(),
     createdAt: Date.now(),
   };

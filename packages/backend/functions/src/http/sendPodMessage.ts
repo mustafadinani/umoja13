@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS, type Pod, type PodChannelMessage, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
+import { resolveAuthorName } from "../util/authorName.js";
 import { notifyUsers } from "../util/notify.js";
 
 interface SendPodMessageRequest {
@@ -41,7 +42,7 @@ export const sendPodMessage = onCall<SendPodMessageRequest>(async (request) => {
   const message: PodChannelMessage = {
     id: db.collection(COLLECTIONS.podChannels).doc().id,
     authorUid: uid,
-    authorName: profile?.displayName ?? "Someone",
+    authorName: await resolveAuthorName(uid, profile?.displayName),
     text: text.trim(),
     createdAt: Date.now(),
   };

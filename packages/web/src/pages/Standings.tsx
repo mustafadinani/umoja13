@@ -40,7 +40,7 @@ export function Standings() {
 
   return (
     <div className="page-shell-sm" style={{ maxWidth: 900 }}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>STANDINGS & BRACKET</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>STANDINGS</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
         {categories.map((c) => (
           <Pill key={c.id} active={activeCategoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>

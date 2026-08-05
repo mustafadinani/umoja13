@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS, type UserChannelMessage, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
+import { resolveAuthorName } from "../util/authorName.js";
 import { notifyUsers } from "../util/notify.js";
 
 interface SendUserMessageRequest {
@@ -36,7 +37,7 @@ export const sendUserMessage = onCall<SendUserMessageRequest>(async (request) =>
     id: db.collection(COLLECTIONS.userChannels).doc().id,
     from: isStaffCaller ? "admin" : "user",
     authorUid: uid,
-    authorName: profile?.displayName ?? "Someone",
+    authorName: await resolveAuthorName(uid, profile?.displayName),
     text: text.trim(),
     createdAt: Date.now(),
   };

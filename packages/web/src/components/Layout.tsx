@@ -13,7 +13,7 @@ import { AskUmojaWidget } from "./AskUmojaWidget";
 const BASE_NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Home", to: "/" },
   { label: "Game Day", to: "/schedule" },
-  { label: "Standings & Bracket", to: "/standings" },
+  { label: "Standings", to: "/standings" },
   { label: "Moments", to: "/moments" },
   { label: "The Hunt", to: "/hunt" },
   { label: "Info & Experiences", to: "/experiences" },
