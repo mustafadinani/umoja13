@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useGames, useTeams } from "../hooks/useData";
+import { useGames, useSponsors, useTeams } from "../hooks/useData";
 import { Card, Pill, StatusBadge } from "../components/ui";
 import { FieldMap } from "../components/FieldMap";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 type StatusFilter = "all" | "live";
 
@@ -13,6 +14,7 @@ export function FieldMapPage() {
   const navigate = useNavigate();
   const { data: games } = useGames();
   const { data: teams } = useTeams();
+  const { data: sponsors } = useSponsors();
   const [selectedField, setSelectedField] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
@@ -95,6 +97,10 @@ export function FieldMapPage() {
             {feed.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5, padding: 20, textAlign: "center" }}>Nothing matches those filters.</div>}
           </div>
         </div>
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
       </div>
     </div>
   );

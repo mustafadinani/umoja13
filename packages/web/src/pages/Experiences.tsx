@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { TRAVEL_GUIDE, LOCAL_EXPERIENCES, MUSLIM_FAMILY_GUIDE, UMOJA_FAQ, VENUE_LOGISTICS, VENUE, SPECIAL_EVENTS } from "@umoja/shared";
 import { theme } from "../lib/theme";
+import { useSponsors } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 type Seg = "info" | "travel" | "local" | "muslim";
 
 /** Merged with the old standalone Info page — FAQ/venue/logistics are just another facet of "everything besides the games," same as travel planning or the local guide. One tab, one nav item, instead of two overlapping pages. */
 export function Experiences() {
   const [seg, setSeg] = useState<Seg>("info");
+  const { data: sponsors } = useSponsors();
 
   return (
     <div className="page-shell-sm" style={{ maxWidth: 820 }}>
@@ -27,6 +30,10 @@ export function Experiences() {
       {seg === "travel" && <TravelSection />}
       {seg === "local" && <LocalSection />}
       {seg === "muslim" && <MuslimSection />}
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
     </div>
   );
 }

@@ -5,9 +5,10 @@ import { COLLECTIONS, type GameStatus } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useCategories, useGame, useMoments, useTeam } from "../hooks/useData";
+import { useCategories, useGame, useMoments, useSponsors, useTeam } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow_card: "🟨", red_card: "🟥" };
 
@@ -20,6 +21,7 @@ export function Game() {
   const { data: away } = useTeam(game?.awayTeamId);
   const { data: categories } = useCategories();
   const { data: allMoments } = useMoments();
+  const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
 
   if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
@@ -138,6 +140,10 @@ export function Game() {
             </div>
           </div>
         )}
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
       </div>
 
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} gameId={game.id} source="game" />}

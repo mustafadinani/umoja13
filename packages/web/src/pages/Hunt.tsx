@@ -2,9 +2,10 @@ import { useState } from "react";
 import type { HuntMissionType, HuntMission, Challenge } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions } from "../hooks/useData";
+import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useSponsors } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
 import { HuntFeed } from "../components/HuntFeed";
+import { SponsorStrip } from "../components/SponsorStrip";
 import { CrewCreateWizard } from "./hunt/CrewCreateWizard";
 import { InvitesBanner } from "./hunt/InvitesBanner";
 import { MissionDetailModal } from "./hunt/MissionDetailModal";
@@ -46,6 +47,7 @@ export function Hunt() {
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
   const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
   const { data: leaderboard } = useHuntCrews();
+  const { data: sponsors } = useSponsors();
   const [seg, setSeg] = useState<"missions" | "challenges" | "leaderboard" | "feed">("missions");
   const [typeFilter, setTypeFilter] = useState<HuntMissionType | null>(null);
   const [dayFilter, setDayFilter] = useState<string | null>(null);
@@ -270,6 +272,10 @@ export function Hunt() {
         />
       )}
       {openCrew && <CrewDetailModal crew={openCrew} missions={missions} onClose={() => setOpenCrewId(null)} />}
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
     </div>
   );
 }

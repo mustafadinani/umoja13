@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useGames, useTeam } from "../../../hooks/useData";
+import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { JoinTeamModal } from "../../../components/JoinTeamModal";
+import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
 import { ComplaintModal } from "./ComplaintModal";
@@ -18,6 +19,7 @@ export function PlayerDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: games } = useGames();
+  const { data: sponsors } = useSponsors();
   const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
   const [activeKid, setActiveKid] = useState<string | null>(null);
@@ -133,6 +135,10 @@ export function PlayerDashboard() {
           <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
           <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test card payment)</div>
         </Card>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <SponsorStrip sponsors={sponsors} />
       </div>
     </div>
   );

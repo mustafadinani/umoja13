@@ -3,13 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { channelHasUnread, checkInStatusLabel, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
-import { useCategories, useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
+import { useCategories, useGames, useMoments, useSponsors, useTeam, useTeamChannel } from "../hooks/useData";
 import { markChannelRead } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { TeamChannelPanel } from "../components/TeamChannelPanel";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
 
@@ -22,6 +23,7 @@ export function Team() {
   const { data: games } = useGames();
   const { data: moments } = useMoments();
   const { data: channel } = useTeamChannel(teamId);
+  const { data: sponsors } = useSponsors();
   const [tab, setTab] = useState<Tab>("roster");
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
@@ -150,6 +152,11 @@ export function Team() {
 
         {tab === "channel" && <TeamChannelPanel teamId={team.id} />}
       </div>
+
+      <div style={{ padding: "0 16px 32px" }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
+
       {openPlayer && <PlayerCardModal player={openPlayer} teamId={team.id} teamName={team.name} onClose={() => setOpenPlayer(null)} />}
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
       {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}

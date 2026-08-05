@@ -4,10 +4,11 @@ import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useMoments, useMyMoments } from "../hooks/useData";
+import { useMoments, useMyMoments, useSponsors } from "../hooks/useData";
 import { Card, PrimaryButton } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { Lightbox } from "../components/Lightbox";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 const SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUNT", community: "🎉 COMMUNITY" };
 
@@ -15,6 +16,7 @@ export function Moments() {
   const { user } = useAuth();
   const { data: approvedMoments } = useMoments();
   const { data: myMoments } = useMyMoments(user?.uid);
+  const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
@@ -110,6 +112,10 @@ export function Moments() {
           );
         })}
         {moments.length === 0 && <div style={{ color: theme.color.textMuted, gridColumn: "1/-1", textAlign: "center", padding: 40 }}>No moments yet — be the first to share one.</div>}
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
       </div>
 
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} />}

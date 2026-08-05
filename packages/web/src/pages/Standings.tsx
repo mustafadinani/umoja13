@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FESTIVAL_CATEGORY_IDS } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useCategories, useGames, useTeams } from "../hooks/useData";
+import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
 import { Pill, Card } from "../components/ui";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 const ROUND_LABELS: Record<string, string> = {
   qf: "QUARTERFINAL",
@@ -19,6 +20,7 @@ export function Standings() {
   const activeCategoryId = categoryId ?? categories[0]?.id ?? null;
   const { data: teams } = useTeams(activeCategoryId ?? undefined);
   const { data: games } = useGames();
+  const { data: sponsors } = useSponsors();
 
   const isFestival = activeCategoryId ? FESTIVAL_CATEGORY_IDS.includes(activeCategoryId) : false;
   const grouped = useMemo(() => {
@@ -101,6 +103,10 @@ export function Standings() {
           </div>
         </>
       )}
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
     </div>
   );
 }
