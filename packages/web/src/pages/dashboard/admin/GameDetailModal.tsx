@@ -13,8 +13,8 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
   const { data: referees } = useReferees();
   const [cardPhotoOpen, setCardPhotoOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === game.categoryId);
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
 
   async function setStatus(status: GameStatus) {
     await updateDoc(doc(db, COLLECTIONS.games, game.id), { status, updatedAt: Date.now() });

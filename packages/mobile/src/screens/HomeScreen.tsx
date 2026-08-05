@@ -47,9 +47,9 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             <View style={styles.liveScoreRow}>
               <Text style={styles.liveTeam}>{teamById.get(liveGame.homeTeamId)?.name ?? "TBD"}</Text>
               <Text style={styles.liveScore}>
-                {liveGame.events.filter((e) => e.type === "goal" && e.teamId === liveGame.homeTeamId).length}
+                {liveGame.homeScore ?? 0}
                 {" – "}
-                {liveGame.events.filter((e) => e.type === "goal" && e.teamId === liveGame.awayTeamId).length}
+                {liveGame.awayScore ?? 0}
               </Text>
               <Text style={styles.liveTeam}>{teamById.get(liveGame.awayTeamId)?.name ?? "TBD"}</Text>
             </View>

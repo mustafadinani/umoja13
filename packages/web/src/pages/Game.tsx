@@ -10,7 +10,7 @@ import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { SponsorStrip } from "../components/SponsorStrip";
 
-const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow_card: "🟨", red_card: "🟥" };
+const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
 export function Game() {
   const { gameId } = useParams();
@@ -27,8 +27,8 @@ export function Game() {
   if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const isAdmin = profile?.roles.includes("admin") ?? false;
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   const gameMoments = allMoments.filter((m) => m.gameId === game.id);
   const roster = [...(home?.roster ?? []), ...(away?.roster ?? [])];
   const myVote = profile ? game.potmVotes?.[profile.uid] ?? null : null;
@@ -111,7 +111,7 @@ export function Game() {
         )}
 
         <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>WHAT'S HAPPENED</div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>CARDS</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {game.events.map((e) => (
               <div key={e.id} style={{ display: "flex", gap: 10, fontSize: 13.5, alignItems: "center" }}>
@@ -120,7 +120,7 @@ export function Game() {
                 <span>#{e.playerNumber} — {e.type.replace("_", " ")}</span>
               </div>
             ))}
-            {game.events.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No events logged yet.</div>}
+            {game.events.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No cards yet.</div>}
           </div>
         </div>
 

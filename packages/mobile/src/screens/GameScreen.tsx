@@ -6,7 +6,7 @@ import { theme } from "../lib/theme";
 import { useGame, useMoments, useTeam } from "../hooks/useData";
 import { StatusBadge, Card } from "../components/ui";
 
-const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow_card: "🟨", red_card: "🟥" };
+const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
 export function GameScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Game">) {
   const { gameId } = route.params;
@@ -17,8 +17,8 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   if (!game || !home || !away) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
 
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   const gameMoments = moments.filter((m) => m.gameId === game.id);
 
   return (
@@ -48,11 +48,11 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>WHAT'S HAPPENED</Text>
+        <Text style={styles.sectionTitle}>CARDS</Text>
         {game.events.map((e) => (
           <Text key={e.id} style={{ fontSize: 13, marginBottom: 4 }}>{e.minute}' {EVENT_ICON[e.type]} #{e.playerNumber}</Text>
         ))}
-        {game.events.length === 0 && <Text style={{ color: theme.color.textMuted }}>No events yet.</Text>}
+        {game.events.length === 0 && <Text style={{ color: theme.color.textMuted }}>No cards yet.</Text>}
       </View>
 
       {gameMoments.length > 0 && (

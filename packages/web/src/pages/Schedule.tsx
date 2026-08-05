@@ -97,8 +97,8 @@ export function Schedule() {
               const away = teamById.get(g.awayTeamId);
               const isMine = myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId);
               const followedTeam = myTeamIds.has(g.homeTeamId) ? home : myTeamIds.has(g.awayTeamId) ? away : null;
-              const homeGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.homeTeamId).length;
-              const awayGoals = g.events.filter((e) => e.type === "goal" && e.teamId === g.awayTeamId).length;
+              const homeGoals = g.homeScore ?? 0;
+              const awayGoals = g.awayScore ?? 0;
 
               return (
                 <div

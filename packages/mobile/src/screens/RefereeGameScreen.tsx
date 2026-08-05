@@ -15,7 +15,6 @@ import { FlagIncidentModal } from "../components/FlagIncidentModal";
 import { SubmitGameCardModal } from "../components/SubmitGameCardModal";
 
 const EVENT_TYPES: { id: GameEventType; label: string; icon: string }[] = [
-  { id: "goal", label: "Goal", icon: "⚽" },
   { id: "yellow_card", label: "Yellow", icon: "🟨" },
   { id: "red_card", label: "Red", icon: "🟥" },
 ];
@@ -53,8 +52,8 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const homeCleared = game.gateCheck?.homeClearedUids ?? [];
   const awayCleared = game.gateCheck?.awayClearedUids ?? [];
   const gateComplete = !!game.gateCheck?.completedAt;
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
@@ -72,6 +71,13 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
       "gateCheck.completedAt": Date.now(),
       "gateCheck.completedBy": user.uid,
     });
+  }
+
+  async function adjustScore(side: "home" | "away", delta: number) {
+    const field = side === "home" ? "homeScore" : "awayScore";
+    const current = side === "home" ? homeGoals : awayGoals;
+    const next = Math.max(0, current + delta);
+    await updateDoc(doc(db, COLLECTIONS.games, gameId), { [field]: next, updatedAt: Date.now() });
   }
 
   async function logEvent(player: RosterEntry, side: "home" | "away") {
@@ -147,8 +153,12 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
             <StepLabel n={2} title="MATCH CONSOLE" />
             <View style={styles.scoreBox}>
-              <Text style={styles.scoreText}>{homeGoals} – {awayGoals}</Text>
-              <Text style={{ color: "#fff", opacity: 0.7, fontSize: 12, marginTop: 4 }}>Score is driven only by Goal events below.</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18 }}>
+                <ScoreStepper label={home.name} value={homeGoals} onAdjust={(d) => adjustScore("home", d)} />
+                <Text style={{ color: "#fff", opacity: 0.6, fontWeight: "800", fontSize: 24 }}>–</Text>
+                <ScoreStepper label={away.name} value={awayGoals} onAdjust={(d) => adjustScore("away", d)} />
+              </View>
+              <Text style={{ color: "#fff", opacity: 0.7, fontSize: 12, marginTop: 10, textAlign: "center" }}>Tap + / − to update the live score directly.</Text>
             </View>
             <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
               {(["home", "away"] as const).map((side) => (
@@ -162,7 +172,7 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
                 </View>
               ))}
             </View>
-            <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>MATCH LOG</Text>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>CARD LOG</Text>
             <View style={{ gap: 4 }}>
               {game.events.map((e) => (
                 <View key={e.id} style={styles.logRow}>
@@ -244,6 +254,23 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   );
 }
 
+function ScoreStepper({ label, value, onAdjust }: { label: string; value: number; onAdjust: (delta: number) => void }) {
+  return (
+    <View style={{ alignItems: "center", gap: 6, minWidth: 90 }}>
+      <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700", opacity: 0.75, textAlign: "center" }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <TouchableOpacity onPress={() => onAdjust(-1)} disabled={value <= 0} style={[styles.stepperBtn, value <= 0 && { opacity: 0.35 }]}>
+          <Text style={styles.stepperBtnText}>−</Text>
+        </TouchableOpacity>
+        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 32, width: 36, textAlign: "center" }}>{value}</Text>
+        <TouchableOpacity onPress={() => onAdjust(1)} style={styles.stepperBtn}>
+          <Text style={styles.stepperBtnText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 function StepLabel({ n, title, done }: { n: number; title: string; done?: boolean }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -298,6 +325,8 @@ const styles = StyleSheet.create({
   pendingBanner: { backgroundColor: theme.color.warningBg, borderRadius: theme.radius.sm, padding: 10, alignItems: "center" },
   scoreBox: { backgroundColor: theme.color.navy, borderRadius: theme.radius.md, padding: 20, alignItems: "center", marginBottom: 10 },
   scoreText: { color: "#fff", fontWeight: "800", fontSize: 40 },
+  stepperBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: "rgba(255,255,255,.4)", alignItems: "center", justifyContent: "center" },
+  stepperBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   eventBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
   logRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#fff", borderRadius: 6, borderWidth: 1, borderColor: theme.color.border },
   pickerRow: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },

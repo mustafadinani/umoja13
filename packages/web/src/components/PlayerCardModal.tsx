@@ -46,19 +46,6 @@ export function PlayerCardModal({
           <CheckInStatusPill status={player.checkInStatus} />
         </div>
 
-        {(player.goals > 0 || player.assists > 0) && (
-          <div style={{ display: "flex", gap: 24, marginBottom: 14 }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{player.goals}</div>
-              <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2 }}>Goals</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{player.assists}</div>
-              <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2 }}>Assists</div>
-            </div>
-          </div>
-        )}
-
         {player.badges && player.badges.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 20 }}>
             {player.badges.map((b) => (

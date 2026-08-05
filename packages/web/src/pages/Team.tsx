@@ -92,7 +92,6 @@ export function Team() {
                   <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: theme.color.purple }}>#{p.jerseyNumber ?? "—"}</span>
                 </div>
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>
-                  {p.goals}G {p.assists}A ·{" "}
                   <span
                     style={{
                       fontWeight: 700,

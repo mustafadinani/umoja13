@@ -46,7 +46,7 @@ export function CommissionerDashboard() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {awaitingGames.map((g) => (
           <FinalizeRow key={g.id} homeTeamId={g.homeTeamId} awayTeamId={g.awayTeamId} motmUserId={g.motmUserId}
-            events={g.events} cardPhotoUrl={g.gameCard?.photoUrl}
+            homeScore={g.homeScore ?? 0} awayScore={g.awayScore ?? 0} cardPhotoUrl={g.gameCard?.photoUrl}
             onViewCard={(url) => setCardPhotoUrl(url)}
             onFinalize={() => finalize(g.id)}
             busy={finalizing === g.id}
@@ -82,17 +82,17 @@ function sourceIcon(source: string): string {
 }
 
 function FinalizeRow({
-  homeTeamId, awayTeamId, motmUserId, events, cardPhotoUrl, onViewCard, onFinalize, busy,
+  homeTeamId, awayTeamId, motmUserId, homeScore, awayScore, cardPhotoUrl, onViewCard, onFinalize, busy,
 }: {
   homeTeamId: string; awayTeamId: string; motmUserId?: string;
-  events: { type: string; teamId: string }[]; cardPhotoUrl?: string;
+  homeScore: number; awayScore: number; cardPhotoUrl?: string;
   onViewCard: (url: string) => void; onFinalize: () => void; busy: boolean;
 }) {
   const { data: home } = useTeam(homeTeamId);
   const { data: away } = useTeam(awayTeamId);
   if (!home || !away) return null;
-  const homeGoals = events.filter((e) => e.type === "goal" && e.teamId === homeTeamId).length;
-  const awayGoals = events.filter((e) => e.type === "goal" && e.teamId === awayTeamId).length;
+  const homeGoals = homeScore;
+  const awayGoals = awayScore;
   const motmPlayer = [...home.roster, ...away.roster].find((p) => p.userId === motmUserId);
 
   return (

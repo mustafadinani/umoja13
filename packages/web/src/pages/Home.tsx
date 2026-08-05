@@ -210,8 +210,8 @@ function SectionHeader({ title, actionLabel, onAction }: { title: string; action
 function GameScoreRow({ game, teamById }: { game: import("@umoja/shared").Game; teamById: Map<string, import("@umoja/shared").Team> }) {
   const home = teamById.get(game.homeTeamId);
   const away = teamById.get(game.awayTeamId);
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 8, textAlign: "center", color: "#fff" }}>

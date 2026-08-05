@@ -13,7 +13,6 @@ import { FlagIncidentModal } from "./FlagIncidentModal";
 import { SubmitGameCardModal } from "./SubmitGameCardModal";
 
 const EVENT_TYPES: { id: GameEventType; label: string; icon: string }[] = [
-  { id: "goal", label: "Goal", icon: "⚽" },
   { id: "yellow_card", label: "Yellow", icon: "🟨" },
   { id: "red_card", label: "Red", icon: "🟥" },
 ];
@@ -62,8 +61,8 @@ export function RefereeGameConsole() {
   const homeCleared = game.gateCheck?.homeClearedUids ?? [];
   const awayCleared = game.gateCheck?.awayClearedUids ?? [];
   const gateComplete = !!game.gateCheck?.completedAt;
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
@@ -82,6 +81,14 @@ export function RefereeGameConsole() {
       "gateCheck.completedAt": Date.now(),
       "gateCheck.completedBy": user.uid,
     });
+  }
+
+  async function adjustScore(side: "home" | "away", delta: number) {
+    if (!gameId) return;
+    const field = side === "home" ? "homeScore" : "awayScore";
+    const current = side === "home" ? homeGoals : awayGoals;
+    const next = Math.max(0, current + delta);
+    await updateDoc(doc(db, COLLECTIONS.games, gameId), { [field]: next, updatedAt: Date.now() });
   }
 
   async function logEvent(player: RosterEntry, side: "home" | "away") {
@@ -159,9 +166,13 @@ export function RefereeGameConsole() {
           {/* Step 2: Match console (locked) */}
           <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
             <StepLabel n={2} title="MATCH CONSOLE" />
-            <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 20, textAlign: "center", marginBottom: 10 }}>
-              <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 40, whiteSpace: "nowrap" }}>{homeGoals} – {awayGoals}</div>
-              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Score is driven only by Goal events below.</div>
+            <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 20, marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
+                <ScoreStepper label={home.name} value={homeGoals} onAdjust={(d) => adjustScore("home", d)} />
+                <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28, opacity: 0.6 }}>–</div>
+                <ScoreStepper label={away.name} value={awayGoals} onAdjust={(d) => adjustScore("away", d)} />
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.7, marginTop: 10, textAlign: "center" }}>Tap + / − to update the live score directly.</div>
             </div>
             <div className="grid-2-equal" style={{ marginBottom: 12 }}>
               {(["home", "away"] as const).map((side) => (
@@ -179,7 +190,7 @@ export function RefereeGameConsole() {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>MATCH LOG</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>CARD LOG</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {game.events.map((e) => (
                 <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 10px", background: "#fff", borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
@@ -249,6 +260,30 @@ export function RefereeGameConsole() {
           onClose={() => setEventPicker(null)}
         />
       )}
+    </div>
+  );
+}
+
+function ScoreStepper({ label, value, onAdjust }: { label: string; value: number; onAdjust: (delta: number) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 90 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.75, textAlign: "center" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button
+          onClick={() => onAdjust(-1)}
+          disabled={value <= 0}
+          style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.4)", background: "none", color: "#fff", fontSize: 16, fontWeight: 800, opacity: value <= 0 ? 0.35 : 1 }}
+        >
+          −
+        </button>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, width: 36, textAlign: "center" }}>{value}</div>
+        <button
+          onClick={() => onAdjust(1)}
+          style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.4)", background: "none", color: "#fff", fontSize: 16, fontWeight: 800 }}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

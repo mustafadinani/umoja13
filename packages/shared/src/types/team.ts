@@ -2,7 +2,7 @@ export interface Category {
   id: string;
   label: string; // e.g. "Boys U14", "Men's Open"
   format: "9-aside" | "7-aside" | "5-aside";
-  minPlayersToStart: number; // 6 / 5 / 3 respectively
+  minPlayersToStart: number; // per side; 3 across all divisions
 }
 
 export interface Team {
@@ -29,8 +29,6 @@ export interface RosterEntry {
   jerseyNumber?: number;
   position?: string;
   isCaptain: boolean;
-  goals: number;
-  assists: number;
   checkInStatus: CheckInStatus;
   selfieUrl?: string;
   badges?: string[]; // e.g. "Player of the Match", "Rising Star"
@@ -50,6 +48,6 @@ export interface TeamStats {
   points: number; // win=3, draw=1, loss=0
   goalsFor: number;
   goalsAgainst: number;
-  goalDiff: number; // += goals scored, -= goals conceded, per goal event
+  goalDiff: number; // += goals scored, -= goals conceded, per final/forfeited game score
   groupRank?: number;
 }

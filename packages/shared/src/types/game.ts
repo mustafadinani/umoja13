@@ -1,6 +1,6 @@
 export type GameStatus = "scheduled" | "live" | "final" | "forfeited";
 
-export type GameEventType = "goal" | "yellow_card" | "red_card";
+export type GameEventType = "yellow_card" | "red_card";
 
 export interface GameEvent {
   id: string;
@@ -53,6 +53,9 @@ export interface Game {
     awayClearedUids: string[];
   };
   events: GameEvent[];
+  /** Referee-entered running score — no per-player goal attribution, just the count. Defaults to 0 until the referee taps a +. */
+  homeScore?: number;
+  awayScore?: number;
   /** Referee's single combined Man of the Match, across both rosters. */
   motmUserId?: string;
   /** Separate fan-facing "Player of the Match" popularity vote — one vote per fan, distinct from motmUserId. */

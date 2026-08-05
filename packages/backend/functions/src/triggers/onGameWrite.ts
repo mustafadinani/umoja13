@@ -1,13 +1,9 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { COLLECTIONS, FESTIVAL_CATEGORY_IDS, type Game, type Team, type TeamStats } from "@umoja/shared";
+import { COLLECTIONS, FESTIVAL_CATEGORY_IDS, type Game, type TeamStats } from "@umoja/shared";
 import { db, FIRESTORE_DATABASE_ID } from "../util/admin.js";
 
 function emptyStats(): TeamStats {
   return { wins: 0, draws: 0, losses: 0, points: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0 };
-}
-
-function scoreFromEvents(game: Game, teamId: string): number {
-  return game.events.filter((e) => e.type === "goal" && e.teamId === teamId).length;
 }
 
 /**
@@ -46,8 +42,9 @@ export const onGameWrite = onDocumentWritten(
       homeGoals = g.forfeit.outcome === "home_win" ? 5 : g.forfeit.outcome === "away_win" ? 0 : 0;
       awayGoals = g.forfeit.outcome === "away_win" ? 5 : g.forfeit.outcome === "home_win" ? 0 : 0;
     } else {
-      homeGoals = scoreFromEvents(g, g.homeTeamId);
-      awayGoals = scoreFromEvents(g, g.awayTeamId);
+      // Referee-entered directly (no per-player goal events anymore).
+      homeGoals = g.homeScore ?? 0;
+      awayGoals = g.awayScore ?? 0;
     }
 
     const home = statsByTeam.get(g.homeTeamId);
@@ -91,32 +88,11 @@ export const onGameWrite = onDocumentWritten(
     stats.groupRank = i + 1;
   });
 
-  // Per-player goal counts, same source data as the team-stats pass above
-  // (final/forfeited games only) — the roster view reads roster[i].goals
-  // directly rather than deriving it from events itself, so this is the
-  // only place that ever populates it (it's hardcoded to 0 at registration
-  // import and never touched again otherwise). No assist event type exists
-  // yet, so assists stays whatever it already was.
-  const goalsByTeamAndPlayer = new Map<string, Map<string, number>>();
-  for (const gdoc of gamesSnap.docs) {
-    const g = gdoc.data() as Game;
-    if (g.status !== "final" && g.status !== "forfeited") continue;
-    for (const e of g.events) {
-      if (e.type !== "goal") continue;
-      const byPlayer = goalsByTeamAndPlayer.get(e.teamId) ?? new Map<string, number>();
-      byPlayer.set(e.playerId, (byPlayer.get(e.playerId) ?? 0) + 1);
-      goalsByTeamAndPlayer.set(e.teamId, byPlayer);
-    }
-  }
-
   const batch = db.batch();
   for (const teamDoc of teamsSnap.docs) {
-    const team = teamDoc.data() as Team;
     const stats = statsByTeam.get(teamDoc.id);
     if (!stats) continue;
-    const goalsByPlayer = goalsByTeamAndPlayer.get(teamDoc.id);
-    const roster = (team.roster ?? []).map((p) => ({ ...p, goals: goalsByPlayer?.get(p.userId) ?? 0 }));
-    batch.set(teamDoc.ref, { stats, roster }, { merge: true });
+    batch.set(teamDoc.ref, { stats }, { merge: true });
   }
   await batch.commit();
 });

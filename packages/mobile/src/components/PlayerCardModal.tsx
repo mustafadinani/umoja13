@@ -44,19 +44,6 @@ export function PlayerCardModal({
           <CheckInStatusPill status={player.checkInStatus} />
         </View>
 
-        {(player.goals > 0 || player.assists > 0) && (
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{player.goals}</Text>
-              <Text style={styles.statLabel}>Goals</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{player.assists}</Text>
-              <Text style={styles.statLabel}>Assists</Text>
-            </View>
-          </View>
-        )}
-
         {player.badges && player.badges.length > 0 && (
           <View style={[styles.badgeRow, { marginBottom: 20 }]}>
             {player.badges.map((b) => (

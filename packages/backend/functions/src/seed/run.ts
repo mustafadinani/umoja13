@@ -102,19 +102,15 @@ async function main() {
         categoryId: CATEGORIES[0]?.id ?? "mens-open", day: "fri", kickoffTime: "11:30", field: "Field 2",
         homeTeamId: umoja, awayTeamId: harambee, status: "live", round: "group",
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
-        events: [
-          { id: "e1", type: "goal", teamId: umoja, playerId: "seed", playerNumber: 9, minute: 12, createdAt: now, createdBy: "seed" },
-          { id: "e2", type: "goal", teamId: harambee, playerId: "seed", playerNumber: 7, minute: 30, createdAt: now, createdBy: "seed" },
-          { id: "e3", type: "goal", teamId: umoja, playerId: "seed", playerNumber: 9, minute: 38, createdAt: now, createdBy: "seed" },
-        ],
+        events: [],
+        homeScore: 2, awayScore: 1,
       },
       {
         categoryId: CATEGORIES[0]?.id ?? "mens-open", day: "sat", kickoffTime: "09:00", field: "Field 1",
         homeTeamId: lagos, awayTeamId: harambee, status: "final", round: "group",
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
-        events: [
-          { id: "e4", type: "goal", teamId: lagos, playerId: "seed", playerNumber: 4, minute: 20, createdAt: now, createdBy: "seed" },
-        ],
+        events: [],
+        homeScore: 1, awayScore: 0,
       },
     ] as const;
     for (const g of games) {

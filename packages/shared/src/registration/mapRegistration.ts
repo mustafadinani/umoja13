@@ -66,8 +66,6 @@ export function registeredPlayerToRosterEntry(
     displayName: `${player.firstName} ${player.lastName}`.trim() || "Player",
     jerseyNumber: realCheckIn?.jerseyNumber,
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
-    goals: 0,
-    assists: 0,
     // Prefer the real, admin-reviewed check-in status (rosterCheckIns) once one
     // exists — `player.status` is a registration/payment status ("Team
     // Registered"), not a tournament check-in signal, so it's only ever a
