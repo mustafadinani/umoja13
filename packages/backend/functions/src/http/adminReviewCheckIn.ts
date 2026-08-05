@@ -46,18 +46,18 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
       qrPayload: `UMOJA:${passId}:${checkIn.userId}:${checkIn.categoryId}`,
       selfieUrl: checkIn.selfieUrl,
     });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, "approved", checkIn.selfieUrl);
+    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "approved", checkIn.selfieUrl);
   } else if (decision === "reject") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, "rejected");
+    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "rejected");
   } else if (decision === "nullify") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, "rejected");
+    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "rejected");
   } else if (decision === "restore") {
     await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "approved" }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, "approved", checkIn.selfieUrl);
+    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "approved", checkIn.selfieUrl);
   }
 
   return { status: decision };

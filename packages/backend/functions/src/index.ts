@@ -15,6 +15,7 @@ export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { stripePayment } from "./http/stripePayment.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
 export { onTeamWrite } from "./triggers/onTeamWrite.js";
+export { onCheckInWrite } from "./triggers/onCheckInWrite.js";
 export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";

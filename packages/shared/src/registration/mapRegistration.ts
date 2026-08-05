@@ -1,6 +1,7 @@
 import { CATEGORIES } from "../constants/categories.js";
 import type { RegisteredPlayer, RegisteredTeam } from "../types/registration.js";
 import type { RosterEntry, Team, TeamStats } from "../types/team.js";
+import type { RosterCheckIn } from "../types/checkin.js";
 
 const EMPTY_STATS: TeamStats = {
   wins: 0,
@@ -56,7 +57,8 @@ function checkInStatusFromRegistration(status: string | undefined): RosterEntry[
 
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
-  captainProfileId?: string
+  captainProfileId?: string,
+  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl">
 ): RosterEntry {
   const userId = player.uid || player.id;
   return {
@@ -65,8 +67,12 @@ export function registeredPlayerToRosterEntry(
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
     goals: 0,
     assists: 0,
-    checkInStatus: checkInStatusFromRegistration(player.status),
-    selfieUrl: player.profilePicture || undefined,
+    // Prefer the real, admin-reviewed check-in status (rosterCheckIns) once one
+    // exists — `player.status` is a registration/payment status ("Team
+    // Registered"), not a tournament check-in signal, so it's only ever a
+    // rough fallback before anyone has checked in for real.
+    checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(player.status),
+    selfieUrl: realCheckIn?.selfieUrl ?? player.profilePicture ?? undefined,
   };
 }
 
@@ -81,10 +87,16 @@ function playersForTeam(team: RegisteredTeam, players: RegisteredPlayer[]): Regi
 
 export function buildTeamFromRegistration(
   team: RegisteredTeam,
-  players: RegisteredPlayer[]
+  players: RegisteredPlayer[],
+  rosterCheckIns: RosterCheckIn[] = []
 ): Team {
   const captainId = team.captainProfileId ?? team.uid;
-  const roster = playersForTeam(team, players).map((p) => registeredPlayerToRosterEntry(p, captainId));
+  const checkInByUserId = new Map(
+    rosterCheckIns.filter((r) => r.teamId === team.id).map((r) => [r.userId, r])
+  );
+  const roster = playersForTeam(team, players).map((p) =>
+    registeredPlayerToRosterEntry(p, captainId, checkInByUserId.get(p.uid || p.id))
+  );
 
   // Ensure captain is marked even if their player row uses a different uid field.
   if (captainId) {
@@ -108,9 +120,10 @@ export function buildTeamFromRegistration(
 export function buildTeamsFromRegistration(
   teams: RegisteredTeam[],
   players: RegisteredPlayer[],
-  categoryId?: string
+  categoryId?: string,
+  rosterCheckIns: RosterCheckIn[] = []
 ): Team[] {
-  const mapped = teams.map((t) => buildTeamFromRegistration(t, players));
+  const mapped = teams.map((t) => buildTeamFromRegistration(t, players, rosterCheckIns));
   if (!categoryId) return mapped;
   return mapped.filter((t) => t.categoryId === categoryId);
 }

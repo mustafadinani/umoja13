@@ -86,7 +86,7 @@ service cloud.firestore {
 
     // ---- check-ins & tournament passes: sensitive PII (selfie, gov ID, DOB) ----
     // Only the player themselves, or admin/commissioner, may read/write these.
-    // Captains/referees see only derived status via teams/{id}.roster, never the docs.
+    // Captains/referees/fans see only the derived status via rosterCheckIns, never these docs.
     match /checkIns/{checkInId} {
       // `resource == null` covers listening on a check-in that hasn't been created
       // yet (Firestore still evaluates read rules against a non-existent doc) —
@@ -106,6 +106,15 @@ service cloud.firestore {
     match /tournamentPasses/{passId} {
       allow read: if isStaff() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
       allow write: if isStaff();
+    }
+
+    // PII-free mirror of each check-in's status (no gov ID/DOB/selfie-for-identity),
+    // written only by the onCheckInWrite trigger / adminReviewCheckIn (Admin SDK).
+    // Public read, same as teams/games, so a roster's Verified/Admin Review/Pending
+    // status is visible to captains, referees, and fans alike.
+    match /rosterCheckIns/{id} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // ---- moments ----

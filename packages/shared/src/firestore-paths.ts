@@ -9,6 +9,10 @@ export const COLLECTIONS = {
   games: "games",
   checkIns: "checkIns",
   tournamentPasses: "tournamentPasses",
+  /** PII-free mirror of each check-in's status/selfie, keyed by team+player+category — the only
+   * check-in data captains/referees/fans ever see; the checkIns docs themselves (gov ID, DOB) stay
+   * restricted to the player and staff. Public read, same as teams/games. */
+  rosterCheckIns: "rosterCheckIns",
   moments: "moments",
   announcements: "announcements",
   sponsors: "sponsors",

@@ -9,6 +9,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import {
+  COLLECTIONS,
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
@@ -17,9 +18,11 @@ import {
   buildTeamsFromRegistration,
   type RegisteredPlayer,
   type RegisteredTeam,
+  type RosterCheckIn,
   type Team,
 } from "@umoja/shared";
 import { defaultDb } from "../lib/firebase";
+import { useCollection } from "./firestore";
 
 function usePathCollection<T extends DocumentData>(
   db: Firestore,
@@ -63,9 +66,10 @@ const playersPath = [REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED] a
 export function useRegistrationTeams(categoryId?: string): { data: Team[]; loading: boolean; error: string | null } {
   const teams = usePathCollection<RegisteredTeam>(defaultDb, teamsPath);
   const players = usePathCollection<RegisteredPlayer>(defaultDb, playersPath);
+  const rosterCheckIns = useCollection<RosterCheckIn>(COLLECTIONS.rosterCheckIns);
   const data = useMemo(
-    () => buildTeamsFromRegistration(teams.data, players.data, categoryId),
-    [teams.data, players.data, categoryId]
+    () => buildTeamsFromRegistration(teams.data, players.data, categoryId, rosterCheckIns.data),
+    [teams.data, players.data, categoryId, rosterCheckIns.data]
   );
   return {
     data,
@@ -83,12 +87,16 @@ export function useRegistrationTeam(teamId: string | undefined): { data: Team | 
     playersPath,
     teamId ? [where("teamId", "==", teamId)] : []
   );
+  const rosterCheckIns = useCollection<RosterCheckIn>(
+    COLLECTIONS.rosterCheckIns,
+    teamId ? [where("teamId", "==", teamId)] : []
+  );
   const data = useMemo(() => {
     if (!teamId) return null;
     const team = teams.data.find((t) => t.id === teamId);
     if (!team) return null;
-    return buildTeamFromRegistration(team, players.data);
-  }, [teamId, teams.data, players.data]);
+    return buildTeamFromRegistration(team, players.data, rosterCheckIns.data);
+  }, [teamId, teams.data, players.data, rosterCheckIns.data]);
   return {
     data,
     loading: !teamId ? false : teams.loading || players.loading,

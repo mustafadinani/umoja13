@@ -71,6 +71,23 @@ export interface TournamentPass {
 }
 
 /**
+ * PII-free mirror of one player's check-in status, written whenever
+ * adminReviewCheckIn decides a check-in — the only check-in data
+ * captains/referees/fans ever see on a roster; the checkIns doc itself
+ * (gov ID, DOB, selfie tied to identity docs) stays restricted to the
+ * player and staff. Doc id is `${teamId}_${userId}_${categoryId}`.
+ */
+export interface RosterCheckIn {
+  id: string;
+  teamId: string;
+  userId: string;
+  categoryId: string;
+  status: CheckInStatus;
+  selfieUrl?: string;
+  updatedAt: number;
+}
+
+/**
  * The one check-in status vocabulary shown anywhere in the app, player- or
  * staff-facing: submissions start/land back on PENDING (not yet submitted,
  * or sent back after a decline — either way the player needs to check in),
