@@ -1,29 +1,77 @@
 import { useState } from "react";
-import { TRAVEL_GUIDE, LOCAL_EXPERIENCES, MUSLIM_FAMILY_GUIDE } from "@umoja/shared";
+import { TRAVEL_GUIDE, LOCAL_EXPERIENCES, MUSLIM_FAMILY_GUIDE, UMOJA_FAQ, VENUE_LOGISTICS, VENUE, SPECIAL_EVENTS } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Card, Pill } from "../components/ui";
 
-type Seg = "travel" | "local" | "muslim";
+type Seg = "info" | "travel" | "local" | "muslim";
 
+/** Merged with the old standalone Info page — FAQ/venue/logistics are just another facet of "everything besides the games," same as travel planning or the local guide. One tab, one nav item, instead of two overlapping pages. */
 export function Experiences() {
-  const [seg, setSeg] = useState<Seg>("travel");
+  const [seg, setSeg] = useState<Seg>("info");
 
   return (
     <div className="page-shell-sm" style={{ maxWidth: 820 }}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>EXPERIENCES</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 4 }}>INFO & EXPERIENCES</div>
       <p style={{ color: theme.color.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>
-        Everything to plan your Umoja Games weekend beyond the games themselves.
+        Everything about your Umoja Games weekend, on and off the field.
       </p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
+        <Pill active={seg === "info"} onClick={() => setSeg("info")}>ℹ️ Event Info</Pill>
         <Pill active={seg === "travel"} onClick={() => setSeg("travel")}>✈️ Travel & Budget</Pill>
         <Pill active={seg === "local"} onClick={() => setSeg("local")}>🎡 Local Experiences</Pill>
         <Pill active={seg === "muslim"} onClick={() => setSeg("muslim")}>🌙 Muslim Family Guide</Pill>
       </div>
 
+      {seg === "info" && <InfoSection />}
       {seg === "travel" && <TravelSection />}
       {seg === "local" && <LocalSection />}
       {seg === "muslim" && <MuslimSection />}
+    </div>
+  );
+}
+
+function InfoSection() {
+  return (
+    <div>
+      <p style={{ color: theme.color.textMuted, fontSize: 14, margin: "0 0 24px" }}>
+        {VENUE.name} · {VENUE.address} · {VENUE.dates}
+      </p>
+
+      <section style={{ marginBottom: 32 }}>
+        <SectionTitle>FAQ</SectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {UMOJA_FAQ.map((f) => (
+            <Card key={f.q}>
+              <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 6 }}>{f.q}</div>
+              <div style={{ fontSize: 13.5, color: theme.color.textMuted }}>{f.a}</div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 32 }}>
+        <SectionTitle>Special Events</SectionTitle>
+        <p style={{ color: theme.color.textMuted, fontSize: 13.5, margin: "0 0 14px" }}>Tournament-wide calendar entries, alongside your team's own games.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {SPECIAL_EVENTS.map((e) => (
+            <div key={e.id} style={{ background: theme.color.purpleLight + "22", borderRadius: 10, padding: "10px 14px", fontSize: 13.5 }}>
+              <strong>{e.label}</strong> — {e.day === "sun" ? "Sunday" : e.day}{"time" in e ? ` ${e.time}` : ""}, {e.field}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>Venue & Logistics</SectionTitle>
+        <Card>
+          <p style={{ margin: "0 0 10px", fontSize: 14 }}>{VENUE_LOGISTICS.fieldLayout}</p>
+          <p style={{ margin: "0 0 10px", fontSize: 14 }}><strong>Parking:</strong> {VENUE_LOGISTICS.parking}</p>
+          <p style={{ margin: "0 0 10px", fontSize: 14 }}><strong>While you're there:</strong> {VENUE_LOGISTICS.onSitePark}</p>
+          <p style={{ margin: "0 0 10px", fontSize: 14 }}><strong>Hours:</strong> {VENUE_LOGISTICS.hours}</p>
+          <p style={{ margin: 0, fontSize: 14 }}><strong>Venue phone:</strong> {VENUE_LOGISTICS.phone}</p>
+        </Card>
+      </section>
     </div>
   );
 }

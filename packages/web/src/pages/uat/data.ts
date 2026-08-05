@@ -85,9 +85,9 @@ export const UAT_SCENARIOS: UatScenario[] = [
   { id: "FAN-11", section: "fan", title: "Report an issue", platform: "Web + Mobile",
     steps: ['Find "Report an issue to the commissioner" and submit a short message.'],
     expect: "A confirmation screen with a case number." },
-  { id: "FAN-12", section: "fan", title: "Event Info page (FAQ, map, things to do)", platform: "Web + Mobile",
-    steps: ['On web, click "Info" in the nav bar. On mobile, tap the "EVENT INFO" tile on Home.', "Read through the FAQ, Special Events, Venue & Logistics, and Nearby Things To Do sections."],
-    expect: "All four sections render with content — no empty/broken sections. This is the same knowledge Ask Umoja draws on, so answers here and from the assistant should agree." },
+  { id: "FAN-12", section: "fan", title: "Event Info (FAQ, map, logistics)", platform: "Web + Mobile",
+    steps: ['On web, click "Info & Experiences" in the nav bar and stay on its "Event Info" tab. On mobile, tap the "EVENT INFO" tile on Home.', "Read through the FAQ, Special Events, and Venue & Logistics sections."],
+    expect: "All sections render with content — no empty/broken sections. This is the same knowledge Ask Umoja draws on, so answers here and from the assistant should agree." },
 
   { id: "PLAYER-01", section: "player", title: "Join a team", platform: "Web + Mobile",
     steps: ['From a fan account with no roster ties, find "Join a team."', "Pick a category, then a team, then enter a jersey number.", "Attach a registration photo (camera or library).", "Submit."],

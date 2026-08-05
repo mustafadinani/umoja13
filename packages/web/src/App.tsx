@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Layout } from "./components/Layout";
@@ -15,7 +15,6 @@ import { Dashboard } from "./pages/dashboard/Dashboard";
 import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
-import { Info } from "./pages/Info";
 import { Experiences } from "./pages/Experiences";
 import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
@@ -32,8 +31,9 @@ export default function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
-            <Route path="/info" element={<Info />} />
             <Route path="/experiences" element={<Experiences />} />
+            {/* Info merged into Experiences — keep old bookmarks/links working. */}
+            <Route path="/info" element={<Navigate to="/experiences" replace />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/team/:teamId" element={<Team />} />
             <Route path="/login" element={<Login />} />

@@ -16,8 +16,7 @@ const BASE_NAV_ITEMS: { label: string; to: string }[] = [
   { label: "Standings & Bracket", to: "/standings" },
   { label: "Moments", to: "/moments" },
   { label: "The Hunt", to: "/hunt" },
-  { label: "Experiences", to: "/experiences" },
-  { label: "Info", to: "/info" },
+  { label: "Info & Experiences", to: "/experiences" },
 ];
 const SIGNED_IN_NAV_ITEMS = [...BASE_NAV_ITEMS, { label: "Pods", to: "/pods" }];
 
