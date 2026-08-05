@@ -152,6 +152,11 @@ export const sendUserMessage = httpsCallable<
   { message: UserChannelMessage }
 >(functions, "sendUserMessage");
 
+export const markChannelRead = httpsCallable<
+  { kind: "user" | "team" | "role" | "pod"; id: string },
+  { ok: true }
+>(functions, "markChannelRead");
+
 export const sendVolunteerTaskMessage = httpsCallable<
   { taskId: string; text: string },
   { message: VolunteerTaskMessage }

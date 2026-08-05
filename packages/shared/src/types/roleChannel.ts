@@ -22,4 +22,6 @@ export interface RoleChannel {
   role: ChannelRole;
   messages: RoleChannelMessage[];
   updatedAt: number;
+  /** uid -> ms timestamp each reader last opened this channel, for unread badges. */
+  lastReadBy?: Record<string, number>;
 }

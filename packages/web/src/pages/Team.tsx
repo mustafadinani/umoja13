@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { checkInStatusLabel, type RosterEntry } from "@umoja/shared";
+import { channelHasUnread, checkInStatusLabel, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
+import { useAuth } from "../auth/AuthProvider";
 import { useCategories, useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
+import { markChannelRead } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
@@ -14,6 +16,7 @@ type Tab = "roster" | "schedule" | "moments" | "channel";
 export function Team() {
   const { teamId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: team, error: teamError } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
@@ -23,6 +26,11 @@ export function Team() {
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
+  const channelUnread = channelHasUnread(channel?.messages, channel?.lastReadBy, user?.uid);
+
+  useEffect(() => {
+    if (tab === "channel" && user && teamId) void markChannelRead({ kind: "team", id: teamId });
+  }, [tab, teamId, user]);
 
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -54,7 +62,12 @@ export function Team() {
         <Pill active={tab === "roster"} onClick={() => setTab("roster")}>Roster</Pill>
         <Pill active={tab === "schedule"} onClick={() => setTab("schedule")}>Schedule</Pill>
         <Pill active={tab === "moments"} onClick={() => setTab("moments")}>Moments{teamMoments.length > 0 ? ` (${teamMoments.length})` : ""}</Pill>
-        <Pill active={tab === "channel"} onClick={() => setTab("channel")}>Channel{channelMessages.length > 0 ? ` (${channelMessages.length})` : ""}</Pill>
+        <Pill active={tab === "channel"} onClick={() => setTab("channel")}>
+          Channel{channelMessages.length > 0 ? ` (${channelMessages.length})` : ""}
+          {channelUnread && (
+            <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: theme.color.pink, marginLeft: 6 }} />
+          )}
+        </Pill>
       </div>
 
       <div style={{ padding: "20px 16px" }}>

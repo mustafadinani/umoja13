@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, channelHasUnread } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useGames } from "../../../hooks/useData";
+import { useGames, useRoleChannel } from "../../../hooks/useData";
+import { markChannelRead } from "../../../lib/callables";
 import { Card, Pill, StatusBadge } from "../../../components/ui";
 import { RoleChannelPanel } from "../../../components/RoleChannelPanel";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
@@ -15,7 +16,13 @@ export function RefereeDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: games } = useGames(user ? [where("refereeUid", "==", user.uid)] : []);
+  const { data: channel } = useRoleChannel("referee");
   const [tab, setTab] = useState<Tab>("assignments");
+  const channelUnread = channelHasUnread(channel?.messages, channel?.lastReadBy, user?.uid);
+
+  useEffect(() => {
+    if (tab === "channel" && user) void markChannelRead({ kind: "role", id: "referee" });
+  }, [tab, user]);
 
   const sorted = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const gateNeeded = sorted.filter((g) => g.status !== "final" && g.status !== "forfeited" && !g.gateCheck?.completedAt);
@@ -31,7 +38,12 @@ export function RefereeDashboard() {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <Pill active={tab === "assignments"} onClick={() => setTab("assignments")}>Assignments</Pill>
-        <Pill active={tab === "channel"} onClick={() => setTab("channel")}>Channel</Pill>
+        <Pill active={tab === "channel"} onClick={() => setTab("channel")}>
+          Channel
+          {channelUnread && (
+            <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: theme.color.pink, marginLeft: 6 }} />
+          )}
+        </Pill>
       </div>
 
       {tab === "channel" ? (

@@ -60,6 +60,13 @@ export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
 export const usePod = (podId: string | undefined) => useDocument<Pod>(COLLECTIONS.pods, podId);
 export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
 
+/** Every podChannel doc for a given set of pod ids (e.g. the ones a user belongs to), for aggregate unread checks. */
+export const usePodChannelsFor = (podIds: string[]) =>
+  useCollection<PodChannel>(
+    COLLECTIONS.podChannels,
+    podIds.length > 0 ? [where("podId", "in", podIds.slice(0, 30))] : [where("podId", "==", "__none__")]
+  );
+
 /**
  * Pods a uid belongs to. Deliberately its own array-contains query, not a
  * client-side filter over usePods()'s full unscoped list — that unscoped

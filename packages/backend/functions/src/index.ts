@@ -35,3 +35,4 @@ export {
 } from "./http/podAdmin.js";
 export { sendPodMessage } from "./http/sendPodMessage.js";
 export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
+export { markChannelRead } from "./http/markChannelRead.js";

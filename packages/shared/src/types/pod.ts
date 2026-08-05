@@ -34,6 +34,8 @@ export interface PodChannel {
   podId: string;
   messages: PodChannelMessage[];
   updatedAt: number;
+  /** uid -> ms timestamp each reader last opened this channel, for unread badges. */
+  lastReadBy?: Record<string, number>;
 }
 
 /** First pod (if any) whose fields include the given field — used to auto-tag a Game with its pod at creation time. */

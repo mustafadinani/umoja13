@@ -1,11 +1,20 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { channelHasUnread } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { useMyPods, usePodChannelsFor } from "../hooks/useData";
 import { NotificationsBell } from "./NotificationsBell";
 import { MessagesBell } from "./MessagesBell";
 import { AskUmojaWidget } from "./AskUmojaWidget";
+
+/** True if any pod the user belongs to has a message they haven't seen yet — powers the Pods nav dot. */
+function usePodsUnread(uid: string | undefined): boolean {
+  const { data: pods } = useMyPods(uid);
+  const { data: channels } = usePodChannelsFor(pods.map((p) => p.id));
+  return channels.some((c) => channelHasUnread(c.messages, c.lastReadBy, uid));
+}
 
 // Shown to everyone signed in, whether or not they're on a pod yet — the
 // /pods page itself handles the two cases: prompts a non-volunteer to sign
@@ -26,6 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, profile, signOut } = useAuth();
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
+  const podsUnread = usePodsUnread(user?.uid);
 
   const NAV_ITEMS = user ? SIGNED_IN_NAV_ITEMS : BASE_NAV_ITEMS;
 
@@ -86,8 +96,19 @@ export function Layout({ children }: { children: ReactNode }) {
     whiteSpace: "nowrap",
     background: active ? "rgba(255,255,255,.12)" : "transparent",
     color: active ? theme.color.gold : "#fff",
-    display: "block",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   });
+
+  const navLinkLabel = (item: (typeof NAV_ITEMS)[number]) => (
+    <>
+      {item.label}
+      {item.to === "/pods" && podsUnread && (
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: theme.color.pink, flexShrink: 0 }} />
+      )}
+    </>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: theme.color.bg, color: theme.color.text, overflowX: "hidden" }}>
@@ -101,7 +122,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="nav-desktop" style={{ display: "flex", gap: 4, flex: 1, flexWrap: "wrap", marginLeft: 8 }}>
             {NAV_ITEMS.map((item) => (
               <Link key={item.to} to={item.to} style={linkStyle(pathname === item.to)}>
-                {item.label}
+                {navLinkLabel(item)}
               </Link>
             ))}
           </div>
@@ -202,7 +223,7 @@ export function Layout({ children }: { children: ReactNode }) {
           >
             {NAV_ITEMS.map((item) => (
               <Link key={item.to} to={item.to} style={linkStyle(pathname === item.to)} onClick={() => setMenuOpen(false)}>
-                {item.label}
+                {navLinkLabel(item)}
               </Link>
             ))}
             <div style={{ height: 1, background: "rgba(255,255,255,.12)", margin: "8px 4px" }} />

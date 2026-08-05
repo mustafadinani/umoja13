@@ -19,4 +19,6 @@ export interface UserChannel {
   userId: string;
   messages: UserChannelMessage[];
   updatedAt: number;
+  /** uid -> ms timestamp each reader last opened this channel, for unread badges. */
+  lastReadBy?: Record<string, number>;
 }
