@@ -29,12 +29,6 @@ export interface GameCard {
   submittedAt: number;
   submittedBy: string; // referee uid
   status: GameCardStatus;
-  /** Stubbed OCR result — wire to a real vision/OCR provider later. */
-  ocr?: {
-    readScore: string | null;
-    matchesConsole: boolean;
-    note: string;
-  };
   calledFinalBy?: string; // commissioner uid
   calledFinalAt?: number;
 }

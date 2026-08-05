@@ -40,6 +40,7 @@ export interface CheckIn {
   govIdUrl: string;
   submittedAt: number;
   attempt: number;
+  /** Legacy — populated by the AI verification step this app used to run. No longer written by new check-ins (every submission now goes to manual staff review), kept only so older records still render their history. */
   aiVerification?: {
     faceMatch: boolean;
     faceMatchConfidence: number;
@@ -53,10 +54,8 @@ export interface CheckIn {
   rejectionReason?: string;
   /** Running, internal-only record of admin notes on this check-in — never rendered to the player-facing CheckInCard. */
   internalNotes?: CheckInNote[];
-  /** Recorded before any selfie/ID capture — required for verifyCheckIn to run at all. */
+  /** Recorded before any selfie/ID capture. */
   consent: CheckInConsent;
-  /** True if the player opted out of AI comparison; routes straight to admin_review instead of calling verifyCheckIn. */
-  aiBypassRequested?: boolean;
 }
 
 export interface CheckInConsent {

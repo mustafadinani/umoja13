@@ -23,8 +23,7 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
-    // A well-formed CheckIn.consent is required on every check-ins create/update —
-    // this is what verifyCheckIn also checks server-side before running the AI.
+    // A well-formed CheckIn.consent is required on every check-ins create/update.
     function validCheckInConsent() {
       return request.resource.data.consent.acceptedBy in ['self', 'guardian'] &&
         request.resource.data.consent.acceptedAt is number;
@@ -94,14 +93,14 @@ service cloud.firestore {
       // must be allowed or the client gets a hard permission-denied error instead
       // of a normal "not found" snapshot.
       allow read: if isStaff() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
-      // Non-staff can only ever land a check-in in pending_review/admin_review —
-      // approved/rejected are set exclusively by verifyCheckIn/adminReviewCheckIn
-      // (Admin SDK), never by the player's own client.
+      // Non-staff can only ever land a check-in in admin_review — approved/
+      // rejected are set exclusively by adminReviewCheckIn (Admin SDK), never
+      // by the player's own client.
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status in ['pending_review', 'admin_review'] && validCheckInConsent();
+        request.resource.data.status == 'admin_review' && validCheckInConsent();
       allow update: if isStaff() ||
         (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['not_started', 'rejected'] &&
-         request.resource.data.status in ['pending_review', 'admin_review'] && validCheckInConsent());
+         request.resource.data.status == 'admin_review' && validCheckInConsent());
       allow delete: if isStaff();
     }
     match /tournamentPasses/{passId} {

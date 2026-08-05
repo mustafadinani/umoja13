@@ -9,7 +9,7 @@ import { Modal, PrimaryButton } from "./ui";
 
 export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClose: () => void }) {
   const [uri, setUri] = useState<string | null>(null);
-  const [step, setStep] = useState<"capture" | "scanning" | "done">("capture");
+  const [step, setStep] = useState<"capture" | "uploading" | "done">("capture");
   const [error, setError] = useState<string | null>(null);
 
   async function capture() {
@@ -21,7 +21,7 @@ export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClo
 
   async function submit() {
     if (!uri) return;
-    setStep("scanning");
+    setStep("uploading");
     setError(null);
     try {
       const response = await fetch(uri);
@@ -53,11 +53,11 @@ export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClo
     );
   }
 
-  if (step === "scanning") {
+  if (step === "uploading") {
     return (
       <Modal visible onClose={onClose}>
         <View style={{ alignItems: "center", paddingVertical: 20 }}>
-          <Text style={{ fontWeight: "700" }}>Reading the card…</Text>
+          <Text style={{ fontWeight: "700" }}>Uploading…</Text>
         </View>
       </Modal>
     );

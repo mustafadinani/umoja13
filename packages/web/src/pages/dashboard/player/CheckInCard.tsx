@@ -34,9 +34,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
             <div style={{ width: 44, height: 44, background: theme.color.navy, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 18 }}>▦</div>
             <div style={{ fontSize: 10.5, color: theme.color.textMuted, marginTop: 2 }}>View pass</div>
           </div>
-        ) : status === "pending_review" ? (
-          <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Checking…</div>
-        ) : status === "admin_review" ? (
+        ) : status === "pending_review" || status === "admin_review" ? (
           <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Pending review</div>
         ) : status === "rejected" ? null : (
           <PrimaryButton onClick={() => setOpen(true)}>Check in</PrimaryButton>
@@ -70,9 +68,9 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
 function statusLabel(status: string): string {
   switch (status) {
     case "approved": return "Cleared to play ✓";
-    case "pending_review": return "AI verifying your check-in…";
-    case "admin_review": return "Sent to an admin for review";
-    case "rejected": return "Verification failed — please retry";
+    case "pending_review":
+    case "admin_review": return "Sent to staff for review";
+    case "rejected": return "Needs another look — please retry";
     default: return "Not checked in yet";
   }
 }

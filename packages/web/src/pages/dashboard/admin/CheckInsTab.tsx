@@ -72,7 +72,7 @@ export function CheckInsTab() {
 function StatusChip({ status }: { status: CheckInStatus }) {
   const map: Record<CheckInStatus, { bg: string; fg: string; label: string }> = {
     not_started: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Not started" },
-    pending_review: { bg: theme.color.warningBg, fg: theme.color.warning, label: "AI verifying" },
+    pending_review: { bg: theme.color.warningBg, fg: theme.color.warning, label: "Needs review" },
     admin_review: { bg: theme.color.warningBg, fg: theme.color.warning, label: "Needs review" },
     approved: { bg: theme.color.successBg, fg: theme.color.success, label: "Approved" },
     rejected: { bg: theme.color.dangerBg, fg: theme.color.danger, label: "Rejected" },

@@ -10,18 +10,15 @@ import {
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
-  CHECKIN_AI_BYPASS_LABEL,
-  CHECKIN_AI_BYPASS_CAVEAT,
 } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { verifyCheckIn } from "../lib/callables";
 import { useCheckIn, usePass, useMyVolunteerApplications } from "../hooks/useData";
 import { PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
-type Step = "confirm" | "consent" | "selfie" | "govid" | "verifying" | "result";
+type Step = "confirm" | "consent" | "selfie" | "govid" | "submitting" | "result";
 
 function checkInIdFor(uid: string, teamId: string, categoryId: string) {
   return `${uid}_${teamId}_${categoryId}`;
@@ -40,10 +37,9 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
-  const [aiBypass, setAiBypass] = useState(false);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [govIdUri, setGovIdUri] = useState<string | null>(null);
-  const [result, setResult] = useState<{ status: string; reason?: string } | null>(
+  const [result, setResult] = useState<{ status: string } | null>(
     existingCheckIn?.status === "approved" ? { status: "approved" } : null
   );
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +84,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
   async function submit() {
     if (!user || !profile || !selfieUri || !govIdUri) return;
-    setStep("verifying");
+    setStep("submitting");
     setError(null);
     try {
       const existing = await getDoc(doc(db, COLLECTIONS.checkIns, checkInId));
@@ -102,7 +98,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           userId: user.uid,
           teamId,
           categoryId,
-          status: aiBypass ? "admin_review" : "pending_review",
+          status: "admin_review",
           selfieUrl,
           govIdUrl,
           submittedAt: Date.now(),
@@ -113,27 +109,16 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             acceptedAt: Date.now(),
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
-          aiBypassRequested: aiBypass,
         },
         { merge: true }
       );
-      if (aiBypass) {
-        setResult({ status: "admin_review" });
-      } else {
-        const res = await verifyCheckIn({ checkInId });
-        setResult(res.data);
-      }
+      setResult({ status: "admin_review" });
       setStep("result");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong verifying your check-in.");
+      setError(e instanceof Error ? e.message : "Something went wrong submitting your check-in.");
       setResult({ status: "error" });
       setStep("result");
     }
-  }
-
-  function proceedToCapture(bypassAi: boolean) {
-    setAiBypass(bypassAi);
-    setStep("selfie");
   }
 
   return (
@@ -172,12 +157,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
           <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
 
-          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => proceedToCapture(false)} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
-
-          <TouchableOpacity disabled={!canContinueFromConsent} onPress={() => proceedToCapture(true)} style={{ marginTop: 16, alignItems: "center" }}>
-            <Text style={{ fontSize: 12.5, color: theme.color.textMuted, textDecorationLine: "underline" }}>{CHECKIN_AI_BYPASS_LABEL}</Text>
-            <Text style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{CHECKIN_AI_BYPASS_CAVEAT}</Text>
-          </TouchableOpacity>
+          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("selfie")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
         </View>
       )}
 
@@ -195,13 +175,13 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           <Text style={styles.h1}>Government-issued ID</Text>
           <Text style={styles.sub}>For age verification only.</Text>
           {govIdUri ? <Image source={{ uri: govIdUri }} style={styles.preview} /> : <PrimaryButton onPress={() => capture(setGovIdUri)} style={{ marginBottom: 12 }}>📷 TAKE PHOTO OF ID</PrimaryButton>}
-          <PrimaryButton disabled={!govIdUri} onPress={submit} style={{ width: "100%" }}>{aiBypass ? "SUBMIT FOR STAFF REVIEW" : "SUBMIT FOR AI CHECK"}</PrimaryButton>
+          <PrimaryButton disabled={!govIdUri} onPress={submit} style={{ width: "100%" }}>SUBMIT FOR STAFF REVIEW</PrimaryButton>
         </View>
       )}
 
-      {step === "verifying" && (
+      {step === "submitting" && (
         <View style={{ alignItems: "center", paddingTop: 40 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>{aiBypass ? "Sending to staff…" : "Checking your details…"}</Text>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>Sending to staff…</Text>
         </View>
       )}
 
@@ -220,20 +200,16 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           ) : result.status === "admin_review" ? (
             <>
               <Text style={{ fontSize: 40 }}>⏳</Text>
-              <Text style={styles.h1}>Sent to an admin</Text>
-              <Text style={styles.sub}>
-                {aiBypass
-                  ? "You opted out of AI verification — a real person will review your photos and ID, usually within the hour."
-                  : "The automatic check didn't go through — a real person will review your photos and ID, usually within the hour."}
-              </Text>
+              <Text style={styles.h1}>Sent to staff</Text>
+              <Text style={styles.sub}>A staff member will review your photos and ID, usually within the hour.</Text>
             </>
           ) : (
             <>
               <Text style={{ fontSize: 40 }}>✕</Text>
-              <Text style={styles.h1}>We couldn't verify you</Text>
-              <Text style={styles.sub}>{result.reason ?? error ?? "Try again."}</Text>
+              <Text style={styles.h1}>We couldn't submit your check-in</Text>
+              <Text style={styles.sub}>{error ?? "Something went wrong — please try again."}</Text>
               <PrimaryButton onPress={() => { setStep("selfie"); setSelfieUri(null); setGovIdUri(null); }} style={{ marginTop: 16, width: "100%" }}>
-                RETAKE & RESUBMIT
+                TRY AGAIN
               </PrimaryButton>
             </>
           )}

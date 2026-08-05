@@ -10,10 +10,10 @@ interface AdminReviewCheckInRequest {
 }
 
 /**
- * Admin/commissioner manual decision on a check-in — covers the AI-escalated
- * "admin_review" queue as well as post-hoc nullify/restore (random re-checks).
- * Routed through a function (not a direct client write) so pass-id assignment
- * stays behind the same atomic counter verifyCheckIn uses.
+ * Admin/commissioner manual decision on a check-in — the only way a check-in
+ * ever gets approved/rejected, plus post-hoc nullify/restore (random
+ * re-checks). Routed through a function (not a direct client write) so
+ * pass-id assignment stays behind the same atomic counter every time.
  */
 export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (request) => {
   const uid = request.auth?.uid;

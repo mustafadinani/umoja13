@@ -369,9 +369,8 @@ export function Uat() {
       <section style={{ margin: "32px 0" }}>
         <h2 style={{ fontFamily: theme.font.display, fontSize: 22, fontWeight: 900, margin: "0 0 12px" }}>Before You Start</h2>
         <div style={{ background: theme.color.warningBg, borderRadius: 12, padding: "16px 18px", marginBottom: 16 }}>
-          <p style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", color: theme.color.warning, margin: "0 0 8px" }}>⚠ Two known gaps — don't file these as bugs</p>
+          <p style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", color: theme.color.warning, margin: "0 0 8px" }}>⚠ One known gap — don't file this as a bug</p>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14.5 }}>
-            <li style={{ marginBottom: 6 }}><strong>Check-in ID verification</strong> uses a real AI vision model, but the production API key isn't wired up in this build yet — every check-in ends in an error at the final step. Please still test up through submission.</li>
             <li><strong>Captain complaint payments</strong>: Stripe checkout works end-to-end, but the webhook that syncs payment status back isn't fully wired up yet.</li>
           </ul>
         </div>

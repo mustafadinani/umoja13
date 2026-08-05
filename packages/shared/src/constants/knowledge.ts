@@ -19,7 +19,7 @@ export interface FaqEntry {
 export const UMOJA_FAQ: FaqEntry[] = [
   {
     q: "How does check-in work?",
-    a: 'From My Umoja, tap your Tournament Pass, confirm "Is this you?" (or "I\'m checking in my child"), agree to the consent step, then submit a selfie and a photo of an ID. It\'s reviewed automatically; you can also choose "skip the AI check" for manual staff review instead, which may be slower.',
+    a: 'From My Umoja, tap your Tournament Pass, confirm "Is this you?" (or "I\'m checking in my child"), agree to the consent step, then submit a selfie and a photo of an ID. A staff member reviews it and approves your check-in, usually within the hour.',
   },
   {
     q: "Can someone else check in my kid?",

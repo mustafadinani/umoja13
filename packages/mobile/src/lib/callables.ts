@@ -18,22 +18,11 @@ import { app } from "./firebase";
 
 const functions = getFunctions(app);
 
-interface OcrResult {
-  readScore: string | null;
-  matchesConsole: boolean;
-  note: string;
-}
-
 // The backend only reads role/text off each transcript entry (see
 // packages/backend/functions/src/ai/chatAssistant.ts) — callers don't carry
 // a message id/createdAt on in-flight chat state, so callables shouldn't
 // require the full ChatMessage shape.
 type TranscriptEntry = Pick<ChatMessage, "role" | "text">;
-
-export const verifyCheckIn = httpsCallable<
-  { checkInId: string },
-  { status: "approved" | "rejected" | "admin_review"; reason?: string }
->(functions, "verifyCheckIn");
 
 export const adminReviewCheckIn = httpsCallable<
   { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore" },
@@ -42,7 +31,7 @@ export const adminReviewCheckIn = httpsCallable<
 
 export const submitGameCard = httpsCallable<
   { gameId: string; photoUrl: string },
-  { status: "awaiting_commissioner"; ocr: OcrResult }
+  { status: "awaiting_commissioner" }
 >(functions, "submitGameCard");
 
 export const fileIncident = httpsCallable<

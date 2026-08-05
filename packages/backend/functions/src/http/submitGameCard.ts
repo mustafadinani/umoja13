@@ -8,12 +8,9 @@ interface SubmitGameCardRequest {
 }
 
 /**
- * STUBBED — not wired to a real OCR/vision provider yet (per product
- * decision: build the real upload + commissioner review queue now, wire up
- * actual score-reading later). Always reports a match so the referee's
- * flow can proceed to "awaiting commissioner". Swap the body of this
- * function for a real vision call when ready; the calling contract
- * (input/output shape) is already final.
+ * Referee submits a photo of the paper game card. No automated score
+ * reading — the commissioner reviews the photo directly and confirms the
+ * score against game.events before calling it final.
  */
 export const submitGameCard = onCall<SubmitGameCardRequest>(async (request) => {
   const uid = request.auth?.uid;
@@ -32,14 +29,6 @@ export const submitGameCard = onCall<SubmitGameCardRequest>(async (request) => {
     throw new HttpsError("failed-precondition", "Pick Man of the Match before submitting the game card.");
   }
 
-  // STUB: pretend the photo always matches the console score. Real
-  // implementation should OCR the photo and diff it against game.events.
-  const ocrResult = {
-    readScore: null as string | null,
-    matchesConsole: true,
-    note: "STUB: OCR not yet wired up — auto-confirmed as matching.",
-  };
-
   await ref.set(
     {
       gameCard: {
@@ -47,12 +36,11 @@ export const submitGameCard = onCall<SubmitGameCardRequest>(async (request) => {
         submittedAt: Date.now(),
         submittedBy: uid,
         status: "awaiting_commissioner",
-        ocr: ocrResult,
       },
       updatedAt: Date.now(),
     },
     { merge: true }
   );
 
-  return { status: "awaiting_commissioner", ocr: ocrResult };
+  return { status: "awaiting_commissioner" };
 });

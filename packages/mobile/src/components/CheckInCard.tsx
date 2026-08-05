@@ -14,11 +14,10 @@ function statusLabel(status: string): string {
     case "approved":
       return "Cleared to play ✓";
     case "pending_review":
-      return "AI verifying your check-in…";
     case "admin_review":
-      return "Sent to an admin for review";
+      return "Sent to staff for review";
     case "rejected":
-      return "Verification failed — please retry";
+      return "Needs another look — please retry";
     default:
       return "Not checked in yet";
   }
@@ -55,9 +54,7 @@ export function CheckInCard({
           <PrimaryButton onPress={() => setPassOpen(true)} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
             VIEW PASS
           </PrimaryButton>
-        ) : status === "pending_review" ? (
-          <Text style={styles.pending}>Checking…</Text>
-        ) : status === "admin_review" ? (
+        ) : status === "pending_review" || status === "admin_review" ? (
           <Text style={styles.pending}>Pending review</Text>
         ) : status === "rejected" ? null : (
           <PrimaryButton onPress={onCheckIn} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
