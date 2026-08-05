@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, type ViewStyle } from "react-native";
+import { checkInStatusLabel, checkInStatusTone, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../lib/theme";
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -102,6 +103,49 @@ export function StatusBadge({ status }: { status: string }) {
   return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
 }
 
+const CHECKIN_TONE_COLORS: Record<"success" | "warning" | "muted", { fg: string; bg: string }> = {
+  success: { fg: theme.color.success, bg: theme.color.successBg },
+  warning: { fg: theme.color.warning, bg: theme.color.warningBg },
+  muted: { fg: theme.color.textMuted, bg: theme.color.bg },
+};
+
+/**
+ * Diagonal "VERIFIED" ribbon across the corner of a player's photo — the one
+ * visual for "this identity is confirmed," reused on the Tournament Pass and
+ * the player card so it means the same thing everywhere it shows up.
+ */
+export function VerifiedRibbon() {
+  return (
+    <View style={styles.verifiedRibbon}>
+      <Text style={styles.verifiedRibbonText}>VERIFIED</Text>
+    </View>
+  );
+}
+
+/** Small checkmark badge for compact avatars (roster rows) where a full ribbon won't fit — same green, same meaning, just scaled down. */
+export function VerifiedBadge({ size = 16 }: { size?: number }) {
+  return (
+    <View
+      style={[
+        styles.verifiedBadge,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      <Text style={{ color: "#fff", fontSize: size * 0.55, fontWeight: "900", lineHeight: size * 0.6 }}>✓</Text>
+    </View>
+  );
+}
+
+/** The one check-in status pill — same label vocabulary and colors (green/amber/muted) wherever a status needs to read as a chip rather than plain text. */
+export function CheckInStatusPill({ status }: { status: CheckInStatus | undefined }) {
+  const { fg, bg } = CHECKIN_TONE_COLORS[checkInStatusTone(status)];
+  return (
+    <Pill bg={bg} fg={fg}>
+      {checkInStatusLabel(status)}
+    </Pill>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
@@ -186,5 +230,32 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: theme.color.border,
+  },
+  verifiedRibbon: {
+    position: "absolute",
+    top: 20,
+    right: -42,
+    width: 160,
+    transform: [{ rotate: "45deg" }],
+    backgroundColor: theme.color.success,
+    alignItems: "center",
+    paddingVertical: 5,
+  },
+  verifiedRibbonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "800",
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    backgroundColor: theme.color.success,
+    borderWidth: 2,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

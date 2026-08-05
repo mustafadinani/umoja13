@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type MouseEventHandler } from "react";
+import { checkInStatusLabel, checkInStatusTone, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../lib/theme";
 
 export function Card({
@@ -308,4 +309,72 @@ export function StatusBadge({ status }: { status: string }) {
   };
   const s = map[status] ?? { bg: "#F1EFF5", fg: theme.color.textMuted, label: status };
   return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
+}
+
+const CHECKIN_TONE_COLORS: Record<"success" | "warning" | "muted", { fg: string; bg: string }> = {
+  success: { fg: theme.color.success, bg: theme.color.successBg },
+  warning: { fg: theme.color.warning, bg: theme.color.warningBg },
+  muted: { fg: theme.color.textMuted, bg: theme.color.bg },
+};
+
+/**
+ * Diagonal "VERIFIED" ribbon across the corner of a player's photo — the one
+ * visual for "this identity is confirmed," reused on the Tournament Pass and
+ * the player card so it means the same thing everywhere it shows up.
+ */
+export function VerifiedRibbon() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 20,
+        right: -42,
+        width: 160,
+        transform: "rotate(45deg)",
+        background: theme.color.success,
+        color: "#fff",
+        textAlign: "center",
+        fontWeight: 800,
+        fontSize: 13,
+        letterSpacing: 1,
+        padding: "5px 0",
+        boxShadow: "0 2px 6px rgba(0,0,0,.3)",
+      }}
+    >
+      VERIFIED
+    </div>
+  );
+}
+
+/** Small checkmark badge for compact avatars (roster rows) where a full ribbon won't fit — same green, same meaning, just scaled down. */
+export function VerifiedBadge({ size = 16 }: { size?: number }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: -1,
+        right: -1,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: theme.color.success,
+        border: "2px solid #fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <span style={{ color: "#fff", fontSize: size * 0.55, fontWeight: 900, lineHeight: 1 }}>✓</span>
+    </div>
+  );
+}
+
+/** The one check-in status pill — same label vocabulary and colors (green/amber/muted) wherever a status needs to read as a chip rather than plain text. */
+export function CheckInStatusPill({ status }: { status: CheckInStatus | undefined }) {
+  const { fg, bg } = CHECKIN_TONE_COLORS[checkInStatusTone(status)];
+  return (
+    <Pill bg={bg} fg={fg}>
+      {checkInStatusLabel(status)}
+    </Pill>
+  );
 }

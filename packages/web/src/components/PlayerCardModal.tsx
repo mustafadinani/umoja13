@@ -2,17 +2,9 @@ import { useState } from "react";
 import type { RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useMoments } from "../hooks/useData";
-import { Drawer, PrimaryButton } from "./ui";
+import { CheckInStatusPill, Drawer, PrimaryButton, VerifiedBadge } from "./ui";
 import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
-
-const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  approved: { label: "✓ Verified", color: theme.color.success, bg: theme.color.successBg },
-  pending_review: { label: "Admin Review", color: theme.color.warning, bg: theme.color.warningBg },
-  admin_review: { label: "Admin Review", color: theme.color.warning, bg: theme.color.warningBg },
-  rejected: { label: "Pending", color: theme.color.danger, bg: theme.color.dangerBg },
-  not_started: { label: "Pending", color: theme.color.textMuted, bg: theme.color.bg },
-};
 
 export function PlayerCardModal({
   player,
@@ -25,7 +17,6 @@ export function PlayerCardModal({
   teamName: string;
   onClose: () => void;
 }) {
-  const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
   const { data: moments } = useMoments();
   const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
@@ -34,13 +25,16 @@ export function PlayerCardModal({
   return (
     <Drawer onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {player.selfieUrl ? (
-          <img src={player.selfieUrl} alt={player.displayName} style={{ width: 140, height: 140, borderRadius: "50%", objectFit: "cover", marginBottom: 14 }} />
-        ) : (
-          <div style={{ width: 140, height: 140, borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: 40 }}>{player.displayName.slice(0, 2).toUpperCase()}</span>
-          </div>
-        )}
+        <div style={{ position: "relative", width: 140, height: 140, marginBottom: 14 }}>
+          {player.selfieUrl ? (
+            <img src={player.selfieUrl} alt={player.displayName} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: 40 }}>{player.displayName.slice(0, 2).toUpperCase()}</span>
+            </div>
+          )}
+          {player.checkInStatus === "approved" && <VerifiedBadge size={36} />}
+        </div>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, textAlign: "center" }}>
           {player.displayName}{player.isCaptain ? " (C)" : ""}
         </div>
@@ -48,8 +42,8 @@ export function PlayerCardModal({
           {teamName} · #{player.jerseyNumber ?? "—"}
         </div>
 
-        <div style={{ background: status.bg, color: status.color, fontWeight: 700, fontSize: 13, padding: "8px 16px", borderRadius: 99, marginBottom: 14 }}>
-          {status.label}
+        <div style={{ marginBottom: 14 }}>
+          <CheckInStatusPill status={player.checkInStatus} />
         </div>
 
         {(player.goals > 0 || player.assists > 0) && (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, checkInStatusLabel, type Team } from "@umoja/shared";
+import { COLLECTIONS, checkInStatusLabel, checkInStatusTone, type Team } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { Card } from "../../../components/ui";
@@ -51,7 +51,13 @@ export function CaptainRoster({ team }: { team: Team }) {
               </span>
             )}
             <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning }}>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted }[checkInStatusTone(p.checkInStatus)],
+              }}
+            >
               {checkInStatusLabel(p.checkInStatus)}
             </span>
           </Card>

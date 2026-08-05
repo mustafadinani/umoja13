@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { channelHasUnread, checkInStatusLabel, type RosterEntry } from "@umoja/shared";
+import { channelHasUnread, checkInStatusLabel, checkInStatusTone, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useCategories, useGames, useMoments, useSponsors, useTeam, useTeamChannel } from "../hooks/useData";
 import { markChannelRead } from "../lib/callables";
-import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge, VerifiedBadge } from "../components/ui";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
@@ -78,19 +78,27 @@ export function Team() {
             {team.roster.map((p) => (
               <Card key={p.userId} onClick={() => setOpenPlayer(p)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", flexWrap: "wrap", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  {p.selfieUrl ? (
-                    <img src={p.selfieUrl} alt={p.displayName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</span>
-                    </div>
-                  )}
+                  <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
+                    {p.selfieUrl ? (
+                      <img src={p.selfieUrl} alt={p.displayName} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</span>
+                      </div>
+                    )}
+                    {p.checkInStatus === "approved" && <VerifiedBadge size={14} />}
+                  </div>
                   <span style={{ fontWeight: 600 }}>{p.displayName}{p.isCaptain && " (C)"}</span>
                   <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: theme.color.purple }}>#{p.jerseyNumber ?? "—"}</span>
                 </div>
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>
                   {p.goals}G {p.assists}A ·{" "}
-                  <span style={{ fontWeight: 700, color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning }}>
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted }[checkInStatusTone(p.checkInStatus)],
+                    }}
+                  >
                     {checkInStatusLabel(p.checkInStatus)}
                   </span>
                 </div>

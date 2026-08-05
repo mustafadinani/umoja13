@@ -108,3 +108,27 @@ export function checkInStatusLabel(status: CheckInStatus | undefined): string {
       return "Pending";
   }
 }
+
+/**
+ * The one color vocabulary for a check-in status, shared by every surface
+ * that shows it (roster rows, the player card, the Tournament Pass) so
+ * "Verified" is always the same green and "Pending" is never alarmingly
+ * red on a page that isn't asking anyone to act on it right now — unlike
+ * the referee gate-check screen, which deliberately uses red for "NOT
+ * VERIFIED" since it's blocking that player from playing.
+ */
+export type CheckInStatusTone = "success" | "warning" | "muted";
+
+export function checkInStatusTone(status: CheckInStatus | undefined): CheckInStatusTone {
+  switch (status) {
+    case "approved":
+      return "success";
+    case "admin_review":
+    case "pending_review":
+      return "warning";
+    case "rejected":
+    case "not_started":
+    default:
+      return "muted";
+  }
+}

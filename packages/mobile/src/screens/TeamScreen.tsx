@@ -2,12 +2,12 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, checkInStatusLabel, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, checkInStatusTone, type RosterEntry } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
 import { sendTeamMessage } from "../lib/callables";
-import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge, VerifiedBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
@@ -88,13 +88,16 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <View style={styles.section}>
           {team.roster.map((p) => (
             <Card key={p.userId} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
-              {p.selfieUrl ? (
-                <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
-                </View>
-              )}
+              <View style={styles.avatarWrap}>
+                {p.selfieUrl ? (
+                  <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
+                  </View>
+                )}
+                {p.checkInStatus === "approved" && <VerifiedBadge size={14} />}
+              </View>
               {isCaptain && editingUserId === p.userId ? (
                 <>
                   <TextInput
@@ -120,7 +123,13 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 </TouchableOpacity>
               )}
               <Text style={{ fontWeight: "600", flex: 1 }}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
-              <Text style={{ color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 12 }}>
+              <Text
+                style={{
+                  color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted }[checkInStatusTone(p.checkInStatus)],
+                  fontWeight: "700",
+                  fontSize: 12,
+                }}
+              >
                 {checkInStatusLabel(p.checkInStatus)}
               </Text>
             </Card>
@@ -237,6 +246,7 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   jerseyInput: { width: 46, borderWidth: 1, borderColor: theme.color.border, borderRadius: 6, padding: 6, textAlign: "center" },
   saveBtn: { backgroundColor: theme.color.navy, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
+  avatarWrap: { width: 36, height: 36 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
   momentTile: { width: 84, height: 84, borderRadius: 8 },

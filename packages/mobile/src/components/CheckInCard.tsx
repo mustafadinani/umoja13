@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import { CATEGORIES, COLLECTIONS, checkInStatusLabel, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useDocument } from "../hooks/firestore";
-import { Card, PrimaryButton, Modal } from "./ui";
+import { Card, PrimaryButton, Modal, VerifiedRibbon } from "./ui";
 
 function checkInIdFor(uid: string, membership: PlayerMembership): string {
   return `${uid}_${membership.teamId}_${membership.categoryId}`;
@@ -65,9 +65,7 @@ export function CheckInCard({
               ) : (
                 <Text style={styles.photoFallback}>👤</Text>
               )}
-              <View style={styles.ribbon}>
-                <Text style={styles.ribbonText}>VERIFIED</Text>
-              </View>
+              <VerifiedRibbon />
             </View>
             <Text style={[styles.status, { textAlign: "center", marginTop: 10 }]}>{pass.passId}</Text>
           </>
@@ -96,22 +94,6 @@ const styles = StyleSheet.create({
   },
   photo: { width: "100%", height: "100%" },
   photoFallback: { fontSize: 48 },
-  ribbon: {
-    position: "absolute",
-    top: 20,
-    right: -42,
-    width: 160,
-    paddingVertical: 5,
-    backgroundColor: theme.color.success,
-    transform: [{ rotate: "45deg" }],
-  },
-  ribbonText: {
-    color: "#fff",
-    fontWeight: "800",
-    fontSize: 13,
-    letterSpacing: 1,
-    textAlign: "center",
-  },
   passPending: {
     paddingVertical: 40,
     textAlign: "center",
