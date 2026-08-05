@@ -39,8 +39,18 @@ export function PlayerIdModal({
 
         {approved ? (
           <>
-            <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: "8px 12px", fontSize: 13, fontWeight: 700, marginTop: 16 }}>
-              Verified ✓
+            <div
+              style={{
+                background: cleared ? theme.color.successBg : theme.color.warningBg,
+                color: cleared ? theme.color.success : theme.color.warning,
+                borderRadius: theme.radius.sm,
+                padding: "8px 12px",
+                fontSize: 13,
+                fontWeight: 700,
+                marginTop: 16,
+              }}
+            >
+              {cleared ? "VERIFIED · CHECKED-IN ✓" : "VERIFIED · NEEDS CHECK-IN"}
             </div>
             <PrimaryButton
               style={{ marginTop: 16, width: "100%", background: cleared ? theme.color.success : theme.color.navy }}

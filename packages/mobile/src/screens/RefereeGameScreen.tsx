@@ -255,6 +255,16 @@ function StepLabel({ n, title, done }: { n: number; title: string; done?: boolea
   );
 }
 
+/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Checked-in) in a single glance. */
+function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg: string; bg: string } {
+  if (p.checkInStatus !== "approved") {
+    return { label: "NOT VERIFIED", fg: "#fff", bg: theme.color.danger };
+  }
+  return isCleared
+    ? { label: "VERIFIED · CHECKED-IN", fg: theme.color.success, bg: theme.color.successBg }
+    : { label: "VERIFIED · NEEDS CHECK-IN", fg: theme.color.warning, bg: theme.color.warningBg };
+}
+
 function RosterColumn({
   teamName, roster, cleared, onPick,
 }: { teamName: string; roster: RosterEntry[]; cleared: string[]; onPick: (p: RosterEntry) => void }) {
@@ -262,23 +272,17 @@ function RosterColumn({
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</Text>
       <View style={{ gap: 4 }}>
-        {roster.map((p) => (
-          <TouchableOpacity key={p.userId} onPress={() => onPick(p)} style={styles.rosterRow}>
-            <Text style={{ fontSize: 13, flex: 1 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
-            <View style={{ flexDirection: "row", gap: 4, flexWrap: "wrap" }}>
-              {p.checkInStatus === "approved" && (
-                <View style={{ backgroundColor: theme.color.successBg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: "800", color: theme.color.success }}>VERIFIED</Text>
-                </View>
-              )}
-              {cleared.includes(p.userId) && (
-                <View style={{ backgroundColor: "#E8EEFC", borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: "800", color: theme.color.blue }}>CHECKED-IN</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+        {roster.map((p) => {
+          const tag = gateStatusTag(p, cleared.includes(p.userId));
+          return (
+            <TouchableOpacity key={p.userId} onPress={() => onPick(p)} style={styles.rosterRow}>
+              <Text style={{ fontSize: 13, flex: 1 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
+              <View style={{ backgroundColor: tag.bg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
+                <Text style={{ fontSize: 10.5, fontWeight: "800", color: tag.fg }}>{tag.label}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
         {roster.length === 0 && <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</Text>}
       </View>
     </View>

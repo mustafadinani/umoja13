@@ -250,6 +250,16 @@ function StepLabel({ n, title, done }: { n: number; title: string; done?: boolea
   );
 }
 
+/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Checked-in) in a single glance. */
+function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg: string; bg: string } {
+  if (p.checkInStatus !== "approved") {
+    return { label: "NOT VERIFIED", fg: "#fff", bg: theme.color.danger };
+  }
+  return isCleared
+    ? { label: "VERIFIED · CHECKED-IN", fg: theme.color.success, bg: theme.color.successBg }
+    : { label: "VERIFIED · NEEDS CHECK-IN", fg: theme.color.warning, bg: theme.color.warningBg };
+}
+
 function RosterColumn({
   teamName, roster, cleared, onPick,
 }: { teamName: string; roster: RosterEntry[]; cleared: string[]; onPick: (p: RosterEntry) => void }) {
@@ -257,23 +267,17 @@ function RosterColumn({
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {roster.map((p) => (
-          <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-            <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>
-            <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {p.checkInStatus === "approved" && (
-                <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.color.success, background: theme.color.successBg, borderRadius: 999, padding: "2px 8px" }}>
-                  VERIFIED
-                </span>
-              )}
-              {cleared.includes(p.userId) && (
-                <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.color.blue, background: "#E8EEFC", borderRadius: 999, padding: "2px 8px" }}>
-                  CHECKED-IN
-                </span>
-              )}
-            </span>
-          </Card>
-        ))}
+        {roster.map((p) => {
+          const tag = gateStatusTag(p, cleared.includes(p.userId));
+          return (
+            <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+              <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: tag.fg, background: tag.bg, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
+                {tag.label}
+              </span>
+            </Card>
+          );
+        })}
         {roster.length === 0 && <div style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</div>}
       </div>
     </div>

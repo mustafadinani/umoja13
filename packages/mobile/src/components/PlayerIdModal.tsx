@@ -49,8 +49,10 @@ export function PlayerIdModal({
 
         {approved ? (
           <>
-            <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
-              <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Verified ✓</Text>
+            <View style={{ backgroundColor: cleared ? theme.color.successBg : theme.color.warningBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
+              <Text style={{ color: cleared ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 13 }}>
+                {cleared ? "VERIFIED · CHECKED-IN ✓" : "VERIFIED · NEEDS CHECK-IN"}
+              </Text>
             </View>
             <PrimaryButton
               onPress={onToggleClear}
