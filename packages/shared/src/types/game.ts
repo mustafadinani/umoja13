@@ -38,7 +38,7 @@ export interface Game {
   categoryId: string;
   day: "fri" | "sat" | "sun";
   kickoffTime: string; // "10:40"
-  field: string; // "Field 1"
+  field: string; // "Field 12" — see FIELDS in constants/categories.ts for the venue's actual field numbering
   /** Derived from `field` at creation via podForField() — lets a Pod Hub show its games without a fields<->pod join at read time. */
   podId?: string;
   homeTeamId: string;

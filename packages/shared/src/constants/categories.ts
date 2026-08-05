@@ -53,7 +53,10 @@ export const SPECIAL_EVENTS = [
   { id: "awards-ceremony", label: "Awards Ceremony", day: "sun", time: "17:30", field: "Main Stage" },
 ] as const;
 
-export const FIELDS = ["Field 1", "Field 2", "Field 3", "Field 4", "Field 5", "Field 6", "Stadium Field"] as const;
+// The venue's own field numbering — not a made-up 1-6 sequence. Umoja Games
+// actually plays on fields 5, 9, and 12-17 at Maryland SoccerPlex, plus the
+// Stadium Field for marquee matches.
+export const FIELDS = ["Field 5", "Field 9", "Field 12", "Field 13", "Field 14", "Field 15", "Field 16", "Field 17", "Stadium Field"] as const;
 
 export const VENUE = {
   name: "Maryland SoccerPlex",

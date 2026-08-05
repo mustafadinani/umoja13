@@ -4,19 +4,21 @@ import { theme } from "../lib/theme";
 /**
  * A clickable schematic of the tournament's fields — clicking a box sets/
  * clears the caller's field filter. Boxes are labeled with the app's own
- * FIELDS vocabulary ("Field 1"–"Field 6", "Stadium Field") since that's
- * what Game.field actually contains; this is a loosely stylized layout for
- * visual flavor, not a literal reproduction of the venue's own physical
- * field numbering (which games in this app never reference).
+ * FIELDS vocabulary, which matches Maryland SoccerPlex's own field numbering
+ * (5, 9, 12-17, plus the Stadium Field) since that's what Umoja Games
+ * actually plays on; this is a loosely stylized layout for visual flavor,
+ * not a literal to-scale reproduction of the venue.
  */
 const FIELD_BOXES: { label: (typeof FIELDS)[number]; x: number; y: number; w: number; h: number }[] = [
-  { label: "Field 1", x: 16, y: 14, w: 66, h: 48 },
-  { label: "Field 2", x: 92, y: 14, w: 66, h: 48 },
-  { label: "Field 3", x: 168, y: 14, w: 66, h: 48 },
-  { label: "Field 4", x: 16, y: 72, w: 66, h: 48 },
-  { label: "Field 5", x: 92, y: 72, w: 66, h: 48 },
-  { label: "Field 6", x: 168, y: 72, w: 66, h: 48 },
-  { label: "Stadium Field", x: 16, y: 138, w: 218, h: 52 },
+  { label: "Field 5", x: 16, y: 14, w: 66, h: 48 },
+  { label: "Field 9", x: 92, y: 14, w: 66, h: 48 },
+  { label: "Field 12", x: 168, y: 14, w: 66, h: 48 },
+  { label: "Field 13", x: 16, y: 72, w: 66, h: 48 },
+  { label: "Field 14", x: 92, y: 72, w: 66, h: 48 },
+  { label: "Field 15", x: 168, y: 72, w: 66, h: 48 },
+  { label: "Field 16", x: 16, y: 130, w: 66, h: 48 },
+  { label: "Field 17", x: 92, y: 130, w: 66, h: 48 },
+  { label: "Stadium Field", x: 16, y: 196, w: 218, h: 52 },
 ];
 
 export function FieldMap({
@@ -31,9 +33,9 @@ export function FieldMap({
   large?: boolean;
 }) {
   return (
-    <svg viewBox="0 0 250 210" style={{ width: "100%", maxWidth: large ? 480 : 320, display: "block", margin: "0 auto" }}>
+    <svg viewBox="0 0 250 260" style={{ width: "100%", maxWidth: large ? 480 : 320, display: "block", margin: "0 auto" }}>
       {/* Loose trail lines for context, not to scale */}
-      <path d="M0,105 C60,95 150,115 250,100" stroke="#C9C3D8" strokeWidth={2} fill="none" strokeDasharray="4 4" />
+      <path d="M0,160 C60,150 150,170 250,155" stroke="#C9C3D8" strokeWidth={2} fill="none" strokeDasharray="4 4" />
 
       {FIELD_BOXES.map((f) => {
         const fieldGames = games.filter((g) => g.field === f.label);
