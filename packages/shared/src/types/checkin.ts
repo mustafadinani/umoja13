@@ -47,6 +47,13 @@ export interface CheckIn {
   internalNotes?: CheckInNote[];
   /** Recorded before any selfie/ID capture. */
   consent: CheckInConsent;
+  /**
+   * Only asked (and only meaningful) for PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS
+   * (currently Girls 14 & Under, Women's Open) — whether this player would
+   * like their team's games scheduled on the private field. Undefined for
+   * every other category, since the question is never shown.
+   */
+  privateFieldPreference?: boolean;
 }
 
 export interface CheckInConsent {
@@ -71,11 +78,10 @@ export interface TournamentPass {
 }
 
 /**
- * PII-free mirror of one player's check-in status, written whenever
- * adminReviewCheckIn decides a check-in — the only check-in data
- * captains/referees/fans ever see on a roster; the checkIns doc itself
- * (gov ID, DOB, selfie tied to identity docs) stays restricted to the
- * player and staff. Doc id is `${teamId}_${userId}_${categoryId}`.
+ * PII-free mirror of one player's check-in status (and now jersey number)
+ * — the only check-in-adjacent data captains/referees/fans ever see on a
+ * roster; the checkIns doc itself (gov ID, DOB, selfie tied to identity
+ * docs) stays restricted to the player and staff.
  */
 export interface RosterCheckIn {
   id: string;
@@ -84,7 +90,18 @@ export interface RosterCheckIn {
   categoryId: string;
   status: CheckInStatus;
   selfieUrl?: string;
+  /**
+   * Set by the player at check-in (optional) or by their captain/manager
+   * any time before TOURNAMENT_START_AT — locked (can only be set once,
+   * never changed) after that, from either side, once a number is on file.
+   */
+  jerseyNumber?: number;
   updatedAt: number;
+}
+
+/** Doc id for a player's rosterCheckIns overlay — same key everywhere it's read or written. */
+export function rosterCheckInIdFor(teamId: string, userId: string, categoryId: string): string {
+  return `${teamId}_${userId}_${categoryId}`;
 }
 
 /**

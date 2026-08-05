@@ -157,6 +157,11 @@ export const markChannelRead = httpsCallable<
   { ok: true }
 >(functions, "markChannelRead");
 
+export const setJerseyNumber = httpsCallable<
+  { teamId: string; userId: string; categoryId: string; jerseyNumber: number | null },
+  { ok: true }
+>(functions, "setJerseyNumber");
+
 export const sendVolunteerTaskMessage = httpsCallable<
   { taskId: string; text: string },
   { message: VolunteerTaskMessage }

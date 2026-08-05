@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, checkInStatusLabel, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useAllCheckIns, useAllUsers } from "../../../hooks/useData";
+import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { Card, Pill } from "../../../components/ui";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
@@ -12,7 +12,22 @@ const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: strin
   { id: "rejected", label: "Pending" },
 ];
 
+type View = "queue" | "fieldPrefs";
+
 export function CheckInsTab() {
+  const [view, setView] = useState<View>("queue");
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        <Pill active={view === "queue"} onClick={() => setView("queue")}>Review Queue</Pill>
+        <Pill active={view === "fieldPrefs"} onClick={() => setView("fieldPrefs")}>Field Preferences</Pill>
+      </div>
+      {view === "queue" ? <ReviewQueue /> : <FieldPreferencesTable />}
+    </div>
+  );
+}
+
+function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const [search, setSearch] = useState("");
@@ -65,6 +80,44 @@ export function CheckInsTab() {
       </div>
 
       {openCheckIn && <PlayerDocumentsModal checkIn={openCheckIn} user={userById.get(openCheckIn.userId)} onClose={() => setOpenCheckInId(null)} />}
+    </div>
+  );
+}
+
+/** Girls 14 & Under / Women's Open players' private-field scheduling preference, collected at check-in. */
+function FieldPreferencesTable() {
+  const { data: checkIns } = useAllCheckIns();
+  const { data: users } = useAllUsers();
+  const { data: teams } = useTeams();
+
+  const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+
+  const responses = checkIns
+    .filter((c) => PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(c.categoryId) && c.privateFieldPreference !== undefined)
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+
+  return (
+    <div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>
+        Asked only for Girls 14 & Under and Women's Open, at check-in.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {responses.map((c) => (
+          <Card key={c.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ minWidth: 120 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{userById.get(c.userId)?.displayName ?? c.userId}</div>
+              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                {teamById.get(c.teamId)?.name ?? c.teamId} · {CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}
+              </div>
+            </div>
+            <Pill bg={c.privateFieldPreference ? theme.color.successBg : "#F1EFF5"} fg={c.privateFieldPreference ? theme.color.success : theme.color.textMuted}>
+              {c.privateFieldPreference ? "Wants private field" : "No preference"}
+            </Pill>
+          </Card>
+        ))}
+        {responses.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No responses yet.</div>}
+      </div>
     </div>
   );
 }

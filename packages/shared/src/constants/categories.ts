@@ -47,6 +47,15 @@ export const SOCCER_CAMP = { id: "soccer-camp", label: "Umoja Soccer Camp", dobC
 /** Categories that don't track standings/W-D-L — every player medals, no bracket. */
 export const FESTIVAL_CATEGORY_IDS = ["33eef558-de37-4513-81d1-a1181b60778f"]; // Boy's 8 & Under
 
+/** Categories asked, during check-in, whether they'd like their games scheduled on the private field. */
+export const PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS = [
+  "c2b13374-b84f-45b0-b234-7595d5701de5", // Girls 14 & Under
+  "edc8142f-2ef0-4586-a576-2444875c4167", // Women's Open
+];
+
+/** Aug 14 2026 00:00 America/New_York — once check-in/jersey numbers are locked for the tournament. */
+export const TOURNAMENT_START_AT = new Date("2026-08-14T00:00:00-04:00").getTime();
+
 /** Non-match tournament-wide calendar entries (not Games, but shown alongside schedule). */
 export const SPECIAL_EVENTS = [
   { id: "all-star-game", label: "All-Star Game", day: "sun", field: "Stadium Field" },

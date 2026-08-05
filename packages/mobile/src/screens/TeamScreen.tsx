@@ -2,11 +2,11 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, checkInStatusLabel, checkInStatusTone, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, checkInStatusTone, TOURNAMENT_START_AT, type RosterEntry } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
-import { sendTeamMessage } from "../lib/callables";
+import { sendTeamMessage, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge, VerifiedBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { PlayerCardModal } from "../components/PlayerCardModal";
@@ -59,13 +59,14 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   async function saveNumber(userId: string) {
     const num = Number(draft);
-    if (!draft || Number.isNaN(num)) return setError("Enter a valid number.");
-    const dup = team!.roster.some((p) => p.userId !== userId && p.jerseyNumber === num);
-    if (dup) return setError("That number is already taken on this team.");
-    // Rosters come from `(default)` playersRegistered — jersey numbers aren't
-    // a registration field yet, so captain edits aren't persisted here.
-    setError("Jersey numbers can't be saved on registration rosters yet.");
-    setEditingUserId(null);
+    if (!draft || Number.isNaN(num) || num < 0 || num > 999) return setError("Enter a valid number (0–999).");
+    setError(null);
+    try {
+      await setJerseyNumber({ teamId: team!.id, userId, categoryId: team!.categoryId, jerseyNumber: num });
+      setEditingUserId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save that number.");
+    }
   }
 
   return (
@@ -98,30 +99,38 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 )}
                 {p.checkInStatus === "approved" && <VerifiedBadge size={14} />}
               </View>
-              {isCaptain && editingUserId === p.userId ? (
-                <>
-                  <TextInput
-                    autoFocus
-                    value={draft}
-                    onChangeText={setDraft}
-                    keyboardType="number-pad"
-                    style={styles.jerseyInput}
-                  />
-                  <TouchableOpacity onPress={() => saveNumber(p.userId)} style={styles.saveBtn}>
-                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
+              {(() => {
+                const locked = Date.now() >= TOURNAMENT_START_AT && p.jerseyNumber != null;
+                if (isCaptain && editingUserId === p.userId) {
+                  return (
+                    <>
+                      <TextInput
+                        autoFocus
+                        value={draft}
+                        onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
+                        keyboardType="number-pad"
+                        style={styles.jerseyInput}
+                      />
+                      <TouchableOpacity onPress={() => saveNumber(p.userId)} style={styles.saveBtn}>
+                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => { setEditingUserId(null); setError(null); }}>
+                        <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  );
+                }
+                return (
+                  <TouchableOpacity
+                    disabled={!isCaptain || locked}
+                    onPress={() => { setEditingUserId(p.userId); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
+                  >
+                    <Text style={{ fontWeight: "800", fontSize: 15, color: locked ? theme.color.textMuted : theme.color.purple, width: 40 }}>
+                      #{p.jerseyNumber ?? "—"}{locked ? " 🔒" : ""}
+                    </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)}>
-                    <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  disabled={!isCaptain}
-                  onPress={() => { setEditingUserId(p.userId); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
-                >
-                  <Text style={{ fontWeight: "800", fontSize: 15, color: theme.color.purple, width: 34 }}>#{p.jerseyNumber ?? "—"}</Text>
-                </TouchableOpacity>
-              )}
+                );
+              })()}
               <Text style={{ fontWeight: "600", flex: 1 }}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
               <Text
                 style={{

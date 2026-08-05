@@ -13,6 +13,7 @@ import {
   type HuntSubmission,
   type Notification,
   type CheckIn,
+  type RosterCheckIn,
   type TournamentPass,
   type Challenge,
   type ChallengeSubmission,
@@ -105,6 +106,7 @@ export const useMyInvites = (email: string | undefined) =>
 
 export const useCheckIn = (checkInId: string) => useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
 export const usePass = (checkInId: string) => useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
+export const useRosterCheckIn = (id: string | undefined) => useDocument<RosterCheckIn>(COLLECTIONS.rosterCheckIns, id);
 
 export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
 

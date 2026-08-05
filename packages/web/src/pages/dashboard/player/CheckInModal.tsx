@@ -6,29 +6,46 @@ import {
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
+  PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   type PlayerMembership,
 } from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useVolunteerApplications } from "../../../hooks/useData";
+import { setJerseyNumber } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { BecomeVolunteerModal } from "../../../components/BecomeVolunteerModal";
 
-type Step = "confirm" | "consent" | "selfie" | "govid" | "submitting" | "result";
+type Step = "confirm" | "fieldPref" | "consent" | "selfie" | "govid" | "submitting" | "result";
 
-export function CheckInModal({ membership, checkInId, onClose }: { membership: PlayerMembership; checkInId: string; onClose: () => void }) {
+export function CheckInModal({
+  membership,
+  checkInId,
+  existingJerseyNumber,
+  onClose,
+}: {
+  membership: PlayerMembership;
+  checkInId: string;
+  /** Already-set jersey number, if the player or their captain set one before this check-in. */
+  existingJerseyNumber?: number;
+  onClose: () => void;
+}) {
   const { user, profile } = useAuth();
   const [step, setStep] = useState<Step>("confirm");
+  const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [govId, setGovId] = useState<File | null>(null);
   const [result, setResult] = useState<{ status: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
+  const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(membership.categoryId);
+  const canContinueFromConfirm = existingJerseyNumber != null || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
   const playerName = (membership.playerName ?? profile?.displayName ?? "").trim();
@@ -73,9 +90,21 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
             acceptedAt: Date.now(),
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
+          ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
         },
         { merge: true }
       );
+
+      if (existingJerseyNumber == null && jerseyNumberDraft.trim()) {
+        await setJerseyNumber({
+          teamId: membership.teamId,
+          userId: user.uid,
+          categoryId: membership.categoryId,
+          jerseyNumber: Number(jerseyNumberDraft.trim()),
+        }).catch(() => {
+          // Non-fatal — the check-in itself already succeeded; a jersey number can still be set later by the captain.
+        });
+      }
 
       setResult({ status: "admin_review" });
       setStep("result");
@@ -94,10 +123,54 @@ export function CheckInModal({ membership, checkInId, onClose }: { membership: P
           <div style={{ background: "#F7F6F3", borderRadius: theme.radius.md, padding: 16, margin: "12px 0" }}>
             <Row label="Name" value={membership.playerName ?? profile?.displayName ?? ""} />
             <Row label="Category" value={category?.label ?? membership.categoryId} />
-            <Row label="Jersey" value={membership.jerseyNumber ? `#${membership.jerseyNumber}` : "—"} />
             <Row label="Waiver" value="Signed at registration ✓" valueColor={theme.color.success} />
           </div>
-          <PrimaryButton style={{ width: "100%" }} onClick={() => setStep("consent")}>YES, THAT'S ME</PrimaryButton>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number (optional)</div>
+            {existingJerseyNumber != null ? (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
+                #{existingJerseyNumber} — set already. Ask your captain to change this before the tournament starts.
+              </div>
+            ) : (
+              <>
+                <input
+                  inputMode="numeric"
+                  placeholder="e.g. 7 — leave blank if you don't know it yet"
+                  value={jerseyNumberDraft}
+                  onChange={(e) => setJerseyNumberDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                  style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+                />
+                <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
+                  You'll use this number for the whole tournament — your captain can also set/fix it later.
+                </div>
+              </>
+            )}
+          </div>
+
+          <PrimaryButton
+            disabled={!canContinueFromConfirm}
+            style={{ width: "100%" }}
+            onClick={() => setStep(asksFieldPreference ? "fieldPref" : "consent")}
+          >
+            YES, THAT'S ME
+          </PrimaryButton>
+        </div>
+      )}
+
+      {step === "fieldPref" && (
+        <div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>One more question</div>
+          <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
+            Would your team like your games scheduled on the private field?
+          </div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+            <RoleCard icon="🔒" label="Yes, private field" active={privateFieldPreference === true} onClick={() => setPrivateFieldPreference(true)} />
+            <RoleCard icon="🌐" label="No preference" active={privateFieldPreference === false} onClick={() => setPrivateFieldPreference(false)} />
+          </div>
+          <PrimaryButton disabled={privateFieldPreference === null} style={{ width: "100%" }} onClick={() => setStep("consent")}>
+            CONTINUE
+          </PrimaryButton>
         </div>
       )}
 

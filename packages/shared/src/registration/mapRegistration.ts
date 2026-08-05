@@ -58,12 +58,13 @@ function checkInStatusFromRegistration(status: string | undefined): RosterEntry[
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
   captainProfileId?: string,
-  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl">
+  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber">
 ): RosterEntry {
   const userId = player.uid || player.id;
   return {
     userId,
     displayName: `${player.firstName} ${player.lastName}`.trim() || "Player",
+    jerseyNumber: realCheckIn?.jerseyNumber,
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
     goals: 0,
     assists: 0,

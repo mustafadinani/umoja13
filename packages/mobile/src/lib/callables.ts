@@ -153,3 +153,8 @@ export const sendPodMessage = httpsCallable<
   { podId: string; text: string },
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
+
+export const setJerseyNumber = httpsCallable<
+  { teamId: string; userId: string; categoryId: string; jerseyNumber: number | null },
+  { ok: true }
+>(functions, "setJerseyNumber");

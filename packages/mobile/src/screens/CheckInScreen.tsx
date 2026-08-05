@@ -10,15 +10,18 @@ import {
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
+  PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  rosterCheckInIdFor,
 } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useCheckIn, usePass, useMyVolunteerApplications } from "../hooks/useData";
+import { useCheckIn, usePass, useRosterCheckIn, useMyVolunteerApplications } from "../hooks/useData";
+import { setJerseyNumber } from "../lib/callables";
 import { PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
-type Step = "confirm" | "consent" | "selfie" | "govid" | "submitting" | "result";
+type Step = "confirm" | "fieldPref" | "consent" | "selfie" | "govid" | "submitting" | "result";
 
 function checkInIdFor(uid: string, teamId: string, categoryId: string) {
   return `${uid}_${teamId}_${categoryId}`;
@@ -30,13 +33,17 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const checkInId = user ? checkInIdFor(user.uid, teamId, categoryId) : "";
   const { data: existingCheckIn } = useCheckIn(checkInId);
   const { data: pass } = usePass(checkInId);
+  const { data: rosterInfo } = useRosterCheckIn(user ? rosterCheckInIdFor(teamId, user.uid, categoryId) : undefined);
   const category = CATEGORIES.find((c) => c.id === categoryId);
   const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
+  const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(categoryId);
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
+  const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [govIdUri, setGovIdUri] = useState<string | null>(null);
   const [result, setResult] = useState<{ status: string } | null>(
@@ -44,6 +51,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   );
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
+  const canContinueFromConfirm = rosterInfo?.jerseyNumber != null || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
   const playerName = (membership?.playerName ?? profile?.displayName ?? "").trim();
@@ -109,9 +117,22 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             acceptedAt: Date.now(),
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
+          ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
         },
         { merge: true }
       );
+
+      if (rosterInfo?.jerseyNumber == null && jerseyNumberDraft.trim()) {
+        await setJerseyNumber({
+          teamId,
+          userId: user.uid,
+          categoryId,
+          jerseyNumber: Number(jerseyNumberDraft.trim()),
+        }).catch(() => {
+          // Non-fatal — the check-in itself already succeeded; a jersey number can still be set later by the captain.
+        });
+      }
+
       setResult({ status: "admin_review" });
       setStep("result");
     } catch (e) {
@@ -131,7 +152,48 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             <Row label="Category" value={category?.label ?? categoryId} />
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
-          <PrimaryButton onPress={() => setStep("consent")} style={{ width: "100%" }}>YES, THAT'S ME</PrimaryButton>
+
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number (optional)</Text>
+          {rosterInfo?.jerseyNumber != null ? (
+            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
+              #{rosterInfo.jerseyNumber} — set already. Ask your captain to change this before the tournament starts.
+            </Text>
+          ) : (
+            <>
+              <TextInput
+                keyboardType="number-pad"
+                placeholder="e.g. 7 — leave blank if you don't know it yet"
+                value={jerseyNumberDraft}
+                onChangeText={(t) => setJerseyNumberDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
+                style={styles.input}
+              />
+              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
+                You'll use this number for the whole tournament — your captain can also set/fix it later.
+              </Text>
+            </>
+          )}
+
+          <PrimaryButton
+            disabled={!canContinueFromConfirm}
+            onPress={() => setStep(asksFieldPreference ? "fieldPref" : "consent")}
+            style={{ width: "100%" }}
+          >
+            YES, THAT'S ME
+          </PrimaryButton>
+        </View>
+      )}
+
+      {step === "fieldPref" && (
+        <View>
+          <Text style={styles.h1}>One more question</Text>
+          <Text style={styles.sub}>Would your team like your games scheduled on the private field?</Text>
+          <View style={{ flexDirection: "row", gap: 10, marginBottom: 16, marginTop: 8 }}>
+            <RoleCard icon="🔒" label="Yes, private field" active={privateFieldPreference === true} onPress={() => setPrivateFieldPreference(true)} />
+            <RoleCard icon="🌐" label="No preference" active={privateFieldPreference === false} onPress={() => setPrivateFieldPreference(false)} />
+          </View>
+          <PrimaryButton disabled={privateFieldPreference === null} onPress={() => setStep("consent")} style={{ width: "100%" }}>
+            CONTINUE
+          </PrimaryButton>
         </View>
       )}
 

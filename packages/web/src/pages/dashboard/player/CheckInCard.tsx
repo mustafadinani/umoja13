@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { CATEGORIES, checkInStatusLabel, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, checkInStatusLabel, rosterCheckInIdFor, type PlayerMembership, type CheckIn, type RosterCheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useDocument } from "../../../hooks/firestore";
 import { COLLECTIONS } from "@umoja/shared";
-import { Card, PrimaryButton, Modal } from "../../../components/ui";
+import { Card, PrimaryButton, Modal, VerifiedRibbon } from "../../../components/ui";
 import { CheckInModal } from "./CheckInModal";
 
 export function checkInIdFor(uid: string, membership: PlayerMembership): string {
@@ -14,6 +14,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
   const checkInId = checkInIdFor(uid, membership);
   const { data: checkIn } = useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
   const { data: pass } = useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
+  const { data: rosterInfo } = useDocument<RosterCheckIn>(COLLECTIONS.rosterCheckIns, rosterCheckInIdFor(membership.teamId, uid, membership.categoryId));
   const [open, setOpen] = useState(false);
   const [passOpen, setPassOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
@@ -44,7 +45,14 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
         <PrimaryButton style={{ marginTop: 10, width: "100%" }} onClick={() => setOpen(true)}>RETRY CHECK-IN</PrimaryButton>
       )}
 
-      {open && <CheckInModal membership={membership} checkInId={checkInId} onClose={() => setOpen(false)} />}
+      {open && (
+        <CheckInModal
+          membership={membership}
+          checkInId={checkInId}
+          existingJerseyNumber={rosterInfo?.jerseyNumber}
+          onClose={() => setOpen(false)}
+        />
+      )}
       {passOpen && pass && (
         <Modal onClose={() => setPassOpen(false)} width={320}>
           <div style={{ textAlign: "center" }}>
@@ -58,25 +66,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
                   ) : (
                     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 48 }}>👤</div>
                   )}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 20,
-                      right: -42,
-                      width: 160,
-                      transform: "rotate(45deg)",
-                      background: theme.color.success,
-                      color: "#fff",
-                      textAlign: "center",
-                      fontWeight: 800,
-                      fontSize: 13,
-                      letterSpacing: 1,
-                      padding: "5px 0",
-                      boxShadow: "0 2px 6px rgba(0,0,0,.3)",
-                    }}
-                  >
-                    VERIFIED
-                  </div>
+                  <VerifiedRibbon />
                 </div>
                 <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 10 }}>{pass.passId}</div>
               </>
