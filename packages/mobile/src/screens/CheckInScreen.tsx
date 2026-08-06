@@ -51,6 +51,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [result, setResult] = useState<{ status: string } | null>(
     existingCheckIn?.status === "approved" ? { status: "approved" } : null
   );
+  const [submitStatus, setSubmitStatus] = useState("Sending to staff…");
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const canContinueFromConfirm =
@@ -81,57 +82,82 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   async function capture(setUri: (u: string) => void) {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) return;
-    const r = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 });
+    // Lower quality than a typical capture — these are reviewed at modest
+    // size for identity verification, not printed, and a smaller file
+    // uploads far more reliably over spotty venue wifi.
+    const r = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.4 });
     if (!r.canceled && r.assets[0]) setUri(r.assets[0].uri);
   }
 
+  // A slow/stalled network can otherwise leave "Sending to staff…" spinning
+  // forever with zero feedback — race every network step against a hard
+  // timeout so a bad connection turns into a clear, retryable error instead.
+  function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out — check your connection and try again.`)), ms)),
+    ]);
+  }
+
   async function uploadUri(uri: string, path: string): Promise<string> {
-    const response = await fetch(uri);
+    const response = await withTimeout(fetch(uri), 20000, "Reading photo");
     const blob = await response.blob();
     const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-    return getDownloadURL(storageRef);
+    await withTimeout(uploadBytes(storageRef, blob, { contentType: "image/jpeg" }), 45000, "Photo upload");
+    return withTimeout(getDownloadURL(storageRef), 20000, "Finalizing photo");
   }
 
   async function submit() {
     if (!user || !profile || !selfieUri || !govIdUri) return;
     setStep("submitting");
+    setSubmitStatus("Sending to staff…");
     setError(null);
     try {
-      const existing = await getDoc(doc(db, COLLECTIONS.checkIns, checkInId));
+      const existing = await withTimeout(getDoc(doc(db, COLLECTIONS.checkIns, checkInId)), 15000, "Loading your check-in");
       const attempt = existing.exists() ? (existing.data().attempt ?? 0) + 1 : 1;
+      setSubmitStatus("Uploading selfie…");
       const selfieUrl = await uploadUri(selfieUri, `checkins/${user.uid}/${checkInId}/selfie-${Date.now()}.jpg`);
+      setSubmitStatus("Uploading ID…");
       const govIdUrl = await uploadUri(govIdUri, `checkins/${user.uid}/${checkInId}/govid-${Date.now()}.jpg`);
-      await setDoc(
-        doc(db, COLLECTIONS.checkIns, checkInId),
-        {
-          id: checkInId,
-          userId: user.uid,
-          teamId,
-          categoryId,
-          status: "admin_review",
-          selfieUrl,
-          govIdUrl,
-          submittedAt: Date.now(),
-          attempt,
-          consent: {
-            acceptedBy,
-            guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
-            acceptedAt: Date.now(),
-            policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
+      setSubmitStatus("Saving…");
+      await withTimeout(
+        setDoc(
+          doc(db, COLLECTIONS.checkIns, checkInId),
+          {
+            id: checkInId,
+            userId: user.uid,
+            teamId,
+            categoryId,
+            status: "admin_review",
+            selfieUrl,
+            govIdUrl,
+            submittedAt: Date.now(),
+            attempt,
+            consent: {
+              acceptedBy,
+              guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
+              acceptedAt: Date.now(),
+              policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
+            },
+            ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
           },
-          ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
-        },
-        { merge: true }
+          { merge: true }
+        ),
+        15000,
+        "Saving your check-in"
       );
 
       if (!jerseyNumbersLocked && rosterInfo?.jerseyNumber == null && jerseyNumberDraft.trim()) {
-        await setJerseyNumber({
-          teamId,
-          userId: user.uid,
-          categoryId,
-          jerseyNumber: Number(jerseyNumberDraft.trim()),
-        }).catch(() => {
+        await withTimeout(
+          setJerseyNumber({
+            teamId,
+            userId: user.uid,
+            categoryId,
+            jerseyNumber: Number(jerseyNumberDraft.trim()),
+          }),
+          15000,
+          "Saving jersey number"
+        ).catch(() => {
           // Non-fatal — the check-in itself already succeeded; a jersey number can still be set later by the captain.
         });
       }
@@ -250,7 +276,10 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
       {step === "submitting" && (
         <View style={{ alignItems: "center", paddingTop: 40 }}>
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>Sending to staff…</Text>
+          <Text style={{ fontWeight: "700", fontSize: 16 }}>{submitStatus}</Text>
+          <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginTop: 8, textAlign: "center" }}>
+            This can take a minute on a slow connection — hang tight.
+          </Text>
         </View>
       )}
 
@@ -277,9 +306,13 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               <Text style={{ fontSize: 40 }}>✕</Text>
               <Text style={styles.h1}>We couldn't submit your check-in</Text>
               <Text style={styles.sub}>{error ?? "Something went wrong — please try again."}</Text>
-              <PrimaryButton onPress={() => { setStep("selfie"); setSelfieUri(null); setGovIdUri(null); }} style={{ marginTop: 16, width: "100%" }}>
+              {/* Photos already taken are kept — no need to retake a perfectly good selfie/ID just because a slow connection timed out. */}
+              <PrimaryButton onPress={submit} style={{ marginTop: 16, width: "100%" }}>
                 TRY AGAIN
               </PrimaryButton>
+              <TouchableOpacity onPress={() => { setStep("selfie"); setSelfieUri(null); setGovIdUri(null); }} style={{ marginTop: 12 }}>
+                <Text style={{ color: theme.color.textMuted, fontWeight: "600", fontSize: 12.5 }}>Retake photos instead</Text>
+              </TouchableOpacity>
             </>
           )}
 
