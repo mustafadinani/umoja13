@@ -8,6 +8,9 @@ import {
   UMOJA_FAQ,
   THINGS_TO_DO,
   VENUE_LOGISTICS,
+  TRAVEL_GUIDE,
+  LOCAL_EXPERIENCES,
+  MUSLIM_FAMILY_GUIDE,
   AI_AUTHOR_UID,
   AI_AUTHOR_NAME,
   type UserChannel,
@@ -25,6 +28,23 @@ interface AskUmojaChannelRequest {
 const FAQ_BLOCK = UMOJA_FAQ.map((f) => `Q: ${f.q}\nA: ${f.a}`).join("\n\n");
 const THINGS_TO_DO_BLOCK = THINGS_TO_DO.map((t) => `- ${t.name}: ${t.desc}`).join("\n");
 const SPECIAL_EVENTS_BLOCK = SPECIAL_EVENTS.map((e) => `${e.label} (${e.day}${"time" in e ? ` ${e.time}` : ""}, ${e.field})`).join(", ");
+
+// Condensed one-line-per-item summaries, not the full descriptions the
+// Experiences tab shows — enough for the bot to answer "does Umoja have a
+// hotel deal" or "is there a mosque nearby" correctly, without ballooning
+// every request's token cost with prose it doesn't need to quote verbatim.
+const AIRPORTS_BLOCK = TRAVEL_GUIDE.airports.map((a) => `${a.code} (${a.name}) — ${a.driveTime}${a.note ? `, ${a.note}` : ""}`).join("\n");
+const AIRLINE_CODES_BLOCK = TRAVEL_GUIDE.airlineDiscountCodes.map((c) => `${c.airline}: code ${c.code} (${c.instructions})`).join("\n");
+const HOTELS_BLOCK = TRAVEL_GUIDE.hotels
+  .map((h) => `${h.name}${h.isHeadquarters ? " (HQ hotel)" : ""} — ${h.pricePerNight}, ${h.distance} from the venue`)
+  .join("\n");
+const RENTAL_CARS_BLOCK = TRAVEL_GUIDE.rentalCars.map((r) => `${r.company}: code ${r.code} (${r.instructions})`).join("\n");
+const LOCAL_EXPERIENCES_BLOCK = LOCAL_EXPERIENCES.map(
+  (e) => `${e.emoji} ${e.name} (${e.city}, ${e.distance}) — ${e.tagline}${e.umojaOffer ? ` | Umoja offer: ${e.umojaOffer}` : ""}`
+).join("\n");
+const MOSQUES_BLOCK = MUSLIM_FAMILY_GUIDE.mosques.map((m) => `${m.name} — ${m.distance}, ${m.tagline}`).join("\n");
+const HALAL_RESTAURANTS_BLOCK = MUSLIM_FAMILY_GUIDE.halalRestaurants.map((r) => `${r.name} (${r.distance})`).join("\n");
+const HALAL_MARKETS_BLOCK = MUSLIM_FAMILY_GUIDE.halalMarkets.map((m) => `${m.name} — ${m.type}, ${m.distance}`).join("\n");
 
 const SYSTEM_PROMPT = `You are "Ask Umoja", the help assistant for the Umoja Games youth/adult soccer tournament \
 at ${VENUE.name} (${VENUE.address}), ${VENUE.dates}. Categories: ${CATEGORIES.map((c) => c.label).join(", ")}. \
@@ -53,7 +73,31 @@ Hours: ${VENUE_LOGISTICS.hours}
 Venue phone: ${VENUE_LOGISTICS.phone}
 
 --- Nearby things to do ---
-${THINGS_TO_DO_BLOCK}`;
+${THINGS_TO_DO_BLOCK}
+
+--- Travel: flying in ---
+${AIRPORTS_BLOCK}
+International travelers: ${TRAVEL_GUIDE.internationalNote}
+Airline discount codes:
+${AIRLINE_CODES_BLOCK}
+
+--- Travel: hotels & rental cars ---
+${TRAVEL_GUIDE.hotelDeposit.note} ${TRAVEL_GUIDE.hotelDeposit.tiers.join(" / ")}. ${TRAVEL_GUIDE.hotelDeposit.fullPrice}
+${HOTELS_BLOCK}
+Rental car discounts:
+${RENTAL_CARS_BLOCK}
+
+--- Local experiences near the venue (full details, addresses, and offer codes are in the app's Hub → Experiences tab) ---
+${LOCAL_EXPERIENCES_BLOCK}
+
+--- Muslim family guide ---
+${MUSLIM_FAMILY_GUIDE.intro}
+Mosques: ${MOSQUES_BLOCK}
+Halal restaurants: ${HALAL_RESTAURANTS_BLOCK}
+Halal markets: ${HALAL_MARKETS_BLOCK}
+Estimated prayer times (${VENUE.dates}) — verify exact times closer to the event: Fajr ${MUSLIM_FAMILY_GUIDE.prayerTimes.fajr}, Dhuhr ${MUSLIM_FAMILY_GUIDE.prayerTimes.dhuhr}, Asr ${MUSLIM_FAMILY_GUIDE.prayerTimes.asr}, Maghrib ${MUSLIM_FAMILY_GUIDE.prayerTimes.maghrib}, Isha ${MUSLIM_FAMILY_GUIDE.prayerTimes.isha}, Jumu'ah ${MUSLIM_FAMILY_GUIDE.prayerTimes.jumuah}.
+
+For any of the travel/local/Muslim-guide items above, point the user to Hub → Experiences in the app for the full address, hours, phone number, website, and a tappable map/call link — you only have the summary facts above, not every detail shown there.`;
 
 const AI_CONTEXT_TURNS = 20;
 const MAX_MESSAGE_LENGTH = 2000;
