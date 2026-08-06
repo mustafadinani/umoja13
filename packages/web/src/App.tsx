@@ -16,6 +16,7 @@ import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
 import { Experiences } from "./pages/Experiences";
+import { Privacy } from "./pages/Privacy";
 import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
 
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
             <Route path="/experiences" element={<Experiences />} />
+            <Route path="/privacy" element={<Privacy />} />
             {/* Info merged into Experiences — keep old bookmarks/links working. */}
             <Route path="/info" element={<Navigate to="/experiences" replace />} />
             <Route path="/game/:gameId" element={<Game />} />
