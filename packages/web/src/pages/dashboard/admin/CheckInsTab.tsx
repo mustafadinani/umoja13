@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { CATEGORIES, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
+import { useRegisteredPlayers } from "../../../hooks/useRegistration";
 import { Card, Pill } from "../../../components/ui";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
@@ -13,6 +14,26 @@ const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: strin
 ];
 
 type View = "queue" | "fieldPrefs";
+
+/**
+ * Not every checked-in player has an app account (users doc) — most were
+ * checked in by a captain/staff off the registration roster. This maps a
+ * check-in's userId to the registration player's real name, so name display
+ * always has a real-name fallback before ever showing a raw uid.
+ */
+function usePlayerNameByUid() {
+  const { data: registeredPlayers } = useRegisteredPlayers();
+  return useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of registeredPlayers) {
+      const uid = p.uid || p.id;
+      if (!uid) continue;
+      const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
+      if (name) map.set(uid, name);
+    }
+    return map;
+  }, [registeredPlayers]);
+}
 
 export function CheckInsTab() {
   const [view, setView] = useState<View>("queue");
@@ -30,12 +51,14 @@ export function CheckInsTab() {
 function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
+  const playerNameByUid = usePlayerNameByUid();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? playerNameByUid.get(userId) ?? userId;
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
   const filtered = checkIns.filter((c) => {
@@ -43,10 +66,7 @@ function ReviewQueue() {
     if (statusFilter === "needs_review" && c.status !== "pending_review" && c.status !== "admin_review") return false;
     if (statusFilter === "approved" && c.status !== "approved") return false;
     if (statusFilter === "rejected" && c.status !== "rejected") return false;
-    if (search) {
-      const name = userById.get(c.userId)?.displayName ?? "";
-      if (!name.toLowerCase().includes(search.toLowerCase())) return false;
-    }
+    if (search && !nameFor(c.userId).toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -70,7 +90,7 @@ function ReviewQueue() {
         {filtered.map((c) => (
           <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{userById.get(c.userId)?.displayName ?? c.userId}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c.userId)}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}</div>
             </div>
             <StatusChip status={c.status} />
@@ -79,7 +99,14 @@ function ReviewQueue() {
         {filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No check-ins match.</div>}
       </div>
 
-      {openCheckIn && <PlayerDocumentsModal checkIn={openCheckIn} user={userById.get(openCheckIn.userId)} onClose={() => setOpenCheckInId(null)} />}
+      {openCheckIn && (
+        <PlayerDocumentsModal
+          checkIn={openCheckIn}
+          user={userById.get(openCheckIn.userId)}
+          fallbackName={playerNameByUid.get(openCheckIn.userId)}
+          onClose={() => setOpenCheckInId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -89,9 +116,11 @@ function FieldPreferencesTable() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const { data: teams } = useTeams();
+  const playerNameByUid = usePlayerNameByUid();
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? playerNameByUid.get(userId) ?? userId;
 
   const responses = checkIns
     .filter((c) => PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(c.categoryId) && c.privateFieldPreference !== undefined)
@@ -106,7 +135,7 @@ function FieldPreferencesTable() {
         {responses.map((c) => (
           <Card key={c.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{userById.get(c.userId)?.displayName ?? c.userId}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c.userId)}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
                 {teamById.get(c.teamId)?.name ?? c.teamId} · {CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}
               </div>

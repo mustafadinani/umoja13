@@ -8,7 +8,7 @@ import { adminReviewCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
-export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: CheckIn; user?: UserProfile; onClose: () => void }) {
+export function PlayerDocumentsModal({ checkIn, user, fallbackName, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; onClose: () => void }) {
   const { profile } = useAuth();
   const [busy, setBusy] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function PlayerDocumentsModal({ checkIn, user, onClose }: { checkIn: Chec
   return (
     <Modal onClose={onClose} width={480}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? "Player"}</div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? fallbackName ?? "Player"}</div>
         <StatusPill status={checkIn.status} />
       </div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
