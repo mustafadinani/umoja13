@@ -24,7 +24,7 @@ import { setJerseyNumber } from "../lib/callables";
 import { PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
-type Step = "confirm" | "fieldPref" | "consent" | "selfie" | "govid" | "submitting" | "result";
+type Step = "confirm" | "fieldPref" | "consent" | "details" | "selfie" | "govid" | "submitting" | "result";
 
 export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamList, "CheckIn">) {
   const { teamId, categoryId } = route.params;
@@ -57,7 +57,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [submitStatus, setSubmitStatus] = useState("Sending to staff…");
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
-  const canContinueFromConfirm =
+  const canContinueFromDetails =
     rosterInfo?.jerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
@@ -144,8 +144,10 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
             },
             ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
-            ...(lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
-            ...(currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
+            // Line of work/employer only ever apply to the adult checking in
+            // for themselves — never recorded for a guardian's minor.
+            ...(acceptedBy === "self" && lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
+            ...(acceptedBy === "self" && currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
           },
           { merge: true }
         ),
@@ -188,51 +190,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
 
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number</Text>
-          {rosterInfo?.jerseyNumber != null ? (
-            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
-              #{rosterInfo.jerseyNumber} — set by your captain/manager.
-            </Text>
-          ) : jerseyNumbersLocked ? (
-            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
-              Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
-            </Text>
-          ) : (
-            <>
-              <TextInput
-                keyboardType="number-pad"
-                placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
-                value={jerseyNumberDraft}
-                onChangeText={(t) => setJerseyNumberDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
-                style={styles.input}
-              />
-              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
-                This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
-              </Text>
-            </>
-          )}
-
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Line of work <Text style={styles.optionalTag}>optional</Text></Text>
-          <TextInput
-            placeholder="e.g. Nursing"
-            value={lineOfWorkDraft}
-            onChangeText={setLineOfWorkDraft}
-            style={styles.input}
-          />
-
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Current employer <Text style={styles.optionalTag}>optional</Text></Text>
-          <TextInput
-            placeholder="e.g. Holy Cross Hospital"
-            value={currentEmployerDraft}
-            onChangeText={setCurrentEmployerDraft}
-            style={styles.input}
-          />
-          <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
-            Shown on your Player Card if you share it — never required.
-          </Text>
-
           <PrimaryButton
-            disabled={!canContinueFromConfirm}
             onPress={() => setStep(asksFieldPreference ? "fieldPref" : "consent")}
             style={{ width: "100%" }}
           >
@@ -277,7 +235,64 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
           <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
 
-          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("selfie")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
+          <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("details")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
+        </View>
+      )}
+
+      {step === "details" && (
+        <View>
+          <Text style={styles.h1}>A couple more details</Text>
+
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number</Text>
+          {rosterInfo?.jerseyNumber != null ? (
+            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
+              #{rosterInfo.jerseyNumber} — set by your captain/manager.
+            </Text>
+          ) : jerseyNumbersLocked ? (
+            <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
+              Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
+            </Text>
+          ) : (
+            <>
+              <TextInput
+                keyboardType="number-pad"
+                placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
+                value={jerseyNumberDraft}
+                onChangeText={(t) => setJerseyNumberDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
+                style={styles.input}
+              />
+              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
+                This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
+              </Text>
+            </>
+          )}
+
+          {acceptedBy === "self" && (
+            <>
+              <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Line of work <Text style={styles.optionalTag}>optional</Text></Text>
+              <TextInput
+                placeholder="e.g. Nursing"
+                value={lineOfWorkDraft}
+                onChangeText={setLineOfWorkDraft}
+                style={styles.input}
+              />
+
+              <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Current employer <Text style={styles.optionalTag}>optional</Text></Text>
+              <TextInput
+                placeholder="e.g. Holy Cross Hospital"
+                value={currentEmployerDraft}
+                onChangeText={setCurrentEmployerDraft}
+                style={styles.input}
+              />
+              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
+                Shown on your Player Card if you share it — never required.
+              </Text>
+            </>
+          )}
+
+          <PrimaryButton disabled={!canContinueFromDetails} onPress={() => setStep("selfie")} style={{ width: "100%" }}>
+            CONTINUE
+          </PrimaryButton>
         </View>
       )}
 

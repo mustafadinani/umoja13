@@ -19,7 +19,7 @@ import { setJerseyNumber } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { BecomeVolunteerModal } from "../../../components/BecomeVolunteerModal";
 
-type Step = "confirm" | "fieldPref" | "consent" | "selfie" | "govid" | "submitting" | "result";
+type Step = "confirm" | "fieldPref" | "consent" | "details" | "selfie" | "govid" | "submitting" | "result";
 
 export function CheckInModal({
   membership,
@@ -50,7 +50,7 @@ export function CheckInModal({
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(membership.categoryId);
   const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
-  const canContinueFromConfirm =
+  const canContinueFromDetails =
     existingJerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
@@ -102,8 +102,10 @@ export function CheckInModal({
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
           ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
-          ...(lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
-          ...(currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
+          // Line of work/employer only ever apply to the adult checking in
+          // for themselves — never recorded for a guardian's minor.
+          ...(acceptedBy === "self" && lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
+          ...(acceptedBy === "self" && currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
         },
         { merge: true }
       );
@@ -139,54 +141,7 @@ export function CheckInModal({
             <Row label="Waiver" value="Signed at registration ✓" valueColor={theme.color.success} />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number</div>
-            {existingJerseyNumber != null ? (
-              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>#{existingJerseyNumber} — set by your captain/manager.</div>
-            ) : jerseyNumbersLocked ? (
-              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
-                Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
-              </div>
-            ) : (
-              <>
-                <input
-                  inputMode="numeric"
-                  placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
-                  value={jerseyNumberDraft}
-                  onChange={(e) => setJerseyNumberDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
-                  style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-                />
-                <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
-                  This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
-                </div>
-              </>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
-              Line of work <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
-            </div>
-            <input
-              placeholder="e.g. Nursing"
-              value={lineOfWorkDraft}
-              onChange={(e) => setLineOfWorkDraft(e.target.value)}
-              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 10 }}
-            />
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
-              Current employer <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
-            </div>
-            <input
-              placeholder="e.g. Holy Cross Hospital"
-              value={currentEmployerDraft}
-              onChange={(e) => setCurrentEmployerDraft(e.target.value)}
-              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-            />
-            <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>Shown on your Player Card if you share it — never required.</div>
-          </div>
-
           <PrimaryButton
-            disabled={!canContinueFromConfirm}
             style={{ width: "100%" }}
             onClick={() => setStep(asksFieldPreference ? "fieldPref" : "consent")}
           >
@@ -236,7 +191,65 @@ export function CheckInModal({
             I have read and agree to this identity-verification process.
           </label>
 
-          <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => setStep("selfie")}>CONTINUE</PrimaryButton>
+          <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => setStep("details")}>CONTINUE</PrimaryButton>
+        </div>
+      )}
+
+      {step === "details" && (
+        <div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 12 }}>A couple more details</div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number</div>
+            {existingJerseyNumber != null ? (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>#{existingJerseyNumber} — set by your captain/manager.</div>
+            ) : jerseyNumbersLocked ? (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
+                Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
+              </div>
+            ) : (
+              <>
+                <input
+                  inputMode="numeric"
+                  placeholder="e.g. 7 — leave blank if you don't know it yet (optional)"
+                  value={jerseyNumberDraft}
+                  onChange={(e) => setJerseyNumberDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                  style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+                />
+                <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
+                  This locks in for the whole tournament once it starts — your captain/manager can also set/fix it before then.
+                </div>
+              </>
+            )}
+          </div>
+
+          {acceptedBy === "self" && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
+                Line of work <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+              </div>
+              <input
+                placeholder="e.g. Nursing"
+                value={lineOfWorkDraft}
+                onChange={(e) => setLineOfWorkDraft(e.target.value)}
+                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 10 }}
+              />
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
+                Current employer <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+              </div>
+              <input
+                placeholder="e.g. Holy Cross Hospital"
+                value={currentEmployerDraft}
+                onChange={(e) => setCurrentEmployerDraft(e.target.value)}
+                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+              />
+              <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>Shown on your Player Card if you share it — never required.</div>
+            </div>
+          )}
+
+          <PrimaryButton disabled={!canContinueFromDetails} style={{ width: "100%" }} onClick={() => setStep("selfie")}>
+            CONTINUE
+          </PrimaryButton>
         </div>
       )}
 
