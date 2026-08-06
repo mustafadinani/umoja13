@@ -131,7 +131,11 @@ export function registeredPlayerToRosterEntry(
     jerseyNumber: realCheckIn?.jerseyNumber,
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
     checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(player.status),
-    selfieUrl: realCheckIn?.selfieUrl ?? player.profilePicture ?? undefined,
+    // Only an approved check-in selfie replaces the signup photo — an
+    // unreviewed or declined selfie hasn't been verified against the
+    // player's ID yet, so the player card etc. keep showing the
+    // registration photo until admin approval swaps it over.
+    selfieUrl: (realCheckIn?.status === "approved" ? realCheckIn.selfieUrl : undefined) ?? player.profilePicture ?? undefined,
   };
 }
 

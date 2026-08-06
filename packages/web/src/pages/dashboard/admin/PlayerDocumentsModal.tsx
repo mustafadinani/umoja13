@@ -8,7 +8,7 @@ import { adminReviewCheckIn } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
-export function PlayerDocumentsModal({ checkIn, user, fallbackName, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; onClose: () => void }) {
+export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; onClose: () => void }) {
   const { profile } = useAuth();
   const [busy, setBusy] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, onClose }: {
   }
 
   return (
-    <Modal onClose={onClose} width={480}>
+    <Modal onClose={onClose} width={680}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? fallbackName ?? "Player"}</div>
         <StatusPill status={checkIn.status} />
@@ -63,11 +63,12 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, onClose }: {
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <Photo label="Registration photo" url={membership?.registrationPhotoUrl} onExpand={setLightboxUrl} />
-        <Photo label="Check-in selfie" url={checkIn.selfieUrl} onExpand={setLightboxUrl} />
-        <Photo label="Government ID" url={checkIn.govIdUrl} onExpand={setLightboxUrl} />
+      <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>Click any photo to zoom in.</div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <Photo label="Registration photo" url={membership?.registrationPhotoUrl ?? fallbackPhotoUrl} onExpand={setLightboxUrl} height={160} />
+        <Photo label="Check-in selfie" url={checkIn.selfieUrl} onExpand={setLightboxUrl} height={160} />
       </div>
+      <Photo label="Government ID" url={checkIn.govIdUrl} onExpand={setLightboxUrl} height={220} wide />
 
       {checkIn.consent && (
         <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 16 }}>
@@ -163,12 +164,14 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, onClose }: {
   );
 }
 
-function Photo({ label, url, onExpand }: { label: string; url?: string; onExpand: (url: string) => void }) {
+function Photo({
+  label, url, onExpand, height = 90, wide = false,
+}: { label: string; url?: string; onExpand: (url: string) => void; height?: number; wide?: boolean }) {
   return (
-    <div style={{ flex: 1, textAlign: "center" }}>
+    <div style={{ flex: wide ? undefined : 1, width: wide ? "100%" : undefined, textAlign: "center", marginBottom: wide ? 16 : 0 }}>
       <div
         onClick={() => url && onExpand(url)}
-        style={{ height: 90, borderRadius: 8, background: url ? `url(${url}) center/cover` : "#F1EFF5", cursor: url ? "zoom-in" : undefined }}
+        style={{ height, borderRadius: 8, background: url ? `url(${url}) center/cover` : "#F1EFF5", cursor: url ? "zoom-in" : undefined }}
       />
       <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{label}</div>
     </div>

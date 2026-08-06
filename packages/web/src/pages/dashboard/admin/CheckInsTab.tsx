@@ -18,18 +18,19 @@ type View = "queue" | "fieldPrefs";
 /**
  * Not every checked-in player has an app account (users doc) — most were
  * checked in by a captain/staff off the registration roster. This maps a
- * check-in's userId to the registration player's real name, so name display
- * always has a real-name fallback before ever showing a raw uid.
+ * check-in's userId to the registration player's real name and their
+ * signup photo, so both always have a real fallback: name before ever
+ * showing a raw uid, and registration photo before an empty box.
  */
-function usePlayerNameByUid() {
+function useRegisteredPlayerByUid() {
   const { data: registeredPlayers } = useRegisteredPlayers();
   return useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; photoUrl?: string }>();
     for (const p of registeredPlayers) {
       const uid = p.uid || p.id;
       if (!uid) continue;
       const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
-      if (name) map.set(uid, name);
+      if (name || p.profilePicture) map.set(uid, { name, photoUrl: p.profilePicture });
     }
     return map;
   }, [registeredPlayers]);
@@ -51,14 +52,14 @@ export function CheckInsTab() {
 function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
-  const playerNameByUid = usePlayerNameByUid();
+  const registeredPlayerByUid = useRegisteredPlayerByUid();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
-  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? playerNameByUid.get(userId) ?? userId;
+  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? registeredPlayerByUid.get(userId)?.name ?? userId;
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
   const filtered = checkIns.filter((c) => {
@@ -103,7 +104,8 @@ function ReviewQueue() {
         <PlayerDocumentsModal
           checkIn={openCheckIn}
           user={userById.get(openCheckIn.userId)}
-          fallbackName={playerNameByUid.get(openCheckIn.userId)}
+          fallbackName={registeredPlayerByUid.get(openCheckIn.userId)?.name}
+          fallbackPhotoUrl={registeredPlayerByUid.get(openCheckIn.userId)?.photoUrl}
           onClose={() => setOpenCheckInId(null)}
         />
       )}
@@ -116,11 +118,11 @@ function FieldPreferencesTable() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const { data: teams } = useTeams();
-  const playerNameByUid = usePlayerNameByUid();
+  const registeredPlayerByUid = useRegisteredPlayerByUid();
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
-  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? playerNameByUid.get(userId) ?? userId;
+  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? registeredPlayerByUid.get(userId)?.name ?? userId;
 
   const responses = checkIns
     .filter((c) => PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(c.categoryId) && c.privateFieldPreference !== undefined)
