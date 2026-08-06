@@ -1,10 +1,10 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGame, useMoments, useTeam } from "../hooks/useData";
-import { StatusBadge, Card } from "../components/ui";
+import { StatusBadge, Card, CheckInStatusPill, Pill } from "../components/ui";
 
 const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
@@ -33,7 +33,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
               <Text style={styles.teamName}>{home.name}</Text>
               <Text style={styles.teamNameChevron}>›</Text>
             </View>
-            <Text style={styles.tapHint}>View roster</Text>
+            <Text style={styles.tapHint}>View details</Text>
           </TouchableOpacity>
           <Text style={styles.score}>{game.status === "scheduled" ? game.kickoffTime : `${homeGoals} – ${awayGoals}`}</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1, alignItems: "flex-end" }} activeOpacity={0.6}>
@@ -42,18 +42,20 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
               <Text style={styles.teamNameChevron}>‹</Text>
               <Text style={[styles.teamName, { textAlign: "right" }]}>{away.name}</Text>
             </View>
-            <Text style={styles.tapHint}>View roster</Text>
+            <Text style={styles.tapHint}>View details</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>CARDS</Text>
-        {game.events.map((e) => (
-          <Text key={e.id} style={{ fontSize: 13, marginBottom: 4 }}>{e.minute}' {EVENT_ICON[e.type]} #{e.playerNumber}</Text>
-        ))}
-        {game.events.length === 0 && <Text style={{ color: theme.color.textMuted }}>No cards yet.</Text>}
-      </View>
+      {(home.roster.length > 0 || away.roster.length > 0) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ROSTER</Text>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <RosterColumn team={home} game={game} />
+            <RosterColumn team={away} game={game} />
+          </View>
+        </View>
+      )}
 
       {gameMoments.length > 0 && (
         <View style={styles.section}>
@@ -62,6 +64,39 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
         </View>
       )}
     </ScrollView>
+  );
+}
+
+function RosterColumn({ team, game }: { team: Team; game: GameDoc }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.rosterTeamHeader}>{team.name.toUpperCase()}</Text>
+      {team.roster.map((p) => (
+        <RosterRow key={p.userId} player={p} game={game} />
+      ))}
+    </View>
+  );
+}
+
+function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
+  const cardEvents = game.events.filter((e) => e.playerId === player.userId);
+  const isMotm = game.motmUserId === player.userId;
+  return (
+    <View style={styles.rosterRow}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Text style={styles.rosterNum}>#{player.jerseyNumber ?? "—"}</Text>
+        <Text style={styles.rosterName} numberOfLines={1}>
+          {player.displayName}{player.isCaptain ? " (C)" : ""}
+        </Text>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
+        <CheckInStatusPill status={player.checkInStatus} />
+        {isMotm && <Pill bg={theme.color.warningBg} fg={theme.color.warning}>★ MOTM</Pill>}
+        {cardEvents.map((e) => (
+          <Text key={e.id} style={{ fontSize: 14 }}>{EVENT_ICON[e.type]}</Text>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -76,4 +111,8 @@ const styles = StyleSheet.create({
   score: { color: "#fff", fontWeight: "800", fontSize: 32, marginHorizontal: 12 },
   section: { padding: 16 },
   sectionTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
+  rosterTeamHeader: { fontSize: 10, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 },
+  rosterRow: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 10, padding: 8, marginBottom: 6 },
+  rosterNum: { fontWeight: "800", color: theme.color.purple, fontSize: 12, width: 22 },
+  rosterName: { fontSize: 12.5, fontWeight: "600", flex: 1 },
 });

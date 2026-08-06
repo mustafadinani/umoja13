@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, type GameStatus } from "@umoja/shared";
+import { COLLECTIONS, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGame, useMoments, useSponsors, useTeam } from "../hooks/useData";
-import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { Card, CheckInStatusPill, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { SponsorStrip } from "../components/SponsorStrip";
 
@@ -30,20 +30,10 @@ export function Game() {
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
   const gameMoments = allMoments.filter((m) => m.gameId === game.id);
-  const roster = [...(home?.roster ?? []), ...(away?.roster ?? [])];
-  const myVote = profile ? game.potmVotes?.[profile.uid] ?? null : null;
 
   async function setStatus(status: GameStatus) {
     if (!gameId) return;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { status, updatedAt: Date.now() });
-  }
-
-  async function votePotm(playerId: string) {
-    if (!profile || !gameId) return;
-    const same = myVote === playerId;
-    await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [`potmVotes.${profile.uid}`]: same ? null : playerId,
-    });
   }
 
   return (
@@ -76,53 +66,7 @@ export function Game() {
       <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
         <PrimaryButton style={{ width: "100%" }} onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>
 
-        {roster.length > 0 && (
-          <div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>PLAYER OF THE MATCH</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {roster.slice(0, 6).map((p) => {
-                const castVotes = Object.values(game.potmVotes ?? {}).filter((v): v is string => !!v);
-                const votes = castVotes.filter((v) => v === p.userId).length;
-                const total = castVotes.length || 1;
-                const pct = Math.round((votes / total) * 100);
-                const isMyVote = myVote === p.userId;
-                return (
-                  <div
-                    key={p.userId}
-                    onClick={() => votePotm(p.userId)}
-                    style={{
-                      cursor: "pointer", background: isMyVote ? theme.color.purpleLight + "22" : "#fff",
-                      border: `1px solid ${isMyVote ? theme.color.purple : theme.color.border}`,
-                      borderRadius: theme.radius.sm, padding: "8px 12px",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, fontWeight: 600, flexWrap: "wrap", gap: 6 }}>
-                      <span style={{ minWidth: 120 }}>{isMyVote && "✓ "}#{p.jerseyNumber} {p.displayName}</span>
-                      <span>{pct}%</span>
-                    </div>
-                    <div style={{ height: 6, background: "#F1EFF5", borderRadius: 99, marginTop: 6 }}>
-                      <div style={{ height: 6, width: `${pct}%`, background: theme.color.purple, borderRadius: 99 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>CARDS</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {game.events.map((e) => (
-              <div key={e.id} style={{ display: "flex", gap: 10, fontSize: 13.5, alignItems: "center" }}>
-                <span style={{ color: theme.color.textMuted, width: 32 }}>{e.minute}'</span>
-                <span>{EVENT_ICON[e.type]}</span>
-                <span>#{e.playerNumber} — {e.type.replace("_", " ")}</span>
-              </div>
-            ))}
-            {game.events.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No cards yet.</div>}
-          </div>
-        </div>
+        {(home?.roster.length || away?.roster.length) ? <RosterSection home={home} away={away} game={game} /> : null}
 
         {gameMoments.length > 0 && (
           <div>
@@ -158,7 +102,58 @@ function TeamAvatar({ name, color, onClick }: { name?: string; color?: string; o
         {(name ?? "TBD").slice(0, 2).toUpperCase()}
       </div>
       <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: "underline", textDecorationColor: "rgba(255,255,255,.5)" }}>{name ?? "TBD"}</div>
-      <div style={{ fontSize: 10, color: "#A79FC0", marginTop: 2 }}>View roster ›</div>
+      <div style={{ fontSize: 10, color: "#A79FC0", marginTop: 2 }}>View details ›</div>
+    </div>
+  );
+}
+
+function RosterSection({ home, away, game }: { home?: Team | null; away?: Team | null; game: GameDoc }) {
+  return (
+    <div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        {home && <RosterColumn team={home} game={game} />}
+        {away && <RosterColumn team={away} game={game} />}
+      </div>
+    </div>
+  );
+}
+
+function RosterColumn({ team, game }: { team: Team; game: GameDoc }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 }}>
+        {team.name.toUpperCase()}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {team.roster.map((p) => (
+          <RosterRow key={p.userId} player={p} game={game} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
+  const cardEvents = game.events.filter((e) => e.playerId === player.userId);
+  const isMotm = game.motmUserId === player.userId;
+  return (
+    <div style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontFamily: theme.font.display, fontWeight: 800, color: theme.color.purple, fontSize: 13, fontVariantNumeric: "tabular-nums", width: 24, flexShrink: 0 }}>
+          #{player.jerseyNumber ?? "—"}
+        </span>
+        <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>
+          {player.displayName}{player.isCaptain ? " (C)" : ""}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+        <CheckInStatusPill status={player.checkInStatus} />
+        {isMotm && <Pill bg={theme.color.warningBg} fg={theme.color.warning}>★ MOTM</Pill>}
+        {cardEvents.map((e) => (
+          <span key={e.id} style={{ fontSize: 14, lineHeight: 1 }}>{EVENT_ICON[e.type]}</span>
+        ))}
+      </div>
     </div>
   );
 }
