@@ -52,9 +52,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaff();
     }
+    // ---- announcements: public/always-readable (signed-out Home visitors see these too); posted only via the postAnnouncement Cloud Function ----
     match /announcements/{id} {
       allow read: if true;
-      allow write: if isStaff();
+      allow write: if false;
     }
     match /huntMissions/{id} {
       allow read: if true;
@@ -298,10 +299,13 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']));
     }
 
-    // ---- notifications: written only by Cloud Functions ----
+    // ---- notifications: created only by Cloud Functions; the owner may mark their own as read ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+        request.resource.data.read == true;
+      allow create, delete: if false;
     }
 
     // ---- server-only sequence counters (case numbers, pass ids) ----

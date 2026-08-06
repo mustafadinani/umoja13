@@ -18,6 +18,7 @@ export { onTeamWrite } from "./triggers/onTeamWrite.js";
 export { onCheckInWrite } from "./triggers/onCheckInWrite.js";
 export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
+export { postAnnouncement } from "./http/postAnnouncement.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";
 export { sendRoleMessage } from "./http/sendRoleMessage.js";
 export { sendUserMessage } from "./http/sendUserMessage.js";

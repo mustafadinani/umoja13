@@ -28,6 +28,9 @@ export interface Announcement {
   title: string;
   body: string;
   postedAt: number;
+  /** Optional byline for the merged inbox feed — absent on older docs, which still render fine without one. */
+  postedByUid?: string;
+  postedByName?: string;
 }
 
 export type SponsorTier = "legacy_builder" | "impact_partner" | "community_supporter" | "custom";

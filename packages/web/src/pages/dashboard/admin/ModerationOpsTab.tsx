@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { doc, updateDoc, addDoc, collection } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { COLLECTIONS } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { useAllMoments, useGames, useIncidents, useTeams } from "../../../hooks/useData";
+import { postAnnouncement as postAnnouncementCallable } from "../../../lib/callables";
 import { Card, PrimaryButton } from "../../../components/ui";
 
 export function ModerationOpsTab() {
@@ -13,7 +14,10 @@ export function ModerationOpsTab() {
   const { data: incidents } = useIncidents();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [alsoNotify, setAlsoNotify] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const pendingMoments = moments.filter((m) => m.moderationStatus === "pending");
   const checkedInPct = teams.length
@@ -28,10 +32,16 @@ export function ModerationOpsTab() {
   async function postAnnouncement() {
     if (!title.trim() || !body.trim()) return;
     setPosting(true);
+    setError(null);
+    setResult(null);
     try {
-      await addDoc(collection(db, COLLECTIONS.announcements), { title, body, postedAt: Date.now() });
+      const res = await postAnnouncementCallable({ title, body, alsoNotify });
+      setResult({ notifiedCount: res.data.notifiedCount, pushCount: res.data.pushCount });
       setTitle("");
       setBody("");
+      setAlsoNotify(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't post this announcement.");
     } finally {
       setPosting(false);
     }
@@ -77,6 +87,16 @@ export function ModerationOpsTab() {
           rows={3}
           style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
         />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 12, cursor: "pointer" }}>
+          <input type="checkbox" checked={alsoNotify} onChange={(e) => setAlsoNotify(e.target.checked)} />
+          Also send as a notification to everyone
+        </label>
+        {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+        {result && (
+          <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
+            Posted{result.notifiedCount > 0 ? ` and notified ${result.notifiedCount} ${result.notifiedCount === 1 ? "person" : "people"} (${result.pushCount} got a push)` : ""}.
+          </div>
+        )}
         <PrimaryButton disabled={posting || !title.trim() || !body.trim()} onClick={postAnnouncement}>{posting ? "Posting…" : "POST"}</PrimaryButton>
       </Card>
     </div>

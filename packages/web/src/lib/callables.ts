@@ -124,6 +124,11 @@ export const sendNotification = httpsCallable<
   { notifiedCount: number; pushCount: number }
 >(functions, "sendNotification");
 
+export const postAnnouncement = httpsCallable<
+  { title: string; body: string; alsoNotify?: boolean },
+  { id: string; notifiedCount: number; pushCount: number }
+>(functions, "postAnnouncement");
+
 export const sendTeamMessage = httpsCallable<
   { teamId: string; text: string },
   { message: TeamChannelMessage }

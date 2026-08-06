@@ -8,6 +8,8 @@ import {
   SPONSOR_TIER_LABELS,
   CATEGORIES,
   channelHasUnread,
+  buildInbox,
+  unreadCount,
   type Sponsor,
   type PlayerMembership,
 } from "@umoja/shared";
@@ -17,6 +19,7 @@ import {
   useAnnouncements,
   useGames,
   useMoments,
+  useMyNotifications,
   useSponsors,
   useTeams,
   useTeam,
@@ -25,6 +28,7 @@ import {
   useMyVolunteerApplications,
 } from "../hooks/useData";
 import { Card, Modal, Pill, PrimaryButton } from "../components/ui";
+import { AnnouncementDetailModal } from "../components/AnnouncementDetailModal";
 import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
 import { MomentDetailModal } from "../components/MomentDetailModal";
 import { LoadingImage } from "../components/LoadingImage";
@@ -54,6 +58,8 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
+  const { data: notifications } = useMyNotifications(user?.uid);
+  const hasUnreadNotifications = unreadCount(buildInbox(notifications, announcements)) > 0;
   const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
@@ -102,7 +108,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             <Text style={styles.heroIcon}>💬</Text>
             {hasUnreadChat && <View style={styles.heroIconDot} />}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Notifications")}><Text style={styles.heroIcon}>🔔</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Notifications")} style={{ position: "relative" }}>
+            <Text style={styles.heroIcon}>🔔</Text>
+            {hasUnreadNotifications && <View style={styles.heroIconDot} />}
+          </TouchableOpacity>
         </View>
         <View style={styles.heroTop}>
           <Image source={require("../../assets/logo-icon.png")} style={styles.heroLogo} resizeMode="contain" />
@@ -251,8 +260,13 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>ANNOUNCEMENTS</Text>
-        {announcements.slice(0, 3).map((a) => (
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 2 }}>
+          <Text style={styles.sectionTitle}>ANNOUNCEMENTS</Text>
+          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Notifications")}>
+            <Text style={{ color: theme.color.blue, fontWeight: "700", fontSize: 12.5 }}>See all in your inbox →</Text>
+          </TouchableOpacity>
+        </View>
+        {announcements.slice(0, 2).map((a) => (
           <TouchableOpacity key={a.id} onPress={() => setOpenAnnouncementId(a.id)} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: theme.color.border }}>
             <Text style={{ fontWeight: "600" }}>{a.title}</Text>
             <Text style={{ color: theme.color.blue, fontSize: 12, fontWeight: "600", marginTop: 2 }}>Read more</Text>
@@ -297,17 +311,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         </TouchableOpacity>
       </View>
 
-      <Modal visible={!!openAnnouncement} onClose={() => setOpenAnnouncementId(null)}>
-        {openAnnouncement && (
-          <View>
-            <Text style={{ fontWeight: "800", fontSize: 19 }}>{openAnnouncement.title}</Text>
-            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginVertical: 8 }}>
-              {new Date(openAnnouncement.postedAt).toLocaleString()}
-            </Text>
-            <Text style={{ fontSize: 14.5, lineHeight: 21 }}>{openAnnouncement.body}</Text>
-          </View>
-        )}
-      </Modal>
+      <AnnouncementDetailModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />
       <Modal visible={!!openSponsor} onClose={() => setOpenSponsor(null)}>
         {openSponsor && (
           <View>

@@ -72,7 +72,10 @@ export function NotificationsAdminTab() {
 
   return (
     <div>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>SEND A NOTIFICATION</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 4 }}>SEND A TARGETED ALERT</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>
+        For a public bulletin everyone should see, use "Post an announcement" on the Moderation tab instead — this is for reaching a specific role or the two rosters + referee for one game.
+      </div>
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Send to</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
