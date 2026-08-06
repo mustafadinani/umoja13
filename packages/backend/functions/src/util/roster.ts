@@ -19,7 +19,9 @@ export async function syncRosterCheckInStatus(
   userId: string,
   categoryId: string,
   status: CheckInStatus,
-  selfieUrl?: string
+  selfieUrl?: string,
+  lineOfWork?: string,
+  currentEmployer?: string
 ): Promise<void> {
   const id = `${teamId}_${userId}_${categoryId}`;
   await db.collection(COLLECTIONS.rosterCheckIns).doc(id).set(
@@ -30,6 +32,8 @@ export async function syncRosterCheckInStatus(
       categoryId,
       status,
       ...(selfieUrl ? { selfieUrl } : {}),
+      ...(lineOfWork ? { lineOfWork } : {}),
+      ...(currentEmployer ? { currentEmployer } : {}),
       updatedAt: Date.now(),
     },
     { merge: true }

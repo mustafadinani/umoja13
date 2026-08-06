@@ -260,8 +260,7 @@ function InfoSeg() {
 }
 
 function TravelSeg() {
-  const [openHotel, setOpenHotel] = useState<string | null>(null);
-  const [openTier, setOpenTier] = useState<string | null>(null);
+  const [open, setOpen] = useState<PlaceDetail | null>(null);
 
   return (
     <View>
@@ -269,13 +268,24 @@ function TravelSeg() {
 
       <Text style={styles.h3}>✈️ Flights</Text>
       {TRAVEL_GUIDE.airports.map((a) => (
-        <Card key={a.code} style={{ marginBottom: 8 }}>
+        <Card
+          key={a.code}
+          onPress={() =>
+            setOpen({
+              emoji: "✈️",
+              title: `${a.code} — ${a.name}`,
+              tagline: a.note,
+              driveTime: a.driveTime,
+              description: `Airlines: ${a.airlines}`,
+            })
+          }
+          style={{ marginBottom: 8 }}
+        >
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{a.code} — {a.name}</Text>
             <Text style={{ fontSize: 12, color: theme.color.purple, fontWeight: "700" }}>{a.driveTime}</Text>
           </View>
           {a.note && <Text style={{ fontSize: 12, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{a.note}</Text>}
-          <Text style={{ fontSize: 12.5, marginTop: 6 }}>Airlines: {a.airlines}</Text>
         </Card>
       ))}
       <Text style={{ backgroundColor: "#F1EFF5", borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, marginBottom: 8 }}>
@@ -284,9 +294,12 @@ function TravelSeg() {
 
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Airline Discount Codes</Text>
       {TRAVEL_GUIDE.airlineDiscountCodes.map((c) => (
-        <Card key={c.airline} style={{ marginBottom: 6 }}>
-          <Text style={{ fontWeight: "700", fontSize: 13 }}>{c.airline} — <Text style={{ color: theme.color.purple }}>{c.code}</Text></Text>
-          <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{c.instructions}</Text>
+        <Card
+          key={c.airline}
+          onPress={() => setOpen({ emoji: "🎫", title: c.airline, subtitle: `Code: ${c.code}`, description: c.instructions })}
+          style={{ marginBottom: 6 }}
+        >
+          <Text style={{ fontWeight: "700", fontSize: 13 }}>{c.airline} <Text style={{ color: theme.color.textMuted, fontWeight: "400" }}>· tap for code</Text></Text>
         </Card>
       ))}
 
@@ -298,61 +311,65 @@ function TravelSeg() {
         ))}
         <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 4 }}>{TRAVEL_GUIDE.hotelDeposit.fullPrice}</Text>
       </Card>
-      {TRAVEL_GUIDE.hotels.map((h) => {
-        const isOpen = openHotel === h.name;
-        return (
-          <Card key={h.name} onPress={() => setOpenHotel(isOpen ? null : h.name)} style={{ marginBottom: 8 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{h.name}</Text>
-                {h.isHeadquarters && <Text style={styles.hqBadge}>OUR HEADQUARTERS HOTEL</Text>}
-              </View>
-              <Text style={{ fontWeight: "800", color: theme.color.purple, fontSize: 14 }}>{h.pricePerNight}</Text>
+      {TRAVEL_GUIDE.hotels.map((h) => (
+        <Card
+          key={h.name}
+          onPress={() =>
+            setOpen({
+              emoji: "🏨",
+              title: h.name,
+              subtitle: h.isHeadquarters ? "★ Our headquarters hotel" : undefined,
+              distance: h.distance,
+              driveTime: h.driveTime,
+              pricing: h.pricePerNight,
+              description: `${h.bedTypes} · Tax: ${h.tax}\n\n${h.perks}`,
+            })
+          }
+          style={{ marginBottom: 8 }}
+        >
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{h.name}</Text>
+              {h.isHeadquarters && <Text style={styles.hqBadge}>OUR HEADQUARTERS HOTEL</Text>}
             </View>
-            {isOpen && (
-              <>
-                <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>
-                  {h.distance} · {h.driveTime} · {h.bedTypes} · Tax: {h.tax}
-                </Text>
-                <Text style={{ fontSize: 12, marginTop: 4 }}>{h.perks}</Text>
-              </>
-            )}
-          </Card>
-        );
-      })}
+            <Text style={{ fontWeight: "800", color: theme.color.purple, fontSize: 14 }}>{h.pricePerNight}</Text>
+          </View>
+        </Card>
+      ))}
       {TRAVEL_GUIDE.hotelPricingNotes.map((n) => (
         <Text key={n} style={{ fontSize: 11, color: theme.color.textMuted, marginBottom: 4, lineHeight: 15 }}>• {n}</Text>
       ))}
 
       <Text style={styles.h3}>🚗 Rental Cars</Text>
       {TRAVEL_GUIDE.rentalCars.map((r) => (
-        <Card key={r.company} style={{ marginBottom: 6 }}>
-          <Text style={{ fontWeight: "700", fontSize: 13 }}>{r.company} — <Text style={{ color: theme.color.purple }}>{r.code}</Text></Text>
-          <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{r.instructions}</Text>
+        <Card
+          key={r.company}
+          onPress={() => setOpen({ emoji: "🚗", title: r.company, subtitle: `Code: ${r.code}`, description: r.instructions })}
+          style={{ marginBottom: 6 }}
+        >
+          <Text style={{ fontWeight: "700", fontSize: 13 }}>{r.company} <Text style={{ color: theme.color.textMuted, fontWeight: "400" }}>· tap for code</Text></Text>
         </Card>
       ))}
 
       <Text style={styles.h3}>💰 Budget</Text>
       <Text style={{ fontSize: 11.5, color: theme.color.textMuted, fontStyle: "italic", marginBottom: 8 }}>{TRAVEL_GUIDE.budgetNote}</Text>
-      {TRAVEL_GUIDE.budgetTiers.map((t) => {
-        const isOpen = openTier === t.region;
-        return (
-          <Card key={t.region} onPress={() => setOpenTier(isOpen ? null : t.region)} style={{ marginBottom: 6 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <Text style={{ fontWeight: "700", fontSize: 13.5, flex: 1 }}>{t.region}</Text>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: theme.color.textMuted }}>{isOpen ? "–" : "+"}</Text>
-            </View>
-            {isOpen && (
-              <>
-                <Text style={{ fontSize: 11.5, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{t.cities}</Text>
-                <Text style={{ fontSize: 12.5, marginTop: 4, fontWeight: "600" }}>{t.travelTime}</Text>
-                <Text style={{ fontSize: 12.5, marginTop: 4 }}>👤 Solo: {t.solo}</Text>
-                <Text style={{ fontSize: 12.5, marginTop: 2 }}>👨‍👩‍👧‍👦 Family of 4: {t.family}</Text>
-              </>
-            )}
-          </Card>
-        );
-      })}
+      {TRAVEL_GUIDE.budgetTiers.map((t) => (
+        <Card
+          key={t.region}
+          onPress={() =>
+            setOpen({
+              emoji: "💰",
+              title: t.region,
+              tagline: t.cities,
+              description: `${t.travelTime}\n\n👤 Solo: ${t.solo}\n👨‍👩‍👧‍👦 Family of 4: ${t.family}`,
+            })
+          }
+          style={{ marginBottom: 6 }}
+        >
+          <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{t.region}</Text>
+        </Card>
+      ))}
+      <PlaceDetailModal place={open} onClose={() => setOpen(null)} />
     </View>
   );
 }

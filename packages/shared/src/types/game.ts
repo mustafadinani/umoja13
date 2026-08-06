@@ -79,3 +79,41 @@ export function compareGamesLiveFirst(a: Game, b: Game): number {
   if ((a.status === "live") !== (b.status === "live")) return a.status === "live" ? -1 : 1;
   return compareGamesByKickoff(a, b);
 }
+
+export interface PlayerGameStats {
+  gamesPlayed: number;
+  yellowCards: number;
+  redCards: number;
+  motmCount: number;
+}
+
+/**
+ * Tournament-wide totals for one player on one team, computed by scanning
+ * whatever `games` list the caller already has loaded (e.g. from useGames())
+ * — there's no standing aggregate for any of these four numbers anywhere in
+ * the data model, so this is always a live reduce, never a stored field.
+ * "Games played" means the referee actually cleared this player at the gate
+ * for that specific game (Game.gateCheck), not just an approved check-in —
+ * check-in is a one-time identity verification per category, unrelated to
+ * per-game attendance.
+ */
+export function computePlayerGameStats(games: Game[], teamId: string, userId: string): PlayerGameStats {
+  const stats: PlayerGameStats = { gamesPlayed: 0, yellowCards: 0, redCards: 0, motmCount: 0 };
+  for (const g of games) {
+    const onHome = g.homeTeamId === teamId;
+    const onAway = g.awayTeamId === teamId;
+    if (!onHome && !onAway) continue;
+
+    const clearedUids = onHome ? g.gateCheck.homeClearedUids : g.gateCheck.awayClearedUids;
+    if (clearedUids.includes(userId)) stats.gamesPlayed++;
+
+    for (const e of g.events) {
+      if (e.playerId !== userId) continue;
+      if (e.type === "yellow_card") stats.yellowCards++;
+      else if (e.type === "red_card") stats.redCards++;
+    }
+
+    if (g.motmUserId === userId) stats.motmCount++;
+  }
+  return stats;
+}

@@ -35,6 +35,8 @@ export function CheckInModal({
   const { user, profile } = useAuth();
   const [step, setStep] = useState<Step>("confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
+  const [lineOfWorkDraft, setLineOfWorkDraft] = useState("");
+  const [currentEmployerDraft, setCurrentEmployerDraft] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -94,6 +96,8 @@ export function CheckInModal({
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
           ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
+          ...(lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
+          ...(currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
         },
         { merge: true }
       );
@@ -151,6 +155,28 @@ export function CheckInModal({
                 </div>
               </>
             )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
+              Line of work <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+            </div>
+            <input
+              placeholder="e.g. Nursing"
+              value={lineOfWorkDraft}
+              onChange={(e) => setLineOfWorkDraft(e.target.value)}
+              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 10 }}
+            />
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
+              Current employer <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+            </div>
+            <input
+              placeholder="e.g. Holy Cross Hospital"
+              value={currentEmployerDraft}
+              onChange={(e) => setCurrentEmployerDraft(e.target.value)}
+              style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+            />
+            <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>Shown on your Player Card if you share it — never required.</div>
           </div>
 
           <PrimaryButton

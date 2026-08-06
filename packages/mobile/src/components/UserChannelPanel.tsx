@@ -32,13 +32,12 @@ export function UserChannelPanel({ uid }: { uid: string }) {
   const canUseAi = isOwner; // staff replying on someone else's thread always talks to the person, never the bot
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
-  // Sticky organizer mode: if the most recent non-AI message was from an
-  // organizer, default the toggle to "organizer" so a user mid-conversation
-  // with staff doesn't get their next reply intercepted by the bot. Only
-  // used as a fallback until the user picks a side themselves.
-  const lastNonAi = [...messages].reverse().find((m) => m.from !== "ai");
-  const defaultTarget: Target = lastNonAi?.from === "admin" ? "organizer" : "ai";
-  const target: Target = canUseAi ? manualTarget ?? defaultTarget : "organizer";
+  // Always opens on the bot, every session, regardless of history — talking
+  // to a human is a deliberate opt-out someone reaches for when the bot
+  // isn't cutting it, not a state the app should infer and lock them into
+  // just because staff replied once. A manual switch still holds for the
+  // rest of this session (see the Pill onPress below).
+  const target: Target = canUseAi ? manualTarget ?? "ai" : "organizer";
 
   async function send() {
     const text = draft.trim();
@@ -107,7 +106,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
               <Pill active={target === "organizer"} onPress={() => setManualTarget("organizer")}>🙋 Ask an organizer</Pill>
             </View>
           )}
-          {canUseAi && manualTarget === "organizer" && lastNonAi?.from !== "admin" && (
+          {canUseAi && target === "organizer" && (
             <Text style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 6 }}>
               Your next message goes to a real organizer. They'll reply right here.
             </Text>

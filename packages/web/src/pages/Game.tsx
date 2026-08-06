@@ -8,7 +8,10 @@ import { theme } from "../lib/theme";
 import { useCategories, useGame, useMoments, useSponsors, useTeam } from "../hooks/useData";
 import { Card, CheckInStatusPill, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { PlayerCardModal } from "../components/PlayerCardModal";
 import { SponsorStrip } from "../components/SponsorStrip";
+
+type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string };
 
 const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
@@ -23,6 +26,7 @@ export function Game() {
   const { data: allMoments } = useMoments();
   const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [openPlayer, setOpenPlayer] = useState<OpenPlayer | null>(null);
 
   if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
@@ -66,7 +70,9 @@ export function Game() {
       <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
         <PrimaryButton style={{ width: "100%" }} onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>
 
-        {(home?.roster.length || away?.roster.length) ? <RosterSection home={home} away={away} game={game} /> : null}
+        {(home?.roster.length || away?.roster.length) ? (
+          <RosterSection home={home} away={away} game={game} onSelectPlayer={setOpenPlayer} />
+        ) : null}
 
         {gameMoments.length > 0 && (
           <div>
@@ -91,6 +97,14 @@ export function Game() {
       </div>
 
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} gameId={game.id} source="game" />}
+      {openPlayer && (
+        <PlayerCardModal
+          player={openPlayer.player}
+          teamId={openPlayer.teamId}
+          teamName={openPlayer.teamName}
+          onClose={() => setOpenPlayer(null)}
+        />
+      )}
     </div>
   );
 }
@@ -107,19 +121,21 @@ function TeamAvatar({ name, color, onClick }: { name?: string; color?: string; o
   );
 }
 
-function RosterSection({ home, away, game }: { home?: Team | null; away?: Team | null; game: GameDoc }) {
+function RosterSection({
+  home, away, game, onSelectPlayer,
+}: { home?: Team | null; away?: Team | null; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <div>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-        {home && <RosterColumn team={home} game={game} />}
-        {away && <RosterColumn team={away} game={game} />}
+        {home && <RosterColumn team={home} game={game} onSelectPlayer={onSelectPlayer} />}
+        {away && <RosterColumn team={away} game={game} onSelectPlayer={onSelectPlayer} />}
       </div>
     </div>
   );
 }
 
-function RosterColumn({ team, game }: { team: Team; game: GameDoc }) {
+function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 800, color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 }}>
@@ -127,18 +143,21 @@ function RosterColumn({ team, game }: { team: Team; game: GameDoc }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
-          <RosterRow key={p.userId} player={p} game={game} />
+          <RosterRow key={p.userId} player={p} game={game} onClick={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
         ))}
       </div>
     </div>
   );
 }
 
-function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
+function RosterRow({ player, game, onClick }: { player: RosterEntry; game: GameDoc; onClick: () => void }) {
   const cardEvents = game.events.filter((e) => e.playerId === player.userId);
   const isMotm = game.motmUserId === player.userId;
   return (
-    <div style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+    <div
+      onClick={onClick}
+      style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4, cursor: "pointer" }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontFamily: theme.font.display, fontWeight: 800, color: theme.color.purple, fontSize: 13, fontVariantNumeric: "tabular-nums", width: 24, flexShrink: 0 }}>
           #{player.jerseyNumber ?? "—"}
@@ -146,6 +165,7 @@ function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
         <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>
           {player.displayName}{player.isCaptain ? " (C)" : ""}
         </span>
+        <span style={{ color: theme.color.textMuted, fontSize: 14 }}>›</span>
       </div>
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
         <CheckInStatusPill status={player.checkInStatus} />

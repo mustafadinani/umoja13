@@ -32,6 +32,9 @@ export interface RosterEntry {
   checkInStatus: CheckInStatus;
   selfieUrl?: string;
   badges?: string[]; // e.g. "Player of the Match", "Rising Star"
+  /** Both optional, self-reported at check-in — absent unless the player chose to share them. */
+  lineOfWork?: string;
+  currentEmployer?: string;
 }
 
 export type CheckInStatus =

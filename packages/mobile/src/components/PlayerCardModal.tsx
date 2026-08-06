@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import type { RosterEntry } from "@umoja/shared";
+import { computePlayerGameStats, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useMoments } from "../hooks/useData";
+import { useGames, useMoments } from "../hooks/useData";
 import { CheckInStatusPill, Drawer, PrimaryButton, VerifiedBadge } from "./ui";
 import { LoadingImage } from "./LoadingImage";
 import { Lightbox } from "./Lightbox";
@@ -20,7 +20,9 @@ export function PlayerCardModal({
   onClose: () => void;
 }) {
   const { data: moments } = useMoments();
+  const { data: games } = useGames();
   const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
+  const stats = computePlayerGameStats(games, teamId, player.userId);
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
 
@@ -43,6 +45,30 @@ export function PlayerCardModal({
         <View style={{ marginBottom: 14 }}>
           <CheckInStatusPill status={player.checkInStatus} />
         </View>
+
+        <View style={styles.statsRow}>
+          <StatBox icon="⚽" value={stats.gamesPlayed} label="Games" />
+          <StatBox icon="🟨" value={stats.yellowCards} label="Yellow" />
+          <StatBox icon="🟥" value={stats.redCards} label="Red" />
+          <StatBox icon="★" value={stats.motmCount} label="MOTM" />
+        </View>
+
+        {(player.lineOfWork || player.currentEmployer) && (
+          <View style={styles.factCard}>
+            {player.lineOfWork && (
+              <View style={styles.factRow}>
+                <Text style={styles.factLabel}>Line of work</Text>
+                <Text style={styles.factValue}>{player.lineOfWork}</Text>
+              </View>
+            )}
+            {player.currentEmployer && (
+              <View style={[styles.factRow, { borderTopWidth: player.lineOfWork ? 1 : 0 }]}>
+                <Text style={styles.factLabel}>Employer</Text>
+                <Text style={styles.factValue}>{player.currentEmployer}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {player.badges && player.badges.length > 0 && (
           <View style={[styles.badgeRow, { marginBottom: 20 }]}>
@@ -96,16 +122,29 @@ export function PlayerCardModal({
   );
 }
 
+function StatBox({ icon, value, label }: { icon: string; value: number; label: string }) {
+  return (
+    <View style={styles.statBox}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{icon} {label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   photoWrap: { width: 140, height: 140, marginBottom: 14 },
   photo: { width: 140, height: 140, borderRadius: 70 },
   photoPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
   name: { fontWeight: "800", fontSize: 20, textAlign: "center" },
   team: { color: theme.color.textMuted, fontSize: 13.5, marginTop: 4, marginBottom: 14 },
-  statsRow: { flexDirection: "row", gap: 24, marginBottom: 14 },
-  statBox: { alignItems: "center" },
-  statValue: { fontWeight: "800", fontSize: 22, color: theme.color.text },
-  statLabel: { fontSize: 11, color: theme.color.textMuted, marginTop: 2 },
+  statsRow: { flexDirection: "row", width: "100%", gap: 8, marginBottom: 14 },
+  statBox: { flex: 1, alignItems: "center", backgroundColor: "#F7F6F3", borderRadius: 10, paddingVertical: 10 },
+  statValue: { fontWeight: "800", fontSize: 18, color: theme.color.text },
+  statLabel: { fontSize: 10, color: theme.color.textMuted, marginTop: 2, fontWeight: "700", textTransform: "uppercase" },
+  factCard: { width: "100%", backgroundColor: "#F7F6F3", borderRadius: 10, paddingHorizontal: 12, marginBottom: 14 },
+  factRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderTopColor: theme.color.border },
+  factLabel: { color: theme.color.textMuted, fontSize: 12.5 },
+  factValue: { fontWeight: "600", fontSize: 12.5 },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" },
   badge: { backgroundColor: "#F7F0FF", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
   momentsTitle: { fontWeight: "800", fontSize: 15 },

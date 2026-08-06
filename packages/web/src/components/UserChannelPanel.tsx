@@ -31,9 +31,12 @@ export function UserChannelPanel({ uid }: { uid: string }) {
   const canUseAi = isOwner; // staff replying on someone else's thread always talks to the person, never the bot
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
-  const lastNonAi = [...messages].reverse().find((m) => m.from !== "ai");
-  const defaultTarget: Target = lastNonAi?.from === "admin" ? "organizer" : "ai";
-  const target: Target = canUseAi ? manualTarget ?? defaultTarget : "organizer";
+  // Always opens on the bot, every session, regardless of history — talking
+  // to a human is a deliberate opt-out someone reaches for when the bot
+  // isn't cutting it, not a state the app should infer and lock them into
+  // just because staff replied once. A manual switch still holds for the
+  // rest of this session (see the Pill onClick below).
+  const target: Target = canUseAi ? manualTarget ?? "ai" : "organizer";
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -119,7 +122,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
               <Pill active={target === "organizer"} onClick={() => setManualTarget("organizer")}>🙋 Ask an organizer</Pill>
             </div>
           )}
-          {canUseAi && manualTarget === "organizer" && lastNonAi?.from !== "admin" && (
+          {canUseAi && target === "organizer" && (
             <div style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 6 }}>
               Your next message goes to a real organizer. They'll reply right here.
             </div>

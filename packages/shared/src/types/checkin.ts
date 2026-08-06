@@ -54,6 +54,9 @@ export interface CheckIn {
    * every other category, since the question is never shown.
    */
   privateFieldPreference?: boolean;
+  /** Both optional, offered as an extra step at check-in — never required, never asked of a category more than once per player. */
+  lineOfWork?: string;
+  currentEmployer?: string;
 }
 
 export interface CheckInConsent {
@@ -96,6 +99,9 @@ export interface RosterCheckIn {
    * never changed) after that, from either side, once a number is on file.
    */
   jerseyNumber?: number;
+  /** Mirrored from the checkIn doc if the player chose to share them — optional, never required. */
+  lineOfWork?: string;
+  currentEmployer?: string;
   updatedAt: number;
 }
 

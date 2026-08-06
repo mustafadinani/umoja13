@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -5,6 +6,7 @@ import { CATEGORIES, type Game as GameDoc, type RosterEntry, type Team } from "@
 import { theme } from "../lib/theme";
 import { useGame, useMoments, useTeam } from "../hooks/useData";
 import { StatusBadge, Card, CheckInStatusPill, Pill } from "../components/ui";
+import { PlayerCardModal } from "../components/PlayerCardModal";
 
 const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
@@ -14,6 +16,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
   const { data: moments } = useMoments();
+  const [openPlayer, setOpenPlayer] = useState<{ player: RosterEntry; teamId: string; teamName: string } | null>(null);
 
   if (!game || !home || !away) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
 
@@ -51,8 +54,8 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ROSTER</Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
-            <RosterColumn team={home} game={game} />
-            <RosterColumn team={away} game={game} />
+            <RosterColumn team={home} game={game} onSelectPlayer={setOpenPlayer} />
+            <RosterColumn team={away} game={game} onSelectPlayer={setOpenPlayer} />
           </View>
         </View>
       )}
@@ -63,31 +66,43 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
           {gameMoments.map((m) => <Card key={m.id} style={{ marginBottom: 6 }}><Text>{m.caption}</Text></Card>)}
         </View>
       )}
+
+      {openPlayer && (
+        <PlayerCardModal
+          player={openPlayer.player}
+          teamId={openPlayer.teamId}
+          teamName={openPlayer.teamName}
+          onClose={() => setOpenPlayer(null)}
+        />
+      )}
     </ScrollView>
   );
 }
 
-function RosterColumn({ team, game }: { team: Team; game: GameDoc }) {
+type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string };
+
+function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.rosterTeamHeader}>{team.name.toUpperCase()}</Text>
       {team.roster.map((p) => (
-        <RosterRow key={p.userId} player={p} game={game} />
+        <RosterRow key={p.userId} player={p} game={game} onPress={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
       ))}
     </View>
   );
 }
 
-function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
+function RosterRow({ player, game, onPress }: { player: RosterEntry; game: GameDoc; onPress: () => void }) {
   const cardEvents = game.events.filter((e) => e.playerId === player.userId);
   const isMotm = game.motmUserId === player.userId;
   return (
-    <View style={styles.rosterRow}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.rosterRow}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Text style={styles.rosterNum}>#{player.jerseyNumber ?? "—"}</Text>
         <Text style={styles.rosterName} numberOfLines={1}>
           {player.displayName}{player.isCaptain ? " (C)" : ""}
         </Text>
+        <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>›</Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
         <CheckInStatusPill status={player.checkInStatus} />
@@ -96,7 +111,7 @@ function RosterRow({ player, game }: { player: RosterEntry; game: GameDoc }) {
           <Text key={e.id} style={{ fontSize: 14 }}>{EVENT_ICON[e.type]}</Text>
         ))}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

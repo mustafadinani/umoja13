@@ -19,6 +19,14 @@ export const onCheckInWrite = onDocumentWritten(
     if (!after?.exists) return;
 
     const checkIn = after.data() as CheckIn;
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, checkIn.status, checkIn.selfieUrl);
+    await syncRosterCheckInStatus(
+      checkIn.teamId,
+      checkIn.userId,
+      checkIn.categoryId,
+      checkIn.status,
+      checkIn.selfieUrl,
+      checkIn.lineOfWork,
+      checkIn.currentEmployer
+    );
   }
 );

@@ -122,7 +122,7 @@ function parseGroup(value: unknown): Team["group"] | undefined {
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
   captainProfileId?: string,
-  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber">
+  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber" | "lineOfWork" | "currentEmployer">
 ): RosterEntry {
   const userId = player.uid || player.id;
   return {
@@ -136,6 +136,8 @@ export function registeredPlayerToRosterEntry(
     // player's ID yet, so the player card etc. keep showing the
     // registration photo until admin approval swaps it over.
     selfieUrl: (realCheckIn?.status === "approved" ? realCheckIn.selfieUrl : undefined) ?? player.profilePicture ?? undefined,
+    lineOfWork: realCheckIn?.lineOfWork,
+    currentEmployer: realCheckIn?.currentEmployer,
   };
 }
 

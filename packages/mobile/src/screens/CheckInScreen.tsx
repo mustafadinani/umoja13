@@ -42,6 +42,8 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
+  const [lineOfWorkDraft, setLineOfWorkDraft] = useState(existingCheckIn?.lineOfWork ?? "");
+  const [currentEmployerDraft, setCurrentEmployerDraft] = useState(existingCheckIn?.currentEmployer ?? "");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -140,6 +142,8 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
             },
             ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
+            ...(lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
+            ...(currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
           },
           { merge: true }
         ),
@@ -205,6 +209,25 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               </Text>
             </>
           )}
+
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Line of work <Text style={styles.optionalTag}>optional</Text></Text>
+          <TextInput
+            placeholder="e.g. Nursing"
+            value={lineOfWorkDraft}
+            onChangeText={setLineOfWorkDraft}
+            style={styles.input}
+          />
+
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Current employer <Text style={styles.optionalTag}>optional</Text></Text>
+          <TextInput
+            placeholder="e.g. Holy Cross Hospital"
+            value={currentEmployerDraft}
+            onChangeText={setCurrentEmployerDraft}
+            style={styles.input}
+          />
+          <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
+            Shown on your Player Card if you share it — never required.
+          </Text>
 
           <PrimaryButton
             disabled={!canContinueFromConfirm}
@@ -365,6 +388,7 @@ const styles = StyleSheet.create({
   preview: { width: "100%", height: 200, borderRadius: 12, marginBottom: 14 },
   qrBox: { width: 160, height: 160, backgroundColor: theme.color.navy, borderRadius: 8, alignItems: "center", justifyContent: "center", marginTop: 14 },
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 12, backgroundColor: "#fff" },
+  optionalTag: { fontSize: 10.5, fontWeight: "600", color: theme.color.textMuted, textTransform: "uppercase" },
   consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
   consentLabel: { flex: 1, fontSize: 13, color: theme.color.text },
   roleCard: { flex: 1, alignItems: "center", padding: 16, borderRadius: 12, borderWidth: 2, borderColor: theme.color.border, backgroundColor: "#fff" },

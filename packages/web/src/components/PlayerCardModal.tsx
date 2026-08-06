@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { RosterEntry } from "@umoja/shared";
+import { computePlayerGameStats, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useMoments } from "../hooks/useData";
+import { useGames, useMoments } from "../hooks/useData";
 import { CheckInStatusPill, Drawer, PrimaryButton, VerifiedBadge } from "./ui";
 import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
@@ -18,7 +18,9 @@ export function PlayerCardModal({
   onClose: () => void;
 }) {
   const { data: moments } = useMoments();
+  const { data: games } = useGames();
   const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
+  const stats = computePlayerGameStats(games, teamId, player.userId);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
 
@@ -45,6 +47,20 @@ export function PlayerCardModal({
         <div style={{ marginBottom: 14 }}>
           <CheckInStatusPill status={player.checkInStatus} />
         </div>
+
+        <div style={{ display: "flex", width: "100%", gap: 8, marginBottom: 14 }}>
+          <StatBox icon="⚽" value={stats.gamesPlayed} label="Games" />
+          <StatBox icon="🟨" value={stats.yellowCards} label="Yellow" />
+          <StatBox icon="🟥" value={stats.redCards} label="Red" />
+          <StatBox icon="★" value={stats.motmCount} label="MOTM" />
+        </div>
+
+        {(player.lineOfWork || player.currentEmployer) && (
+          <div style={{ width: "100%", background: "#F7F6F3", borderRadius: theme.radius.sm, padding: "0 12px", marginBottom: 14 }}>
+            {player.lineOfWork && <FactRow label="Line of work" value={player.lineOfWork} />}
+            {player.currentEmployer && <FactRow label="Employer" value={player.currentEmployer} borderTop={!!player.lineOfWork} />}
+          </div>
+        )}
 
         {player.badges && player.badges.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 20 }}>
@@ -99,5 +115,23 @@ export function PlayerCardModal({
         />
       )}
     </Drawer>
+  );
+}
+
+function StatBox({ icon, value, label }: { icon: string; value: number; label: string }) {
+  return (
+    <div style={{ flex: 1, textAlign: "center", background: "#F7F6F3", borderRadius: theme.radius.sm, padding: "10px 4px" }}>
+      <div style={{ fontWeight: 800, fontSize: 18 }}>{value}</div>
+      <div style={{ fontSize: 10, color: theme.color.textMuted, marginTop: 2, fontWeight: 700, textTransform: "uppercase" }}>{icon} {label}</div>
+    </div>
+  );
+}
+
+function FactRow({ label, value, borderTop }: { label: string; value: string; borderTop?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: borderTop ? `1px solid ${theme.color.border}` : "none", fontSize: 12.5 }}>
+      <span style={{ color: theme.color.textMuted }}>{label}</span>
+      <span style={{ fontWeight: 600 }}>{value}</span>
+    </div>
   );
 }
