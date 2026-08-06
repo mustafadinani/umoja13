@@ -5,6 +5,7 @@ import { useAllUsers, useGames, usePods } from "../../../hooks/useData";
 import { deletePod, ensurePodsSeeded, updatePod } from "../../../lib/callables";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { PodHubPanel } from "../../../components/PodHubPanel";
+import { PodMembersEditor } from "../../../components/PodMembersEditor";
 import { PodEditorModal } from "./PodEditorModal";
 
 export function PodsAdminTab() {
@@ -124,6 +125,9 @@ export function PodsAdminTab() {
           <Card>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{selected.name}</div>
             <PodHubPanel podId={selected.id} canPost />
+            <div style={{ borderTop: `1px solid ${theme.color.border}`, marginTop: 20, paddingTop: 16 }}>
+              <PodMembersEditor pod={selected} />
+            </div>
           </Card>
         </>
       )}
