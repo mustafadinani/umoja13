@@ -135,18 +135,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           {tabNames.length > 1 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, marginTop: 14, marginBottom: 6 }}>
               {tabNames.map((name) => (
-                <Pill key={name} active={selectedTab === name} onPress={() => setActiveKid(name)}>{name === "You" ? "You" : firstName(name)}</Pill>
+                <Pill key={name} active={selectedTab === name} onPress={() => setActiveKid(name)}>{name === "You" ? "👑 You" : firstName(name)}</Pill>
               ))}
             </View>
           )}
-
-          <View style={styles.section}>
-            <PlayerPhotosCard
-              playerName={selectedKid}
-              accountPhotoUrl={profile?.photoUrl}
-              registrationPhotoUrl={activeMemberships.find((m) => m.registrationPhotoUrl)?.registrationPhotoUrl}
-            />
-          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>CHECK-IN</Text>
@@ -406,43 +398,6 @@ function VolunteerSection({
   );
 }
 
-function PlayerPhotosCard({
-  playerName,
-  accountPhotoUrl,
-  registrationPhotoUrl,
-}: {
-  playerName: string;
-  accountPhotoUrl?: string;
-  registrationPhotoUrl?: string;
-}) {
-  return (
-    <Card>
-      <Text style={{ fontWeight: "700", fontSize: 15, marginBottom: 12 }}>{playerName}</Text>
-      <View style={{ flexDirection: "row", gap: 16, flexWrap: "wrap" }}>
-        <PhotoSlot label="Account holder" url={accountPhotoUrl} name={playerName} />
-        <PhotoSlot label="Registration" url={registrationPhotoUrl} name={playerName} />
-      </View>
-    </Card>
-  );
-}
-
-function PhotoSlot({ label, url, name }: { label: string; url?: string; name: string }) {
-  const initials = name.trim().slice(0, 2).toUpperCase() || "?";
-  return (
-    <View style={{ alignItems: "center", minWidth: 88, gap: 6 }}>
-      {url ? (
-        <Image source={{ uri: url }} style={styles.photoSlotImg} />
-      ) : (
-        <View style={styles.photoSlotFallback}>
-          <Text style={{ color: "#fff", fontWeight: "800", fontSize: 18 }}>{initials}</Text>
-        </View>
-      )}
-      <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.textMuted }}>{label.toUpperCase()}</Text>
-      {!url && <Text style={{ fontSize: 11, color: theme.color.textMuted }}>No photo</Text>}
-    </View>
-  );
-}
-
 function TeamRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
   const { data: team } = useTeam(teamId);
   if (!team) return null;
@@ -493,8 +448,6 @@ const styles = StyleSheet.create({
   momentTile: { width: 100, height: 70, borderRadius: 10, backgroundColor: theme.color.purple, marginRight: 8, alignItems: "center", justifyContent: "center" },
   momentTileVideo: { backgroundColor: theme.color.navy },
   sponsorChip: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
-  photoSlotImg: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.color.border, borderWidth: 2, borderColor: theme.color.border },
-  photoSlotFallback: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.color.navy, alignItems: "center", justifyContent: "center" },
   footer: { paddingHorizontal: 16, paddingVertical: 24, alignItems: "center" },
   footerLink: { color: theme.color.textMuted, fontWeight: "600", fontSize: 13 },
   footerSignOut: { color: theme.color.danger, fontWeight: "700", fontSize: 13 },
