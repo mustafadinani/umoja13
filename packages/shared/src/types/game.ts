@@ -65,3 +65,17 @@ export interface Game {
   createdAt: number;
   updatedAt: number;
 }
+
+/** Real chronological day order — the "fri" < "sat" < "sun" string-sort trick some screens use happens to match this tournament's actual days, but only by coincidence; this is the version that doesn't depend on that. */
+const DAY_ORDER: Record<Game["day"], number> = { fri: 0, sat: 1, sun: 2 };
+
+/** Chronological order: day, then kickoff time. For a straight schedule list. */
+export function compareGamesByKickoff(a: Game, b: Game): number {
+  return DAY_ORDER[a.day] - DAY_ORDER[b.day] || a.kickoffTime.localeCompare(b.kickoffTime);
+}
+
+/** Live games first, then chronological — for a "what's on now" feed where live matters more than kickoff order. */
+export function compareGamesLiveFirst(a: Game, b: Game): number {
+  if ((a.status === "live") !== (b.status === "live")) return a.status === "live" ? -1 : 1;
+  return compareGamesByKickoff(a, b);
+}

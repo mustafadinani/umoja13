@@ -12,10 +12,9 @@ import {
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useMyPods, useMyPodTasks } from "../hooks/useData";
+import { useMyPods, useMyPodTasks } from "../hooks/useData";
 import { listOpenPods, joinPod } from "../lib/callables";
 import { Card, Pill, PrimaryButton } from "../components/ui";
-import { FieldMap } from "../components/FieldMap";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { PodHubModal } from "../components/PodHubModal";
 import { PodTaskDetailModal } from "../components/PodTaskDetailModal";
@@ -28,9 +27,10 @@ type ExpSeg = "info" | "travel" | "local" | "muslim";
 /**
  * "Everything besides the games" — the tab that replaced the old My Umoja
  * slot's leftover real estate once its personal content moved into Home.
- * Three destinations, all with real content, not just a label: your pod(s)
- * and open ones to join, the four Experiences categories, and a live field
- * map. Deliberately doesn't carry Message Organizers/Notifications/Report an
+ * Two destinations, both with real content, not just a label: your pod(s)
+ * and open ones to join, and the four Experiences categories. The field map
+ * lives on the Games tab now, next to the schedule it's actually about.
+ * Deliberately doesn't carry Message Organizers/Notifications/Report an
  * Issue — those are account-level utility, not "info," and live on Home.
  */
 export function HubScreen() {
@@ -42,7 +42,7 @@ export function HubScreen() {
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }} contentContainerStyle={{ paddingBottom: 48 }}>
       <View style={styles.header}>
         <Text style={styles.title}>HUB</Text>
-        <Text style={styles.sub}>Everything besides the games — where to help, what to do, and where to be.</Text>
+        <Text style={styles.sub}>Everything besides the games — where to help and what to do.</Text>
       </View>
 
       <View style={styles.section}>
@@ -67,11 +67,6 @@ export function HubScreen() {
       <View style={[styles.section, styles.sectionGap]}>
         <Text style={styles.sectionTitle}>🌍 EXPERIENCES</Text>
         <ExperiencesSection />
-      </View>
-
-      <View style={[styles.section, styles.sectionGap]}>
-        <Text style={styles.sectionTitle}>🗺️ FIELD MAP</Text>
-        <FieldMapSection />
       </View>
 
       {volunteerOpen && <VolunteerSignupModal onClose={() => setVolunteerOpen(false)} initialName={profile?.displayName} />}
@@ -417,51 +412,6 @@ function PrayerTime({ label, time }: { label: string; time: string }) {
     <View style={{ alignItems: "center", minWidth: 74 }}>
       <Text style={{ fontSize: 11, color: theme.color.textMuted, fontWeight: "700" }}>{label}</Text>
       <Text style={{ fontSize: 13, fontWeight: "700", marginTop: 2 }}>{time}</Text>
-    </View>
-  );
-}
-
-function FieldMapSection() {
-  const { data: games } = useGames();
-  const [selectedField, setSelectedField] = useState<string | null>(null);
-  const fieldGames = games.filter((g) => g.field === selectedField && (g.status === "live" || g.status === "scheduled"));
-
-  return (
-    <View>
-      <Text style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>Maryland SoccerPlex · tap a field to see what's playing on it</Text>
-      <Card style={{ paddingVertical: 16 }}>
-        <FieldMap games={games} selectedField={selectedField} onSelectField={setSelectedField} />
-        <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap", justifyContent: "center", marginTop: 12 }}>
-          <LegendDot color={theme.color.success} label="Field" />
-          <LegendDot color={theme.color.pink} label="Live now" />
-          <LegendDot color={theme.color.purple} label="Selected" />
-        </View>
-      </Card>
-      {selectedField && (
-        <View style={{ marginTop: 10 }}>
-          <View style={{ alignItems: "center", marginBottom: 8 }}>
-            <Pill active onPress={() => setSelectedField(null)}>Showing {selectedField} · clear ✕</Pill>
-          </View>
-          {fieldGames.length === 0 ? (
-            <Text style={{ color: theme.color.textMuted, fontSize: 12.5, textAlign: "center" }}>Nothing scheduled here right now.</Text>
-          ) : (
-            fieldGames.map((g) => (
-              <Card key={g.id} style={{ marginBottom: 6 }}>
-                <Text style={{ fontWeight: "700", fontSize: 13 }}>{g.status === "live" ? "● LIVE" : g.kickoffTime} · {g.day.toUpperCase()}</Text>
-              </Card>
-            ))
-          )}
-        </View>
-      )}
-    </View>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color }} />
-      <Text style={{ fontSize: 11.5, color: theme.color.textMuted }}>{label}</Text>
     </View>
   );
 }

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { FESTIVAL_CATEGORY_IDS, type RegistrationCategoryBucket, type Team } from "@umoja/shared";
+import { FESTIVAL_CATEGORY_IDS, compareGamesByKickoff, type RegistrationCategoryBucket, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
 import { Card, Pill, StatusBadge } from "../components/ui";
+import { FieldMapPanel } from "../components/FieldMapPanel";
 
 /**
  * On first mount, this row's Pills size themselves correctly (their width
@@ -68,7 +69,7 @@ function CategoryChipRow({
 
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { buckets } = useRegistrationCategoryBuckets();
-  const [seg, setSeg] = useState<"schedule" | "standings">("schedule");
+  const [seg, setSeg] = useState<"schedule" | "standings" | "fieldMap">("schedule");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const { data: games } = useGames();
   const { data: allTeams } = useTeams();
@@ -91,7 +92,10 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: teams } = useTeams(standingsCategoryId ?? undefined);
 
   const isFestival = standingsCategoryId ? FESTIVAL_CATEGORY_IDS.includes(standingsCategoryId) : false;
-  const filteredGames = games.filter((g) => !categoryId || g.categoryId === categoryId);
+  const filteredGames = useMemo(
+    () => games.filter((g) => !categoryId || g.categoryId === categoryId).sort(compareGamesByKickoff),
+    [games, categoryId]
+  );
   const teamMap = useMemo(() => new Map(allTeams.map((t) => [t.id, t])), [allTeams]);
 
   const grouped = useMemo(() => {
@@ -127,19 +131,22 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
         <View style={styles.segRow}>
           <Pill active={seg === "schedule"} onPress={() => setSeg("schedule")}>SCHEDULE</Pill>
           <Pill active={seg === "standings"} onPress={() => setSeg("standings")}>STANDINGS</Pill>
+          <Pill active={seg === "fieldMap"} onPress={() => setSeg("fieldMap")}>FIELD MAP</Pill>
         </View>
         <Text style={styles.filterLabel}>FILTER BY CATEGORY</Text>
         <CategoryChipRow
           buckets={buckets}
           categoryId={seg === "standings" ? standingsCategoryId : categoryId}
           onSelect={setCategoryId}
-          showAll={seg === "schedule"}
+          showAll={seg !== "standings"}
         />
       </View>
       <View style={styles.divider} />
 
       <ScrollView style={{ padding: 16 }}>
-        {seg === "schedule" ? (
+        {seg === "fieldMap" ? (
+          <FieldMapPanel games={filteredGames} allGames={games} teamMap={teamMap} />
+        ) : seg === "schedule" ? (
           filteredGames.length === 0 ? (
             <Text style={{ color: theme.color.textMuted }}>No games in this category yet.</Text>
           ) : (
@@ -217,7 +224,7 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
 const styles = StyleSheet.create({
   header: { paddingTop: 60, paddingHorizontal: 16, paddingBottom: 4 },
   title: { fontWeight: "800", fontSize: 24, marginBottom: 12 },
-  segRow: { flexDirection: "row", gap: 8 },
+  segRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   divider: { height: 1, backgroundColor: theme.color.border, marginTop: 16, marginHorizontal: 16 },
   filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
   chipRow: { flexGrow: 0, marginHorizontal: -16, marginBottom: 4 },
