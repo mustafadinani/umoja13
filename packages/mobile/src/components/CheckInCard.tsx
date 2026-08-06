@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
-import { CATEGORIES, COLLECTIONS, checkInStatusLabel, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, checkInIdFor, checkInStatusLabel, playerKeyFor, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useDocument } from "../hooks/firestore";
 import { Card, PrimaryButton, Modal, VerifiedRibbon } from "./ui";
-
-function checkInIdFor(uid: string, membership: PlayerMembership): string {
-  return `${uid}_${membership.teamId}_${membership.categoryId}`;
-}
 
 /** Same check-in card UX as web: button only for known categories. */
 export function CheckInCard({
@@ -19,7 +15,7 @@ export function CheckInCard({
   membership: PlayerMembership;
   onCheckIn: () => void;
 }) {
-  const checkInId = checkInIdFor(uid, membership);
+  const checkInId = checkInIdFor(playerKeyFor(uid, membership.profileId), membership.teamId, membership.categoryId);
   const { data: checkIn } = useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
   const { data: pass } = useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
   const [passOpen, setPassOpen] = useState(false);

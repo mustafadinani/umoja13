@@ -2,11 +2,13 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import {
   COLLECTIONS,
+  PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TOURNAMENT_START_AT,
   rosterCheckInIdFor,
+  type RegisteredPlayer,
   type RegisteredTeam,
   type UserProfile,
 } from "@umoja/shared";
@@ -14,7 +16,8 @@ import { db, defaultDb } from "../util/admin.js";
 
 interface SetJerseyNumberRequest {
   teamId: string;
-  userId: string;
+  /** Per-child identifier — see RosterEntry.playerKey. Never the caller's bare account uid; two siblings on one account need two different values here. */
+  playerKey: string;
   categoryId: string;
   /** null clears it (only meaningful before it's ever been set — see the lock below). */
   jerseyNumber: number | null;
@@ -34,9 +37,9 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-  const { teamId, userId, categoryId, jerseyNumber } = request.data;
-  if (!teamId || !userId || !categoryId) {
-    throw new HttpsError("invalid-argument", "teamId, userId, and categoryId are required.");
+  const { teamId, playerKey, categoryId, jerseyNumber } = request.data;
+  if (!teamId || !playerKey || !categoryId) {
+    throw new HttpsError("invalid-argument", "teamId, playerKey, and categoryId are required.");
   }
   if (jerseyNumber !== null && (!Number.isInteger(jerseyNumber) || jerseyNumber < 0 || jerseyNumber > 999)) {
     throw new HttpsError("invalid-argument", "jerseyNumber must be a whole number between 0 and 999, or null.");
@@ -46,8 +49,13 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
   const callerProfile = callerSnap.data() as UserProfile | undefined;
   const isStaffCaller = callerProfile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
 
-  if (!isStaffCaller && uid !== userId) {
-    // Not the player themselves — must be this team's captain/manager to act on someone else's behalf.
+  if (!isStaffCaller) {
+    // Not staff — either this team's captain/manager (acting on a
+    // teammate's behalf), or the account this specific playerKey belongs
+    // to. playerKey never equals the caller's own uid (it's the Outreach
+    // profileId of one specific child, shared-uid families included), so
+    // this can no longer be a simple `uid === playerKey` check — it has to
+    // actually look up whose registration row this is.
     const teamSnap = await defaultDb
       .collection(REGISTRATION_ROOT)
       .doc(REGISTRATION_YEAR)
@@ -56,8 +64,22 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
       .get();
     const team = teamSnap.data() as RegisteredTeam | undefined;
     const isCaptain = !!team && (team.captainProfileId === uid || team.uid === uid);
+
     if (!isCaptain) {
-      throw new HttpsError("permission-denied", "Only this player, their team's captain, or staff can set this.");
+      const playersSnap = await defaultDb
+        .collection(REGISTRATION_ROOT)
+        .doc(REGISTRATION_YEAR)
+        .collection(PLAYERS_REGISTERED)
+        .where("teamId", "==", teamId)
+        .where("uid", "==", uid)
+        .get();
+      const ownsPlayerKey = playersSnap.docs.some((d) => {
+        const p = d.data() as RegisteredPlayer;
+        return (p.profileId?.trim() || d.id) === playerKey;
+      });
+      if (!ownsPlayerKey) {
+        throw new HttpsError("permission-denied", "Only this player, their team's captain, or staff can set this.");
+      }
     }
   }
 
@@ -69,7 +91,7 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     throw new HttpsError("failed-precondition", "Jersey numbers are locked now that the tournament has started.");
   }
 
-  const id = rosterCheckInIdFor(teamId, userId, categoryId);
+  const id = rosterCheckInIdFor(teamId, playerKey, categoryId);
   const ref = db.collection(COLLECTIONS.rosterCheckIns).doc(id);
 
   if (jerseyNumber !== null) {
@@ -79,7 +101,7 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
       .where("categoryId", "==", categoryId)
       .where("jerseyNumber", "==", jerseyNumber)
       .get();
-    const dupe = dupeSnap.docs.find((d) => d.data().userId !== userId);
+    const dupe = dupeSnap.docs.find((d) => d.data().userId !== playerKey);
     if (dupe) throw new HttpsError("already-exists", `#${jerseyNumber} is already taken on this team.`);
   }
 
@@ -87,7 +109,7 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     {
       id,
       teamId,
-      userId,
+      userId: playerKey,
       categoryId,
       jerseyNumber: jerseyNumber === null ? FieldValue.delete() : jerseyNumber,
       updatedAt: Date.now(),

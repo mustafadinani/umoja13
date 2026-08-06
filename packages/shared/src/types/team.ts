@@ -24,7 +24,21 @@ export interface Team {
 }
 
 export interface RosterEntry {
+  // The account's Firebase Auth uid — kept as the real uid (NOT unique per
+  // child; every sibling on a shared family account has the same one) since
+  // team-membership/permission checks (team channels, onRoster gates) match
+  // this against request.auth.uid. Never use this to disambiguate one child
+  // from their siblings — use playerKey for that.
   userId: string;
+  /**
+   * Unique per registered child (an Outreach profileId, falling back to
+   * their own registration row id) — unlike userId, this is NEVER shared
+   * across siblings on one family account. Use this for anything that must
+   * pick out one specific kid: check-in, Moments tagging, jersey-number
+   * edits. Optional only because older/seed roster entries predate this
+   * field; every entry built from registration data always sets it.
+   */
+  playerKey?: string;
   displayName: string;
   jerseyNumber?: number;
   position?: string;

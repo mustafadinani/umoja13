@@ -36,8 +36,10 @@ export function MomentUploadModal({
   const [posted, setPosted] = useState(false);
 
   const taggedTeams = teams.filter((t) => teamTagIds.includes(t.id));
+  // playerKey (never the bare userId) — two siblings sharing one family
+  // account otherwise collapse into a single, ambiguous tag target.
   const rosterPool = (teamTagIds.length > 0 ? taggedTeams : teams).flatMap((t) =>
-    t.roster.map((p) => ({ id: p.userId, label: p.displayName, sublabel: t.name }))
+    t.roster.map((p) => ({ id: p.playerKey ?? p.userId, label: p.displayName, sublabel: t.name }))
   );
   const taggedPlayers = rosterPool.filter((p) => playerTagUids.includes(p.id));
 
@@ -51,7 +53,7 @@ export function MomentUploadModal({
     // Selected players from a team that's no longer tagged would silently
     // stay tagged with no visible way to remove them once the roster pool
     // narrows back down — drop them along with the team.
-    const remainingIds = new Set(teams.filter((t) => t.id !== id && teamTagIds.includes(t.id)).flatMap((t) => t.roster.map((p) => p.userId)));
+    const remainingIds = new Set(teams.filter((t) => t.id !== id && teamTagIds.includes(t.id)).flatMap((t) => t.roster.map((p) => p.playerKey ?? p.userId)));
     setPlayerTagUids((prev) => (teamTagIds.length <= 1 ? prev : prev.filter((p) => remainingIds.has(p))));
   }
 

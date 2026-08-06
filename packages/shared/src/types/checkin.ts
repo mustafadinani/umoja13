@@ -32,7 +32,17 @@ export interface CheckInNote {
  */
 export interface CheckIn {
   id: string;
+  // The account's Firebase Auth uid. Kept as the real uid (shared across
+  // every sibling on one family account) because Firestore rules compare
+  // this to request.auth.uid for read/write permission — never repurpose
+  // it as a per-child identifier. Use playerKey for that.
   userId: string;
+  /**
+   * Unique per registered child (see RosterEntry.playerKey) — the actual
+   * disambiguator this doc's id is built from. Optional only on check-ins
+   * written before this field existed; every new check-in always sets it.
+   */
+  playerKey?: string;
   teamId: string;
   categoryId: string;
   status: CheckInStatus;
@@ -70,7 +80,11 @@ export interface CheckInConsent {
 
 export interface TournamentPass {
   checkInId: string;
+  // Real account uid — TournamentPass's read rule compares this to
+  // request.auth.uid, so it must stay the actual uid, not a per-child key.
   userId: string;
+  /** Unique per registered child — see RosterEntry.playerKey. */
+  playerKey?: string;
   teamId: string;
   categoryId: string;
   status: CheckInStatus;
@@ -85,6 +99,12 @@ export interface TournamentPass {
  * — the only check-in-adjacent data captains/referees/fans ever see on a
  * roster; the checkIns doc itself (gov ID, DOB, selfie tied to identity
  * docs) stays restricted to the player and staff.
+ *
+ * Unlike CheckIn.userId, this doc's `userId` field actually holds each
+ * player's playerKey (unique per child), not the shared account uid — this
+ * collection has no Firestore-rule dependency on it being a real uid
+ * (writes are Admin-SDK-only, reads are public), so it's free to carry the
+ * per-child identity that check-in/jersey-number lookups actually need.
  */
 export interface RosterCheckIn {
   id: string;
@@ -105,9 +125,25 @@ export interface RosterCheckIn {
   updatedAt: number;
 }
 
-/** Doc id for a player's rosterCheckIns overlay — same key everywhere it's read or written. */
-export function rosterCheckInIdFor(teamId: string, userId: string, categoryId: string): string {
-  return `${teamId}_${userId}_${categoryId}`;
+/** Doc id for a player's rosterCheckIns overlay — same key everywhere it's read or written. Pass a playerKey (see playerKeyFor), never the bare account uid. */
+export function rosterCheckInIdFor(teamId: string, playerKey: string, categoryId: string): string {
+  return `${teamId}_${playerKey}_${categoryId}`;
+}
+
+/**
+ * The per-child disambiguator: an Outreach profileId when known (always
+ * unique per registered child, once populated — see PlayerMembership /
+ * RosterEntry.playerKey), else the shared account uid as a fallback for
+ * accounts that predate/lack it (a solo child on the account, or a seed/test
+ * user) — in that case it's equivalent to today's behavior.
+ */
+export function playerKeyFor(uid: string, profileId?: string): string {
+  return profileId?.trim() || uid;
+}
+
+/** Doc id for a player's own check-in — keyed by playerKey (never the bare account uid), so two siblings sharing one parent account never collide onto the same check-in. */
+export function checkInIdFor(playerKey: string, teamId: string, categoryId: string): string {
+  return `${playerKey}_${teamId}_${categoryId}`;
 }
 
 /**

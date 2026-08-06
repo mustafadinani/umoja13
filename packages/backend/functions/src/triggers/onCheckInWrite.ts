@@ -21,7 +21,9 @@ export const onCheckInWrite = onDocumentWritten(
     const checkIn = after.data() as CheckIn;
     await syncRosterCheckInStatus(
       checkIn.teamId,
-      checkIn.userId,
+      // Legacy check-ins written before playerKey existed fall back to
+      // userId, matching their pre-fix behavior exactly.
+      checkIn.playerKey ?? checkIn.userId,
       checkIn.categoryId,
       checkIn.status,
       checkIn.selfieUrl,

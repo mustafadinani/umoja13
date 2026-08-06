@@ -19,7 +19,9 @@ export function PlayerCardModal({
 }) {
   const { data: moments } = useMoments();
   const { data: games } = useGames();
-  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
+  // playerKey, not the bare userId — moments are tagged per-child now.
+  const playerKey = player.playerKey ?? player.userId;
+  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(playerKey)).sort((a, b) => b.createdAt - a.createdAt);
   const stats = computePlayerGameStats(games, teamId, player.userId);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
@@ -111,7 +113,7 @@ export function PlayerCardModal({
         <MomentUploadModal
           onClose={() => setAddMomentOpen(false)}
           initialTeamTagIds={[teamId]}
-          initialPlayerTagUids={[player.userId]}
+          initialPlayerTagUids={[playerKey]}
         />
       )}
     </Drawer>

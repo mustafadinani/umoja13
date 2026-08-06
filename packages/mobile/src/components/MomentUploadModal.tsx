@@ -38,8 +38,10 @@ export function MomentUploadModal({
   const [posted, setPosted] = useState(false);
 
   const taggedTeams = teams.filter((t) => teamTagIds.includes(t.id));
+  // playerKey (never the bare userId) — two siblings sharing one family
+  // account otherwise collapse into a single, ambiguous tag target.
   const rosterPool = (teamTagIds.length > 0 ? taggedTeams : teams).flatMap((t) =>
-    t.roster.map((p) => ({ id: p.userId, label: p.displayName, sublabel: t.name }))
+    t.roster.map((p) => ({ id: p.playerKey ?? p.userId, label: p.displayName, sublabel: t.name }))
   );
   const taggedPlayers = rosterPool.filter((p) => playerTagUids.includes(p.id));
 
@@ -56,7 +58,7 @@ export function MomentUploadModal({
     const remaining = teamTagIds.filter((x) => x !== id);
     setTeamTagIds(remaining);
     if (remaining.length === 0) return;
-    const remainingUids = new Set(teams.filter((t) => remaining.includes(t.id)).flatMap((t) => t.roster.map((p) => p.userId)));
+    const remainingUids = new Set(teams.filter((t) => remaining.includes(t.id)).flatMap((t) => t.roster.map((p) => p.playerKey ?? p.userId)));
     setPlayerTagUids((prev) => prev.filter((p) => remainingUids.has(p)));
   }
 

@@ -13,22 +13,26 @@ import { db } from "./admin.js";
  * now comes from the `(default)` registration import instead
  * (buildTeamFromRegistration), so a write there would sync into a
  * collection nothing displays.
+ *
+ * `playerKey` (not the caller's account uid) is what actually identifies
+ * which child this is — pass CheckIn.playerKey (falling back to
+ * CheckIn.userId only for check-ins written before that field existed).
  */
 export async function syncRosterCheckInStatus(
   teamId: string,
-  userId: string,
+  playerKey: string,
   categoryId: string,
   status: CheckInStatus,
   selfieUrl?: string,
   lineOfWork?: string,
   currentEmployer?: string
 ): Promise<void> {
-  const id = `${teamId}_${userId}_${categoryId}`;
+  const id = `${teamId}_${playerKey}_${categoryId}`;
   await db.collection(COLLECTIONS.rosterCheckIns).doc(id).set(
     {
       id,
       teamId,
-      userId,
+      userId: playerKey,
       categoryId,
       status,
       ...(selfieUrl ? { selfieUrl } : {}),

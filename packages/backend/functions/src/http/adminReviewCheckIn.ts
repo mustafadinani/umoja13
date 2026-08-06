@@ -32,32 +32,38 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
   const checkIn = snap.data() as CheckIn;
 
   const now = Date.now();
+  // Legacy check-ins written before playerKey existed fall back to userId,
+  // matching their pre-fix behavior exactly.
+  const playerKey = checkIn.playerKey ?? checkIn.userId;
 
   if (decision === "approve") {
     const passId = await nextPassId();
     await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({
       checkInId: checkIn.id,
+      // userId stays the real account uid — TournamentPass's read rule
+      // compares this to request.auth.uid.
       userId: checkIn.userId,
+      playerKey,
       teamId: checkIn.teamId,
       categoryId: checkIn.categoryId,
       status: "approved",
       passId,
-      qrPayload: `UMOJA:${passId}:${checkIn.userId}:${checkIn.categoryId}`,
+      qrPayload: `UMOJA:${passId}:${playerKey}:${checkIn.categoryId}`,
       selfieUrl: checkIn.selfieUrl,
     });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "approved", checkIn.selfieUrl);
+    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "approved", checkIn.selfieUrl);
   } else if (decision === "reject") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "rejected");
+    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
   } else if (decision === "nullify") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "rejected");
+    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
   } else if (decision === "restore") {
     await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "approved" }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, checkIn.categoryId, "approved", checkIn.selfieUrl);
+    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "approved", checkIn.selfieUrl);
   }
 
   return { status: decision };

@@ -150,7 +150,7 @@ export const markChannelRead = httpsCallable<
 >(functions, "markChannelRead");
 
 export const setJerseyNumber = httpsCallable<
-  { teamId: string; userId: string; categoryId: string; jerseyNumber: number | null },
+  { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }
 >(functions, "setJerseyNumber");
 

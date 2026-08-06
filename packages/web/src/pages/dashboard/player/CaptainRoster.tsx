@@ -13,13 +13,13 @@ export function CaptainRoster({ team }: { team: Team }) {
   const [error, setError] = useState<string | null>(null);
   const clearedCount = team.roster.filter((p) => p.checkInStatus === "approved").length;
 
-  async function saveNumber(userId: string) {
+  async function saveNumber(playerKey: string) {
     const num = Number(draft);
     if (!draft || Number.isNaN(num) || num < 0 || num > 999) return setError("Enter a valid number (0–999).");
     setSaving(true);
     setError(null);
     try {
-      await setJerseyNumber({ teamId: team.id, userId, categoryId: team.categoryId, jerseyNumber: num });
+      await setJerseyNumber({ teamId: team.id, playerKey, categoryId: team.categoryId, jerseyNumber: num });
       setEditing(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save that number.");
@@ -37,9 +37,10 @@ export function CaptainRoster({ team }: { team: Team }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => {
           const locked = tournamentStarted;
+          const playerKey = p.playerKey ?? p.userId;
           return (
-            <Card key={p.userId} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              {editing === p.userId ? (
+            <Card key={playerKey} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {editing === playerKey ? (
                 <>
                   <input
                     autoFocus
@@ -50,7 +51,7 @@ export function CaptainRoster({ team }: { team: Team }) {
                   />
                   <button
                     disabled={saving}
-                    onClick={() => saveNumber(p.userId)}
+                    onClick={() => saveNumber(playerKey)}
                     style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}
                   >
                     {saving ? "Saving…" : "Save"}
@@ -63,7 +64,7 @@ export function CaptainRoster({ team }: { team: Team }) {
                 <span
                   onClick={() => {
                     if (locked) return;
-                    setEditing(p.userId);
+                    setEditing(playerKey);
                     setDraft(String(p.jerseyNumber ?? ""));
                     setError(null);
                   }}

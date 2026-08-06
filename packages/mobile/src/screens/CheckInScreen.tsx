@@ -12,6 +12,8 @@ import {
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   TOURNAMENT_START_AT,
+  checkInIdFor,
+  playerKeyFor,
   rosterCheckInIdFor,
 } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
@@ -24,19 +26,18 @@ import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 
 type Step = "confirm" | "fieldPref" | "consent" | "selfie" | "govid" | "submitting" | "result";
 
-function checkInIdFor(uid: string, teamId: string, categoryId: string) {
-  return `${uid}_${teamId}_${categoryId}`;
-}
-
 export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamList, "CheckIn">) {
   const { teamId, categoryId } = route.params;
   const { user, profile } = useAuth();
-  const checkInId = user ? checkInIdFor(user.uid, teamId, categoryId) : "";
+  const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
+  // Unique per child (falls back to the account uid only if this membership
+  // predates profileId) — never the bare uid, which every sibling shares.
+  const playerKey = user ? playerKeyFor(user.uid, membership?.profileId) : "";
+  const checkInId = user ? checkInIdFor(playerKey, teamId, categoryId) : "";
   const { data: existingCheckIn } = useCheckIn(checkInId);
   const { data: pass } = usePass(checkInId);
-  const { data: rosterInfo } = useRosterCheckIn(user ? rosterCheckInIdFor(teamId, user.uid, categoryId) : undefined);
+  const { data: rosterInfo } = useRosterCheckIn(user ? rosterCheckInIdFor(teamId, playerKey, categoryId) : undefined);
   const category = CATEGORIES.find((c) => c.id === categoryId);
-  const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(categoryId);
   const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
 
@@ -128,6 +129,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           {
             id: checkInId,
             userId: user.uid,
+            playerKey,
             teamId,
             categoryId,
             status: "admin_review",
@@ -155,7 +157,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
         await withTimeout(
           setJerseyNumber({
             teamId,
-            userId: user.uid,
+            playerKey,
             categoryId,
             jerseyNumber: Number(jerseyNumberDraft.trim()),
           }),

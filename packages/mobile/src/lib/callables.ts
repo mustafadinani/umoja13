@@ -154,6 +154,6 @@ export const listOpenPods = httpsCallable<
 export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
 
 export const setJerseyNumber = httpsCallable<
-  { teamId: string; userId: string; categoryId: string; jerseyNumber: number | null },
+  { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }
 >(functions, "setJerseyNumber");

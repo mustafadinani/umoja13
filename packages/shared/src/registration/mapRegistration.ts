@@ -127,6 +127,11 @@ export function registeredPlayerToRosterEntry(
   const userId = player.uid || player.id;
   return {
     userId,
+    // Every sibling on a shared family account has the same userId above —
+    // profileId (falling back to this row's own id) is what actually picks
+    // out THIS child, matching the same fallback used for
+    // PlayerMembership.profileId in mapOutreachProfileToUserProfile.
+    playerKey: player.profileId?.trim() || player.id,
     displayName: `${player.firstName} ${player.lastName}`.trim() || "Player",
     jerseyNumber: realCheckIn?.jerseyNumber,
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
@@ -158,11 +163,14 @@ export function buildTeamFromRegistration(
   appTeam?: Pick<Team, "stats" | "group" | "color" | "sponsorId"> | null
 ): Team {
   const captainId = team.captainProfileId ?? team.uid;
+  // Keyed by playerKey, not the shared account uid — RosterCheckIn.userId
+  // actually holds each player's playerKey (see checkin.ts), so two
+  // siblings' check-ins never collide onto the same roster row here.
   const checkInByUserId = new Map(
     rosterCheckIns.filter((r) => r.teamId === team.id).map((r) => [r.userId, r])
   );
   const roster = playersForTeam(team, players).map((p) =>
-    registeredPlayerToRosterEntry(p, captainId, checkInByUserId.get(p.uid || p.id))
+    registeredPlayerToRosterEntry(p, captainId, checkInByUserId.get(p.profileId?.trim() || p.id))
   );
 
   if (captainId) {

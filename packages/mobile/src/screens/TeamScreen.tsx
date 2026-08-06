@@ -57,12 +57,12 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     }
   }
 
-  async function saveNumber(userId: string) {
+  async function saveNumber(playerKey: string) {
     const num = Number(draft);
     if (!draft || Number.isNaN(num) || num < 0 || num > 999) return setError("Enter a valid number (0–999).");
     setError(null);
     try {
-      await setJerseyNumber({ teamId: team!.id, userId, categoryId: team!.categoryId, jerseyNumber: num });
+      await setJerseyNumber({ teamId: team!.id, playerKey, categoryId: team!.categoryId, jerseyNumber: num });
       setEditingUserId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save that number.");
@@ -87,8 +87,10 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
       {tab === "roster" && (
         <View style={styles.section}>
-          {team.roster.map((p) => (
-            <Card key={p.userId} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          {team.roster.map((p) => {
+            const playerKey = p.playerKey ?? p.userId;
+            return (
+            <Card key={playerKey} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
               <View style={styles.avatarWrap}>
                 {p.selfieUrl ? (
                   <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
@@ -101,7 +103,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </View>
               {(() => {
                 const locked = Date.now() >= TOURNAMENT_START_AT;
-                if (isCaptain && editingUserId === p.userId) {
+                if (isCaptain && editingUserId === playerKey) {
                   return (
                     <>
                       <TextInput
@@ -111,7 +113,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                         keyboardType="number-pad"
                         style={styles.jerseyInput}
                       />
-                      <TouchableOpacity onPress={() => saveNumber(p.userId)} style={styles.saveBtn}>
+                      <TouchableOpacity onPress={() => saveNumber(playerKey)} style={styles.saveBtn}>
                         <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => { setEditingUserId(null); setError(null); }}>
@@ -123,7 +125,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 return (
                   <TouchableOpacity
                     disabled={!isCaptain || locked}
-                    onPress={() => { setEditingUserId(p.userId); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
+                    onPress={() => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
                   >
                     <Text style={{ fontWeight: "800", fontSize: 15, color: locked ? theme.color.textMuted : theme.color.purple, width: 40 }}>
                       #{p.jerseyNumber ?? "—"}{locked ? " 🔒" : ""}
@@ -142,7 +144,8 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 {checkInStatusLabel(p.checkInStatus)}
               </Text>
             </Card>
-          ))}
+            );
+          })}
           {team.roster.length === 0 && (
             <Text style={{ color: theme.color.textMuted }}>
               {teamError

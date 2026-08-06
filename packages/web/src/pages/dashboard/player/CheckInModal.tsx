@@ -8,6 +8,7 @@ import {
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   TOURNAMENT_START_AT,
+  playerKeyFor,
   type PlayerMembership,
 } from "@umoja/shared";
 import { db, storage } from "../../../lib/firebase";
@@ -61,6 +62,10 @@ export function CheckInModal({
     (a) => a.name.trim() === playerName && a.status !== "rejected"
   );
 
+  // Unique per child (falls back to the account uid only if this membership
+  // predates profileId) — never the bare uid, which every sibling shares.
+  const playerKey = user ? playerKeyFor(user.uid, membership.profileId) : "";
+
   async function submit() {
     if (!user || !profile || !selfie || !govId) return;
     setStep("submitting");
@@ -82,6 +87,7 @@ export function CheckInModal({
         {
           id: checkInId,
           userId: user.uid,
+          playerKey,
           teamId: membership.teamId,
           categoryId: membership.categoryId,
           status: "admin_review",
@@ -105,7 +111,7 @@ export function CheckInModal({
       if (!jerseyNumbersLocked && existingJerseyNumber == null && jerseyNumberDraft.trim()) {
         await setJerseyNumber({
           teamId: membership.teamId,
-          userId: user.uid,
+          playerKey,
           categoryId: membership.categoryId,
           jerseyNumber: Number(jerseyNumberDraft.trim()),
         }).catch(() => {

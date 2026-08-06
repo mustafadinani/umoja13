@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { CATEGORIES, checkInStatusLabel, rosterCheckInIdFor, type PlayerMembership, type CheckIn, type RosterCheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, checkInIdFor, checkInStatusLabel, playerKeyFor, rosterCheckInIdFor, type PlayerMembership, type CheckIn, type RosterCheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useDocument } from "../../../hooks/firestore";
 import { COLLECTIONS } from "@umoja/shared";
 import { Card, PrimaryButton, Modal, VerifiedRibbon } from "../../../components/ui";
 import { CheckInModal } from "./CheckInModal";
 
-export function checkInIdFor(uid: string, membership: PlayerMembership): string {
-  return `${uid}_${membership.teamId}_${membership.categoryId}`;
-}
-
 export function CheckInCard({ uid, membership }: { uid: string; membership: PlayerMembership }) {
-  const checkInId = checkInIdFor(uid, membership);
+  // Unique per child (falls back to the account uid only if this
+  // membership predates profileId) — never the bare uid, which every
+  // sibling on this account shares.
+  const playerKey = playerKeyFor(uid, membership.profileId);
+  const checkInId = checkInIdFor(playerKey, membership.teamId, membership.categoryId);
   const { data: checkIn } = useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
   const { data: pass } = useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
-  const { data: rosterInfo } = useDocument<RosterCheckIn>(COLLECTIONS.rosterCheckIns, rosterCheckInIdFor(membership.teamId, uid, membership.categoryId));
+  const { data: rosterInfo } = useDocument<RosterCheckIn>(COLLECTIONS.rosterCheckIns, rosterCheckInIdFor(membership.teamId, playerKey, membership.categoryId));
   const [open, setOpen] = useState(false);
   const [passOpen, setPassOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);

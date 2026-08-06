@@ -46,7 +46,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       const firstName = parts[0] ?? playerName.trim();
       const lastName = parts.slice(1).join(" ");
 
-      await addDoc(collection(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED), {
+      const playerDoc = await addDoc(collection(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED), {
         firstName,
         lastName,
         category: categoryLabel,
@@ -73,6 +73,10 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
         isCaptain: false,
         registrationPhotoUrl,
         playerName: playerName.trim(),
+        // Own registration row's id — the same disambiguator Outreach-derived
+        // memberships get automatically, so this child gets a proper
+        // playerKey immediately (matters the moment a sibling joins too).
+        profileId: playerDoc.id,
       };
 
       const nextRoles = Array.from(new Set([...(profile.roles ?? []), "player"]));
