@@ -1,7 +1,21 @@
 import { useMemo, useState } from "react";
-import type { RegisteredPlayer, RegisteredTeam } from "@umoja/shared";
+import { doc, updateDoc } from "firebase/firestore";
+import {
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  TEAMS_REGISTERED,
+  resolveTeamCategoryId,
+  type RegisteredPlayer,
+  type RegisteredTeam,
+} from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useRegisteredPlayers, useRegisteredTeamsRaw } from "../../../hooks/useRegistration";
+import { useCategories } from "../../../hooks/useData";
+import {
+  useRegisteredPlayers,
+  useRegisteredTeamsRaw,
+  useRegistrationCategoryBuckets,
+} from "../../../hooks/useRegistration";
+import { defaultDb } from "../../../lib/firebase";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 
 function teamLogoUrl(team: RegisteredTeam): string | undefined {
@@ -43,14 +57,18 @@ function TeamAvatar({ team, size = 48 }: { team: RegisteredTeam; size?: number }
 
 /**
  * Admin list of registration teams from `(default)` / teamsRegistered.
- * Click a team to see its assigned playersRegistered roster.
+ * Category pills match Standings (same buckets + counts).
  */
 export function TeamsAdminTab() {
   const { data: teams, loading: teamsLoading, error: teamsError } = useRegisteredTeamsRaw();
   const { data: players, loading: playersLoading, error: playersError } = useRegisteredPlayers();
+  const { data: tournamentCategories } = useCategories();
+  const { buckets } = useRegistrationCategoryBuckets();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const playersByTeamId = useMemo(() => {
     const map = new Map<string, RegisteredPlayer[]>();
@@ -69,39 +87,60 @@ export function TeamsAdminTab() {
     return map;
   }, [players]);
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of teams) {
-      if (t.category?.trim()) set.add(t.category.trim());
+  const categoryLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of tournamentCategories) map.set(c.id, c.label);
+    for (const b of buckets) {
+      if (!map.has(b.id)) map.set(b.id, b.label);
     }
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [teams]);
+    return map;
+  }, [tournamentCategories, buckets]);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return teams
       .map((team) => ({
         team,
+        resolvedCategoryId: resolveTeamCategoryId(team, tournamentCategories),
         playerCount: playersByTeamId.get(team.id)?.length ?? 0,
       }))
-      .filter(({ team }) => {
-        if (categoryFilter && (team.category?.trim() ?? "") !== categoryFilter) return false;
+      .filter(({ team, resolvedCategoryId }) => {
+        if (categoryFilter && resolvedCategoryId !== categoryFilter) return false;
         if (!q) return true;
         return (
           (team.teamName ?? "").toLowerCase().includes(q) ||
           (team.teamCaptainName ?? "").toLowerCase().includes(q) ||
-          (team.email ?? "").toLowerCase().includes(q)
+          (team.email ?? "").toLowerCase().includes(q) ||
+          (team.category ?? "").toLowerCase().includes(q)
         );
       })
       .sort((a, b) => (a.team.teamName ?? "").localeCompare(b.team.teamName ?? ""));
-  }, [teams, playersByTeamId, search, categoryFilter]);
+  }, [teams, playersByTeamId, search, categoryFilter, tournamentCategories]);
 
   const selectedTeam = selectedTeamId ? teams.find((t) => t.id === selectedTeamId) ?? null : null;
   const selectedPlayers = selectedTeamId ? playersByTeamId.get(selectedTeamId) ?? [] : [];
   const loading = teamsLoading || playersLoading;
   const error = teamsError || playersError;
 
+  async function saveTeamFields(patch: { categoryId?: string; category?: string; group?: string | null }) {
+    if (!selectedTeam) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const ref = doc(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, TEAMS_REGISTERED, selectedTeam.id);
+      await updateDoc(ref, patch);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Couldn't save team.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (selectedTeam) {
+    const resolvedId = resolveTeamCategoryId(selectedTeam, tournamentCategories);
+    const matched = tournamentCategories.some((c) => c.id === resolvedId);
+    const currentGroup = selectedTeam.group?.trim().toUpperCase() === "B" ? "B" : selectedTeam.group?.trim().toUpperCase() === "A" ? "A" : "";
+
     return (
       <div>
         <PrimaryButton onClick={() => setSelectedTeamId(null)} style={{ marginBottom: 16 }}>
@@ -115,7 +154,11 @@ export function TeamsAdminTab() {
               {selectedTeam.teamName || "Untitled team"}
             </div>
             <div style={{ fontSize: 13.5, color: theme.color.textMuted, marginTop: 4 }}>
-              {[selectedTeam.category, selectedTeam.teamCaptainName ? `Captain ${selectedTeam.teamCaptainName}` : null, selectedTeam.status]
+              {[
+                categoryLabelById.get(resolvedId) ?? selectedTeam.category,
+                selectedTeam.teamCaptainName ? `Captain ${selectedTeam.teamCaptainName}` : null,
+                selectedTeam.status,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
@@ -124,6 +167,73 @@ export function TeamsAdminTab() {
             </div>
           </div>
         </div>
+
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Standings placement</div>
+          <div style={{ fontSize: 13, color: theme.color.textMuted, marginBottom: 12, lineHeight: 1.45 }}>
+            Standings uses the same category buckets as these pills. If a team is in the wrong oval or missing
+            Group A/B, fix it here — that updates the registration doc Standings reads.
+          </div>
+
+          {!matched && (
+            <div style={{ fontSize: 13, color: theme.color.danger, fontWeight: 600, marginBottom: 10 }}>
+              Unmapped category: registration says &quot;{selectedTeam.category || "(empty)"}&quot;. Assign a
+              tournament category below so it appears under the right Standings pill.
+            </div>
+          )}
+
+          <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Tournament category</label>
+          <select
+            value={matched ? resolvedId : ""}
+            disabled={saving}
+            onChange={(e) => {
+              const selected = tournamentCategories.find((c) => c.id === e.target.value);
+              if (!selected) return;
+              void saveTeamFields({ categoryId: selected.id, category: selected.label });
+            }}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              padding: "10px 12px",
+              borderRadius: theme.radius.sm,
+              border: `1px solid ${theme.color.border}`,
+              fontSize: 13.5,
+              marginBottom: 14,
+            }}
+          >
+            <option value="">{matched ? "Select a category…" : `Keep unmapped (“${selectedTeam.category}”)`}</option>
+            {tournamentCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+
+          <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Pool / group</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {(["", "A", "B"] as const).map((g) => (
+              <Pill
+                key={g || "none"}
+                active={currentGroup === g}
+                onClick={() => {
+                  if (saving) return;
+                  void saveTeamFields({ group: g || null });
+                }}
+              >
+                {g ? `Group ${g}` : "No group"}
+              </Pill>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: theme.color.textMuted, lineHeight: 1.4 }}>
+            Leave as &quot;No group&quot; for a flat Teams list on Standings. Set A/B only when pools are assigned.
+          </div>
+          {saveError && (
+            <div style={{ color: theme.color.danger, fontSize: 13, marginTop: 10 }}>{saveError}</div>
+          )}
+          {saving && (
+            <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 10 }}>Saving…</div>
+          )}
+        </Card>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {selectedPlayers.map((player) => {
@@ -197,8 +307,11 @@ export function TeamsAdminTab() {
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         <Pill active={!categoryFilter} onClick={() => setCategoryFilter(null)}>All categories</Pill>
-        {categories.map((c) => (
-          <Pill key={c} active={categoryFilter === c} onClick={() => setCategoryFilter(c)}>{c}</Pill>
+        {buckets.map((c) => (
+          <Pill key={c.id} active={categoryFilter === c.id} onClick={() => setCategoryFilter(c.id)}>
+            {c.label} ({c.count})
+            {!c.matched ? " !" : ""}
+          </Pill>
         ))}
       </div>
 
@@ -209,41 +322,50 @@ export function TeamsAdminTab() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.map(({ team, playerCount }) => (
-          <Card
-            key={team.id}
-            onClick={() => setSelectedTeamId(team.id)}
-            style={{
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              cursor: "pointer",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <TeamAvatar team={team} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{team.teamName || "Untitled team"}</div>
-                <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                  {[team.category, team.teamCaptainName ? `Captain ${team.teamCaptainName}` : null, team.status]
-                    .filter(Boolean)
-                    .join(" · ")}
+        {rows.map(({ team, playerCount, resolvedCategoryId }) => {
+          const bucket = buckets.find((b) => b.id === resolvedCategoryId);
+          return (
+            <Card
+              key={team.id}
+              onClick={() => setSelectedTeamId(team.id)}
+              style={{
+                padding: "12px 16px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                cursor: "pointer",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                <TeamAvatar team={team} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{team.teamName || "Untitled team"}</div>
+                  <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                    {[
+                      categoryLabelById.get(resolvedCategoryId) ?? team.category,
+                      team.group ? `Group ${team.group}` : null,
+                      team.teamCaptainName ? `Captain ${team.teamCaptainName}` : null,
+                      bucket && !bucket.matched ? "needs category fix" : null,
+                      team.status,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>
-                {playerCount}
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>
+                  {playerCount}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: playerCount === 0 ? theme.color.danger : theme.color.textMuted }}>
+                  {playerCount === 1 ? "player" : "players"}
+                </div>
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: playerCount === 0 ? theme.color.danger : theme.color.textMuted }}>
-                {playerCount === 1 ? "player" : "players"}
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         {!loading && rows.length === 0 && (
           <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No teams match.</div>
         )}

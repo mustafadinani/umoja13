@@ -5,12 +5,12 @@ import Stripe from "stripe";
 type StripeMode = "test" | "live";
 
 // Flip DEFAULT_STRIPE_MODE, or pass { mode: "test"|"live" } in the request body.
-const DEFAULT_STRIPE_MODE: StripeMode = "test";
+const DEFAULT_STRIPE_MODE: StripeMode = "live";
 
 const stripeSecretKeyTest = defineSecret("STRIPE_SECRET_KEY_TEST");
 const stripeSecretKeyLive = defineSecret("STRIPE_SECRET_KEY_LIVE");
 
-/** Publishable keys are safe to ship to clients (not secrets). */
+/** Publishable keys are safe to ship to clients (not secrets). Same values as stripeClient.ts. */
 const STRIPE_PUBLISHABLE = {
   test: "pk_test_oUXnQJoAh67w87FY7aLkNm8A00xCvO8ra4",
   live: "pk_live_JBXpVErqOal4hOovV9km8CiV008EfzhYUJ",

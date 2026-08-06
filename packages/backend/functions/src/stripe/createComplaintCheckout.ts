@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, type Incident } from "@umoja/shared";
 import { db } from "../util/admin.js";
-import { getStripeTest, stripeSecretKeyTest, COMPLAINT_FEE_CENTS } from "./stripeClient.js";
+import { getStripeLive, stripeSecretKeyLive, COMPLAINT_FEE_CENTS } from "./stripeClient.js";
 
 interface CreateComplaintCheckoutRequest {
   incidentId: string;
@@ -10,13 +10,11 @@ interface CreateComplaintCheckoutRequest {
 }
 
 /**
- * Creates a Stripe **test-mode** Checkout session for the $35 review fee
- * (captain complaints and fan "report to commissioner"). The webhook and/or
- * confirmIncidentPayment mark the incident fee paid and store the Stripe
- * confirmation id (PaymentIntent).
+ * Creates a Stripe **live** Checkout session for the $35 review fee
+ * (captain complaints). confirmIncidentPayment / stripeWebhook mark paid.
  */
 export const createComplaintCheckout = onCall<CreateComplaintCheckoutRequest>(
-  { secrets: [stripeSecretKeyTest] },
+  { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -40,7 +38,7 @@ export const createComplaintCheckout = onCall<CreateComplaintCheckoutRequest>(
         : `Complaint review fee — Case ${incident.caseNumber}`;
 
     try {
-      const stripe = getStripeTest();
+      const stripe = getStripeLive();
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [

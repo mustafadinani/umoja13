@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, type Incident } from "@umoja/shared";
 import { db } from "../util/admin.js";
-import { getStripeTest, stripeSecretKeyTest } from "./stripeClient.js";
+import { getStripeLive, stripeSecretKeyLive } from "./stripeClient.js";
 
 interface ConfirmIncidentPaymentRequest {
   incidentId: string;
@@ -9,12 +9,11 @@ interface ConfirmIncidentPaymentRequest {
 }
 
 /**
- * Confirms a completed Stripe Checkout session (test mode) and writes
- * fee.paid + stripeConfirmationId onto the incident. Safe to call from the
- * success redirect when the webhook is slow or not yet configured.
+ * Confirms a completed Stripe Checkout session (**live**) and writes
+ * fee.paid + stripeConfirmationId onto the incident.
  */
 export const confirmIncidentPayment = onCall<ConfirmIncidentPaymentRequest>(
-  { secrets: [stripeSecretKeyTest] },
+  { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -38,7 +37,7 @@ export const confirmIncidentPayment = onCall<ConfirmIncidentPaymentRequest>(
       };
     }
 
-    const session = await getStripeTest().checkout.sessions.retrieve(sessionId);
+    const session = await getStripeLive().checkout.sessions.retrieve(sessionId);
     if (session.metadata?.incidentId && session.metadata.incidentId !== incidentId) {
       throw new HttpsError("failed-precondition", "Session does not match this incident.");
     }

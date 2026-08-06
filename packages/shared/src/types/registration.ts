@@ -12,7 +12,12 @@ export const PLAYERS_REGISTERED = "playersRegistered";
 export interface RegisteredTeam {
   id: string;
   teamName: string;
+  /** Human-readable category label from Outreach (e.g. "Men's open"). */
   category: string;
+  /** Canonical umoja13-app category id when set/corrected. */
+  categoryId?: string;
+  /** Optional pool/group assignment when present on the registration row. */
+  group?: string;
   teamCaptainName?: string;
   captainProfileId?: string;
   registeredByProfileId?: string;

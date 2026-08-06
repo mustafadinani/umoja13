@@ -3,24 +3,25 @@ import { COLLECTIONS } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { nextCaseNumber } from "../util/counters.js";
 import {
-  getStripeTest,
-  stripeSecretKeyTest,
+  getStripeLive,
+  stripeSecretKeyLive,
   COMPLAINT_FEE_CENTS,
-  STRIPE_PUBLISHABLE_KEY_TEST,
+  STRIPE_PUBLISHABLE_KEY_LIVE,
 } from "./stripeClient.js";
 
 /**
- * Creates a $35 PaymentIntent for the in-app report / complaint fee form.
- * Client confirms the Payment Element / PaymentSheet, then calls filePaidReport.
+ * Creates a $35 PaymentIntent (Stripe **live**) for the in-app report / complaint fee.
+ * Client confirms the Payment Element, then calls filePaidReport.
+ * Used by web ReportIssuePage and mobile ComplaintScreen.
  */
 export const createReportFeeIntent = onCall(
-  { secrets: [stripeSecretKeyTest] },
+  { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
     try {
-      const stripe = getStripeTest();
+      const stripe = getStripeLive();
       const paymentIntent = await stripe.paymentIntents.create({
         amount: COMPLAINT_FEE_CENTS,
         currency: "usd",
@@ -40,7 +41,7 @@ export const createReportFeeIntent = onCall(
       return {
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
-        publishableKey: STRIPE_PUBLISHABLE_KEY_TEST,
+        publishableKey: STRIPE_PUBLISHABLE_KEY_LIVE,
         amountCents: COMPLAINT_FEE_CENTS,
       };
     } catch (err) {
@@ -62,11 +63,10 @@ interface FilePaidReportRequest {
 }
 
 /**
- * Verifies the PaymentIntent succeeded, then creates the incident with fee marked paid
- * and stripeConfirmationId set. Success UI should only show after this returns.
+ * Verifies the live PaymentIntent succeeded, then creates the incident with fee marked paid.
  */
 export const filePaidReport = onCall(
-  { secrets: [stripeSecretKeyTest] },
+  { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -87,7 +87,7 @@ export const filePaidReport = onCall(
       throw new HttpsError("invalid-argument", "paymentIntentId is required.");
     }
 
-    const stripe = getStripeTest();
+    const stripe = getStripeLive();
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
     if (pi.status !== "succeeded") {
       throw new HttpsError("failed-precondition", `Payment not complete (status: ${pi.status}).`);
