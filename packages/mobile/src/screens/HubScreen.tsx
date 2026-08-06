@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { Pod } from "@umoja/shared";
 import {
   UMOJA_FAQ,
@@ -14,10 +14,12 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useMyPods, useMyPodTasks } from "../hooks/useData";
 import { listOpenPods, joinPod } from "../lib/callables";
+import { openMaps, openPhone } from "../lib/links";
 import { Card, Pill, PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { PodHubModal } from "../components/PodHubModal";
 import { PodTaskDetailModal } from "../components/PodTaskDetailModal";
+import { PlaceDetailModal, type PlaceDetail } from "../components/PlaceDetailModal";
 
 // Same set ensureInGeneralPod/listOpenPods treat as pod-eligible on the backend.
 const POD_ELIGIBLE_ROLES = ["admin", "commissioner", "referee", "volunteer"];
@@ -208,17 +210,27 @@ function ExperiencesSection() {
 }
 
 function InfoSeg() {
+  const [openQ, setOpenQ] = useState<string | null>(null);
   return (
     <View>
-      <Text style={styles.p}>{VENUE.name} · {VENUE.address} · {VENUE.dates}</Text>
+      <Text style={styles.p}>
+        {VENUE.name} ·{" "}
+        <Text style={styles.link} onPress={() => openMaps(VENUE.address)}>{VENUE.address}</Text> · {VENUE.dates}
+      </Text>
 
       <Text style={styles.h3}>FAQ</Text>
-      {UMOJA_FAQ.map((f) => (
-        <Card key={f.q} style={{ marginBottom: 8 }}>
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 4 }}>{f.q}</Text>
-          <Text style={{ fontSize: 12.5, color: theme.color.textMuted, lineHeight: 18 }}>{f.a}</Text>
-        </Card>
-      ))}
+      {UMOJA_FAQ.map((f) => {
+        const isOpen = openQ === f.q;
+        return (
+          <Card key={f.q} onPress={() => setOpenQ(isOpen ? null : f.q)} style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+              <Text style={{ fontWeight: "700", fontSize: 13.5, flex: 1 }}>{f.q}</Text>
+              <Text style={{ fontSize: 15, color: theme.color.textMuted }}>{isOpen ? "–" : "+"}</Text>
+            </View>
+            {isOpen && <Text style={{ fontSize: 12.5, color: theme.color.textMuted, lineHeight: 18, marginTop: 8 }}>{f.a}</Text>}
+          </Card>
+        );
+      })}
 
       <Text style={styles.h3}>Special Events</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
@@ -238,13 +250,19 @@ function InfoSeg() {
         <Text style={styles.cardP}><Text style={styles.bold}>Parking:</Text> {VENUE_LOGISTICS.parking}</Text>
         <Text style={styles.cardP}><Text style={styles.bold}>While you're there:</Text> {VENUE_LOGISTICS.onSitePark}</Text>
         <Text style={styles.cardP}><Text style={styles.bold}>Hours:</Text> {VENUE_LOGISTICS.hours}</Text>
-        <Text style={[styles.cardP, { marginBottom: 0 }]}><Text style={styles.bold}>Venue phone:</Text> {VENUE_LOGISTICS.phone}</Text>
+        <Text style={[styles.cardP, { marginBottom: 0 }]}>
+          <Text style={styles.bold}>Venue phone:</Text>{" "}
+          <Text style={styles.link} onPress={() => openPhone(VENUE_LOGISTICS.phone)}>{VENUE_LOGISTICS.phone}</Text>
+        </Text>
       </Card>
     </View>
   );
 }
 
 function TravelSeg() {
+  const [openHotel, setOpenHotel] = useState<string | null>(null);
+  const [openTier, setOpenTier] = useState<string | null>(null);
+
   return (
     <View>
       <Text style={styles.p}>{TRAVEL_GUIDE.intro}</Text>
@@ -264,6 +282,14 @@ function TravelSeg() {
         💡 {TRAVEL_GUIDE.internationalNote}
       </Text>
 
+      <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Airline Discount Codes</Text>
+      {TRAVEL_GUIDE.airlineDiscountCodes.map((c) => (
+        <Card key={c.airline} style={{ marginBottom: 6 }}>
+          <Text style={{ fontWeight: "700", fontSize: 13 }}>{c.airline} — <Text style={{ color: theme.color.purple }}>{c.code}</Text></Text>
+          <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{c.instructions}</Text>
+        </Card>
+      ))}
+
       <Text style={styles.h3}>🏨 Hotels</Text>
       <Card style={{ marginBottom: 8, backgroundColor: "#F1EFF5" }}>
         <Text style={{ fontSize: 12.5, marginBottom: 6 }}>{TRAVEL_GUIDE.hotelDeposit.note}</Text>
@@ -272,20 +298,30 @@ function TravelSeg() {
         ))}
         <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 4 }}>{TRAVEL_GUIDE.hotelDeposit.fullPrice}</Text>
       </Card>
-      {TRAVEL_GUIDE.hotels.map((h) => (
-        <Card key={h.name} style={{ marginBottom: 8 }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{h.name}</Text>
-              {h.isHeadquarters && <Text style={styles.hqBadge}>OUR HEADQUARTERS HOTEL</Text>}
+      {TRAVEL_GUIDE.hotels.map((h) => {
+        const isOpen = openHotel === h.name;
+        return (
+          <Card key={h.name} onPress={() => setOpenHotel(isOpen ? null : h.name)} style={{ marginBottom: 8 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{h.name}</Text>
+                {h.isHeadquarters && <Text style={styles.hqBadge}>OUR HEADQUARTERS HOTEL</Text>}
+              </View>
+              <Text style={{ fontWeight: "800", color: theme.color.purple, fontSize: 14 }}>{h.pricePerNight}</Text>
             </View>
-            <Text style={{ fontWeight: "800", color: theme.color.purple, fontSize: 14 }}>{h.pricePerNight}</Text>
-          </View>
-          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>
-            {h.distance} · {h.driveTime} · {h.bedTypes} · Tax: {h.tax}
-          </Text>
-          <Text style={{ fontSize: 12, marginTop: 4 }}>{h.perks}</Text>
-        </Card>
+            {isOpen && (
+              <>
+                <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>
+                  {h.distance} · {h.driveTime} · {h.bedTypes} · Tax: {h.tax}
+                </Text>
+                <Text style={{ fontSize: 12, marginTop: 4 }}>{h.perks}</Text>
+              </>
+            )}
+          </Card>
+        );
+      })}
+      {TRAVEL_GUIDE.hotelPricingNotes.map((n) => (
+        <Text key={n} style={{ fontSize: 11, color: theme.color.textMuted, marginBottom: 4, lineHeight: 15 }}>• {n}</Text>
       ))}
 
       <Text style={styles.h3}>🚗 Rental Cars</Text>
@@ -298,61 +334,80 @@ function TravelSeg() {
 
       <Text style={styles.h3}>💰 Budget</Text>
       <Text style={{ fontSize: 11.5, color: theme.color.textMuted, fontStyle: "italic", marginBottom: 8 }}>{TRAVEL_GUIDE.budgetNote}</Text>
-      {TRAVEL_GUIDE.budgetTiers.map((t) => (
-        <Card key={t.region} style={{ marginBottom: 6 }}>
-          <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{t.region}</Text>
-          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{t.cities}</Text>
-          <Text style={{ fontSize: 12.5, marginTop: 4, fontWeight: "600" }}>{t.travelTime}</Text>
-          <Text style={{ fontSize: 12.5, marginTop: 4 }}>👤 Solo: {t.solo}</Text>
-          <Text style={{ fontSize: 12.5, marginTop: 2 }}>👨‍👩‍👧‍👦 Family of 4: {t.family}</Text>
-        </Card>
-      ))}
+      {TRAVEL_GUIDE.budgetTiers.map((t) => {
+        const isOpen = openTier === t.region;
+        return (
+          <Card key={t.region} onPress={() => setOpenTier(isOpen ? null : t.region)} style={{ marginBottom: 6 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <Text style={{ fontWeight: "700", fontSize: 13.5, flex: 1 }}>{t.region}</Text>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: theme.color.textMuted }}>{isOpen ? "–" : "+"}</Text>
+            </View>
+            {isOpen && (
+              <>
+                <Text style={{ fontSize: 11.5, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{t.cities}</Text>
+                <Text style={{ fontSize: 12.5, marginTop: 4, fontWeight: "600" }}>{t.travelTime}</Text>
+                <Text style={{ fontSize: 12.5, marginTop: 4 }}>👤 Solo: {t.solo}</Text>
+                <Text style={{ fontSize: 12.5, marginTop: 2 }}>👨‍👩‍👧‍👦 Family of 4: {t.family}</Text>
+              </>
+            )}
+          </Card>
+        );
+      })}
     </View>
   );
 }
 
 function LocalSeg() {
+  const [open, setOpen] = useState<PlaceDetail | null>(null);
   return (
     <View>
       <Text style={styles.p}>
-        Explore the best local attractions and activities near the SoccerPlex — from adventure parks and escape rooms to farms, state parks, and museums — all within 35 minutes. Sorted closest to farthest.
+        Explore the best local attractions and activities near the SoccerPlex — from adventure parks and escape rooms to farms, state parks, and museums — all within 35 minutes. Sorted closest to farthest. Tap one for the full details.
       </Text>
       {LOCAL_EXPERIENCES.map((e) => (
-        <Card key={e.name} style={{ marginBottom: 8, ...(e.featured ? styles.featuredCard : null) }}>
+        <Card
+          key={e.name}
+          onPress={() =>
+            setOpen({
+              emoji: e.emoji,
+              title: e.name,
+              subtitle: e.city,
+              tagline: e.tagline,
+              description: e.description,
+              distance: e.distance,
+              driveTime: e.driveTime,
+              address: e.address,
+              hours: e.hours,
+              pricing: e.pricing,
+              website: e.website,
+              offer: e.umojaOffer,
+              featured: e.featured,
+            })
+          }
+          style={{ marginBottom: 8, ...(e.featured ? styles.featuredCard : null) }}
+        >
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: "700", fontSize: 14 }}>
                 {e.emoji} {e.name}{e.featured && <Text style={styles.featuredBadge}>  ★ UMOJA PICK</Text>}
               </Text>
-              <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{e.city}</Text>
+              <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }} numberOfLines={2}>
+                {e.city} · {e.tagline}
+              </Text>
             </View>
             <Text style={{ fontSize: 11.5, color: theme.color.purple, fontWeight: "700" }}>{e.distance} · {e.driveTime}</Text>
           </View>
-          <Text style={{ fontSize: 12.5, fontStyle: "italic", color: theme.color.textMuted, marginTop: 6 }}>{e.tagline}</Text>
-          <Text style={{ fontSize: 12.5, marginTop: 6 }}>{e.description}</Text>
-          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 8 }}>
-            📍 {e.address}
-            {e.hours ? ` · 🕐 ${e.hours}` : ""}
-            {e.pricing ? ` · 💵 ${e.pricing}` : ""}
-          </Text>
-          {e.website && (
-            <TouchableOpacity onPress={() => Linking.openURL(e.website!.startsWith("http") ? e.website! : `https://${e.website}`)}>
-              <Text style={{ fontSize: 11.5, color: theme.color.blue, marginTop: 2 }}>🌐 {e.website}</Text>
-            </TouchableOpacity>
-          )}
-          {e.umojaOffer && (
-            <Text style={{ backgroundColor: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 8, fontSize: 12, marginTop: 8, fontWeight: "600" }}>
-              🎟️ Umoja Partner Offer: {e.umojaOffer}
-            </Text>
-          )}
+          {e.umojaOffer && <Text style={styles.offerChip}>🎟️ Umoja offer available</Text>}
         </Card>
       ))}
+      <PlaceDetailModal place={open} onClose={() => setOpen(null)} />
     </View>
   );
 }
 
 function MuslimSeg() {
   const g = MUSLIM_FAMILY_GUIDE;
+  const [open, setOpen] = useState<PlaceDetail | null>(null);
   return (
     <View>
       <Text style={styles.p}>{g.intro}</Text>
@@ -375,34 +430,76 @@ function MuslimSeg() {
 
       <Text style={styles.h3}>🕌 Mosques &amp; Prayer Spaces</Text>
       {g.mosques.map((m) => (
-        <Card key={m.name} style={{ marginBottom: 8 }}>
+        <Card
+          key={m.name}
+          onPress={() =>
+            setOpen({
+              emoji: "🕌",
+              title: m.name,
+              tagline: m.tagline,
+              description: m.description,
+              distance: m.distance,
+              driveTime: m.driveTime,
+              address: m.address,
+              website: m.website,
+            })
+          }
+          style={{ marginBottom: 8 }}
+        >
           <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{m.name}</Text>
-          <Text style={{ fontSize: 12, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }}>{m.tagline}</Text>
-          <Text style={{ fontSize: 12.5, marginTop: 6 }}>{m.description}</Text>
-          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>📍 {m.address} · {m.distance} · {m.driveTime}</Text>
+          <Text style={{ fontSize: 12, color: theme.color.textMuted, fontStyle: "italic", marginTop: 2 }} numberOfLines={2}>{m.tagline}</Text>
+          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>📍 {m.distance} · {m.driveTime}</Text>
         </Card>
       ))}
 
       <Text style={styles.h3}>🛒 Halal Grocery &amp; Markets</Text>
       {g.halalMarkets.map((m) => (
-        <Card key={m.name} style={{ marginBottom: 8 }}>
+        <Card
+          key={m.name}
+          onPress={() =>
+            setOpen({
+              emoji: "🛒",
+              title: m.name,
+              subtitle: m.type,
+              rating: m.rating,
+              distance: m.distance,
+              driveTime: m.driveTime,
+              address: m.address,
+              hours: m.hours,
+              phone: m.phone,
+            })
+          }
+          style={{ marginBottom: 8 }}
+        >
           <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{m.name}{m.rating ? <Text style={{ color: theme.color.gold }}>  ⭐ {m.rating}</Text> : null}</Text>
           <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{m.type}</Text>
-          <Text style={{ fontSize: 11.5, marginTop: 6 }}>📍 {m.address} · {m.distance} · {m.driveTime}</Text>
-          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>🕐 {m.hours} · ☎️ {m.phone}</Text>
+          <Text style={{ fontSize: 11.5, marginTop: 6 }}>📍 {m.distance} · {m.driveTime}</Text>
         </Card>
       ))}
 
       <Text style={styles.h3}>🍽️ Halal Restaurants</Text>
       <Text style={{ fontSize: 11, color: theme.color.textMuted, marginBottom: 6 }}>⭐ = closest options, under 5 miles</Text>
       {g.halalRestaurants.map((r) => (
-        <Card key={r.name} style={{ marginBottom: 6 }}>
+        <Card
+          key={r.name}
+          onPress={() =>
+            setOpen({
+              emoji: "🍽️",
+              title: r.name,
+              distance: r.distance,
+              locations: r.locations,
+              website: r.website,
+            })
+          }
+          style={{ marginBottom: 6 }}
+        >
           <Text style={{ fontWeight: "700", fontSize: 13 }}>{r.closest ? "⭐ " : ""}{r.name} <Text style={{ color: theme.color.textMuted, fontWeight: "400", fontSize: 11.5 }}>{r.distance}</Text></Text>
-          {r.locations.map((loc) => (
-            <Text key={loc} style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>📍 {loc}</Text>
-          ))}
+          <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>
+            {r.locations.length} location{r.locations.length === 1 ? "" : "s"} · tap for addresses &amp; website
+          </Text>
         </Card>
       ))}
+      <PlaceDetailModal place={open} onClose={() => setOpen(null)} />
     </View>
   );
 }
@@ -442,4 +539,16 @@ const styles = StyleSheet.create({
   },
   featuredCard: { borderWidth: 2, borderColor: theme.color.gold },
   featuredBadge: { fontSize: 10, fontWeight: "800", color: theme.color.navy, backgroundColor: theme.color.gold, borderRadius: 99, paddingHorizontal: 6 },
+  link: { color: theme.color.blue, fontWeight: "600" },
+  offerChip: {
+    alignSelf: "flex-start",
+    backgroundColor: theme.color.successBg,
+    color: theme.color.success,
+    borderRadius: 99,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 8,
+  },
 });

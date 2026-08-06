@@ -370,7 +370,7 @@ export const MUSLIM_FAMILY_GUIDE = {
   ] as HalalMarket[],
   halalRestaurants: [
     { name: "Naz's Halal Food", closest: true, distance: "~3–5 mi (Germantown) — CLOSEST!", locations: ["13025 Wisteria Dr, Germantown, MD", "522 N Frederick Ave, Gaithersburg, MD", "1040 Rockville Pike, Rockville, MD", "11209 New Hampshire Ave, Silver Spring, MD"], website: "nazshalal.com" },
-    { name: "Miyaji Kebab & Rumali Rolls", closest: true, distance: "~5 mi", locations: ["674 Quince Orchard Rd, Gaithersburg, MD 20878"], website: "yelp.com (search miyaji-kebab)" },
+    { name: "Miyaji Kebab & Rumali Rolls", closest: true, distance: "~5 mi", locations: ["674 Quince Orchard Rd, Gaithersburg, MD 20878"], website: "https://www.yelp.com/search?find_desc=Miyaji+Kebab&find_loc=Gaithersburg%2C+MD" },
     { name: "Kabob N Karahi", closest: true, distance: "~5 mi", locations: ["18232 Flower Hill Way, Gaithersburg, MD 20879"], website: "kabobnkarahi.com" },
     { name: "Mezeh", closest: true, distance: "~3–10 mi", locations: ["19810 Century Blvd, Germantown, MD 20874", "262 Crown Park Ave, Gaithersburg, MD 20878", "11508 Schuylkill Rd, Rockville, MD 20852", "13645 Connecticut Ave, Aspen Hill, MD 20906"], website: "mezeh.com" },
     { name: "The Halal Guys", distance: "~10–15 mi", locations: ["891 Rockville Pike, Rockville, MD 20852", "4915 Elm St, Bethesda, MD 20814"], website: "thehalalguys.com" },
