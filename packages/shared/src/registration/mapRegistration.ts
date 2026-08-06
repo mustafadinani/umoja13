@@ -119,11 +119,6 @@ function parseGroup(value: unknown): Team["group"] | undefined {
   return undefined;
 }
 
-function parseSeed(value: unknown): number | undefined {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
-}
-
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
   captainProfileId?: string,
@@ -178,7 +173,6 @@ export function buildTeamFromRegistration(
     categoryId: resolveTeamCategoryId(team, catalog),
     color: appTeam?.color || colorForTeamId(team.id),
     group,
-    seed: parseSeed(team.seed),
     sponsorId: appTeam?.sponsorId,
     captainUserId: captainId,
     roster,
