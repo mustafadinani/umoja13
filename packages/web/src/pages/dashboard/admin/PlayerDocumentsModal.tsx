@@ -171,7 +171,12 @@ function Photo({
     <div style={{ flex: wide ? undefined : 1, width: wide ? "100%" : undefined, textAlign: "center", marginBottom: wide ? 16 : 0 }}>
       <div
         onClick={() => url && onExpand(url)}
-        style={{ height, borderRadius: 8, background: url ? `url(${url}) center/cover` : "#F1EFF5", cursor: url ? "zoom-in" : undefined }}
+        style={{
+          height, borderRadius: 8, background: "#F1EFF5",
+          backgroundImage: url ? `url(${url})` : undefined,
+          backgroundPosition: "center", backgroundSize: "contain", backgroundRepeat: "no-repeat",
+          cursor: url ? "zoom-in" : undefined,
+        }}
       />
       <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{label}</div>
     </div>
