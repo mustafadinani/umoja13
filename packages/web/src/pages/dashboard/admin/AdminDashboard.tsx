@@ -3,6 +3,7 @@ import { theme } from "../../../lib/theme";
 import { Pill } from "../../../components/ui";
 import { AllGamesTab } from "./AllGamesTab";
 import { TeamsAdminTab } from "./TeamsAdminTab";
+import { LiveDrawTab } from "./LiveDrawTab";
 import { CheckInsTab } from "./CheckInsTab";
 import { PlayersAdminTab } from "./PlayersAdminTab";
 import { ModerationOpsTab } from "./ModerationOpsTab";
@@ -16,10 +17,11 @@ import { PodsAdminTab } from "./PodsAdminTab";
 import { UsersAdminTab } from "./UsersAdminTab";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 
-type Tab = "games" | "teams" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods" | "users";
+type Tab = "games" | "teams" | "liveDraw" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods" | "users";
 const TABS: { id: Tab; label: string }[] = [
   { id: "games", label: "All Games" },
   { id: "teams", label: "Teams" },
+  { id: "liveDraw", label: "Live Draw" },
   { id: "players", label: "Players" },
   { id: "checkins", label: "Player Check-ins" },
   { id: "ops", label: "Moderation & Ops" },
@@ -47,6 +49,7 @@ export function AdminDashboard() {
       </div>
       {tab === "games" && <AllGamesTab />}
       {tab === "teams" && <TeamsAdminTab />}
+      {tab === "liveDraw" && <LiveDrawTab />}
       {tab === "players" && <PlayersAdminTab />}
       {tab === "checkins" && <CheckInsTab />}
       {tab === "ops" && <ModerationOpsTab />}

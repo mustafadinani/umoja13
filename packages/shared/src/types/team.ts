@@ -11,6 +11,8 @@ export interface Team {
   categoryId: string;
   color: string; // hex, used for avatar bg + schedule highlight
   group?: "A" | "B";
+  /** Draw pot (1 = top seed) set by an admin ahead of the Live Draw — lowest pot number draws first. Unset teams are treated as pot 1. */
+  seed?: number;
   sponsorId?: string;
   captainUserId?: string;
   roster: RosterEntry[];

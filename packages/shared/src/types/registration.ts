@@ -18,6 +18,8 @@ export interface RegisteredTeam {
   categoryId?: string;
   /** Optional pool/group assignment when present on the registration row. */
   group?: string;
+  /** Optional draw seed/pot (1 = top pot) set by an admin ahead of the Live Draw. */
+  seed?: number;
   teamCaptainName?: string;
   captainProfileId?: string;
   registeredByProfileId?: string;

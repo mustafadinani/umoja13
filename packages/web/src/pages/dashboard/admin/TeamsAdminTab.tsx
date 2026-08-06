@@ -122,7 +122,7 @@ export function TeamsAdminTab() {
   const loading = teamsLoading || playersLoading;
   const error = teamsError || playersError;
 
-  async function saveTeamFields(patch: { categoryId?: string; category?: string; group?: string | null }) {
+  async function saveTeamFields(patch: { categoryId?: string; category?: string; group?: string | null; seed?: number | null }) {
     if (!selectedTeam) return;
     setSaving(true);
     setSaveError(null);
@@ -224,8 +224,27 @@ export function TeamsAdminTab() {
               </Pill>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: theme.color.textMuted, lineHeight: 1.4 }}>
+          <div style={{ fontSize: 12, color: theme.color.textMuted, lineHeight: 1.4, marginBottom: 16 }}>
             Leave as &quot;No group&quot; for a flat Teams list on Standings. Set A/B only when pools are assigned.
+          </div>
+
+          <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Draw seed</label>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {([0, 1, 2, 3] as const).map((s) => (
+              <Pill
+                key={s || "none"}
+                active={(selectedTeam.seed ?? 0) === s}
+                onClick={() => {
+                  if (saving) return;
+                  void saveTeamFields({ seed: s || null });
+                }}
+              >
+                {s ? `Pot ${s}` : "Unseeded"}
+              </Pill>
+            ))}
+          </div>
+          <div style={{ fontSize: 12, color: theme.color.textMuted, lineHeight: 1.4 }}>
+            Live Draw pulls Pot 1 teams before Pot 2, and so on. Unseeded teams count as Pot 1.
           </div>
           {saveError && (
             <div style={{ color: theme.color.danger, fontSize: 13, marginTop: 10 }}>{saveError}</div>
