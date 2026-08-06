@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useUserChannel } from "../hooks/useData";
 import { sendUserMessage, askUmojaChannel } from "../lib/callables";
-import { Pill, PrimaryButton } from "./ui";
+import { PrimaryButton } from "./ui";
 
 type Target = "ai" | "organizer";
 
@@ -12,15 +12,20 @@ type Target = "ai" | "organizer";
  * The one merged thread: Ask Umoja (AI) and Message Organizers (human staff)
  * used to be two separate screens with two separate data stores. Both now
  * live in this same userChannels/{uid} doc — "ai" turns never notify staff,
- * "user"/"admin" turns work exactly as they did before. The compose bar's
- * two-pill toggle decides which one a given message goes to; it's declared
- * before sending, not a mode you switch into after the fact.
+ * "user"/"admin" turns work exactly as they did before.
+ *
+ * No mode toggle: the bot is simply the default. Reaching a person is one
+ * deliberate, always-visible button, not a switch you have to understand
+ * up front — pressing it flips this session over to "organizer" for good
+ * (no bouncing back to the bot mid-conversation), and a divider marks the
+ * exact point a human's first reply lands, so the thread explains itself
+ * on scroll-back for both the user and staff.
  */
 export function UserChannelPanel({ uid }: { uid: string }) {
   const { profile } = useAuth();
   const { data: channel } = useUserChannel(uid);
   const [draft, setDraft] = useState("");
-  const [manualTarget, setManualTarget] = useState<Target | null>(null);
+  const [escalated, setEscalated] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<Target | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -31,13 +36,9 @@ export function UserChannelPanel({ uid }: { uid: string }) {
   const canPost = isStaff || isOwner;
   const canUseAi = isOwner; // staff replying on someone else's thread always talks to the person, never the bot
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
+  const firstAdminIndex = messages.findIndex((m) => m.from === "admin");
 
-  // Always opens on the bot, every session, regardless of history — talking
-  // to a human is a deliberate opt-out someone reaches for when the bot
-  // isn't cutting it, not a state the app should infer and lock them into
-  // just because staff replied once. A manual switch still holds for the
-  // rest of this session (see the Pill onPress below).
-  const target: Target = canUseAi ? manualTarget ?? "ai" : "organizer";
+  const target: Target = canUseAi && !escalated ? "ai" : "organizer";
 
   async function send() {
     const text = draft.trim();
@@ -52,11 +53,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
         await sendUserMessage({ targetUid: uid, text });
       }
     } catch {
-      setError(
-        target === "ai"
-          ? "Ask Umoja didn't answer — try again, or switch to Ask an organizer above."
-          : "Couldn't send that — try again."
-      );
+      setError(target === "ai" ? "Ask Umoja didn't answer — try again, or tap Talk to an organizer below." : "Couldn't send that — try again.");
     } finally {
       setPendingTarget(null);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -74,19 +71,22 @@ export function UserChannelPanel({ uid }: { uid: string }) {
       >
         <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
           {isOwner
-            ? "Ask a question and Ask Umoja will answer — or switch to Ask an organizer any time. Organizers can see this whole conversation."
+            ? "Ask a question and Ask Umoja will answer right away — tap Talk to an organizer below any time you need a real person."
             : "Message the organizers directly — an admin or the commissioner will reply here."}
         </Text>
-        {messages.map((m) => (
-          <View key={m.id} style={[styles.bubble, bubbleStyle(m.from)]}>
-            {m.from !== "user" && (
-              <Text style={[styles.bubbleLabel, { color: m.from === "admin" ? "#fff" : theme.color.textMuted, opacity: m.from === "admin" ? 0.8 : 1 }]}>
-                {m.from === "admin" ? "Organizers" : "🤖 Ask Umoja"}
+        {messages.map((m, i) => (
+          <View key={m.id}>
+            {i === firstAdminIndex && <Text style={styles.divider}>— An organizer joined this conversation —</Text>}
+            <View style={[styles.bubble, bubbleStyle(m.from)]}>
+              {m.from !== "user" && (
+                <Text style={[styles.bubbleLabel, { color: m.from === "admin" ? "#fff" : theme.color.textMuted, opacity: m.from === "admin" ? 0.8 : 1 }]}>
+                  {m.from === "admin" ? "Organizers" : "🤖 Ask Umoja"}
+                </Text>
+              )}
+              <Text style={{ fontSize: 13.5, color: m.from === "admin" || m.from === "user" ? bubbleTextColor(m.from) : theme.color.text }}>
+                {m.text}
               </Text>
-            )}
-            <Text style={{ fontSize: 13.5, color: m.from === "admin" || m.from === "user" ? bubbleTextColor(m.from) : theme.color.text }}>
-              {m.text}
-            </Text>
+            </View>
           </View>
         ))}
         {messages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet — ask a question below.</Text>}
@@ -101,15 +101,17 @@ export function UserChannelPanel({ uid }: { uid: string }) {
       {canPost ? (
         <View style={styles.composeBar}>
           {canUseAi && (
-            <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
-              <Pill active={target === "ai"} onPress={() => setManualTarget("ai")}>🤖 Ask Umoja</Pill>
-              <Pill active={target === "organizer"} onPress={() => setManualTarget("organizer")}>🙋 Ask an organizer</Pill>
-            </View>
-          )}
-          {canUseAi && target === "organizer" && (
-            <Text style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 6 }}>
-              Your next message goes to a real organizer. They'll reply right here.
-            </Text>
+            escalated ? (
+              <Text style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 8 }}>
+                You're talking to an organizer now — they'll reply right here.
+              </Text>
+            ) : (
+              <TouchableOpacity onPress={() => setEscalated(true)} style={{ alignSelf: "center", marginBottom: 8 }}>
+                <View style={styles.escalateButton}>
+                  <Text style={styles.escalateButtonText}>🙋 Talk to an organizer</Text>
+                </View>
+              </TouchableOpacity>
+            )
           )}
           {error && <Text style={{ color: theme.color.danger, fontSize: 12, marginBottom: 6 }}>{error}</Text>}
           <View style={{ flexDirection: "row", gap: 8 }}>
@@ -121,6 +123,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
               placeholder={target === "organizer" ? "Message the organizers…" : "Ask a question…"}
               style={styles.input}
               onSubmitEditing={send}
+              returnKeyType="send"
             />
             <PrimaryButton
               disabled={!draft.trim() || pendingTarget === target}
@@ -154,6 +157,9 @@ function bubbleTextColor(from: "admin" | "user"): string {
 const styles = StyleSheet.create({
   bubble: { borderRadius: 12, padding: 10, maxWidth: "85%" },
   bubbleLabel: { fontSize: 11, fontWeight: "700", marginBottom: 2 },
+  divider: { textAlign: "center", fontSize: 11, fontWeight: "700", color: theme.color.textMuted, marginVertical: 6 },
   composeBar: { padding: 12, borderTopWidth: 1, borderTopColor: theme.color.border, backgroundColor: "#fff" },
   input: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
+  escalateButton: { backgroundColor: "#F1EFF5", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
+  escalateButtonText: { fontSize: 12.5, fontWeight: "700", color: theme.color.navy },
 });

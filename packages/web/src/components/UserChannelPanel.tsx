@@ -3,7 +3,7 @@ import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useUserChannel } from "../hooks/useData";
 import { sendUserMessage, askUmojaChannel } from "../lib/callables";
-import { PrimaryButton, Pill } from "./ui";
+import { PrimaryButton } from "./ui";
 
 type Target = "ai" | "organizer";
 
@@ -11,15 +11,20 @@ type Target = "ai" | "organizer";
  * The one merged thread: Ask Umoja (AI) and Message Organizers (human staff)
  * used to be two separate widgets with two separate data stores. Both now
  * live in this same userChannels/{uid} doc — "ai" turns never notify staff,
- * "user"/"admin" turns work exactly as they did before. The compose bar's
- * two-pill toggle decides which one a given message goes to; it's declared
- * before sending, not a mode you switch into after the fact.
+ * "user"/"admin" turns work exactly as they did before.
+ *
+ * No mode toggle: the bot is simply the default. Reaching a person is one
+ * deliberate, always-visible button, not a switch you have to understand
+ * up front — pressing it flips this session over to "organizer" for good
+ * (no bouncing back to the bot mid-conversation), and a divider marks the
+ * exact point a human's first reply lands, so the thread explains itself
+ * on scroll-back for both the user and staff.
  */
 export function UserChannelPanel({ uid }: { uid: string }) {
   const { profile } = useAuth();
   const { data: channel } = useUserChannel(uid);
   const [draft, setDraft] = useState("");
-  const [manualTarget, setManualTarget] = useState<Target | null>(null);
+  const [escalated, setEscalated] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<Target | null>(null);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -30,13 +35,9 @@ export function UserChannelPanel({ uid }: { uid: string }) {
   const canPost = isStaff || isOwner;
   const canUseAi = isOwner; // staff replying on someone else's thread always talks to the person, never the bot
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
+  const firstAdminIndex = messages.findIndex((m) => m.from === "admin");
 
-  // Always opens on the bot, every session, regardless of history — talking
-  // to a human is a deliberate opt-out someone reaches for when the bot
-  // isn't cutting it, not a state the app should infer and lock them into
-  // just because staff replied once. A manual switch still holds for the
-  // rest of this session (see the Pill onClick below).
-  const target: Target = canUseAi ? manualTarget ?? "ai" : "organizer";
+  const target: Target = canUseAi && !escalated ? "ai" : "organizer";
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -59,11 +60,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
         await sendUserMessage({ targetUid: uid, text });
       }
     } catch {
-      setError(
-        target === "ai"
-          ? "Ask Umoja didn't answer — try again, or switch to Ask an organizer above."
-          : "Couldn't send that — try again."
-      );
+      setError(target === "ai" ? "Ask Umoja didn't answer — try again, or click Talk to an organizer below." : "Couldn't send that — try again.");
     } finally {
       setPendingTarget(null);
     }
@@ -73,32 +70,38 @@ export function UserChannelPanel({ uid }: { uid: string }) {
     <div style={{ display: "flex", flexDirection: "column", height: "min(60vh, 520px)" }}>
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10, flexShrink: 0 }}>
         {isOwner
-          ? "Ask a question and Ask Umoja will answer — or switch to Ask an organizer any time. Organizers can see this whole conversation."
+          ? "Ask a question and Ask Umoja will answer right away — click Talk to an organizer below any time you need a real person."
           : isStaff
           ? "One-way channel between this user and the organizers."
           : "Message the organizers directly — an admin or the commissioner will reply here."}
       </div>
 
       <div ref={listRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, paddingRight: 4 }}>
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            style={{
-              alignSelf: m.from === "user" ? "flex-end" : "flex-start",
-              background: m.from === "admin" ? theme.color.navy : m.from === "ai" ? "#F1EFF5" : theme.color.purple,
-              color: m.from === "admin" || m.from === "user" ? "#fff" : theme.color.text,
-              borderRadius: 10,
-              padding: "8px 12px",
-              fontSize: 13.5,
-              maxWidth: "75%",
-            }}
-          >
-            {m.from !== "user" && (
-              <div style={{ fontSize: 11, fontWeight: 700, opacity: m.from === "admin" ? 0.8 : 1, color: m.from === "admin" ? "#fff" : theme.color.textMuted, marginBottom: 2 }}>
-                {m.from === "admin" ? "Organizers" : "🤖 Ask Umoja"}
+        {messages.map((m, i) => (
+          <div key={m.id} style={{ display: "flex", flexDirection: "column" }}>
+            {i === firstAdminIndex && (
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: theme.color.textMuted, margin: "6px 0" }}>
+                — An organizer joined this conversation —
               </div>
             )}
-            {m.text}
+            <div
+              style={{
+                alignSelf: m.from === "user" ? "flex-end" : "flex-start",
+                background: m.from === "admin" ? theme.color.navy : m.from === "ai" ? "#F1EFF5" : theme.color.purple,
+                color: m.from === "admin" || m.from === "user" ? "#fff" : theme.color.text,
+                borderRadius: 10,
+                padding: "8px 12px",
+                fontSize: 13.5,
+                maxWidth: "75%",
+              }}
+            >
+              {m.from !== "user" && (
+                <div style={{ fontSize: 11, fontWeight: 700, opacity: m.from === "admin" ? 0.8 : 1, color: m.from === "admin" ? "#fff" : theme.color.textMuted, marginBottom: 2 }}>
+                  {m.from === "admin" ? "Organizers" : "🤖 Ask Umoja"}
+                </div>
+              )}
+              {m.text}
+            </div>
           </div>
         ))}
         {messages.length === 0 && (
@@ -117,15 +120,20 @@ export function UserChannelPanel({ uid }: { uid: string }) {
       {canPost ? (
         <div style={{ flexShrink: 0, paddingTop: 10, marginTop: 8, borderTop: `1px solid ${theme.color.border}` }}>
           {canUseAi && (
-            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-              <Pill active={target === "ai"} onClick={() => setManualTarget("ai")}>🤖 Ask Umoja</Pill>
-              <Pill active={target === "organizer"} onClick={() => setManualTarget("organizer")}>🙋 Ask an organizer</Pill>
-            </div>
-          )}
-          {canUseAi && target === "organizer" && (
-            <div style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 6 }}>
-              Your next message goes to a real organizer. They'll reply right here.
-            </div>
+            escalated ? (
+              <div style={{ color: theme.color.textMuted, fontSize: 11.5, textAlign: "center", marginBottom: 8 }}>
+                You're talking to an organizer now — they'll reply right here.
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", marginBottom: 8 }}>
+                <button
+                  onClick={() => setEscalated(true)}
+                  style={{ background: "#F1EFF5", color: theme.color.navy, border: "none", borderRadius: 999, padding: "8px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+                >
+                  🙋 Talk to an organizer
+                </button>
+              </div>
+            )
           )}
           {error && <div style={{ color: theme.color.danger, fontSize: 12, marginBottom: 6 }}>{error}</div>}
           <div style={{ display: "flex", gap: 8 }}>
