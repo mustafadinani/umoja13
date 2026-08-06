@@ -21,7 +21,6 @@ export const COLLECTIONS = {
   huntCrews: "huntCrews",
   huntMissions: "huntMissions",
   huntSubmissions: "huntSubmissions",
-  chatEscalations: "chatEscalations",
   counters: "counters",
   uatScenarios: "uatScenarios",
   uatBugs: "uatBugs",

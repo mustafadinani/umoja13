@@ -6,7 +6,7 @@ export { adminReviewCheckIn } from "./http/adminReviewCheckIn.js";
 export { submitGameCard } from "./http/submitGameCard.js";
 export { fileIncident } from "./http/fileIncident.js";
 export { callItFinal } from "./http/callItFinal.js";
-export { askUmoja, escalateChat } from "./ai/chatAssistant.js";
+export { askUmojaChannel } from "./ai/chatAssistant.js";
 export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
 export { confirmIncidentPayment } from "./stripe/confirmIncidentPayment.js";
 export { createReportFeeIntent, filePaidReport } from "./stripe/createReportFeeIntent.js";

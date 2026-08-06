@@ -29,8 +29,8 @@ export function MessagesBell() {
         )}
       </button>
       {open && (
-        <Modal onClose={() => setOpen(false)} width={420}>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 12 }}>MESSAGE THE ORGANIZERS</div>
+        <Modal onClose={() => setOpen(false)} width={480}>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 12 }}>ASK UMOJA</div>
           <UserChannelPanel uid={user.uid} />
         </Modal>
       )}

@@ -298,15 +298,10 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']));
     }
 
-    // ---- notifications & chat escalations: written only by Cloud Functions ----
+    // ---- notifications: written only by Cloud Functions ----
     match /notifications/{id} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if false;
-    }
-    match /chatEscalations/{id} {
-      allow read: if isStaff() || (isSignedIn() && resource.data.userUid == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userUid == request.auth.uid;
-      allow update: if isStaff();
     }
 
     // ---- server-only sequence counters (case numbers, pass ids) ----

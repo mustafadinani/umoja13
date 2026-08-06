@@ -50,6 +50,13 @@ export function UserChannelsAdminTab() {
         {channels.map((c) => {
           const u = userById.get(c.id);
           const last = c.messages[c.messages.length - 1];
+          // Awaiting a real person: the most recent user message is newer
+          // than the most recent organizer reply (bot-only chatter doesn't
+          // count, so a long AI back-and-forth doesn't crowd out someone
+          // actually waiting on staff).
+          const lastUserAt = [...c.messages].reverse().find((m) => m.from === "user")?.createdAt ?? 0;
+          const lastAdminAt = [...c.messages].reverse().find((m) => m.from === "admin")?.createdAt ?? 0;
+          const awaitingOrganizer = lastUserAt > lastAdminAt;
           return (
             <Card
               key={c.id}
@@ -57,8 +64,19 @@ export function UserChannelsAdminTab() {
               style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", flexWrap: "wrap", gap: 8 }}
             >
               <div style={{ minWidth: 120 }}>
-                <div style={{ fontWeight: 700, fontSize: 13.5 }}>{u?.displayName ?? c.id}</div>
-                {last && <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{last.text}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{u?.displayName ?? c.id}</div>
+                  {awaitingOrganizer && (
+                    <span style={{ fontSize: 10.5, fontWeight: 800, color: theme.color.pink, background: "#FBE3EA", borderRadius: 999, padding: "2px 8px" }}>
+                      WAITING
+                    </span>
+                  )}
+                </div>
+                {last && (
+                  <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                    {last.from === "ai" ? `🤖 ${last.text}` : last.text}
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 11, color: theme.color.textMuted }}>{new Date(c.updatedAt).toLocaleDateString()}</div>
             </Card>

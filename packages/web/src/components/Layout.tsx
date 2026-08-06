@@ -7,7 +7,6 @@ import { useIsMobile } from "../hooks/useMediaQuery";
 import { useMyPods, usePodChannelsFor } from "../hooks/useData";
 import { NotificationsBell } from "./NotificationsBell";
 import { MessagesBell } from "./MessagesBell";
-import { AskUmojaWidget } from "./AskUmojaWidget";
 
 /** True if any pod the user belongs to has a message they haven't seen yet — powers the Pods nav dot. */
 function usePodsUnread(uid: string | undefined): boolean {
@@ -283,7 +282,6 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
       </div>
       {children}
-      <AskUmojaWidget />
     </div>
   );
 }

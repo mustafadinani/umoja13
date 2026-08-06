@@ -18,8 +18,7 @@ import { RefereeScreen } from "../screens/RefereeScreen";
 import { RefereeGameScreen } from "../screens/RefereeGameScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
-import { MessageOrganizersScreen } from "../screens/MessageOrganizersScreen";
-import { AskUmojaScreen } from "../screens/AskUmojaScreen";
+import { UmojaChatScreen } from "../screens/UmojaChatScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -31,8 +30,7 @@ export type RootStackParamList = {
   RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;
-  MessageOrganizers: undefined;
-  AskUmoja: undefined;
+  UmojaChat: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -94,8 +92,7 @@ export function RootNavigator() {
             <Stack.Screen name="RefereeGame" component={RefereeGameScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
-            <Stack.Screen name="MessageOrganizers" component={MessageOrganizersScreen} options={{ headerShown: true, title: "Message Organizers" }} />
-            <Stack.Screen name="AskUmoja" component={AskUmojaScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
+            <Stack.Screen name="UmojaChat" component={UmojaChatScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
           </>
         )}
       </Stack.Navigator>

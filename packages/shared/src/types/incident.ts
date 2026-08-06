@@ -28,8 +28,6 @@ export interface Incident {
   filedByRole: string; // e.g. "captain, Queens United"
   complaintType?: ComplaintType; // captain_complaint only
   gameId?: string;
-  /** fan_message only: links to the full chat transcript that led to this escalation. */
-  chatEscalationId?: string;
   text: string;
   status: IncidentStatus;
   thread: IncidentMessage[];

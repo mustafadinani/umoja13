@@ -7,6 +7,7 @@ import {
   SPONSOR_TIER_ORDER,
   SPONSOR_TIER_LABELS,
   CATEGORIES,
+  channelHasUnread,
   type Sponsor,
   type PlayerMembership,
 } from "@umoja/shared";
@@ -19,6 +20,7 @@ import {
   useSponsors,
   useTeams,
   useTeam,
+  useUserChannel,
   useMyVolunteerTasks,
   useMyVolunteerApplications,
 } from "../hooks/useData";
@@ -46,6 +48,8 @@ function firstName(name: string) {
 export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user, profile, signOut } = useAuth();
   const isReferee = profile?.roles?.includes("referee") ?? false;
+  const { data: userChannel } = useUserChannel(user?.uid);
+  const hasUnreadChat = channelHasUnread(userChannel?.messages, userChannel?.lastReadBy, user?.uid);
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
@@ -94,8 +98,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <LinearGradient colors={heroGradient} style={styles.hero}>
         <View style={styles.heroIcons}>
-          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("AskUmoja")}><Text style={styles.heroIcon}>🤖</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("MessageOrganizers")}><Text style={styles.heroIcon}>💬</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("UmojaChat")} style={{ position: "relative" }}>
+            <Text style={styles.heroIcon}>💬</Text>
+            {hasUnreadChat && <View style={styles.heroIconDot} />}
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Notifications")}><Text style={styles.heroIcon}>🔔</Text></TouchableOpacity>
         </View>
         <View style={styles.heroTop}>
@@ -430,6 +436,7 @@ const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20 },
   heroIcons: { flexDirection: "row", justifyContent: "flex-end", gap: 16, marginBottom: 10 },
   heroIcon: { fontSize: 18, opacity: 0.92 },
+  heroIconDot: { position: "absolute", top: -2, right: -4, width: 8, height: 8, borderRadius: 4, backgroundColor: theme.color.pink },
   heroTop: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
   heroLogo: { width: 24, height: 24 },
   heroKicker: { color: "#fff", opacity: 0.85, fontWeight: "700", fontSize: 11, letterSpacing: 1 },

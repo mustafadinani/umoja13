@@ -1,7 +1,5 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
-  ChatMessage,
-  ChatEscalationTopic,
   IncidentSource,
   ComplaintType,
   SponsorTier,
@@ -18,12 +16,6 @@ import type {
 import { app } from "./firebase";
 
 const functions = getFunctions(app, "us-central1");
-
-// The backend only reads role/text off each transcript entry (see
-// packages/backend/functions/src/ai/chatAssistant.ts) — callers don't carry
-// a message id/createdAt on in-flight chat state, so callables shouldn't
-// require the full ChatMessage shape.
-type TranscriptEntry = Pick<ChatMessage, "role" | "text">;
 
 export const adminReviewCheckIn = httpsCallable<
   { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore" },
@@ -52,15 +44,10 @@ export const callItFinal = httpsCallable<{ gameId: string }, { status: "final" }
   "callItFinal"
 );
 
-export const askUmoja = httpsCallable<
-  { transcript: TranscriptEntry[]; message: string },
-  { reply: string }
->(functions, "askUmoja");
-
-export const escalateChat = httpsCallable<
-  { transcript: TranscriptEntry[]; topic: ChatEscalationTopic; message: string },
-  { ticketNumber: string }
->(functions, "escalateChat");
+export const askUmojaChannel = httpsCallable<
+  { text: string },
+  { reply: string; message: UserChannelMessage }
+>(functions, "askUmojaChannel");
 
 export const createComplaintCheckout = httpsCallable<
   { incidentId: string; successUrl: string; cancelUrl: string },
