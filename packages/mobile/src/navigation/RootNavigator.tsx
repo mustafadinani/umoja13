@@ -9,7 +9,7 @@ import { Signup } from "../screens/Signup";
 import { HomeScreen } from "../screens/HomeScreen";
 import { GamesScreen } from "../screens/GamesScreen";
 import { MomentsScreen } from "../screens/MomentsScreen";
-import { MyUmojaScreen } from "../screens/MyUmojaScreen";
+import { HubScreen } from "../screens/HubScreen";
 import { GameScreen } from "../screens/GameScreen";
 import { TeamScreen } from "../screens/TeamScreen";
 import { CheckInScreen } from "../screens/CheckInScreen";
@@ -20,7 +20,6 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
 import { MessageOrganizersScreen } from "../screens/MessageOrganizersScreen";
 import { AskUmojaScreen } from "../screens/AskUmojaScreen";
-import { InfoScreen } from "../screens/InfoScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -34,7 +33,6 @@ export type RootStackParamList = {
   Complaint: undefined;
   MessageOrganizers: undefined;
   AskUmoja: undefined;
-  Info: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -69,7 +67,7 @@ function TabNavigator() {
         <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       )}
       <Tabs.Screen name="Moments" component={MomentsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🎬" focused={focused} /> }} />
-      <Tabs.Screen name="MyUmoja" component={MyUmojaScreen} options={{ title: "My Umoja", tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }} />
+      <Tabs.Screen name="Hub" component={HubScreen} options={{ title: "Hub", tabBarIcon: ({ focused }) => <TabIcon label="📋" focused={focused} /> }} />
     </Tabs.Navigator>
   );
 }
@@ -98,7 +96,6 @@ export function RootNavigator() {
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
             <Stack.Screen name="MessageOrganizers" component={MessageOrganizersScreen} options={{ headerShown: true, title: "Message Organizers" }} />
             <Stack.Screen name="AskUmoja" component={AskUmojaScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
-            <Stack.Screen name="Info" component={InfoScreen} options={{ headerShown: true, title: "Event Info" }} />
           </>
         )}
       </Stack.Navigator>

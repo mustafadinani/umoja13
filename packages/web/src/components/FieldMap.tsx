@@ -1,25 +1,15 @@
-import { FIELDS, type Game } from "@umoja/shared";
+import { FIELD_BOXES, type Game } from "@umoja/shared";
 import { theme } from "../lib/theme";
 
 /**
  * A clickable schematic of the tournament's fields — clicking a box sets/
- * clears the caller's field filter. Boxes are labeled with the app's own
- * FIELDS vocabulary, which matches Maryland SoccerPlex's own field numbering
- * (5, 9, 12-17, plus the Stadium Field) since that's what Umoja Games
- * actually plays on; this is a loosely stylized layout for visual flavor,
- * not a literal to-scale reproduction of the venue.
+ * clears the caller's field filter. Boxes come from the shared FIELD_BOXES
+ * layout (also used by mobile's View-based field map), labeled with the
+ * app's own FIELDS vocabulary, which matches Maryland SoccerPlex's own field
+ * numbering (5, 9, 12-17, plus the Stadium Field) since that's what Umoja
+ * Games actually plays on; this is a loosely stylized layout for visual
+ * flavor, not a literal to-scale reproduction of the venue.
  */
-const FIELD_BOXES: { label: (typeof FIELDS)[number]; x: number; y: number; w: number; h: number }[] = [
-  { label: "Field 5", x: 16, y: 14, w: 66, h: 48 },
-  { label: "Field 9", x: 92, y: 14, w: 66, h: 48 },
-  { label: "Field 12", x: 168, y: 14, w: 66, h: 48 },
-  { label: "Field 13", x: 16, y: 72, w: 66, h: 48 },
-  { label: "Field 14", x: 92, y: 72, w: 66, h: 48 },
-  { label: "Field 15", x: 168, y: 72, w: 66, h: 48 },
-  { label: "Field 16", x: 16, y: 130, w: 66, h: 48 },
-  { label: "Field 17", x: 92, y: 130, w: 66, h: 48 },
-  { label: "Stadium Field", x: 16, y: 196, w: 218, h: 52 },
-];
 
 export function FieldMap({
   games,

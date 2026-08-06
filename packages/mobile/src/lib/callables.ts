@@ -154,6 +154,13 @@ export const sendPodMessage = httpsCallable<
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
 
+export const listOpenPods = httpsCallable<
+  Record<string, never>,
+  { pods: { id: string; name: string; memberCount: number }[] }
+>(functions, "listOpenPods");
+
+export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
+
 export const setJerseyNumber = httpsCallable<
   { teamId: string; userId: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }

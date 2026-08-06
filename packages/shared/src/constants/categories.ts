@@ -67,6 +67,26 @@ export const SPECIAL_EVENTS = [
 // Stadium Field for marquee matches.
 export const FIELDS = ["Field 5", "Field 9", "Field 12", "Field 13", "Field 14", "Field 15", "Field 16", "Field 17", "Stadium Field"] as const;
 
+/**
+ * Loose schematic layout for the field map — shared by web's SVG rendering
+ * and mobile's View-based rendering, so both draw the exact same grid from
+ * one source. Coordinates are in a 250x260 unit box; stylized for visual
+ * flavor, not a literal to-scale reproduction of the venue.
+ */
+export const FIELD_BOXES: { label: (typeof FIELDS)[number]; x: number; y: number; w: number; h: number }[] = [
+  { label: "Field 5", x: 16, y: 14, w: 66, h: 48 },
+  { label: "Field 9", x: 92, y: 14, w: 66, h: 48 },
+  { label: "Field 12", x: 168, y: 14, w: 66, h: 48 },
+  { label: "Field 13", x: 16, y: 72, w: 66, h: 48 },
+  { label: "Field 14", x: 92, y: 72, w: 66, h: 48 },
+  { label: "Field 15", x: 168, y: 72, w: 66, h: 48 },
+  { label: "Field 16", x: 16, y: 130, w: 66, h: 48 },
+  { label: "Field 17", x: 92, y: 130, w: 66, h: 48 },
+  { label: "Stadium Field", x: 16, y: 196, w: 218, h: 52 },
+];
+export const FIELD_MAP_BOX_WIDTH = 250;
+export const FIELD_MAP_BOX_HEIGHT = 260;
+
 export const VENUE = {
   name: "Maryland SoccerPlex",
   address: "18031 Central Park Circle, Boyds, MD 20841",
