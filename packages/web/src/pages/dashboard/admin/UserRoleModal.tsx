@@ -5,8 +5,16 @@ import { setUserRole, updatePod } from "../../../lib/callables";
 import { ROLE_LABELS } from "../../../lib/roleLabels";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 
-/** Assign roles, pick which one drives their dashboard, and toggle pod membership — all for one user, in one save. */
-export function UserRoleModal({ user, pods, onClose }: { user: UserProfile; pods: Pod[]; onClose: () => void }) {
+type RoleSubject = Pick<UserProfile, "uid" | "email" | "displayName" | "roles" | "primaryRole">;
+
+/**
+ * Assign roles, pick which one drives their dashboard, and toggle pod
+ * membership — all for one user, in one save. `user` only needs to be a
+ * stub (roles: [], a placeholder primaryRole) when this is opened from "+ Add
+ * user" for someone who doesn't have a `users` doc yet — setUserRole creates
+ * it via merge, same as editing an existing one.
+ */
+export function UserRoleModal({ user, pods, onClose }: { user: RoleSubject; pods: Pod[]; onClose: () => void }) {
   const [roles, setRoles] = useState<Role[]>(user.roles);
   const [primaryRole, setPrimaryRole] = useState<Role>(user.primaryRole);
   const [podIds, setPodIds] = useState<Set<string>>(
@@ -58,7 +66,12 @@ export function UserRoleModal({ user, pods, onClose }: { user: UserProfile; pods
   return (
     <Modal onClose={onClose} width={440}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{user.displayName}</div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 20 }}>{user.email}</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 20 }}>{user.email || "No email on file"}</div>
+      {user.roles.length === 0 && (
+        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, fontWeight: 600, marginBottom: 16 }}>
+          This person hasn't opened the tournament app yet — saving here sets up their roles now, so they're already in place when they do.
+        </div>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Roles</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>

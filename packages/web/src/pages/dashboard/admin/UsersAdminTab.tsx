@@ -2,16 +2,29 @@ import { useState } from "react";
 import { type Role } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllUsers, usePods } from "../../../hooks/useData";
-import { Card } from "../../../components/ui";
+import { Card, PrimaryButton } from "../../../components/ui";
 import { ROLE_LABELS } from "../../../lib/roleLabels";
 import { UserRoleModal } from "./UserRoleModal";
+import { AddUserModal, type NewUserCandidate } from "./AddUserModal";
 
-/** Admin-only directory of umoja13-app users — assign roles and pod membership from one place. Only lists accounts that have signed into the tournament app (a `users` doc); pure Outreach/registration-only people don't appear here. */
+/**
+ * Admin-only directory of umoja13-app users — click a row to assign roles
+ * and pod membership from one place. Only lists accounts that have signed
+ * into the tournament app (a `users` doc). "+ Add user" covers the other
+ * common case — a real account (staff, a family manager) with no Outreach
+ * registration data — by email lookup; it deliberately can't find a
+ * registered player, since granting them a role here would create a sparse
+ * `users` doc that outranks (and would blank out) their real Outreach
+ * profile the next time they open the app. Registered players get roles the
+ * normal way: they sign in once, then show up in this list.
+ */
 export function UsersAdminTab() {
   const { data: users } = useAllUsers();
   const { data: pods } = usePods();
   const [search, setSearch] = useState("");
   const [openUid, setOpenUid] = useState<string | null>(null);
+  const [addUserOpen, setAddUserOpen] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserCandidate | null>(null);
 
   const term = search.trim().toLowerCase();
   const visible = users
@@ -25,12 +38,15 @@ export function UsersAdminTab() {
 
   return (
     <div>
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by name or email…"
-        style={{ width: "100%", maxWidth: 360, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
-      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email…"
+          style={{ flex: 1, minWidth: 220, maxWidth: 360, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+        />
+        <PrimaryButton onClick={() => setAddUserOpen(true)}>+ ADD USER</PrimaryButton>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {visible.map((u) => {
@@ -42,22 +58,25 @@ export function UsersAdminTab() {
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{u.displayName}</div>
                   <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{u.email}</div>
                 </div>
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 280 }}>
-                  {u.roles.map((r: Role) => (
-                    <span
-                      key={r}
-                      style={{
-                        background: r === u.primaryRole ? theme.color.navy : "#F1EFF5",
-                        color: r === u.primaryRole ? "#fff" : theme.color.text,
-                        borderRadius: 999,
-                        padding: "3px 9px",
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {ROLE_LABELS[r]}
-                    </span>
-                  ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 280 }}>
+                    {u.roles.map((r: Role) => (
+                      <span
+                        key={r}
+                        style={{
+                          background: r === u.primaryRole ? theme.color.navy : "#F1EFF5",
+                          color: r === u.primaryRole ? "#fff" : theme.color.text,
+                          borderRadius: 999,
+                          padding: "3px 9px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {ROLE_LABELS[r]}
+                      </span>
+                    ))}
+                  </div>
+                  <span style={{ color: theme.color.textMuted, fontSize: 15 }}>›</span>
                 </div>
               </div>
               {userPods.length > 0 && (
@@ -72,6 +91,24 @@ export function UsersAdminTab() {
       </div>
 
       {openUser && <UserRoleModal user={openUser} pods={pods} onClose={() => setOpenUid(null)} />}
+
+      {addUserOpen && (
+        <AddUserModal
+          onPick={(candidate) => {
+            setAddUserOpen(false);
+            setNewUser(candidate);
+          }}
+          onClose={() => setAddUserOpen(false)}
+        />
+      )}
+
+      {newUser && (
+        <UserRoleModal
+          user={{ uid: newUser.uid, displayName: newUser.displayName, email: newUser.email, roles: [], primaryRole: "fan" }}
+          pods={pods}
+          onClose={() => setNewUser(null)}
+        />
+      )}
     </div>
   );
 }
