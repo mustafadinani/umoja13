@@ -1,0 +1,83 @@
+{
+  "project_info": {
+    "project_number": "831522312134",
+    "firebase_url": "https://umoja-app.firebaseio.com",
+    "project_id": "umoja-app",
+    "storage_bucket": "umoja-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:831522312134:android:147ab93fd4231a0911acc7",
+        "android_client_info": {
+          "package_name": "com.umojaoutreach.umoja13"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "831522312134-3df1i2l1fv1fjm3unrgq5rcgr1gg56ag.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJbHBn5ZzNN3b4aOs-sNyt_xQPauAp5vw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "831522312134-3df1i2l1fv1fjm3unrgq5rcgr1gg56ag.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "831522312134-4dn2sad67naai2ulhshe6qo5t6ik9d57.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "org.umojaoutreach.umojaApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:831522312134:android:fc434e085a78c54611acc7",
+        "android_client_info": {
+          "package_name": "org.umojaoutreach.umoja_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "831522312134-3df1i2l1fv1fjm3unrgq5rcgr1gg56ag.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJbHBn5ZzNN3b4aOs-sNyt_xQPauAp5vw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "831522312134-3df1i2l1fv1fjm3unrgq5rcgr1gg56ag.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "831522312134-4dn2sad67naai2ulhshe6qo5t6ik9d57.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "org.umojaoutreach.umojaApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

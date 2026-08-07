@@ -224,6 +224,17 @@ service cloud.firestore {
       allow update: if isStaff();
     }
 
+    // ---- Account deletion requests (Apple 5.1.1(v)) ----
+    // Signed-in users file a request tagged with their own uid. Staff read /
+    // process; clients cannot update or delete their own request.
+    match /accountDelete/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update, delete: if isStaff();
+    }
+
     // ---- Sponsorship orders (real $ tiers via Stripe Checkout) ----
     // Created only by the createSponsorshipCheckout Cloud Function (Admin SDK,
     // bypasses rules) and flipped to "paid" only by the Stripe webhook — no

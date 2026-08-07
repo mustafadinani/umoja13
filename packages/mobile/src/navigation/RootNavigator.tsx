@@ -18,6 +18,7 @@ import { RefereeScreen } from "../screens/RefereeScreen";
 import { RefereeGameScreen } from "../screens/RefereeGameScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
+import { AccountDeleteScreen } from "../screens/AccountDeleteScreen";
 import { UmojaChatScreen } from "../screens/UmojaChatScreen";
 
 export type RootStackParamList = {
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;
+  AccountDelete: undefined;
   UmojaChat: undefined;
 };
 
@@ -92,6 +94,7 @@ export function RootNavigator() {
             <Stack.Screen name="RefereeGame" component={RefereeGameScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
+            <Stack.Screen name="AccountDelete" component={AccountDeleteScreen} options={{ headerShown: true, title: "Delete Account" }} />
             <Stack.Screen name="UmojaChat" component={UmojaChatScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
           </>
         )}

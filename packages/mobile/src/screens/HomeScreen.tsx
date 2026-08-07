@@ -309,6 +309,9 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         <TouchableOpacity onPress={() => signOut()} style={{ marginTop: 12 }}>
           <Text style={styles.footerSignOut}>Sign out</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("AccountDelete")} style={{ marginTop: 16 }}>
+          <Text style={styles.footerLink}>Delete Account</Text>
+        </TouchableOpacity>
       </View>
 
       <AnnouncementDetailModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />

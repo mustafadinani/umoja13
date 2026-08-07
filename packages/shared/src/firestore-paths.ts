@@ -37,6 +37,8 @@ export const COLLECTIONS = {
   pods: "pods",
   podChannels: "podChannels",
   podTasks: "podTasks",
+  /** Account deletion requests (Apple Guideline 5.1.1(v)). Staff process; not auto-delete. */
+  accountDelete: "accountDelete",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

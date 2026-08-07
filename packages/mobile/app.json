@@ -15,6 +15,7 @@
     },
     "android": {
       "package": "com.umojaoutreach.umoja13",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
