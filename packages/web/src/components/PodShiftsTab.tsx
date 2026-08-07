@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type VolunteerTask } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, compareTaskTimes, type VolunteerTask } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
@@ -74,7 +74,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
   const canAdd = isStaff || isPodMember;
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
-  const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedShifts = [...shifts].sort((a, b) => compareTaskTimes(a.time, b.time));
   const openShift = sortedShifts.find((t) => t.id === openShiftId) ?? null;
 
   return (

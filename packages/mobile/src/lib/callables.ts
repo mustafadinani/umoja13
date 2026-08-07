@@ -11,6 +11,7 @@ import type {
   VolunteerTaskMessage,
   PodChannelMessage,
   PodTaskMessage,
+  Pod,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -152,6 +153,32 @@ export const listOpenPods = httpsCallable<
 >(functions, "listOpenPods");
 
 export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
+
+/** Staff-only full roster replace — also used from mobile to remove a member (staff can't self-serve-recruit-only like a volunteer pod member can). */
+export const updatePod = httpsCallable<
+  { podId: string; name?: string; fields?: string[]; memberUids?: string[]; visibility?: Pod["visibility"] },
+  { ok: true }
+>(functions, "updatePod");
+
+export const getPodMemberNames = httpsCallable<
+  { podId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getPodMemberNames");
+
+export const getRecruitableVolunteers = httpsCallable<
+  { podId: string },
+  { candidates: { uid: string; displayName: string }[] }
+>(functions, "getRecruitableVolunteers");
+
+export const addPodVolunteer = httpsCallable<{ podId: string; uidToAdd: string }, { ok: true }>(
+  functions,
+  "addPodVolunteer"
+);
+
+export const lookupUserByEmail = httpsCallable<
+  { email: string },
+  { user: { uid: string; email: string; displayName: string } | null }
+>(functions, "lookupUserByEmail");
 
 export const setJerseyNumber = httpsCallable<
   { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },

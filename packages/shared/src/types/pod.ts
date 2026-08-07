@@ -7,6 +7,9 @@
  * Membership (memberUids) is an explicit admin-curated roster, mirroring
  * teams.rosterUids rather than being derived from role or game assignment.
  */
+/** Who can join a pod on their own. Missing/undefined behaves as "open" — every pod created before this field existed stays self-joinable. */
+export type PodVisibility = "open" | "closed";
+
 export interface Pod {
   id: string;
   name: string;
@@ -15,11 +18,18 @@ export interface Pod {
   memberUids: string[];
   /** The one undeletable default pod every admin/commissioner/referee/volunteer is auto-added to on approval, so nobody is without a channel before pods are set up. */
   isGeneral?: boolean;
+  /** "open" (default): any pod-eligible user can self-join via listOpenPods/joinPod. "closed": invite-only, staff must add members directly — never listed as open to join. */
+  visibility?: PodVisibility;
   createdAt: number;
   updatedAt: number;
 }
 
 export const GENERAL_POD_ID = "general";
+
+/** Defaults to open — a pod created before `visibility` existed, or with no explicit setting, stays self-joinable. */
+export function isPodOpen(pod: Pick<Pod, "visibility">): boolean {
+  return pod.visibility !== "closed";
+}
 
 export interface PodChannelMessage {
   id: string;

@@ -20,6 +20,10 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
 import { AccountDeleteScreen } from "../screens/AccountDeleteScreen";
 import { UmojaChatScreen } from "../screens/UmojaChatScreen";
+import { PodsListScreen } from "../screens/PodsListScreen";
+import { PodDetailScreen } from "../screens/PodDetailScreen";
+import { PodMembersScreen } from "../screens/PodMembersScreen";
+import { HubInfoScreen, HubTravelScreen, HubLocalScreen, HubMuslimScreen } from "../screens/HubExperienceScreens";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -33,6 +37,13 @@ export type RootStackParamList = {
   Complaint: undefined;
   AccountDelete: undefined;
   UmojaChat: undefined;
+  Pods: undefined;
+  PodDetail: { podId: string };
+  PodMembers: { podId: string };
+  HubInfo: undefined;
+  HubTravel: undefined;
+  HubLocal: undefined;
+  HubMuslim: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -96,6 +107,13 @@ export function RootNavigator() {
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
             <Stack.Screen name="AccountDelete" component={AccountDeleteScreen} options={{ headerShown: true, title: "Delete Account" }} />
             <Stack.Screen name="UmojaChat" component={UmojaChatScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
+            <Stack.Screen name="Pods" component={PodsListScreen} options={{ headerShown: true, title: "Pods" }} />
+            <Stack.Screen name="PodDetail" component={PodDetailScreen} options={{ headerShown: true, title: "" }} />
+            <Stack.Screen name="PodMembers" component={PodMembersScreen} options={{ headerShown: true, title: "" }} />
+            <Stack.Screen name="HubInfo" component={HubInfoScreen} options={{ headerShown: true, title: "Info" }} />
+            <Stack.Screen name="HubTravel" component={HubTravelScreen} options={{ headerShown: true, title: "Travel" }} />
+            <Stack.Screen name="HubLocal" component={HubLocalScreen} options={{ headerShown: true, title: "Local" }} />
+            <Stack.Screen name="HubMuslim" component={HubMuslimScreen} options={{ headerShown: true, title: "Muslim Guide" }} />
           </>
         )}
       </Stack.Navigator>

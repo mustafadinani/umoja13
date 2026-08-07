@@ -165,12 +165,12 @@ export const sendPodTaskMessage = httpsCallable<
 >(functions, "sendPodTaskMessage");
 
 export const createPod = httpsCallable<
-  { name: string; fields: string[]; memberUids: string[] },
+  { name: string; fields: string[]; memberUids: string[]; visibility?: Pod["visibility"] },
   { pod: Pod }
 >(functions, "createPod");
 
 export const updatePod = httpsCallable<
-  { podId: string; name?: string; fields?: string[]; memberUids?: string[] },
+  { podId: string; name?: string; fields?: string[]; memberUids?: string[]; visibility?: Pod["visibility"] },
   { ok: true }
 >(functions, "updatePod");
 

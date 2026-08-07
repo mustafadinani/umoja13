@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Pod } from "@umoja/shared";
+import { isPodOpen, type Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { colorForSeed } from "../../../lib/podColors";
 import { useAllUsers, usePodChannelsFor, usePods } from "../../../hooks/useData";
@@ -122,6 +122,17 @@ export function PodsAdminTab() {
                       ) : (
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, background: theme.color.bg, borderRadius: 999, padding: "2px 8px" }}>
                           No fields assigned
+                        </span>
+                      )}
+                      {!selected.isGeneral && (
+                        <span
+                          style={{
+                            fontSize: 10.5, fontWeight: 700, borderRadius: 999, padding: "2px 8px",
+                            color: isPodOpen(selected) ? theme.color.success : theme.color.textMuted,
+                            background: isPodOpen(selected) ? theme.color.successBg : theme.color.bg,
+                          }}
+                        >
+                          {isPodOpen(selected) ? "🌐 Open" : "🔒 Closed"}
                         </span>
                       )}
                     </div>

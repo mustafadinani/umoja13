@@ -6,6 +6,7 @@ import {
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
+  isPodOpen,
   type Pod,
   type RegisteredPlayer,
 } from "@umoja/shared";
@@ -25,13 +26,14 @@ interface CreatePodRequest {
   name: string;
   fields: string[];
   memberUids: string[];
+  visibility?: Pod["visibility"];
 }
 
 /** Staff-only: creates a new pod and notifies anyone added to it right away. */
 export const createPod = onCall<CreatePodRequest>(async (request) => {
   await requireStaff(request.auth?.uid);
 
-  const { name, fields, memberUids } = request.data;
+  const { name, fields, memberUids, visibility } = request.data;
   if (!name?.trim()) throw new HttpsError("invalid-argument", "Pod name is required.");
 
   const now = Date.now();
@@ -41,6 +43,7 @@ export const createPod = onCall<CreatePodRequest>(async (request) => {
     name: name.trim(),
     fields: fields ?? [],
     memberUids: memberUids ?? [],
+    visibility: visibility ?? "open",
     createdAt: now,
     updatedAt: now,
   };
@@ -58,13 +61,14 @@ interface UpdatePodRequest {
   name?: string;
   fields?: string[];
   memberUids?: string[];
+  visibility?: Pod["visibility"];
 }
 
 /** Staff-only: renames a pod, changes its field coverage, or edits its roster. Notifies any newly-added members. */
 export const updatePod = onCall<UpdatePodRequest>(async (request) => {
   await requireStaff(request.auth?.uid);
 
-  const { podId, name, fields, memberUids } = request.data;
+  const { podId, name, fields, memberUids, visibility } = request.data;
   if (!podId) throw new HttpsError("invalid-argument", "podId is required.");
 
   const ref = db.collection(COLLECTIONS.pods).doc(podId);
@@ -76,6 +80,7 @@ export const updatePod = onCall<UpdatePodRequest>(async (request) => {
   if (name?.trim()) update.name = name.trim();
   if (fields) update.fields = fields;
   if (memberUids) update.memberUids = memberUids;
+  if (visibility) update.visibility = visibility;
 
   await ref.set(update, { merge: true });
 
@@ -291,10 +296,12 @@ interface ListOpenPodsResponse {
 }
 
 /**
- * Pods a pod-eligible user isn't a member of yet, so they can browse and
- * self-enroll instead of waiting for an admin or an existing member to add
- * them. Uses the Admin SDK so this doesn't need a Firestore rule change —
- * membership itself stays exactly as protected as it already is.
+ * Pods a pod-eligible user isn't a member of yet AND that are marked open, so
+ * they can browse and self-enroll instead of waiting for an admin or an
+ * existing member to add them. Closed pods (invite-only) never appear here —
+ * staff must add those members directly. Uses the Admin SDK so this doesn't
+ * need a Firestore rule change — membership itself stays exactly as
+ * protected as it already is.
  */
 export const listOpenPods = onCall(async (request): Promise<ListOpenPodsResponse> => {
   const uid = request.auth?.uid;
@@ -302,11 +309,9 @@ export const listOpenPods = onCall(async (request): Promise<ListOpenPodsResponse
 
   const podsSnap = await db.collection(COLLECTIONS.pods).get();
   const pods = podsSnap.docs
-    .filter((d) => !(d.data() as Pod).memberUids.includes(uid!))
-    .map((d) => {
-      const pod = d.data() as Pod;
-      return { id: d.id, name: pod.name, memberCount: pod.memberUids.length };
-    });
+    .map((d) => d.data() as Pod)
+    .filter((pod) => isPodOpen(pod) && !pod.memberUids.includes(uid!))
+    .map((pod) => ({ id: pod.id, name: pod.name, memberCount: pod.memberUids.length }));
   return { pods };
 });
 
@@ -327,6 +332,7 @@ export const joinPod = onCall<JoinPodRequest>(async (request) => {
   if (!snap.exists) throw new HttpsError("not-found", "Pod not found.");
   const pod = snap.data() as Pod;
   if (pod.memberUids.includes(uid!)) return { ok: true };
+  if (!isPodOpen(pod)) throw new HttpsError("permission-denied", "This pod is invite-only — ask an organizer to add you.");
 
   await ref.update({ memberUids: FieldValue.arrayUnion(uid), updatedAt: Date.now() });
   return { ok: true };

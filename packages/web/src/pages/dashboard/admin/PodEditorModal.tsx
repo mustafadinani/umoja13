@@ -23,6 +23,7 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
   const [name, setName] = useState(pod?.name ?? "");
   const [fields, setFields] = useState<string[]>(pod?.fields ?? []);
   const [memberUids, setMemberUids] = useState<string[]>(pod?.memberUids ?? []);
+  const [visibility, setVisibility] = useState<"open" | "closed">(pod?.visibility === "closed" ? "closed" : "open");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,9 +49,9 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
     setError(null);
     try {
       if (pod) {
-        await updatePod({ podId: pod.id, name, fields, memberUids });
+        await updatePod({ podId: pod.id, name, fields, memberUids, visibility });
       } else {
-        await createPod({ name, fields, memberUids });
+        await createPod({ name, fields, memberUids, visibility });
       }
       onClose();
     } catch (e) {
@@ -80,6 +81,32 @@ export function PodEditorModal({ pod, onClose }: { pod?: Pod; onClose: () => voi
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         {FIELDS.map((f) => (
           <Pill key={f} active={fields.includes(f)} onClick={() => toggleField(f)}>{f}</Pill>
+        ))}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Who can join</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+        {(
+          [
+            { value: "open" as const, title: "🌐 Open pod", desc: "Any volunteer or referee can self-join from \"Open Pods\" on their Hub — no invite needed." },
+            { value: "closed" as const, title: "🔒 Closed pod", desc: "Invite-only — only staff can add members via \"+ Add People.\" Won't appear in anyone's self-join list." },
+          ]
+        ).map((opt) => (
+          <div
+            key={opt.value}
+            onClick={() => setVisibility(opt.value)}
+            style={{
+              display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: theme.radius.sm,
+              border: `1.5px solid ${visibility === opt.value ? theme.color.purple : theme.color.border}`,
+              background: visibility === opt.value ? "#F6EEFC" : "none", cursor: "pointer",
+            }}
+          >
+            <input type="radio" checked={visibility === opt.value} onChange={() => setVisibility(opt.value)} style={{ marginTop: 3 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{opt.title}</div>
+              <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>{opt.desc}</div>
+            </div>
+          </div>
         ))}
       </div>
 

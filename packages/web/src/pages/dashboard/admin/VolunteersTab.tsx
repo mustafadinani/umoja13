@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { VolunteerApplication } from "@umoja/shared";
+import { compareTaskTimes, type VolunteerApplication } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { colorForSeed } from "../../../lib/podColors";
 import { useVolunteers, useVolunteerApplications, useVolunteerTasks } from "../../../hooks/useData";
@@ -17,7 +17,7 @@ export function VolunteersTab() {
 
   const pending = applications.filter((a) => a.status === "pending");
   const attention = tasks.filter((t) => t.cantMake);
-  const sortedTasks = [...tasks].sort((a, b) => a.time.localeCompare(b.time));
+  const sortedTasks = [...tasks].sort((a, b) => compareTaskTimes(a.time, b.time));
   const sortedVolunteers = [...volunteers].sort((a, b) => a.displayName.localeCompare(b.displayName));
   const visibleVolunteers = showAllVolunteers ? sortedVolunteers : sortedVolunteers.slice(0, 8);
 

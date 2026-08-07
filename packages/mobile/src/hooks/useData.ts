@@ -53,6 +53,7 @@ export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(CO
 export const useUserChannel = (uid: string | undefined) => useDocument<UserChannel>(COLLECTIONS.userChannels, uid);
 
 export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
+export const usePod = (podId: string | undefined) => useDocument<Pod>(COLLECTIONS.pods, podId);
 export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
 
 /**
