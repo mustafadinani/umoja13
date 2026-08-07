@@ -92,6 +92,32 @@ export function Drawer({
   );
 }
 
+/** Initials circle for a person — the one avatar look used anywhere a name needs a face-shaped placeholder (pod rosters, member lists) without an actual photo on file. */
+export function Avatar({ name, size = 28, color }: { name: string; size?: number; color?: string }) {
+  const initials = name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color ?? theme.color.purple, alignItems: "center", justifyContent: "center" }}>
+      <Text style={{ color: "#fff", fontWeight: "700", fontSize: size * 0.4 }}>{initials}</Text>
+    </View>
+  );
+}
+
+/** Overlapping avatar row (a "who's here" glance) — caps how many render before collapsing the rest into a "+N" tail. */
+export function AvatarStack({ names, size = 20, colorFor, max = 4 }: { names: string[]; size?: number; colorFor?: (name: string) => string; max?: number }) {
+  const shown = names.slice(0, max);
+  const extra = names.length - shown.length;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {shown.map((n, i) => (
+        <View key={n + i} style={{ marginLeft: i === 0 ? 0 : -size * 0.3, borderWidth: 2, borderColor: "#fff", borderRadius: size / 2 }}>
+          <Avatar name={n} size={size} color={colorFor?.(n)} />
+        </View>
+      ))}
+      {extra > 0 && <Text style={{ fontSize: 10.5, color: theme.color.textMuted, marginLeft: 5 }}>+{extra}</Text>}
+    </View>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     scheduled: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Upcoming" },

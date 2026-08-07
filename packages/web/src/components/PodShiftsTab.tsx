@@ -6,7 +6,6 @@ import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useGamesByPod, usePod, useVolunteerTasksByPod } from "../hooks/useData";
 import { AddVolunteerTaskModal } from "../pages/dashboard/admin/AddVolunteerTaskModal";
-import { RecruitVolunteerModal } from "./RecruitVolunteerModal";
 import { VolunteerTaskDetailModal } from "./VolunteerTaskDetailModal";
 import { Card, Pill, PrimaryButton, StatusBadge } from "./ui";
 
@@ -69,24 +68,20 @@ export function PodShiftsTab({ podId }: { podId: string }) {
   const { data: games } = useGamesByPod(podId);
   const { data: shifts } = useVolunteerTasksByPod(podId);
   const [addShiftOpen, setAddShiftOpen] = useState(false);
-  const [recruitOpen, setRecruitOpen] = useState(false);
   const [openShiftId, setOpenShiftId] = useState<string | null>(null);
 
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const isPodMember = !!profile && !!pod?.memberUids.includes(profile.uid);
-  const isVolunteer = profile?.roles.includes("volunteer") ?? false;
   const canAdd = isStaff || isPodMember;
-  const canRecruit = isStaff || (isPodMember && isVolunteer);
   const sortedGames = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const sortedShifts = [...shifts].sort((a, b) => a.time.localeCompare(b.time));
   const openShift = sortedShifts.find((t) => t.id === openShiftId) ?? null;
 
   return (
     <div>
-      {(canAdd || canRecruit) && (
+      {canAdd && (
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {canAdd && <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>}
-          {canRecruit && <PrimaryButton onClick={() => setRecruitOpen(true)}>+ RECRUIT VOLUNTEER</PrimaryButton>}
+          <PrimaryButton onClick={() => setAddShiftOpen(true)}>+ ADD SHIFT</PrimaryButton>
         </div>
       )}
 
@@ -156,7 +151,6 @@ export function PodShiftsTab({ podId }: { podId: string }) {
       </div>
 
       {addShiftOpen && <AddVolunteerTaskModal initialPodId={podId} onClose={() => setAddShiftOpen(false)} />}
-      {recruitOpen && <RecruitVolunteerModal podId={podId} podName={pod?.name} onClose={() => setRecruitOpen(false)} />}
       {openShift && <VolunteerTaskDetailModal task={openShift} onClose={() => setOpenShiftId(null)} />}
     </div>
   );

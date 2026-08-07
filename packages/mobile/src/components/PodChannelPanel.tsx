@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
+import { colorForSeed } from "../lib/podColors";
 import { useAuth } from "../auth/AuthProvider";
 import { usePodChannel } from "../hooks/useData";
 import { sendPodMessage } from "../lib/callables";
-import { PrimaryButton } from "./ui";
+import { Avatar, PrimaryButton } from "./ui";
 
 /** Flat peer group chat for a Pod — messages align by "is this me," not "is this staff," since admin/commissioner/referee/volunteer all post as equals here. */
 export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: boolean }) {
@@ -32,18 +33,18 @@ export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: bo
         {messages.map((m) => {
           const isMe = m.authorUid === profile?.uid;
           return (
-            <View
-              key={m.id}
-              style={[styles.bubble, { alignSelf: isMe ? "flex-end" : "flex-start", backgroundColor: isMe ? theme.color.navy : "#F1EFF5" }]}
-            >
-              <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: isMe ? "#fff" : theme.color.textMuted }}>
-                {isMe ? "You" : m.authorName}
-              </Text>
-              <Text style={{ fontSize: 13.5, color: isMe ? "#fff" : theme.color.text }}>{m.text}</Text>
+            <View key={m.id} style={{ flexDirection: "row", gap: 8, alignSelf: isMe ? "flex-end" : "flex-start", maxWidth: "82%" }}>
+              {!isMe && <Avatar name={m.authorName} size={26} color={colorForSeed(m.authorUid)} />}
+              <View style={[styles.bubble, { backgroundColor: isMe ? theme.color.navy : "#F1EFF5" }]}>
+                <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: isMe ? "#fff" : theme.color.textMuted }}>
+                  {isMe ? "You" : m.authorName}
+                </Text>
+                <Text style={{ fontSize: 13.5, color: isMe ? "#fff" : theme.color.text }}>{m.text}</Text>
+              </View>
             </View>
           );
         })}
-        {messages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</Text>}
+        {messages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>This pod's quiet — say hello below.</Text>}
       </View>
 
       {canPost ? (
@@ -59,6 +60,6 @@ export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: bo
 }
 
 const styles = StyleSheet.create({
-  bubble: { borderRadius: 10, padding: 10, maxWidth: "80%" },
+  bubble: { borderRadius: 10, padding: 10, flexShrink: 1 },
   input: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
 });

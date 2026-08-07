@@ -13,8 +13,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Shared search-for-a-person logic behind every "add someone to a pod"
- * surface (the full pod editor, and the lighter-weight members widget on
- * the pod detail view) — three sources, since most real people in this org
+ * surface (the full pod editor, and the unified Add People modal on the pod
+ * detail view) — three sources, since most real people in this org
  * aren't `users` docs at all:
  *  - umoja13-app `users` (staff/volunteers who've used the tournament app)
  *  - Outreach `playersRegistered` (every real registered player already

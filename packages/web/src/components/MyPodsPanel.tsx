@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { theme } from "../lib/theme";
+import { colorForSeed } from "../lib/podColors";
 import { useAuth } from "../auth/AuthProvider";
 import { useMyPods } from "../hooks/useData";
 import { PodHubPanel } from "./PodHubPanel";
@@ -48,7 +49,7 @@ export function MyPodsPanel() {
                 cursor: "pointer",
               }}
             >
-              <span style={{ opacity: active ? 0.7 : 0.45 }}>#</span>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorForSeed(p.id), flexShrink: 0 }} />
               {p.name}
             </button>
           );

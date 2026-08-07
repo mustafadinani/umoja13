@@ -1,17 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useAllUsers, useGames, usePods } from "../../../hooks/useData";
-import { deletePod, ensurePodsSeeded, updatePod } from "../../../lib/callables";
-import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { colorForSeed } from "../../../lib/podColors";
+import { useAllUsers, usePodChannel, usePods } from "../../../hooks/useData";
+import { useAuth } from "../../../auth/AuthProvider";
+import { deletePod, ensurePodsSeeded } from "../../../lib/callables";
+import { AvatarStack } from "../../../components/ui";
 import { PodHubPanel } from "../../../components/PodHubPanel";
-import { PodMembersEditor } from "../../../components/PodMembersEditor";
 import { PodEditorModal } from "./PodEditorModal";
 
+/**
+ * Pods on the left (like a channel list), the selected pod's whole world —
+ * chat/shifts/tasks, plus who's on it — on the right. Replaced the old
+ * top-to-bottom stack of pod cards, which meant scrolling past every other
+ * pod to find the one you actually wanted.
+ */
 export function PodsAdminTab() {
   const { data: pods } = usePods();
   const { data: users } = useAllUsers();
-  const { data: games } = useGames();
+  const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Pod | null | "new">(null);
 
@@ -19,32 +26,15 @@ export function PodsAdminTab() {
     ensurePodsSeeded();
   }, []);
 
+  const nameByUid = useMemo(() => new Map(users.map((u) => [u.uid, u.displayName])), [users]);
+
   const sorted = useMemo(
     () => [...pods].sort((a, b) => (a.isGeneral ? -1 : b.isGeneral ? 1 : a.name.localeCompare(b.name))),
     [pods]
   );
+  const term = search.trim().toLowerCase();
+  const visible = sorted.filter((p) => p.name.toLowerCase().includes(term));
   const selected = sorted.find((p) => p.id === selectedId) ?? null;
-
-  const suggestions = useMemo(() => {
-    if (!selected || selected.fields.length === 0) return [];
-    const uids = new Set<string>();
-    for (const g of games) {
-      if (g.refereeUid && selected.fields.includes(g.field) && !selected.memberUids.includes(g.refereeUid)) {
-        uids.add(g.refereeUid);
-      }
-    }
-    return [...uids].map((uid) => users.find((u) => u.uid === uid)).filter((u): u is NonNullable<typeof u> => !!u);
-  }, [selected, games, users]);
-
-  async function addSuggested(uid: string) {
-    if (!selected) return;
-    await updatePod({ podId: selected.id, memberUids: [...selected.memberUids, uid] });
-  }
-
-  async function addAllSuggested() {
-    if (!selected) return;
-    await updatePod({ podId: selected.id, memberUids: [...selected.memberUids, ...suggestions.map((u) => u.uid)] });
-  }
 
   async function remove(podId: string) {
     if (!confirm("Delete this pod? Its chat history goes with it.")) return;
@@ -54,86 +44,141 @@ export function PodsAdminTab() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>PODS</div>
-        <PrimaryButton onClick={() => setEditing("new")}>+ NEW POD</PrimaryButton>
-      </div>
-      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 16 }}>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 4 }}>PODS</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 16, maxWidth: 640 }}>
         A staffing zone — chat and shared task visibility for whoever's assigned to it. Everyone approved as admin, commissioner, referee, or volunteer starts in General until sorted into a zone.
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-        {sorted.map((p) => (
-          <Card
-            key={p.id}
-            onClick={() => setSelectedId(p.id)}
+      <div className="pods-layout">
+        <div style={{ position: "sticky", top: 20 }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find a pod…"
+            style={{ width: "100%", padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13 }}
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: "60vh", overflowY: "auto", paddingRight: 2 }}>
+            {visible.map((p) => (
+              <PodRow
+                key={p.id}
+                pod={p}
+                color={colorForSeed(p.id)}
+                active={p.id === selectedId}
+                memberNames={p.memberUids.map((uid) => nameByUid.get(uid) ?? uid)}
+                onSelect={() => setSelectedId(p.id)}
+              />
+            ))}
+            {visible.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5, padding: "8px 4px" }}>No pods match "{search}".</div>}
+          </div>
+          <button
+            onClick={() => setEditing("new")}
             style={{
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: 8,
-              border: selectedId === p.id ? `1px solid ${theme.color.navy}` : `1px solid ${theme.color.border}`,
+              marginTop: 8, width: "100%", padding: 10, borderRadius: theme.radius.sm,
+              border: `1.5px dashed ${theme.color.purple}`, background: "none", color: theme.color.purple,
+              fontWeight: 700, fontSize: 12.5, cursor: "pointer",
             }}
           >
-            <div style={{ minWidth: 160 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>
-                {p.name} {p.isGeneral && <span style={{ color: theme.color.textMuted, fontWeight: 600, fontSize: 12 }}>· default</span>}
-              </div>
-              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                {p.fields.length > 0 ? p.fields.join(", ") : "No fields assigned"} · {p.memberUids.length} member{p.memberUids.length === 1 ? "" : "s"}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditing(p); }}
-                style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "6px 10px", fontSize: 12, fontWeight: 600 }}
-              >
-                Edit
-              </button>
-              {!p.isGeneral && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); remove(p.id); }}
-                  style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "6px 10px", fontSize: 12, fontWeight: 600, color: theme.color.danger }}
-                >
-                  Delete
-                </button>
-              )}
-            </div>
-          </Card>
-        ))}
-        {sorted.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Setting up pods…</div>}
-      </div>
+            + ADD POD
+          </button>
+        </div>
 
-      {selected && (
-        <>
-          {suggestions.length > 0 && (
-            <Card style={{ background: theme.color.warningBg, border: "none", marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, marginBottom: 8 }}>
-                {suggestions.length} referee{suggestions.length > 1 ? "s are" : " is"} scheduled on {selected.name}'s fields but not on the roster yet
+        <div style={{ minWidth: 0 }}>
+          {selected ? (
+            <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: "20px 22px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: 44, height: 44, borderRadius: 12, background: colorForSeed(selected.id),
+                      color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0,
+                    }}
+                  >
+                    {selected.isGeneral ? "🌐" : "📍"}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{selected.name}</div>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 4 }}>
+                      {selected.fields.length > 0 ? (
+                        selected.fields.map((f) => (
+                          <span key={f} style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, background: theme.color.bg, borderRadius: 999, padding: "2px 8px" }}>
+                            {f}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, background: theme.color.bg, borderRadius: 999, padding: "2px 8px" }}>
+                          No fields assigned
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => setEditing(selected)}
+                    style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 600, color: theme.color.textMuted, cursor: "pointer" }}
+                  >
+                    ✎ Edit
+                  </button>
+                  {!selected.isGeneral && (
+                    <button
+                      onClick={() => remove(selected.id)}
+                      style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 9, padding: "6px 10px", fontSize: 12, fontWeight: 600, color: theme.color.danger, cursor: "pointer" }}
+                    >
+                      🗑 Delete
+                    </button>
+                  )}
+                </div>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                {suggestions.map((u) => (
-                  <Pill key={u.uid} onClick={() => addSuggested(u.uid)}>+ {u.displayName}</Pill>
-                ))}
+
+              <div style={{ marginTop: 16 }}>
+                <PodHubPanel podId={selected.id} canPost />
               </div>
-              <PrimaryButton onClick={addAllSuggested}>ADD ALL</PrimaryButton>
-            </Card>
+            </div>
+          ) : (
+            <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 40, textAlign: "center", color: theme.color.textMuted, fontSize: 13.5 }}>
+              👈 Pick a pod on the left to see its chat, shifts, and tasks.
+            </div>
           )}
-
-          <Card>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>{selected.name}</div>
-            <PodHubPanel podId={selected.id} canPost />
-            <div style={{ borderTop: `1px solid ${theme.color.border}`, marginTop: 20, paddingTop: 16 }}>
-              <PodMembersEditor pod={selected} />
-            </div>
-          </Card>
-        </>
-      )}
+        </div>
+      </div>
 
       {editing === "new" && <PodEditorModal onClose={() => setEditing(null)} />}
       {editing && editing !== "new" && <PodEditorModal pod={editing} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+function PodRow({
+  pod, color, active, memberNames, onSelect,
+}: { pod: Pod; color: string; active: boolean; memberNames: string[]; onSelect: () => void }) {
+  const { user } = useAuth();
+  const { data: channel } = usePodChannel(pod.id);
+  const lastRead = user ? channel?.lastReadBy?.[user.uid] ?? 0 : 0;
+  const unread = (channel?.messages ?? []).some((m) => m.createdAt > lastRead && m.authorUid !== user?.uid);
+
+  return (
+    <button
+      onClick={onSelect}
+      style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 12,
+        border: `1px solid ${active ? theme.color.purple : "transparent"}`,
+        background: active ? "#F6EEFC" : "transparent",
+        width: "100%", textAlign: "left", cursor: "pointer",
+      }}
+    >
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+        {pod.isGeneral ? "🌐" : "📍"}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, color: active ? theme.color.purple : theme.color.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {pod.name} {pod.isGeneral && <span style={{ color: theme.color.textMuted, fontWeight: 600, fontSize: 11 }}>· default</span>}
+        </div>
+        <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+          <AvatarStack names={memberNames} size={18} max={3} colorFor={colorForSeed} />
+          <span>· {memberNames.length} {memberNames.length === 1 ? "person" : "people"}</span>
+        </div>
+      </div>
+      {unread && <span style={{ width: 8, height: 8, borderRadius: "50%", background: theme.color.pink, flexShrink: 0 }} />}
+    </button>
   );
 }

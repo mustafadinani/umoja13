@@ -12,6 +12,7 @@ import {
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { colorForSeed } from "../lib/podColors";
 import { useMyPods, useMyPodTasks } from "../hooks/useData";
 import { listOpenPods, joinPod } from "../lib/callables";
 import { openMaps, openPhone } from "../lib/links";
@@ -90,9 +91,15 @@ function MyPodsSection() {
     <View style={{ marginBottom: 10 }}>
       <Text style={styles.subLabel}>MY PODS</Text>
       {sorted.map((p) => (
-        <Card key={p.id} onPress={() => setOpenPod(p)} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{p.name}</Text>
-          <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>{p.memberUids.length} member{p.memberUids.length === 1 ? "" : "s"}</Text>
+        <Card key={p.id} onPress={() => setOpenPod(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colorForSeed(p.id), alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 16 }}>{p.isGeneral ? "🌐" : "📍"}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{p.name}</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 1 }}>{p.memberUids.length} {p.memberUids.length === 1 ? "person" : "people"}</Text>
+          </View>
+          <Text style={{ color: theme.color.textMuted, fontSize: 16 }}>›</Text>
         </Card>
       ))}
       {openPod && <PodHubModal pod={openPod} onClose={() => setOpenPod(null)} />}
@@ -177,10 +184,13 @@ function OpenPodsSection() {
       <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 8 }}>Join a pod you're not on yet — no approval needed.</Text>
       {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 8 }}>{error}</Text>}
       {pods.map((p) => (
-        <Card key={p.id} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <View>
+        <Card key={p.id} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: colorForSeed(p.id), alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontSize: 16 }}>📍</Text>
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{p.name}</Text>
-            <Text style={{ color: theme.color.textMuted, fontSize: 11.5, marginTop: 1 }}>{p.memberCount} member{p.memberCount === 1 ? "" : "s"}</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 11.5, marginTop: 1 }}>{p.memberCount} {p.memberCount === 1 ? "person" : "people"}</Text>
           </View>
           <PrimaryButton disabled={busyId === p.id} onPress={() => join(p.id)} style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
             {busyId === p.id ? "…" : "JOIN"}

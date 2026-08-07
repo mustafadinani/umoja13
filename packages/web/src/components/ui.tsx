@@ -26,6 +26,46 @@ export function Card({
   );
 }
 
+/** Initials circle for a person — the one avatar look used anywhere a name needs a face-shaped placeholder (pod rosters, member lists) without an actual photo on file. */
+export function Avatar({ name, size = 28, color }: { name: string; size?: number; color?: string }) {
+  const initials = name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: color ?? theme.color.purple,
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 700,
+        fontSize: size * 0.4,
+        flexShrink: 0,
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+/** Overlapping avatar row (a "who's here" glance) — caps how many render before collapsing the rest into a "+N" tail. */
+export function AvatarStack({ names, size = 22, colorFor, max = 4 }: { names: string[]; size?: number; colorFor?: (name: string) => string; max?: number }) {
+  const shown = names.slice(0, max);
+  const extra = names.length - shown.length;
+  return (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      {shown.map((n, i) => (
+        <div key={n + i} style={{ marginLeft: i === 0 ? 0 : -size * 0.3, border: "2px solid #fff", borderRadius: "50%" }}>
+          <Avatar name={n} size={size} color={colorFor?.(n)} />
+        </div>
+      ))}
+      {extra > 0 && <span style={{ fontSize: 10.5, color: theme.color.textMuted, marginLeft: 5 }}>+{extra}</span>}
+    </div>
+  );
+}
+
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
