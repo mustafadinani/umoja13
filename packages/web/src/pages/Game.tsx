@@ -6,7 +6,8 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGame, useMoments, useSponsors, useTeam } from "../hooks/useData";
-import { Card, CheckInStatusPill, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { RosterTile } from "../components/RosterTile";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { SponsorStrip } from "../components/SponsorStrip";
@@ -143,37 +144,35 @@ function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDo
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
-          <RosterRow key={p.userId} player={p} game={game} onClick={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
+          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onClick={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
         ))}
       </div>
     </div>
   );
 }
 
-function RosterRow({ player, game, onClick }: { player: RosterEntry; game: GameDoc; onClick: () => void }) {
+function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team: Team; game: GameDoc; onClick: () => void }) {
   const cardEvents = game.events.filter((e) => e.playerId === player.userId);
   const isMotm = game.motmUserId === player.userId;
+  // Gate check is keyed by the roster's own userId (the account uid, shared
+  // across siblings on one family account), not playerKey — a known gap,
+  // out of scope for this pass, so this can still misattribute Roster
+  // Check status within a colliding family exactly like check-in used to.
+  const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
+  const rosterChecked = clearedUids.includes(player.userId);
   return (
-    <div
+    <RosterTile
+      player={player}
       onClick={onClick}
-      style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4, cursor: "pointer" }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontFamily: theme.font.display, fontWeight: 800, color: theme.color.purple, fontSize: 13, fontVariantNumeric: "tabular-nums", width: 24, flexShrink: 0 }}>
-          #{player.jerseyNumber ?? "—"}
-        </span>
-        <span style={{ fontSize: 13.5, fontWeight: 600, flex: 1, minWidth: 0 }}>
-          {player.displayName}{player.isCaptain ? " (C)" : ""}
-        </span>
-        <span style={{ color: theme.color.textMuted, fontSize: 14 }}>›</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-        <CheckInStatusPill status={player.checkInStatus} />
-        {isMotm && <Pill bg={theme.color.warningBg} fg={theme.color.warning}>★ MOTM</Pill>}
-        {cardEvents.map((e) => (
-          <span key={e.id} style={{ fontSize: 14, lineHeight: 1 }}>{EVENT_ICON[e.type]}</span>
-        ))}
-      </div>
-    </div>
+      rosterChecked={rosterChecked}
+      trailing={
+        <>
+          {isMotm && <span style={{ fontSize: 11, fontWeight: 700, color: theme.color.warning }}>★ MOTM</span>}
+          {cardEvents.map((e) => (
+            <span key={e.id} style={{ fontSize: 12 }}>{EVENT_ICON[e.type]}</span>
+          ))}
+        </>
+      }
+    />
   );
 }

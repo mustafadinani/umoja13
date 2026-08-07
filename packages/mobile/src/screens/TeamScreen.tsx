@@ -2,13 +2,14 @@ import { useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, checkInStatusLabel, checkInStatusTone, TOURNAMENT_START_AT, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, TOURNAMENT_START_AT, type RosterEntry } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
 import { sendTeamMessage, setJerseyNumber } from "../lib/callables";
-import { Card, Pill, PrimaryButton, StatusBadge, VerifiedBadge } from "../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
+import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
@@ -89,61 +90,44 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <View style={styles.section}>
           {team.roster.map((p) => {
             const playerKey = p.playerKey ?? p.userId;
-            return (
-            <Card key={playerKey} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <View style={styles.avatarWrap}>
-                {p.selfieUrl ? (
-                  <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
+            const locked = Date.now() >= TOURNAMENT_START_AT;
+            if (isCaptain && editingUserId === playerKey) {
+              return (
+                <Card key={playerKey} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View style={styles.avatarWrap}>
+                    {p.selfieUrl ? (
+                      <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
+                    ) : (
+                      <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-                {p.checkInStatus === "approved" && <VerifiedBadge size={14} />}
-              </View>
-              {(() => {
-                const locked = Date.now() >= TOURNAMENT_START_AT;
-                if (isCaptain && editingUserId === playerKey) {
-                  return (
-                    <>
-                      <TextInput
-                        autoFocus
-                        value={draft}
-                        onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
-                        keyboardType="number-pad"
-                        style={styles.jerseyInput}
-                      />
-                      <TouchableOpacity onPress={() => saveNumber(playerKey)} style={styles.saveBtn}>
-                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => { setEditingUserId(null); setError(null); }}>
-                        <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
-                      </TouchableOpacity>
-                    </>
-                  );
-                }
-                return (
-                  <TouchableOpacity
-                    disabled={!isCaptain || locked}
-                    onPress={() => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
-                  >
-                    <Text style={{ fontWeight: "800", fontSize: 15, color: locked ? theme.color.textMuted : theme.color.purple, width: 40 }}>
-                      #{p.jerseyNumber ?? "—"}{locked ? " 🔒" : ""}
-                    </Text>
+                  <Text style={{ fontWeight: "600", flex: 1 }} numberOfLines={1}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
+                  <TextInput
+                    autoFocus
+                    value={draft}
+                    onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
+                    keyboardType="number-pad"
+                    style={styles.jerseyInput}
+                  />
+                  <TouchableOpacity onPress={() => saveNumber(playerKey)} style={styles.saveBtn}>
+                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
                   </TouchableOpacity>
-                );
-              })()}
-              <Text style={{ fontWeight: "600", flex: 1 }}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
-              <Text
-                style={{
-                  color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted }[checkInStatusTone(p.checkInStatus)],
-                  fontWeight: "700",
-                  fontSize: 12,
-                }}
-              >
-                {checkInStatusLabel(p.checkInStatus)}
-              </Text>
-            </Card>
+                  <TouchableOpacity onPress={() => { setEditingUserId(null); setError(null); }}>
+                    <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
+                  </TouchableOpacity>
+                </Card>
+              );
+            }
+            return (
+              <RosterTile
+                key={playerKey}
+                player={p}
+                onPress={() => setOpenPlayer(p)}
+                onJerseyPress={isCaptain ? () => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); } : undefined}
+                jerseyLocked={locked}
+              />
             );
           })}
           {team.roster.length === 0 && (

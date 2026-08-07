@@ -5,7 +5,8 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { CATEGORIES, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGame, useMoments, useTeam } from "../hooks/useData";
-import { StatusBadge, Card, CheckInStatusPill, Pill } from "../components/ui";
+import { StatusBadge, Card } from "../components/ui";
+import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 
 const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
@@ -86,32 +87,35 @@ function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDo
     <View style={{ flex: 1 }}>
       <Text style={styles.rosterTeamHeader}>{team.name.toUpperCase()}</Text>
       {team.roster.map((p) => (
-        <RosterRow key={p.userId} player={p} game={game} onPress={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
+        <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onPress={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
       ))}
     </View>
   );
 }
 
-function RosterRow({ player, game, onPress }: { player: RosterEntry; game: GameDoc; onPress: () => void }) {
+function RosterRow({ player, team, game, onPress }: { player: RosterEntry; team: Team; game: GameDoc; onPress: () => void }) {
   const cardEvents = game.events.filter((e) => e.playerId === player.userId);
   const isMotm = game.motmUserId === player.userId;
+  // Gate check is keyed by the roster's own userId (the account uid, shared
+  // across siblings on one family account), not playerKey — a known gap,
+  // out of scope for this pass, so this can still misattribute Roster
+  // Check status within a colliding family exactly like check-in used to.
+  const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
+  const rosterChecked = clearedUids.includes(player.userId);
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={styles.rosterRow}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={styles.rosterNum}>#{player.jerseyNumber ?? "—"}</Text>
-        <Text style={styles.rosterName} numberOfLines={1}>
-          {player.displayName}{player.isCaptain ? " (C)" : ""}
-        </Text>
-        <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>›</Text>
-      </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
-        <CheckInStatusPill status={player.checkInStatus} />
-        {isMotm && <Pill bg={theme.color.warningBg} fg={theme.color.warning}>★ MOTM</Pill>}
-        {cardEvents.map((e) => (
-          <Text key={e.id} style={{ fontSize: 14 }}>{EVENT_ICON[e.type]}</Text>
-        ))}
-      </View>
-    </TouchableOpacity>
+    <RosterTile
+      player={player}
+      onPress={onPress}
+      rosterChecked={rosterChecked}
+      trailing={
+        <>
+          {isMotm && <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.warning }}>★ MOTM</Text>}
+          {cardEvents.map((e) => (
+            <Text key={e.id} style={{ fontSize: 12 }}>{EVENT_ICON[e.type]}</Text>
+          ))}
+        </>
+      }
+    />
   );
 }
 
@@ -127,7 +131,4 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   sectionTitle: { fontWeight: "800", fontSize: 15, marginBottom: 8 },
   rosterTeamHeader: { fontSize: 10, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 },
-  rosterRow: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 10, padding: 8, marginBottom: 6 },
-  rosterNum: { fontWeight: "800", color: theme.color.purple, fontSize: 12, width: 22 },
-  rosterName: { fontSize: 12.5, fontWeight: "600", flex: 1 },
 });
