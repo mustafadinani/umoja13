@@ -66,12 +66,12 @@ export function RefereeGameConsole() {
   const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
-  async function toggleClear(side: "home" | "away", userId: string) {
+  async function toggleClear(side: "home" | "away", playerKey: string) {
     const field = side === "home" ? "gateCheck.homeClearedUids" : "gateCheck.awayClearedUids";
     const list = side === "home" ? homeCleared : awayCleared;
     if (!gameId) return;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [field]: list.includes(userId) ? arrayRemove(userId) : arrayUnion(userId),
+      [field]: list.includes(playerKey) ? arrayRemove(playerKey) : arrayUnion(playerKey),
     });
   }
 
@@ -94,11 +94,12 @@ export function RefereeGameConsole() {
   async function logEvent(player: RosterEntry, side: "home" | "away") {
     if (!gameId || !user || !eventPicker) return;
     const teamId = side === "home" ? g.homeTeamId : g.awayTeamId;
+    const playerKey = player.playerKey ?? player.userId;
     const event: GameEvent = {
-      id: `${Date.now()}-${player.userId}`,
+      id: `${Date.now()}-${playerKey}`,
       type: eventPicker.type,
       teamId,
-      playerId: player.userId,
+      playerId: playerKey,
       playerNumber: player.jerseyNumber ?? 0,
       minute: Math.min(90, 4 + g.events.length * 9),
       createdAt: Date.now(),
@@ -205,11 +206,14 @@ export function RefereeGameConsole() {
           <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
             <StepLabel n={3} title="MAN OF THE MATCH" />
             <div data-testid="motm-section" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {roster.map((p) => (
-                <Pill key={p.userId} active={game.motmUserId === p.userId} onClick={() => pickMotm(p.userId)}>
-                  #{p.jerseyNumber} {p.displayName}
-                </Pill>
-              ))}
+              {roster.map((p) => {
+                const playerKey = p.playerKey ?? p.userId;
+                return (
+                  <Pill key={playerKey} active={game.motmUserId === playerKey} onClick={() => pickMotm(playerKey)}>
+                    #{p.jerseyNumber} {p.displayName}
+                  </Pill>
+                );
+              })}
             </div>
           </div>
 
@@ -244,8 +248,8 @@ export function RefereeGameConsole() {
           player={idModalPlayer.player}
           teamName={idModalPlayer.side === "home" ? home.name : away.name}
           category={category}
-          cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.userId)}
-          onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.userId); setIdModalPlayer(null); }}
+          cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.playerKey ?? idModalPlayer.player.userId)}
+          onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.playerKey ?? idModalPlayer.player.userId); setIdModalPlayer(null); }}
           onClose={() => setIdModalPlayer(null)}
         />
       )}
@@ -317,9 +321,10 @@ function RosterColumn({
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {roster.map((p) => {
-          const tag = gateStatusTag(p, cleared.includes(p.userId));
+          const playerKey = p.playerKey ?? p.userId;
+          const tag = gateStatusTag(p, cleared.includes(playerKey));
           return (
-            <Card key={p.userId} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+            <Card key={playerKey} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
               <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>
               <span style={{ fontSize: 10.5, fontWeight: 800, color: tag.fg, background: tag.bg, borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>
                 {tag.label}
@@ -341,8 +346,8 @@ function EventPlayerPicker({
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: theme.radius.lg, width: 320, maxHeight: "80vh", overflowY: "auto", padding: 20 }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>Which player?</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {roster.filter((p) => !redCardedUids.has(p.userId)).map((p) => (
-            <button key={p.userId} onClick={() => onPick(p)} style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, border: `1px solid ${theme.color.border}`, background: "#fff", fontSize: 13.5 }}>
+          {roster.filter((p) => !redCardedUids.has(p.playerKey ?? p.userId)).map((p) => (
+            <button key={p.playerKey ?? p.userId} onClick={() => onPick(p)} style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, border: `1px solid ${theme.color.border}`, background: "#fff", fontSize: 13.5 }}>
               #{p.jerseyNumber ?? "—"} {p.displayName}
             </button>
           ))}

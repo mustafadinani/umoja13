@@ -93,7 +93,7 @@ function FinalizeRow({
   if (!home || !away) return null;
   const homeGoals = homeScore;
   const awayGoals = awayScore;
-  const motmPlayer = [...home.roster, ...away.roster].find((p) => p.userId === motmUserId);
+  const motmPlayer = [...home.roster, ...away.roster].find((p) => (p.playerKey ?? p.userId) === motmUserId);
 
   return (
     <Card style={{ padding: "14px 16px" }}>

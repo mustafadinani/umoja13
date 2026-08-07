@@ -22,7 +22,7 @@ export function PlayerCardModal({
   // playerKey, not the bare userId — moments are tagged per-child now.
   const playerKey = player.playerKey ?? player.userId;
   const playerMoments = moments.filter((m) => m.playerTagUids?.includes(playerKey)).sort((a, b) => b.createdAt - a.createdAt);
-  const stats = computePlayerGameStats(games, teamId, player.userId);
+  const stats = computePlayerGameStats(games, teamId, playerKey);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
 

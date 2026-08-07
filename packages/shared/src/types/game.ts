@@ -6,6 +6,7 @@ export interface GameEvent {
   id: string;
   type: GameEventType;
   teamId: string;
+  /** RosterEntry.playerKey — never the bare account uid, which every sibling on one family account shares. */
   playerId: string;
   playerNumber: number;
   minute: number;
@@ -49,6 +50,7 @@ export interface Game {
   gateCheck: {
     completedAt?: number;
     completedBy?: string;
+    /** RosterEntry.playerKey values — never the bare account uid, which every sibling on one family account shares. */
     homeClearedUids: string[];
     awayClearedUids: string[];
   };
@@ -56,7 +58,7 @@ export interface Game {
   /** Referee-entered running score — no per-player goal attribution, just the count. Defaults to 0 until the referee taps a +. */
   homeScore?: number;
   awayScore?: number;
-  /** Referee's single combined Man of the Match, across both rosters. */
+  /** Referee's single combined Man of the Match, across both rosters — a RosterEntry.playerKey, not the bare account uid. */
   motmUserId?: string;
   /** Separate fan-facing "Player of the Match" popularity vote — one vote per fan, distinct from motmUserId. */
   potmVotes?: Record<string /* userId of voting fan */, string /* playerId voted for */>;
@@ -96,8 +98,13 @@ export interface PlayerGameStats {
  * for that specific game (Game.gateCheck), not just an approved check-in —
  * check-in is a one-time identity verification per category, unrelated to
  * per-game attendance.
+ *
+ * `playerKey` — pass RosterEntry.playerKey (falling back to userId only for
+ * legacy data written before it existed), never the bare account uid on its
+ * own: gateCheck/events/motmUserId are all keyed by playerKey precisely so
+ * two siblings sharing one family account never share a game record.
  */
-export function computePlayerGameStats(games: Game[], teamId: string, userId: string): PlayerGameStats {
+export function computePlayerGameStats(games: Game[], teamId: string, playerKey: string): PlayerGameStats {
   const stats: PlayerGameStats = { gamesPlayed: 0, yellowCards: 0, redCards: 0, motmCount: 0 };
   for (const g of games) {
     const onHome = g.homeTeamId === teamId;
@@ -105,15 +112,15 @@ export function computePlayerGameStats(games: Game[], teamId: string, userId: st
     if (!onHome && !onAway) continue;
 
     const clearedUids = onHome ? g.gateCheck.homeClearedUids : g.gateCheck.awayClearedUids;
-    if (clearedUids.includes(userId)) stats.gamesPlayed++;
+    if (clearedUids.includes(playerKey)) stats.gamesPlayed++;
 
     for (const e of g.events) {
-      if (e.playerId !== userId) continue;
+      if (e.playerId !== playerKey) continue;
       if (e.type === "yellow_card") stats.yellowCards++;
       else if (e.type === "red_card") stats.redCards++;
     }
 
-    if (g.motmUserId === userId) stats.motmCount++;
+    if (g.motmUserId === playerKey) stats.motmCount++;
   }
   return stats;
 }

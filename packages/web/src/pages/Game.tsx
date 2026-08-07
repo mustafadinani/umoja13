@@ -152,14 +152,11 @@ function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDo
 }
 
 function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team: Team; game: GameDoc; onClick: () => void }) {
-  const cardEvents = game.events.filter((e) => e.playerId === player.userId);
-  const isMotm = game.motmUserId === player.userId;
-  // Gate check is keyed by the roster's own userId (the account uid, shared
-  // across siblings on one family account), not playerKey — a known gap,
-  // out of scope for this pass, so this can still misattribute Roster
-  // Check status within a colliding family exactly like check-in used to.
+  const playerKey = player.playerKey ?? player.userId;
+  const cardEvents = game.events.filter((e) => e.playerId === playerKey);
+  const isMotm = game.motmUserId === playerKey;
   const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
-  const rosterChecked = clearedUids.includes(player.userId);
+  const rosterChecked = clearedUids.includes(playerKey);
   return (
     <RosterTile
       player={player}

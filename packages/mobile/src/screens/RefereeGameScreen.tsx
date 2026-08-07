@@ -57,11 +57,11 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
-  async function toggleClear(side: "home" | "away", userId: string) {
+  async function toggleClear(side: "home" | "away", playerKey: string) {
     const field = side === "home" ? "gateCheck.homeClearedUids" : "gateCheck.awayClearedUids";
     const list = side === "home" ? homeCleared : awayCleared;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [field]: list.includes(userId) ? arrayRemove(userId) : arrayUnion(userId),
+      [field]: list.includes(playerKey) ? arrayRemove(playerKey) : arrayUnion(playerKey),
     });
   }
 
@@ -83,11 +83,12 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   async function logEvent(player: RosterEntry, side: "home" | "away") {
     if (!user || !eventPicker) return;
     const teamId = side === "home" ? g.homeTeamId : g.awayTeamId;
+    const playerKey = player.playerKey ?? player.userId;
     const event: GameEvent = {
-      id: `${Date.now()}-${player.userId}`,
+      id: `${Date.now()}-${playerKey}`,
       type: eventPicker.type,
       teamId,
-      playerId: player.userId,
+      playerId: playerKey,
       playerNumber: player.jerseyNumber ?? 0,
       minute: Math.min(90, 4 + g.events.length * 9),
       createdAt: Date.now(),
@@ -189,11 +190,14 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
             <StepLabel n={3} title="MAN OF THE MATCH" />
             <View style={{ gap: 6 }}>
-              {roster.map((p) => (
-                <Pill key={p.userId} active={game.motmUserId === p.userId} onPress={() => pickMotm(p.userId)}>
-                  #{p.jerseyNumber} {p.displayName}
-                </Pill>
-              ))}
+              {roster.map((p) => {
+                const playerKey = p.playerKey ?? p.userId;
+                return (
+                  <Pill key={playerKey} active={game.motmUserId === playerKey} onPress={() => pickMotm(playerKey)}>
+                    #{p.jerseyNumber} {p.displayName}
+                  </Pill>
+                );
+              })}
             </View>
           </View>
 
@@ -228,8 +232,8 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           player={idModalPlayer.player}
           teamName={idModalPlayer.side === "home" ? home.name : away.name}
           category={category}
-          cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.userId)}
-          onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.userId); setIdModalPlayer(null); }}
+          cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.playerKey ?? idModalPlayer.player.userId)}
+          onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.playerKey ?? idModalPlayer.player.userId); setIdModalPlayer(null); }}
           onClose={() => setIdModalPlayer(null)}
         />
       )}
@@ -241,9 +245,9 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Which player?</Text>
           <View style={{ gap: 6 }}>
             {(eventPicker.side === "home" ? home.roster : away.roster)
-              .filter((p) => !redCardedUids.has(p.userId))
+              .filter((p) => !redCardedUids.has(p.playerKey ?? p.userId))
               .map((p) => (
-                <TouchableOpacity key={p.userId} onPress={() => logEvent(p, eventPicker.side)} style={styles.pickerRow}>
+                <TouchableOpacity key={p.playerKey ?? p.userId} onPress={() => logEvent(p, eventPicker.side)} style={styles.pickerRow}>
                   <Text style={{ fontSize: 13.5 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
                 </TouchableOpacity>
               ))}
@@ -300,9 +304,10 @@ function RosterColumn({
       <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</Text>
       <View style={{ gap: 4 }}>
         {roster.map((p) => {
-          const tag = gateStatusTag(p, cleared.includes(p.userId));
+          const playerKey = p.playerKey ?? p.userId;
+          const tag = gateStatusTag(p, cleared.includes(playerKey));
           return (
-            <TouchableOpacity key={p.userId} onPress={() => onPick(p)} style={styles.rosterRow}>
+            <TouchableOpacity key={playerKey} onPress={() => onPick(p)} style={styles.rosterRow}>
               <Text style={{ fontSize: 13, flex: 1 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
               <View style={{ backgroundColor: tag.bg, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8 }}>
                 <Text style={{ fontSize: 10.5, fontWeight: "800", color: tag.fg }}>{tag.label}</Text>
