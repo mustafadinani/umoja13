@@ -7,6 +7,7 @@ import {
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  PROFESSIONS,
   TOURNAMENT_START_AT,
   playerKeyFor,
   type PlayerMembership,
@@ -36,8 +37,8 @@ export function CheckInModal({
   const { user, profile } = useAuth();
   const [step, setStep] = useState<Step>("confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
-  const [lineOfWorkDraft, setLineOfWorkDraft] = useState("");
-  const [currentEmployerDraft, setCurrentEmployerDraft] = useState("");
+  const [profession, setProfession] = useState("");
+  const [professionQuery, setProfessionQuery] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -102,10 +103,9 @@ export function CheckInModal({
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
           ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
-          // Line of work/employer only ever apply to the adult checking in
-          // for themselves — never recorded for a guardian's minor.
-          ...(acceptedBy === "self" && lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
-          ...(acceptedBy === "self" && currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
+          // Profession only ever applies to the adult checking in for
+          // themselves — never recorded for a guardian's minor.
+          ...(acceptedBy === "self" && profession ? { lineOfWork: profession } : {}),
         },
         { merge: true }
       );
@@ -226,24 +226,48 @@ export function CheckInModal({
           {acceptedBy === "self" && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
-                Line of work <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+                Profession <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
               </div>
-              <input
-                placeholder="e.g. Nursing"
-                value={lineOfWorkDraft}
-                onChange={(e) => setLineOfWorkDraft(e.target.value)}
-                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 10 }}
-              />
-              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
-                Current employer <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
-              </div>
-              <input
-                placeholder="e.g. Holy Cross Hospital"
-                value={currentEmployerDraft}
-                onChange={(e) => setCurrentEmployerDraft(e.target.value)}
-                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-              />
-              <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>Shown on your Player Card if you share it — never required.</div>
+              {profession ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ background: "#F1EFF5", borderRadius: 999, padding: "8px 14px", fontSize: 13.5, fontWeight: 700 }}>{profession}</div>
+                  <button
+                    onClick={() => { setProfession(""); setProfessionQuery(""); }}
+                    style={{ background: "none", border: "none", color: theme.color.purple, fontWeight: 700, fontSize: 12.5, cursor: "pointer", padding: 0 }}
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    placeholder="Search professions… e.g. Nurse"
+                    value={professionQuery}
+                    onChange={(e) => setProfessionQuery(e.target.value)}
+                    style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+                  />
+                  {professionQuery.trim() && (() => {
+                    const matches = PROFESSIONS.filter((p) => p.toLowerCase().includes(professionQuery.trim().toLowerCase())).slice(0, 8);
+                    return (
+                      <div style={{ border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, marginTop: 6, overflow: "hidden" }}>
+                        {matches.map((p) => (
+                          <div
+                            key={p}
+                            onClick={() => { setProfession(p); setProfessionQuery(""); }}
+                            style={{ padding: "9px 12px", fontSize: 13.5, cursor: "pointer", borderBottom: `1px solid ${theme.color.border}` }}
+                          >
+                            {p}
+                          </div>
+                        ))}
+                        {matches.length === 0 && (
+                          <div style={{ color: theme.color.textMuted, fontSize: 12.5, padding: 10 }}>No match — try a different search.</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+              <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>Shown on your Player Card if you share it — never required.</div>
             </div>
           )}
 

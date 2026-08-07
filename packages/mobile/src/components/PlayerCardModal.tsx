@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { computePlayerGameStats, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useMoments } from "../hooks/useData";
-import { CheckInStatusPill, Drawer, PrimaryButton, VerifiedBadge } from "./ui";
+import { CheckInStatusPill, Drawer, Pill, PrimaryButton, VerifiedBadge } from "./ui";
 import { LoadingImage } from "./LoadingImage";
 import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
@@ -12,11 +12,14 @@ export function PlayerCardModal({
   player,
   teamId,
   teamName,
+  /** Scoped to one game (Game Day) — leave undefined on the Team roster tab, where there's no single game to check it against. Mirrors RosterTile's own rule. */
+  rosterChecked,
   onClose,
 }: {
   player: RosterEntry;
   teamId: string;
   teamName: string;
+  rosterChecked?: boolean;
   onClose: () => void;
 }) {
   const { data: moments } = useMoments();
@@ -44,8 +47,13 @@ export function PlayerCardModal({
         <Text style={styles.name}>{player.displayName}{player.isCaptain ? " (C)" : ""}</Text>
         <Text style={styles.team}>{teamName} · #{player.jerseyNumber ?? "—"}</Text>
 
-        <View style={{ marginBottom: 14 }}>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 14, flexWrap: "wrap", justifyContent: "center" }}>
           <CheckInStatusPill status={player.checkInStatus} />
+          {rosterChecked !== undefined && (
+            <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
+              {rosterChecked ? "Roster Checked" : "Not Roster Checked"}
+            </Pill>
+          )}
         </View>
 
         <View style={styles.statsRow}>
@@ -55,20 +63,12 @@ export function PlayerCardModal({
           <StatBox icon="★" value={stats.motmCount} label="MOTM" />
         </View>
 
-        {(player.lineOfWork || player.currentEmployer) && (
+        {player.lineOfWork && (
           <View style={styles.factCard}>
-            {player.lineOfWork && (
-              <View style={styles.factRow}>
-                <Text style={styles.factLabel}>Line of work</Text>
-                <Text style={styles.factValue}>{player.lineOfWork}</Text>
-              </View>
-            )}
-            {player.currentEmployer && (
-              <View style={[styles.factRow, { borderTopWidth: player.lineOfWork ? 1 : 0 }]}>
-                <Text style={styles.factLabel}>Employer</Text>
-                <Text style={styles.factValue}>{player.currentEmployer}</Text>
-              </View>
-            )}
+            <View style={styles.factRow}>
+              <Text style={styles.factLabel}>Profession</Text>
+              <Text style={styles.factValue}>{player.lineOfWork}</Text>
+            </View>
           </View>
         )}
 

@@ -17,7 +17,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
   const { data: moments } = useMoments();
-  const [openPlayer, setOpenPlayer] = useState<{ player: RosterEntry; teamId: string; teamName: string } | null>(null);
+  const [openPlayer, setOpenPlayer] = useState<OpenPlayer | null>(null);
 
   if (!game || !home || !away) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
 
@@ -73,6 +73,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
           player={openPlayer.player}
           teamId={openPlayer.teamId}
           teamName={openPlayer.teamName}
+          rosterChecked={openPlayer.rosterChecked}
           onClose={() => setOpenPlayer(null)}
         />
       )}
@@ -80,20 +81,20 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
   );
 }
 
-type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string };
+type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string; rosterChecked?: boolean };
 
 function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.rosterTeamHeader}>{team.name.toUpperCase()}</Text>
       {team.roster.map((p) => (
-        <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onPress={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
+        <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onSelect={onSelectPlayer} />
       ))}
     </View>
   );
 }
 
-function RosterRow({ player, team, game, onPress }: { player: RosterEntry; team: Team; game: GameDoc; onPress: () => void }) {
+function RosterRow({ player, team, game, onSelect }: { player: RosterEntry; team: Team; game: GameDoc; onSelect: (p: OpenPlayer) => void }) {
   const playerKey = player.playerKey ?? player.userId;
   const cardEvents = game.events.filter((e) => e.playerId === playerKey);
   const isMotm = game.motmUserId === playerKey;
@@ -102,7 +103,7 @@ function RosterRow({ player, team, game, onPress }: { player: RosterEntry; team:
   return (
     <RosterTile
       player={player}
-      onPress={onPress}
+      onPress={() => onSelect({ player, teamId: team.id, teamName: team.name, rosterChecked })}
       rosterChecked={rosterChecked}
       trailing={
         <>

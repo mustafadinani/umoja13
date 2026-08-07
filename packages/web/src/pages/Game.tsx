@@ -12,7 +12,7 @@ import { MomentUploadModal } from "../components/MomentUploadModal";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { SponsorStrip } from "../components/SponsorStrip";
 
-type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string };
+type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string; rosterChecked?: boolean };
 
 const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
@@ -103,6 +103,7 @@ export function Game() {
           player={openPlayer.player}
           teamId={openPlayer.teamId}
           teamName={openPlayer.teamName}
+          rosterChecked={openPlayer.rosterChecked}
           onClose={() => setOpenPlayer(null)}
         />
       )}
@@ -144,14 +145,14 @@ function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDo
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
-          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onClick={() => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name })} />
+          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onClick={(rosterChecked) => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name, rosterChecked })} />
         ))}
       </div>
     </div>
   );
 }
 
-function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team: Team; game: GameDoc; onClick: () => void }) {
+function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team: Team; game: GameDoc; onClick: (rosterChecked: boolean) => void }) {
   const playerKey = player.playerKey ?? player.userId;
   const cardEvents = game.events.filter((e) => e.playerId === playerKey);
   const isMotm = game.motmUserId === playerKey;
@@ -160,7 +161,7 @@ function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team:
   return (
     <RosterTile
       player={player}
-      onClick={onClick}
+      onClick={() => onClick(rosterChecked)}
       rosterChecked={rosterChecked}
       trailing={
         <>

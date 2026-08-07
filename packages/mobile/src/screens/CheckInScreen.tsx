@@ -11,6 +11,7 @@ import {
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  PROFESSIONS,
   TOURNAMENT_START_AT,
   checkInIdFor,
   playerKeyFor,
@@ -43,8 +44,8 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
-  const [lineOfWorkDraft, setLineOfWorkDraft] = useState(existingCheckIn?.lineOfWork ?? "");
-  const [currentEmployerDraft, setCurrentEmployerDraft] = useState(existingCheckIn?.currentEmployer ?? "");
+  const [profession, setProfession] = useState(existingCheckIn?.lineOfWork ?? "");
+  const [professionQuery, setProfessionQuery] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -144,10 +145,9 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
             },
             ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
-            // Line of work/employer only ever apply to the adult checking in
-            // for themselves — never recorded for a guardian's minor.
-            ...(acceptedBy === "self" && lineOfWorkDraft.trim() ? { lineOfWork: lineOfWorkDraft.trim() } : {}),
-            ...(acceptedBy === "self" && currentEmployerDraft.trim() ? { currentEmployer: currentEmployerDraft.trim() } : {}),
+            // Profession only ever applies to the adult checking in for
+            // themselves — never recorded for a guardian's minor.
+            ...(acceptedBy === "self" && profession ? { lineOfWork: profession } : {}),
           },
           { merge: true }
         ),
@@ -269,22 +269,42 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
 
           {acceptedBy === "self" && (
             <>
-              <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Line of work <Text style={styles.optionalTag}>optional</Text></Text>
-              <TextInput
-                placeholder="e.g. Nursing"
-                value={lineOfWorkDraft}
-                onChangeText={setLineOfWorkDraft}
-                style={styles.input}
-              />
-
-              <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Current employer <Text style={styles.optionalTag}>optional</Text></Text>
-              <TextInput
-                placeholder="e.g. Holy Cross Hospital"
-                value={currentEmployerDraft}
-                onChangeText={setCurrentEmployerDraft}
-                style={styles.input}
-              />
-              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: -6, marginBottom: 16 }}>
+              <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Profession <Text style={styles.optionalTag}>optional</Text></Text>
+              {profession ? (
+                <View style={styles.professionChipRow}>
+                  <View style={styles.professionChip}>
+                    <Text style={styles.professionChipText}>{profession}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => { setProfession(""); setProfessionQuery(""); }}>
+                    <Text style={{ color: theme.color.purple, fontWeight: "700", fontSize: 12.5 }}>Change</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <TextInput
+                    placeholder="Search professions… e.g. Nurse"
+                    value={professionQuery}
+                    onChangeText={setProfessionQuery}
+                    style={styles.input}
+                  />
+                  {professionQuery.trim().length > 0 && (() => {
+                    const matches = PROFESSIONS.filter((p) => p.toLowerCase().includes(professionQuery.trim().toLowerCase())).slice(0, 8);
+                    return (
+                      <View style={styles.professionList}>
+                        {matches.map((p) => (
+                          <TouchableOpacity key={p} onPress={() => { setProfession(p); setProfessionQuery(""); }} style={styles.professionRow}>
+                            <Text style={{ fontSize: 13.5 }}>{p}</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {matches.length === 0 && (
+                          <Text style={{ color: theme.color.textMuted, fontSize: 12.5, padding: 10 }}>No match — try a different search.</Text>
+                        )}
+                      </View>
+                    );
+                  })()}
+                </>
+              )}
+              <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8, marginBottom: 16 }}>
                 Shown on your Player Card if you share it — never required.
               </Text>
             </>
@@ -406,6 +426,11 @@ const styles = StyleSheet.create({
   qrBox: { width: 160, height: 160, backgroundColor: theme.color.navy, borderRadius: 8, alignItems: "center", justifyContent: "center", marginTop: 14 },
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5, marginBottom: 12, backgroundColor: "#fff" },
   optionalTag: { fontSize: 10.5, fontWeight: "600", color: theme.color.textMuted, textTransform: "uppercase" },
+  professionChipRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  professionChip: { backgroundColor: "#F1EFF5", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14, flexShrink: 1 },
+  professionChipText: { fontSize: 13.5, fontWeight: "700", color: theme.color.text },
+  professionList: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, backgroundColor: "#fff", marginTop: -6, marginBottom: 12, overflow: "hidden" },
+  professionRow: { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.color.border },
   consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
   consentLabel: { flex: 1, fontSize: 13, color: theme.color.text },
   roleCard: { flex: 1, alignItems: "center", padding: 16, borderRadius: 12, borderWidth: 2, borderColor: theme.color.border, backgroundColor: "#fff" },

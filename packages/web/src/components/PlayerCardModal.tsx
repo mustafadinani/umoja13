@@ -2,7 +2,7 @@ import { useState } from "react";
 import { computePlayerGameStats, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useMoments } from "../hooks/useData";
-import { CheckInStatusPill, Drawer, PrimaryButton, VerifiedBadge } from "./ui";
+import { CheckInStatusPill, Drawer, Pill, PrimaryButton, VerifiedBadge } from "./ui";
 import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
 
@@ -10,11 +10,14 @@ export function PlayerCardModal({
   player,
   teamId,
   teamName,
+  /** Scoped to one game (Game Day) — leave undefined on the Team roster tab, where there's no single game to check it against. Mirrors RosterTile's own rule. */
+  rosterChecked,
   onClose,
 }: {
   player: RosterEntry;
   teamId: string;
   teamName: string;
+  rosterChecked?: boolean;
   onClose: () => void;
 }) {
   const { data: moments } = useMoments();
@@ -46,8 +49,13 @@ export function PlayerCardModal({
           {teamName} · #{player.jerseyNumber ?? "—"}
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", justifyContent: "center" }}>
           <CheckInStatusPill status={player.checkInStatus} />
+          {rosterChecked !== undefined && (
+            <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
+              {rosterChecked ? "Roster Checked" : "Not Roster Checked"}
+            </Pill>
+          )}
         </div>
 
         <div style={{ display: "flex", width: "100%", gap: 8, marginBottom: 14 }}>
@@ -57,10 +65,9 @@ export function PlayerCardModal({
           <StatBox icon="★" value={stats.motmCount} label="MOTM" />
         </div>
 
-        {(player.lineOfWork || player.currentEmployer) && (
+        {player.lineOfWork && (
           <div style={{ width: "100%", background: "#F7F6F3", borderRadius: theme.radius.sm, padding: "0 12px", marginBottom: 14 }}>
-            {player.lineOfWork && <FactRow label="Line of work" value={player.lineOfWork} />}
-            {player.currentEmployer && <FactRow label="Employer" value={player.currentEmployer} borderTop={!!player.lineOfWork} />}
+            <FactRow label="Profession" value={player.lineOfWork} />
           </div>
         )}
 
