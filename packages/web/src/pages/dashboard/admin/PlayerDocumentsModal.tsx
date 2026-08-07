@@ -17,7 +17,14 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const category = CATEGORIES.find((c) => c.id === checkIn.categoryId);
-  const membership = user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
+  // Match on playerKey too, not just team+category — a shared family
+  // account can have two siblings' memberships colliding on the exact same
+  // team+category, and only playerKey actually tells them apart.
+  const playerKey = checkIn.playerKey ?? checkIn.userId;
+  const membership =
+    user?.playerOf?.find(
+      (m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId && (m.profileId?.trim() || user.uid) === playerKey
+    ) ?? user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
   const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
 
   async function decide(decision: "approve" | "reject" | "nullify" | "restore") {

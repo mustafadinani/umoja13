@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -18,19 +18,26 @@ type View = "queue" | "fieldPrefs";
 /**
  * Not every checked-in player has an app account (users doc) — most were
  * checked in by a captain/staff off the registration roster. This maps a
- * check-in's userId to the registration player's real name and their
+ * check-in's playerKey to the registration player's real name and their
  * signup photo, so both always have a real fallback: name before ever
  * showing a raw uid, and registration photo before an empty box.
+ *
+ * Keyed by playerKey (profileId, falling back to the row's own id) — NOT
+ * the account uid, which every sibling on a shared family account has in
+ * common. Keying by uid here previously meant whichever sibling's row
+ * happened to load last silently overwrote every other sibling's entry,
+ * so the review queue could show one kid's name/photo for another kid's
+ * check-in.
  */
-function useRegisteredPlayerByUid() {
+function useRegisteredPlayerByKey() {
   const { data: registeredPlayers } = useRegisteredPlayers();
   return useMemo(() => {
     const map = new Map<string, { name: string; photoUrl?: string }>();
     for (const p of registeredPlayers) {
-      const uid = p.uid || p.id;
-      if (!uid) continue;
+      const key = p.profileId?.trim() || p.id;
+      if (!key) continue;
       const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
-      if (name || p.profilePicture) map.set(uid, { name, photoUrl: p.profilePicture });
+      if (name || p.profilePicture) map.set(key, { name, photoUrl: p.profilePicture });
     }
     return map;
   }, [registeredPlayers]);
@@ -52,14 +59,17 @@ export function CheckInsTab() {
 function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
-  const registeredPlayerByUid = useRegisteredPlayerByUid();
+  const registeredPlayerByKey = useRegisteredPlayerByKey();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
-  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? registeredPlayerByUid.get(userId)?.name ?? userId;
+  // Legacy check-ins written before playerKey existed fall back to userId,
+  // matching their pre-fix (ambiguous, best-effort) behavior exactly.
+  const nameFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
+    userById.get(c.userId)?.displayName ?? registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name ?? c.userId;
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
   const filtered = checkIns.filter((c) => {
@@ -67,7 +77,7 @@ function ReviewQueue() {
     if (statusFilter === "needs_review" && c.status !== "pending_review" && c.status !== "admin_review") return false;
     if (statusFilter === "approved" && c.status !== "approved") return false;
     if (statusFilter === "rejected" && c.status !== "rejected") return false;
-    if (search && !nameFor(c.userId).toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !nameFor(c).toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -91,7 +101,7 @@ function ReviewQueue() {
         {filtered.map((c) => (
           <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c.userId)}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}</div>
             </div>
             <StatusChip status={c.status} />
@@ -104,8 +114,8 @@ function ReviewQueue() {
         <PlayerDocumentsModal
           checkIn={openCheckIn}
           user={userById.get(openCheckIn.userId)}
-          fallbackName={registeredPlayerByUid.get(openCheckIn.userId)?.name}
-          fallbackPhotoUrl={registeredPlayerByUid.get(openCheckIn.userId)?.photoUrl}
+          fallbackName={registeredPlayerByKey.get(openCheckIn.playerKey ?? openCheckIn.userId)?.name}
+          fallbackPhotoUrl={registeredPlayerByKey.get(openCheckIn.playerKey ?? openCheckIn.userId)?.photoUrl}
           onClose={() => setOpenCheckInId(null)}
         />
       )}
@@ -118,11 +128,12 @@ function FieldPreferencesTable() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const { data: teams } = useTeams();
-  const registeredPlayerByUid = useRegisteredPlayerByUid();
+  const registeredPlayerByKey = useRegisteredPlayerByKey();
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
-  const nameFor = (userId: string) => userById.get(userId)?.displayName ?? registeredPlayerByUid.get(userId)?.name ?? userId;
+  const nameFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
+    userById.get(c.userId)?.displayName ?? registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name ?? c.userId;
 
   const responses = checkIns
     .filter((c) => PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(c.categoryId) && c.privateFieldPreference !== undefined)
@@ -137,7 +148,7 @@ function FieldPreferencesTable() {
         {responses.map((c) => (
           <Card key={c.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c.userId)}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
                 {teamById.get(c.teamId)?.name ?? c.teamId} · {CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}
               </div>
