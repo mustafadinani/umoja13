@@ -246,7 +246,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
         <View>
           <Text style={styles.h1}>A couple more details</Text>
 
-          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number</Text>
+          <Text style={{ fontWeight: "700", fontSize: 13.5, marginBottom: 6 }}>Jersey number <Text style={styles.optionalTag}>optional</Text></Text>
           {rosterInfo?.jerseyNumber != null ? (
             <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
               #{rosterInfo.jerseyNumber} — set by your captain/manager.

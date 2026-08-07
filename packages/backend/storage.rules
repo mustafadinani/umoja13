@@ -20,6 +20,15 @@ service firebase.storage {
         request.resource.contentType.matches('image/.*');
     }
 
+    // Volunteer application photos: only the applicant can upload; only the
+    // applicant or staff (reviewing the application) can read them back.
+    match /volunteers/{uid}/{fileName} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
     // Referee game-card photos: referee/staff only.
     match /gameCards/{gameId}/{fileName} {
       allow read: if isSignedIn();

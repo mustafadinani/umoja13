@@ -20,7 +20,6 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
   const [name, setName] = useState(initialName ?? profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -28,6 +27,7 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   function toggleDay(day: string) {
@@ -41,14 +41,16 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
     if (!result.canceled && result.assets[0]) setSelfieUri(result.assets[0].uri);
   }
 
-  const formValid =
-    !!name.trim() && isValidEmail(email) && isValidPhone(phone) && !!emergencyContact.trim() && availability.length > 0;
+  const formValid = !!name.trim() && isValidEmail(email) && isValidPhone(phone) && availability.length > 0;
 
   async function submit() {
     if (!user || !formValid) return;
     setBusy(true);
     setError(null);
     try {
+      // The photo is genuinely optional — a failed upload (bad connection,
+      // etc.) shouldn't block the whole application. Fall back to
+      // submitting without it instead of throwing.
       let selfieUrl: string | undefined;
       if (selfieUri) {
         try {
@@ -59,7 +61,7 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
           await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
           selfieUrl = await getDownloadURL(storageRef);
         } catch {
-          throw new Error("Couldn't upload your photo — check your connection and try again (or skip the photo).");
+          setPhotoWarning("Couldn't upload your photo, so we submitted your application without it.");
         }
       }
 
@@ -67,7 +69,6 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
         name,
         email,
         phone,
-        emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
         ...(categoryId ? { categoryId } : {}),
@@ -93,6 +94,9 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
           <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6, textAlign: "center" }}>
             An organizer will review your application and follow up with your shifts.
           </Text>
+          {photoWarning && (
+            <Text style={{ color: theme.color.warning, fontSize: 12.5, marginTop: 10, textAlign: "center" }}>{photoWarning}</Text>
+          )}
           <PrimaryButton style={{ marginTop: 18, width: "100%" }} onPress={onClose}>DONE</PrimaryButton>
         </View>
       </Modal>
@@ -121,12 +125,6 @@ export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => 
         onChangeText={setPhone}
         keyboardType="phone-pad"
         error={phone.trim().length > 0 && !isValidPhone(phone) ? "Enter a valid phone number." : undefined}
-      />
-      <Field
-        label="Emergency contact (name & phone)"
-        value={emergencyContact}
-        onChangeText={setEmergencyContact}
-        helper="Someone we can reach if we can't reach you during the tournament."
       />
 
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Available days</Text>

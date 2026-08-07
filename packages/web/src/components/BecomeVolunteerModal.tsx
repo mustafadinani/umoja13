@@ -18,7 +18,6 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
   const [name, setName] = useState(initialName ?? profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [teamId, setTeamId] = useState("");
@@ -26,20 +25,23 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   function toggleDay(day: string) {
     setAvailability((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   }
 
-  const formValid =
-    !!name.trim() && isValidEmail(email) && isValidPhone(phone) && !!emergencyContact.trim() && availability.length > 0;
+  const formValid = !!name.trim() && isValidEmail(email) && isValidPhone(phone) && availability.length > 0;
 
   async function submit() {
     if (!user || !formValid) return;
     setBusy(true);
     setError(null);
     try {
+      // The photo is genuinely optional — a failed upload (bad connection,
+      // etc.) shouldn't block the whole application. Fall back to
+      // submitting without it instead of throwing.
       let selfieUrl: string | undefined;
       if (file) {
         try {
@@ -48,7 +50,7 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
           await uploadBytes(storageRef, file);
           selfieUrl = await getDownloadURL(storageRef);
         } catch {
-          throw new Error("Couldn't upload your photo — check your connection and try again (or skip the photo).");
+          setPhotoWarning("Couldn't upload your photo, so we submitted your application without it.");
         }
       }
 
@@ -56,7 +58,6 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
         name,
         email,
         phone,
-        emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
         ...(categoryId ? { categoryId } : {}),
@@ -82,6 +83,7 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
           <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
             An organizer will review your application and follow up with your shifts.
           </div>
+          {photoWarning && <div style={{ color: theme.color.warning, fontSize: 12.5, marginTop: 10 }}>{photoWarning}</div>}
           <PrimaryButton style={{ marginTop: 18, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
         </div>
       </Modal>
@@ -123,16 +125,6 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
       {phone.trim().length > 0 && !isValidPhone(phone) && (
         <div style={{ color: theme.color.danger, fontSize: 11.5, marginBottom: 12 }}>Enter a valid phone number.</div>
       )}
-
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Emergency contact (name & phone)</div>
-      <div style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
-        Someone we can reach if we can't reach you during the tournament.
-      </div>
-      <input
-        value={emergencyContact}
-        onChange={(e) => setEmergencyContact(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
-      />
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Available days</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>

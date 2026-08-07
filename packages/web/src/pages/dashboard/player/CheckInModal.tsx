@@ -203,7 +203,9 @@ export function CheckInModal({
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 12 }}>A couple more details</div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Jersey number</div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>
+              Jersey number <span style={{ fontSize: 10.5, fontWeight: 600, color: theme.color.textMuted, textTransform: "uppercase" }}>optional</span>
+            </div>
             {existingJerseyNumber != null ? (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>#{existingJerseyNumber} — set by your captain/manager.</div>
             ) : jerseyNumbersLocked ? (

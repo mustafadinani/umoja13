@@ -11,7 +11,8 @@ export interface VolunteerApplication {
   name: string;
   email: string;
   phone: string;
-  emergencyContact: string;
+  /** Dropped from the sign-up form — kept optional so old applications still render it. */
+  emergencyContact?: string;
   availability: string[]; // subset of VOLUNTEER_AVAILABILITY_DAYS
   selfieUrl?: string;
   categoryId?: string; // optional: tournament category they also play/coach in, for scheduling around their games

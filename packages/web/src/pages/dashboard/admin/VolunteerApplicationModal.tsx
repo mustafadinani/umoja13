@@ -33,7 +33,7 @@ export function VolunteerApplicationModal({ application, onClose }: { applicatio
       <div style={{ background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, fontSize: 13, marginBottom: 16 }}>
         <Row label="Email" value={application.email} />
         <Row label="Phone" value={application.phone} />
-        <Row label="Emergency contact" value={application.emergencyContact} />
+        {application.emergencyContact && <Row label="Emergency contact" value={application.emergencyContact} />}
         <Row label="Available" value={application.availability.join(", ")} />
         {categoryLabel && <Row label="Category" value={categoryLabel} />}
         {team && <Row label="Team" value={team.name} />}
