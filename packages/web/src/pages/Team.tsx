@@ -38,11 +38,14 @@ export function Team() {
   if (!team) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const rosterUids = new Set(team.roster.map((p) => p.userId));
+  // playerKey, not the bare userId — a moment tagged to one sibling on a
+  // shared family account must not disappear just because it's checked
+  // against the account uid every sibling shares.
+  const rosterPlayerKeys = new Set(team.roster.map((p) => p.playerKey ?? p.userId));
   // Team moments plus any moment tagging a player on this roster — a fan
   // tagging just the player should still surface it here.
   const teamMoments = moments
-    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
+    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterPlayerKeys.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
   const channelMessages = channel?.messages ?? [];
 

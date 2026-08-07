@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Pod } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { colorForSeed } from "../lib/podColors";
@@ -40,6 +40,12 @@ export function AddPodPeopleModal({
   const [addedUids, setAddedUids] = useState<Set<string>>(new Set());
   const [busyUid, setBusyUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The `pod` prop only refreshes once Firestore's listener round-trips back
+  // after our own write — too slow for "Add all"'s sequential loop, which
+  // would otherwise read the same stale memberUids on every iteration and
+  // have each updatePod call clobber the one before it. This ref is the
+  // running "what we believe the server has" list for this modal session.
+  const pendingMemberUidsRef = useRef<string[]>(pod.memberUids);
 
   useEffect(() => {
     getRecruitableVolunteers({ podId: pod.id })
@@ -79,8 +85,11 @@ export function AddPodPeopleModal({
     setError(null);
     try {
       if (canManage) {
-        await updatePod({ podId: pod.id, memberUids: [...pod.memberUids, uid] });
+        const next = [...pendingMemberUidsRef.current, uid];
+        await updatePod({ podId: pod.id, memberUids: next });
+        pendingMemberUidsRef.current = next;
       } else {
+        // Server-side arrayUnion — safe to call back-to-back without this same race.
         await addPodVolunteer({ podId: pod.id, uidToAdd: uid });
       }
       setAddedUids((prev) => new Set(prev).add(uid));
@@ -99,7 +108,9 @@ export function AddPodPeopleModal({
   }
 
   async function removeMember(uid: string) {
-    await updatePod({ podId: pod.id, memberUids: pod.memberUids.filter((u) => u !== uid) });
+    const next = pendingMemberUidsRef.current.filter((u) => u !== uid);
+    await updatePod({ podId: pod.id, memberUids: next });
+    pendingMemberUidsRef.current = next;
   }
 
   const emailAlreadyAMember = emailLookup.result ? pod.memberUids.includes(emailLookup.result.uid) : false;
@@ -143,6 +154,7 @@ export function AddPodPeopleModal({
           {nameResults.map((c) => (
             <PersonRow
               key={c.uid}
+              uid={c.uid}
               name={c.displayName}
               sublabel={podRoleLabel(roleByUid.get(c.uid))}
               busy={busyUid === c.uid}
@@ -156,6 +168,7 @@ export function AddPodPeopleModal({
         <div style={{ marginBottom: 12 }}>
           {emailLookup.result ? (
             <PersonRow
+              uid={emailLookup.result.uid}
               name={emailLookup.result.displayName}
               sublabel={emailAlreadyAMember ? "already added" : emailLookup.result.sublabel}
               busy={busyUid === emailLookup.result.uid}
@@ -171,7 +184,7 @@ export function AddPodPeopleModal({
       {!canManage && search.trim() && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
           {visibleRecruitCandidates.map((c) => (
-            <PersonRow key={c.uid} name={c.displayName} sublabel="registered volunteer" busy={busyUid === c.uid} onAdd={() => addPerson(c.uid)} />
+            <PersonRow key={c.uid} uid={c.uid} name={c.displayName} sublabel="registered volunteer" busy={busyUid === c.uid} onAdd={() => addPerson(c.uid)} />
           ))}
           {visibleRecruitCandidates.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No volunteers match "{search}".</div>}
         </div>
@@ -187,7 +200,7 @@ export function AddPodPeopleModal({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {suggestions.map((s) => (
-              <PersonRow key={s.uid} name={s.displayName} sublabel={s.reason} busy={busyUid === s.uid} onAdd={() => addPerson(s.uid)} compact />
+              <PersonRow key={s.uid} uid={s.uid} name={s.displayName} sublabel={s.reason} busy={busyUid === s.uid} onAdd={() => addPerson(s.uid)} compact />
             ))}
           </div>
         </div>
@@ -234,8 +247,8 @@ export function AddPodPeopleModal({
 }
 
 function PersonRow({
-  name, sublabel, busy, added, onAdd, compact,
-}: { name: string; sublabel: string; busy: boolean; added?: boolean; onAdd: () => void; compact?: boolean }) {
+  uid, name, sublabel, busy, added, onAdd, compact,
+}: { uid: string; name: string; sublabel: string; busy: boolean; added?: boolean; onAdd: () => void; compact?: boolean }) {
   return (
     <div
       style={{
@@ -246,7 +259,7 @@ function PersonRow({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-        {!compact && <Avatar name={name} size={26} color={colorForSeed(name)} />}
+        {!compact && <Avatar name={name} size={26} color={colorForSeed(uid)} />}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
           <div style={{ fontSize: 11, color: theme.color.textMuted }}>{sublabel}</div>

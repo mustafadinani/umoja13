@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { doc, setDoc, getDoc, where } from "firebase/firestore";
+import { doc, setDoc, getDoc, deleteField, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   COLLECTIONS,
@@ -39,7 +39,7 @@ export function CheckInModal({
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
   const [profession, setProfession] = useState("");
   const [professionQuery, setProfessionQuery] = useState("");
-  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
+  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian" | null>(null);
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
@@ -53,7 +53,7 @@ export function CheckInModal({
   const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
   const canContinueFromDetails =
     existingJerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
-  const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const canContinueFromConsent = agreed && acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
   const playerName = (membership.playerName ?? profile?.displayName ?? "").trim();
   // Checked per player name, not the account's overall volunteer role — a
@@ -97,15 +97,18 @@ export function CheckInModal({
           submittedAt: Date.now(),
           attempt,
           consent: {
-            acceptedBy,
+            acceptedBy: acceptedBy as "self" | "guardian",
             guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
             acceptedAt: Date.now(),
             policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
           },
           ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
           // Profession only ever applies to the adult checking in for
-          // themselves — never recorded for a guardian's minor.
-          ...(acceptedBy === "self" && profession ? { lineOfWork: profession } : {}),
+          // themselves — never recorded for a guardian's minor. Explicitly
+          // cleared (not just omitted) on a guardian resubmission, or a
+          // merge:true write would leave an earlier self-submission's
+          // profession stuck on this check-in forever.
+          lineOfWork: acceptedBy === "self" && profession ? profession : deleteField(),
         },
         { merge: true }
       );

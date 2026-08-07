@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Pod } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { colorForSeed } from "../../../lib/podColors";
-import { useAllUsers, usePodChannel, usePods } from "../../../hooks/useData";
+import { useAllUsers, usePodChannelsFor, usePods } from "../../../hooks/useData";
 import { useAuth } from "../../../auth/AuthProvider";
 import { deletePod, ensurePodsSeeded } from "../../../lib/callables";
 import { AvatarStack } from "../../../components/ui";
@@ -16,6 +16,7 @@ import { PodEditorModal } from "./PodEditorModal";
  * pod to find the one you actually wanted.
  */
 export function PodsAdminTab() {
+  const { user } = useAuth();
   const { data: pods } = usePods();
   const { data: users } = useAllUsers();
   const [search, setSearch] = useState("");
@@ -35,6 +36,19 @@ export function PodsAdminTab() {
   const term = search.trim().toLowerCase();
   const visible = sorted.filter((p) => p.name.toLowerCase().includes(term));
   const selected = sorted.find((p) => p.id === selectedId) ?? null;
+
+  // One batched query for every pod's unread state instead of a listener per
+  // sidebar row — the sidebar can list every pod at once, and each row
+  // opening its own onSnapshot doesn't scale past a handful of pods.
+  const { data: channels } = usePodChannelsFor(sorted.map((p) => p.id));
+  const unreadPodIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of channels) {
+      const lastRead = user ? c.lastReadBy?.[user.uid] ?? 0 : 0;
+      if (c.messages.some((m) => m.createdAt > lastRead && m.authorUid !== user?.uid)) set.add(c.podId);
+    }
+    return set;
+  }, [channels, user]);
 
   async function remove(podId: string) {
     if (!confirm("Delete this pod? Its chat history goes with it.")) return;
@@ -65,6 +79,7 @@ export function PodsAdminTab() {
                 color={colorForSeed(p.id)}
                 active={p.id === selectedId}
                 memberNames={p.memberUids.map((uid) => nameByUid.get(uid) ?? uid)}
+                unread={unreadPodIds.has(p.id)}
                 onSelect={() => setSelectedId(p.id)}
               />
             ))}
@@ -149,13 +164,8 @@ export function PodsAdminTab() {
 }
 
 function PodRow({
-  pod, color, active, memberNames, onSelect,
-}: { pod: Pod; color: string; active: boolean; memberNames: string[]; onSelect: () => void }) {
-  const { user } = useAuth();
-  const { data: channel } = usePodChannel(pod.id);
-  const lastRead = user ? channel?.lastReadBy?.[user.uid] ?? 0 : 0;
-  const unread = (channel?.messages ?? []).some((m) => m.createdAt > lastRead && m.authorUid !== user?.uid);
-
+  pod, color, active, memberNames, unread, onSelect,
+}: { pod: Pod; color: string; active: boolean; memberNames: string[]; unread: boolean; onSelect: () => void }) {
   return (
     <button
       onClick={onSelect}

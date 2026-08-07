@@ -40,7 +40,12 @@ service cloud.firestore {
       allow update: if isOwner(uid) &&
         request.resource.data.roles.hasOnly(['fan', 'player', 'captain']) &&
         request.resource.data.primaryRole in ['fan', 'player', 'captain'];
-      allow update: if isStaff();
+      // Staff may edit non-role profile fields directly (e.g. syncing playerOf on a
+      // category reassignment), but role changes — even a commissioner's own —
+      // must go through setUserRole so the admin-only check there can't be
+      // bypassed by a direct client write.
+      allow update: if isStaff() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'primaryRole']);
     }
 
     // ---- reference data: public read, staff write ----
@@ -64,24 +69,30 @@ service cloud.firestore {
 
     // ---- teams ----
     // Aggregate `stats` is written only by a Cloud Function trigger on game finalize.
-    // Any signed-in user may touch only the `roster` field (self-serve join, and
-    // captain jersey-number edits) — no admin-invite/import flow exists yet.
+    // `roster` isn't actually written by any client code today (the live roster comes
+    // from the separate Outreach registration import, not this field) — staff-only
+    // until a real self-serve join/import flow is built and needs a narrower rule.
     match /teams/{teamId} {
       allow read: if true;
-      allow update: if isStaff() ||
-        (isSignedIn() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roster']));
+      allow update: if isStaff();
       allow create, delete: if isStaff();
     }
 
     // ---- games ----
-    // Referee assigned to a game may update gate-check/events/motm/gameCard/status;
-    // commissioner/admin may update anything (score corrections, ref assignment, forfeits).
+    // Referee assigned to a game may update only gate-check/events/motm/score/forfeit
+    // (exactly the fields their own console writes) and may flip `status` only to
+    // 'forfeited' — never directly to 'live'/'final', which stay commissioner/admin-
+    // only (and, for 'final', gated by callItFinal's own preconditions). `gameCard` is
+    // never in this list: it's written exclusively via the submitGameCard/callItFinal
+    // Cloud Functions (Admin SDK, bypasses rules), never by a direct client write.
     match /games/{gameId} {
       allow read: if true;
       allow create: if isStaff();
       allow update: if isStaff() ||
-        (isSignedIn() && resource.data.refereeUid == request.auth.uid);
+        (isSignedIn() && resource.data.refereeUid == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['gateCheck', 'events', 'motmUserId', 'homeScore', 'awayScore', 'forfeit', 'status', 'updatedAt']) &&
+         (request.resource.data.status == resource.data.status || request.resource.data.status == 'forfeited'));
       allow delete: if isStaff();
     }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { DATA_SOURCES } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
@@ -34,18 +34,25 @@ export function AddUserModal({ onPick, onClose }: { onPick: (candidate: NewUserC
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [result, setResult] = useState<LookupResult | null>(null);
+  // Bumped on every lookup() call so a slow, stale request can't overwrite a
+  // faster, newer one's result after the fact — onKeyDown fires unconditionally
+  // on Enter, so two lookups for two different emails could otherwise race.
+  const requestIdRef = useRef(0);
 
   async function lookup() {
-    if (!email.trim()) return;
+    if (!email.trim() || status === "loading") return;
+    const requestId = ++requestIdRef.current;
     setStatus("loading");
     try {
       const res = await lookupUserByEmail({ email: email.trim() });
+      if (requestId !== requestIdRef.current) return; // a newer lookup superseded this one
       const found = res.data.user;
       if (!found) {
         setResult({ kind: "not_found" });
         return;
       }
       const outreachSnap = await getDoc(doc(defaultDb, DATA_SOURCES.registration.profilesCollection, found.uid));
+      if (requestId !== requestIdRef.current) return;
       if (outreachSnap.exists()) {
         const raw = outreachSnap.data() as { firstName?: string; lastName?: string };
         const name = [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim() || found.displayName;
@@ -54,9 +61,9 @@ export function AddUserModal({ onPick, onClose }: { onPick: (candidate: NewUserC
         setResult({ kind: "addable", candidate: found });
       }
     } catch {
-      setResult({ kind: "not_found" });
+      if (requestId === requestIdRef.current) setResult({ kind: "not_found" });
     } finally {
-      setStatus("done");
+      if (requestId === requestIdRef.current) setStatus("done");
     }
   }
 

@@ -35,15 +35,21 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const rosterUids = new Set(team.roster.map((p) => p.userId));
+  // playerKey, not the bare userId — a moment tagged to one sibling on a
+  // shared family account must not disappear just because it's checked
+  // against the account uid every sibling shares.
+  const rosterPlayerKeys = new Set(team.roster.map((p) => p.playerKey ?? p.userId));
   // Team moments plus any moment tagging a player on this roster — a fan
   // tagging just the player should still surface it here.
   const teamMoments = moments
-    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
+    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterPlayerKeys.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
   const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
-  const onRoster = profile ? rosterUids.has(profile.uid) : false;
+  // Account-level, not per-child — "am I on this roster at all" (posting to
+  // the team channel) is a family-account question, distinct from the
+  // per-child playerKey set used for moments above.
+  const onRoster = profile ? team.roster.some((p) => p.userId === profile.uid) : false;
   const canPostToChannel = isStaff || onRoster;
   const channelMessages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 

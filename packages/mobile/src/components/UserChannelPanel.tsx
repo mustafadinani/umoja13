@@ -72,6 +72,8 @@ export function UserChannelPanel({ uid }: { uid: string }) {
         <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>
           {isOwner
             ? "Ask a question and Ask Umoja will answer right away — tap Talk to an organizer below any time you need a real person."
+            : isStaff
+            ? "One-way channel between this user and the organizers."
             : "Message the organizers directly — an admin or the commissioner will reply here."}
         </Text>
         {messages.map((m, i) => (

@@ -49,7 +49,7 @@ export function PlayerCardModal({
 
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 14, flexWrap: "wrap", justifyContent: "center" }}>
           <CheckInStatusPill status={player.checkInStatus} />
-          {rosterChecked !== undefined && (
+          {player.checkInStatus === "approved" && rosterChecked !== undefined && (
             <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
               {rosterChecked ? "Roster Checked" : "Not Roster Checked"}
             </Pill>

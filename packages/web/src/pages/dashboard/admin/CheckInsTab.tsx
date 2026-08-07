@@ -66,10 +66,15 @@ function ReviewQueue() {
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
-  // Legacy check-ins written before playerKey existed fall back to userId,
-  // matching their pre-fix (ambiguous, best-effort) behavior exactly.
+  // Registration name (keyed by playerKey, per-child) must win over the
+  // account's own `users` doc displayName — that's one name shared by every
+  // sibling on a family account, so checking it first would collapse every
+  // kid's row back onto the same name, exactly the bug this function's own
+  // playerKey-keying was built to avoid. Legacy check-ins written before
+  // playerKey existed fall back to userId, matching their pre-fix
+  // (ambiguous, best-effort) behavior exactly.
   const nameFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
-    userById.get(c.userId)?.displayName ?? registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name ?? c.userId;
+    registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name || userById.get(c.userId)?.displayName || c.userId;
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
   const filtered = checkIns.filter((c) => {
@@ -132,8 +137,10 @@ function FieldPreferencesTable() {
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  // Same precedence as ReviewQueue's nameFor — see its comment for why the
+  // per-child registration name must win over the shared account displayName.
   const nameFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
-    userById.get(c.userId)?.displayName ?? registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name ?? c.userId;
+    registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name || userById.get(c.userId)?.displayName || c.userId;
 
   const responses = checkIns
     .filter((c) => PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(c.categoryId) && c.privateFieldPreference !== undefined)

@@ -30,7 +30,7 @@ export function Privacy() {
           <li><strong>Account info</strong> — name, email, and phone number when you sign up or are registered for a team.</li>
           <li>
             <strong>Player/registration info</strong> — date of birth, team and category, jersey number, and
-            (optional) line of work and current employer if you choose to add them to your player card.
+            (optional) profession if you choose to add it to your player card.
           </li>
           <li>
             <strong>Identity verification photos</strong> — a selfie and a photo of a government-issued ID,

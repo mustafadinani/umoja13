@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, deleteField } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -46,7 +46,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
   const [profession, setProfession] = useState(existingCheckIn?.lineOfWork ?? "");
   const [professionQuery, setProfessionQuery] = useState("");
-  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian">("self");
+  const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian" | null>(null);
   const [guardianName, setGuardianName] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
@@ -60,7 +60,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const canContinueFromDetails =
     rosterInfo?.jerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
-  const canContinueFromConsent = agreed && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const canContinueFromConsent = agreed && acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
   const playerName = (membership?.playerName ?? profile?.displayName ?? "").trim();
   // Checked per player name, not the account's overall volunteer role — a
@@ -139,15 +139,18 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             submittedAt: Date.now(),
             attempt,
             consent: {
-              acceptedBy,
+              acceptedBy: acceptedBy as "self" | "guardian",
               guardianName: acceptedBy === "guardian" ? guardianName.trim() : null,
               acceptedAt: Date.now(),
               policyVersion: CHECKIN_CONSENT_POLICY_VERSION,
             },
             ...(asksFieldPreference && privateFieldPreference !== null ? { privateFieldPreference } : {}),
             // Profession only ever applies to the adult checking in for
-            // themselves — never recorded for a guardian's minor.
-            ...(acceptedBy === "self" && profession ? { lineOfWork: profession } : {}),
+            // themselves — never recorded for a guardian's minor. Explicitly
+            // cleared (not just omitted) on a guardian resubmission, or a
+            // merge:true write would leave an earlier self-submission's
+            // profession stuck on this check-in forever.
+            lineOfWork: acceptedBy === "self" && profession ? profession : deleteField(),
           },
           { merge: true }
         ),
@@ -180,7 +183,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg, padding: 20 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg, padding: 20 }} keyboardShouldPersistTaps="handled">
       {step === "confirm" && (
         <View>
           <Text style={styles.h1}>Is this you?</Text>
