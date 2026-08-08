@@ -5,6 +5,7 @@ import {
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   COLLECTIONS,
+  TODDLERS_CAMP_CATEGORY_LABELS,
   type Category,
   type CheckIn,
   type RegisteredPlayer,
@@ -29,24 +30,32 @@ function normalizeLabel(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Resolve a registration player's category against umoja13-app / categories. */
+/**
+ * Resolve a registration player's category against umoja13-app / categories.
+ * `nonCompetitive` covers real registration categoryIds (Toddlers Camp) that
+ * are legitimate but intentionally outside the tournament's CATEGORIES list
+ * — no games/standings/team structure, so they're not an "invalid category"
+ * error and shouldn't show a bare UUID either.
+ */
 function matchPlayerCategory(
   player: RegisteredPlayer,
   categories: Category[]
-): { categoryId: string; matched: Category | null; rawDisplay: string } {
+): { categoryId: string; matched: Category | null; rawDisplay: string; nonCompetitive: boolean } {
   const byId = player.categoryId?.trim() ?? "";
   if (byId) {
     const matched = categories.find((c) => c.id === byId) ?? null;
+    const nonCompetitiveLabel = TODDLERS_CAMP_CATEGORY_LABELS[byId];
     return {
       categoryId: byId,
       matched,
-      rawDisplay: matched?.label ?? byId,
+      rawDisplay: matched?.label ?? nonCompetitiveLabel ?? byId,
+      nonCompetitive: !matched && !!nonCompetitiveLabel,
     };
   }
 
   const label = player.category?.trim() ?? "";
   if (!label) {
-    return { categoryId: "", matched: null, rawDisplay: "" };
+    return { categoryId: "", matched: null, rawDisplay: "", nonCompetitive: false };
   }
 
   const byLabel =
@@ -58,16 +67,20 @@ function matchPlayerCategory(
     }) ??
     null;
   if (byLabel) {
-    return { categoryId: byLabel.id, matched: byLabel, rawDisplay: label };
+    return { categoryId: byLabel.id, matched: byLabel, rawDisplay: label, nonCompetitive: false };
   }
 
   // Older rows sometimes stored a UUID in `category` instead of a label.
   const asId = categories.find((c) => c.id === label) ?? null;
   if (asId) {
-    return { categoryId: asId.id, matched: asId, rawDisplay: asId.label };
+    return { categoryId: asId.id, matched: asId, rawDisplay: asId.label, nonCompetitive: false };
+  }
+  const nonCompetitiveLabel = TODDLERS_CAMP_CATEGORY_LABELS[label];
+  if (nonCompetitiveLabel) {
+    return { categoryId: label, matched: null, rawDisplay: nonCompetitiveLabel, nonCompetitive: true };
   }
 
-  return { categoryId: label, matched: null, rawDisplay: label };
+  return { categoryId: label, matched: null, rawDisplay: label, nonCompetitive: false };
 }
 
 /**
@@ -121,8 +134,8 @@ export function PlayersAdminTab() {
         return { player: p, teamId, teamName, hasTeam, checkedIn, categoryMatch };
       })
       .filter(({ player, hasTeam, categoryMatch }) => {
-        if (unassignedOnly && hasTeam) return false;
-        if (invalidOnly && categoryMatch.matched) return false;
+        if (unassignedOnly && (hasTeam || categoryMatch.nonCompetitive)) return false;
+        if (invalidOnly && (categoryMatch.matched || categoryMatch.nonCompetitive)) return false;
         if (categoryFilter) {
           const label = categoryMatch.matched?.label ?? categoryMatch.rawDisplay;
           if (label !== categoryFilter) return false;
@@ -140,8 +153,11 @@ export function PlayersAdminTab() {
       });
   }, [players, teamNameById, checkIns, search, categoryFilter, unassignedOnly, invalidOnly, categories]);
 
-  const unassignedCount = players.filter((p) => !p.teamId?.trim()).length;
-  const invalidCategoryCount = players.filter((p) => !matchPlayerCategory(p, categories).matched).length;
+  const unassignedCount = players.filter((p) => !p.teamId?.trim() && !matchPlayerCategory(p, categories).nonCompetitive).length;
+  const invalidCategoryCount = players.filter((p) => {
+    const m = matchPlayerCategory(p, categories);
+    return !m.matched && !m.nonCompetitive;
+  }).length;
   const loading = playersLoading || teamsLoading || checkInsLoading || categoriesLoading;
   const error = playersError || teamsError;
 
@@ -241,7 +257,7 @@ export function PlayersAdminTab() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.map(({ player, teamName, hasTeam, checkedIn, categoryMatch }) => {
           const displayName = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
-          const invalid = !categoryMatch.matched;
+          const invalid = !categoryMatch.matched && !categoryMatch.nonCompetitive;
           return (
             <Card
               key={player.id}
@@ -346,6 +362,8 @@ export function PlayersAdminTab() {
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 {hasTeam ? (
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{teamName}</div>
+                ) : categoryMatch.nonCompetitive ? (
+                  <div style={{ fontWeight: 700, fontSize: 13, color: theme.color.textMuted }}>Camp — no team needed</div>
                 ) : (
                   <div style={{ fontWeight: 800, fontSize: 13, color: theme.color.danger }}>No team assigned.</div>
                 )}

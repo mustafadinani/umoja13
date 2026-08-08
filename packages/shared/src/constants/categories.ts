@@ -50,6 +50,20 @@ export const OVER_AGE_CATEGORY_IDS = [
 export const SOCCER_CAMP = { id: "soccer-camp", label: "Umoja Soccer Camp", dobCutoff: "2020-01-01" };
 
 /**
+ * Real registration categoryIds for the Toddlers Camp age brackets — these
+ * are the actual ids stamped on registration rows (distinct from the
+ * synthetic `SOCCER_CAMP.id` above, which nothing in registration data
+ * actually uses). Not real tournament divisions: no games, no standings,
+ * and — same as camp generally — never expected to have a team assigned.
+ * Kept here so admin views can show a real label instead of the bare
+ * categoryId and skip flagging these registrants as an error.
+ */
+export const TODDLERS_CAMP_CATEGORY_LABELS: Record<string, string> = {
+  "b25e6367-4781-4dc6-8b78-cf72b70ea0f0": "Toddlers Camp (Ages 3 and 4)",
+  "fb4454dc-d4d3-464c-a4df-d0942c19c9fe": "Toddlers Camp (Ages 5 and 6)",
+};
+
+/**
  * Categories that don't track standings/W-D-L — every player medals, no bracket.
  * Empty as of the Aug 2026 Schedule & Format Guide: that guide gives Boy's 8 &
  * Under (the one division previously flagged here) a fully competitive bracket
