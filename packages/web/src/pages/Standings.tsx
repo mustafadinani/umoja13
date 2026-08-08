@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  CATEGORIES,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TOURNAMENT_DAY_DATES,
   compareGamesByKickoff,
   formatKickoffTime,
   provisionalSideLabel,
+  seedDestination,
   type Game,
   type Team,
 } from "@umoja/shared";
@@ -33,6 +35,7 @@ const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: str
   shield: { fg: theme.color.pink, bg: "rgba(236,59,99,.12)" },
   classic: { fg: theme.color.blue, bg: "rgba(37,99,235,.12)" },
 };
+const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
 export function Standings() {
   const navigate = useNavigate();
@@ -57,6 +60,8 @@ export function Standings() {
   const { data: sponsors } = useSponsors();
 
   const isFestival = activeCategoryId ? FESTIVAL_CATEGORY_IDS.includes(activeCategoryId) : false;
+  const activeCategory = CATEGORIES.find((c) => c.id === activeCategoryId) ?? null;
+  const hasGroups = teams.some((t) => t.group === "A" || t.group === "B");
 
   /** Only show GROUP headers when at least one team actually has a group assigned. */
   const grouped = useMemo(() => {
@@ -171,62 +176,98 @@ export function Standings() {
               TEAMS ({list.length})
             </div>
           ) : null}
-          {list.length > 0 && (
-            <div className="standings-scroll">
-              <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: isFestival ? "auto 1fr" : "auto 1fr auto auto auto auto",
-                    gap: 10,
-                    padding: "10px 14px",
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    color: theme.color.textMuted,
-                    borderBottom: `1px solid ${theme.color.border}`,
-                  }}
-                >
-                  <span>#</span>
-                  <span>TEAM</span>
-                  {!isFestival && (
-                    <>
-                      <span>PTS</span>
-                      <span>GD</span>
-                      <span>GF</span>
-                      <span>W-D-L</span>
-                    </>
-                  )}
-                </div>
-                {list.map((t, i) => (
+          {list.length > 0 && (() => {
+            const showPath = !isFestival && !hasGroups && !!activeCategory;
+            const gridCols = isFestival ? "auto 1fr" : showPath ? "auto 1fr auto auto auto auto auto" : "auto 1fr auto auto auto auto";
+            return (
+              <div className="standings-scroll">
+                <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
                   <div
-                    key={t.id}
-                    onClick={() => navigate(`/team/${t.id}`)}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: isFestival ? "auto 1fr" : "auto 1fr auto auto auto auto",
+                      gridTemplateColumns: gridCols,
                       gap: 10,
-                      padding: "12px 14px",
-                      fontSize: 14,
-                      cursor: "pointer",
-                      borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined,
-                      background: !isFestival && i < 2 ? "#FBF8FF" : undefined,
+                      padding: "10px 14px",
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      color: theme.color.textMuted,
+                      borderBottom: `1px solid ${theme.color.border}`,
                     }}
                   >
-                    <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
-                    <span style={{ fontWeight: 600 }}>{t.name}</span>
+                    <span>#</span>
+                    <span>TEAM</span>
                     {!isFestival && (
                       <>
-                        <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
-                        <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
-                        <span>{t.stats.goalsFor}</span>
-                        <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
+                        <span>PTS</span>
+                        <span>GD</span>
+                        <span>GF</span>
+                        <span>W-D-L</span>
                       </>
                     )}
+                    {showPath && <span>PATH TO SUNDAY</span>}
                   </div>
-                ))}
+                  {list.map((t, i) => {
+                    const dest = showPath ? seedDestination(activeCategory!.bracketTemplate, t.stats.groupRank ?? i + 1) : null;
+                    // Only tint when the outcome is actually known — a fixed Cup/Shield/Classic
+                    // bracket, or genuine elimination. A seed still alive but headed to a Semi-
+                    // Final/Quarter-Final/Wild Card whose winner isn't decided yet stays
+                    // untinted rather than guessing at a color that isn't true yet.
+                    const pathColor = dest?.bracket ? BRACKET_COLORS[dest.bracket] : dest?.eliminated ? ELIMINATED_COLOR : undefined;
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => navigate(`/team/${t.id}`)}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: gridCols,
+                          gap: 10,
+                          padding: "12px 14px",
+                          fontSize: 14,
+                          alignItems: "center",
+                          cursor: "pointer",
+                          borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined,
+                          background: pathColor?.bg,
+                        }}
+                      >
+                        <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
+                        <span style={{ fontWeight: 600 }}>{t.name}</span>
+                        {!isFestival && (
+                          <>
+                            <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
+                            <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
+                            <span>{t.stats.goalsFor}</span>
+                            <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
+                          </>
+                        )}
+                        {showPath && dest && (
+                          <span
+                            style={
+                              pathColor
+                                ? {
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    letterSpacing: 0.3,
+                                    textTransform: "uppercase",
+                                    color: pathColor.fg,
+                                    background: pathColor.bg,
+                                    padding: "4px 9px",
+                                    borderRadius: 999,
+                                    whiteSpace: "nowrap",
+                                    justifySelf: "start",
+                                  }
+                                : { fontSize: 12.5, color: theme.color.textMuted, justifySelf: "start" }
+                            }
+                          >
+                            {dest.eliminated ? "Eliminated" : dest.label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       ))}
 

@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import {
+  CATEGORIES,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TOURNAMENT_DAY_DATES,
   compareGamesByKickoff,
   formatKickoffTime,
   provisionalSideLabel,
+  seedDestination,
   type Game,
   type RegistrationCategoryBucket,
+  type SeedDestination,
   type Team,
 } from "@umoja/shared";
 
@@ -94,6 +97,12 @@ const BRACKET_LABELS: Record<NonNullable<Game["bracket"]>, string> = {
   shield: "Shield",
   classic: "Classic",
 };
+const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: string }> = {
+  cup: { fg: theme.color.purple, bg: "rgba(139,47,209,.12)" },
+  shield: { fg: theme.color.pink, bg: "rgba(236,59,99,.12)" },
+  classic: { fg: theme.color.blue, bg: "rgba(37,99,235,.12)" },
+};
+const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { buckets } = useRegistrationCategoryBuckets();
@@ -120,6 +129,8 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: teams } = useTeams(standingsCategoryId ?? undefined);
 
   const isFestival = standingsCategoryId ? FESTIVAL_CATEGORY_IDS.includes(standingsCategoryId) : false;
+  const activeCategory = CATEGORIES.find((c) => c.id === standingsCategoryId) ?? null;
+  const hasGroups = teams.some((t) => t.group === "A" || t.group === "B");
   const filteredGames = useMemo(
     () => games.filter((g) => !categoryId || g.categoryId === categoryId).sort(compareGamesByKickoff),
     [games, categoryId]
@@ -237,22 +248,39 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
                   ) : (
                     <Text style={styles.groupTitle}>TEAMS ({list.length})</Text>
                   )}
-                  {list.map((t, i) => (
-                    <Card
-                      key={t.id}
-                      onPress={() => navigation.getParent()?.navigate("Team", { teamId: t.id })}
-                      style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    >
-                      <Text style={{ fontWeight: "700", flex: 1 }}>
-                        #{t.stats.groupRank ?? i + 1} {t.name}
-                      </Text>
-                      {!isFestival && (
-                        <Text style={{ color: theme.color.textMuted }}>
-                          {t.stats.wins}-{t.stats.draws}-{t.stats.losses} · {t.stats.points} pts
-                        </Text>
-                      )}
-                    </Card>
-                  ))}
+                  {list.map((t, i) => {
+                    const dest: SeedDestination | null =
+                      !isFestival && !hasGroups && activeCategory
+                        ? seedDestination(activeCategory.bracketTemplate, t.stats.groupRank ?? i + 1)
+                        : null;
+                    // Only tint when the outcome is actually known — a fixed Cup/Shield/Classic
+                    // bracket, or genuine elimination. Still-alive-but-undetermined (headed to a
+                    // Semi-Final/Quarter-Final/Wild Card) stays untinted rather than guessing.
+                    const pathColor = dest?.bracket ? BRACKET_COLORS[dest.bracket] : dest?.eliminated ? ELIMINATED_COLOR : undefined;
+                    return (
+                      <Card
+                        key={t.id}
+                        onPress={() => navigation.getParent()?.navigate("Team", { teamId: t.id })}
+                        style={{ marginBottom: 6, ...(pathColor ? { backgroundColor: pathColor.bg } : null) }}
+                      >
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={{ fontWeight: "700", flex: 1 }}>
+                            #{t.stats.groupRank ?? i + 1} {t.name}
+                          </Text>
+                          {!isFestival && (
+                            <Text style={{ color: theme.color.textMuted }}>
+                              {t.stats.wins}-{t.stats.draws}-{t.stats.losses} · {t.stats.points} pts
+                            </Text>
+                          )}
+                        </View>
+                        {dest && (
+                          <Text style={{ fontSize: 11, fontWeight: "800", letterSpacing: 0.3, textTransform: "uppercase", marginTop: 4, color: pathColor?.fg ?? theme.color.textMuted }}>
+                            {dest.eliminated ? "Eliminated" : dest.label}
+                          </Text>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </View>
               ))
             )}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, GAME_FIELDS, formatKickoffTime, type Game } from "@umoja/shared";
+import { CATEGORIES, GAME_FIELDS, compareGamesByKickoff, formatKickoffTime, type Game } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
@@ -16,16 +16,18 @@ export function AllGamesTab() {
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
-  const filtered = games.filter((g) => {
-    if (field && g.field !== field) return false;
-    if (search) {
-      const home = teamById.get(g.homeTeamId)?.name ?? "";
-      const away = teamById.get(g.awayTeamId)?.name ?? "";
-      const q = search.toLowerCase();
-      if (!home.toLowerCase().includes(q) && !away.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  const filtered = games
+    .filter((g) => {
+      if (field && g.field !== field) return false;
+      if (search) {
+        const home = teamById.get(g.homeTeamId)?.name ?? "";
+        const away = teamById.get(g.awayTeamId)?.name ?? "";
+        const q = search.toLowerCase();
+        if (!home.toLowerCase().includes(q) && !away.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    })
+    .sort(compareGamesByKickoff);
 
   return (
     <div>

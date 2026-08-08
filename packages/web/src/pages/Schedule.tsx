@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { GAME_FIELDS, TOURNAMENT_DAY_DATES, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
+import { GAME_FIELDS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
@@ -38,21 +38,23 @@ export function Schedule() {
     return ids;
   }, [profile]);
 
-  const filtered = games.filter((g) => {
-    if (day && g.day !== day) return false;
-    if (categoryId && g.categoryId !== categoryId) return false;
-    if (field && g.field !== field) return false;
-    if (myTeamsOnly && !myTeamIds.has(g.homeTeamId) && !myTeamIds.has(g.awayTeamId)) return false;
-    if (search) {
-      const home = teamById.get(g.homeTeamId)?.name ?? "";
-      const away = teamById.get(g.awayTeamId)?.name ?? "";
-      const category = categories.find((c) => c.id === g.categoryId)?.label ?? "";
-      const q = search.toLowerCase();
-      const matches = [home, away, category, g.field].some((v) => v.toLowerCase().includes(q));
-      if (!matches) return false;
-    }
-    return true;
-  });
+  const filtered = games
+    .filter((g) => {
+      if (day && g.day !== day) return false;
+      if (categoryId && g.categoryId !== categoryId) return false;
+      if (field && g.field !== field) return false;
+      if (myTeamsOnly && !myTeamIds.has(g.homeTeamId) && !myTeamIds.has(g.awayTeamId)) return false;
+      if (search) {
+        const home = teamById.get(g.homeTeamId)?.name ?? "";
+        const away = teamById.get(g.awayTeamId)?.name ?? "";
+        const category = categories.find((c) => c.id === g.categoryId)?.label ?? "";
+        const q = search.toLowerCase();
+        const matches = [home, away, category, g.field].some((v) => v.toLowerCase().includes(q));
+        if (!matches) return false;
+      }
+      return true;
+    })
+    .sort(compareGamesByKickoff);
 
   return (
     <div className="page-shell">

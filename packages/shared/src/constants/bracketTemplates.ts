@@ -1,5 +1,5 @@
 import type { BracketTemplateId } from "../types/team.js";
-import type { GameBracket, GameRound, TeamRef } from "../types/game.js";
+import { formatMatchCode, type GameBracket, type GameRound, type TeamRef } from "../types/game.js";
 
 /** One playoff game a bracket template produces, independent of day/time/field (those come from the published schedule — see the schedule seed data). */
 export interface BracketTemplateGame {
@@ -126,4 +126,33 @@ export function resolveBracketTeamRef(
   const resolved = resolvedByMatchCode(ref.matchCode);
   if (!resolved) return undefined;
   return ref.type === "winner" ? resolved.winnerId : resolved.loserId;
+}
+
+/**
+ * Where a given final group-stage seed heads next, derived straight from the
+ * template rather than hand-listed per division — for a standings table row
+ * showing "this seed's path" (e.g. Men's Open seeds 1-8 -> Cup, 9-16 ->
+ * Classic). `bracket` is only set when the template fixes it by seed alone
+ * (Men's Open's dual bracket, Girls U10's top2/bottom2) — for a division
+ * where the same seed's Cup/Shield fate depends on winning a Semi-Final
+ * first, `bracket` stays undefined even though `label` still names the next
+ * game, since claiming a bracket before it's actually decided would be
+ * telling the reader something false.
+ */
+export interface SeedDestination {
+  /** e.g. "Cup QF1", "Wild Card", "Cup Final" — the next game this seed plays, or undefined if the template never references this seed (eliminated after the group stage). */
+  label?: string;
+  bracket?: GameBracket;
+  eliminated: boolean;
+}
+
+export function seedDestination(bracketTemplate: BracketTemplateId, seed: number): SeedDestination {
+  const games = BRACKET_TEMPLATES[bracketTemplate];
+  const match = games.find(
+    (g) =>
+      (g.homeRef.type === "seed" && g.homeRef.seed === seed) ||
+      (g.awayRef.type === "seed" && g.awayRef.seed === seed)
+  );
+  if (!match) return { eliminated: true };
+  return { label: formatMatchCode(match.matchCode), bracket: match.bracket, eliminated: false };
 }
