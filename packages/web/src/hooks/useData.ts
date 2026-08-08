@@ -27,6 +27,7 @@ import {
   type Pod,
   type PodChannel,
   type PodTask,
+  type Draw,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -84,6 +85,8 @@ export const useGames = (constraints: QueryConstraint[] = []) =>
   useCollection<Game>(COLLECTIONS.games, constraints);
 
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
+
+export const useDraw = (categoryId: string | undefined) => useDocument<Draw>(COLLECTIONS.draws, categoryId);
 
 export const useMoments = (approvedOnly = true) =>
   useCollection<Moment>(

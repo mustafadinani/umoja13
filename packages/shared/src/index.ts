@@ -2,6 +2,7 @@ export * from "./types/roles.js";
 export * from "./types/user.js";
 export * from "./types/team.js";
 export * from "./types/game.js";
+export * from "./types/draw.js";
 export * from "./types/checkin.js";
 export * from "./types/moments.js";
 export * from "./types/incident.js";
@@ -19,6 +20,7 @@ export * from "./types/channelRead.js";
 export * from "./types/inbox.js";
 
 export * from "./constants/categories.js";
+export * from "./constants/bracketTemplates.js";
 export * from "./constants/sponsors.js";
 export * from "./constants/huntMissions.js";
 export * from "./constants/moments.js";

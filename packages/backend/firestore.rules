@@ -57,6 +57,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaff();
     }
+    // ---- Live Draw state: which real team occupies which draw position, per category ----
+    match /draws/{categoryId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
     // ---- announcements: public/always-readable (signed-out Home visitors see these too); posted only via the postAnnouncement Cloud Function ----
     match /announcements/{id} {
       allow read: if true;

@@ -1,5 +1,6 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { COLLECTIONS, FESTIVAL_CATEGORY_IDS, type Game, type TeamStats } from "@umoja/shared";
+import { FieldValue } from "firebase-admin/firestore";
+import { COLLECTIONS, FESTIVAL_CATEGORY_IDS, resolveBracketTeamRef, type Game, type TeamStats } from "@umoja/shared";
 import { db, FIRESTORE_DATABASE_ID } from "../util/admin.js";
 
 function emptyStats(): TeamStats {
@@ -8,8 +9,12 @@ function emptyStats(): TeamStats {
 
 /**
  * Recomputes both teams' aggregate stats whenever a game in their category
- * becomes final/forfeited (or is un-finalized). Standings are always
- * derived, never hand-edited — this is the single writer of Team.stats.
+ * becomes final/forfeited (or is un-finalized), and — since that's exactly
+ * the moment a division's final group-stage standing or a playoff result
+ * becomes knowable — resolves as many of that category's still-unresolved
+ * playoff games (round !== "group", homeTeamId/awayTeamId still "") as it
+ * can in the same pass. Standings are always derived, never hand-edited —
+ * this is the single writer of Team.stats.
  */
 export const onGameWrite = onDocumentWritten(
   { document: `${COLLECTIONS.games}/{gameId}`, database: FIRESTORE_DATABASE_ID },
@@ -94,5 +99,59 @@ export const onGameWrite = onDocumentWritten(
     if (!stats) continue;
     batch.set(teamDoc.ref, { stats }, { merge: true });
   }
+
+  // ---- Bracket resolution ----
+  // matchCode -> who actually won/lost, from every playoff game in this
+  // category that's already final/forfeited (a double no-show has neither —
+  // per the official rules "neither team advances in knockout stages" — so
+  // it permanently blocks anything depending on it until an organizer
+  // manually intervenes, same as a same-score final that somehow wasn't
+  // shot out). Built once per pass from gamesSnap, which already reflects
+  // this event's own write since triggers fire post-commit.
+  const matchCodeResults = new Map<string, { winnerId?: string; loserId?: string }>();
+  for (const gdoc of gamesSnap.docs) {
+    const g = gdoc.data() as Game;
+    if (!g.matchCode || (g.status !== "final" && g.status !== "forfeited")) continue;
+    if (g.forfeit?.outcome === "double_no_show") continue;
+    let winnerId: string | undefined;
+    let loserId: string | undefined;
+    if (g.forfeit) {
+      winnerId = g.forfeit.outcome === "home_win" ? g.homeTeamId : g.awayTeamId;
+      loserId = g.forfeit.outcome === "home_win" ? g.awayTeamId : g.homeTeamId;
+    } else {
+      const home = g.homeScore ?? 0;
+      const away = g.awayScore ?? 0;
+      if (home === away) continue; // shouldn't happen for a finalized knockout game (shootout already resolves ties) — skip rather than guess
+      winnerId = home > away ? g.homeTeamId : g.awayTeamId;
+      loserId = home > away ? g.awayTeamId : g.homeTeamId;
+    }
+    matchCodeResults.set(g.matchCode, { winnerId, loserId });
+  }
+
+  // A division's "seed" (final group-stage standing) is only knowable once
+  // every one of its group/league games is done — ranked[] above is exactly
+  // that computation, already run unconditionally regardless of round.
+  const groupGames = gamesSnap.docs.map((d) => d.data() as Game).filter((g) => g.round === "group");
+  const groupStageComplete = groupGames.length > 0 && groupGames.every((g) => g.status === "final" || g.status === "forfeited");
+  const seedToTeamId = (seedNum: number): string | undefined => (groupStageComplete ? ranked[seedNum - 1]?.[0] : undefined);
+
+  for (const gdoc of gamesSnap.docs) {
+    const g = gdoc.data() as Game;
+    if (g.round === "group") continue;
+    const updates: Record<string, unknown> = {};
+    if (!g.homeTeamId && g.homeRef) {
+      const id = resolveBracketTeamRef(g.homeRef, seedToTeamId, (mc) => matchCodeResults.get(mc));
+      if (id) { updates.homeTeamId = id; updates.homeRef = FieldValue.delete(); }
+    }
+    if (!g.awayTeamId && g.awayRef) {
+      const id = resolveBracketTeamRef(g.awayRef, seedToTeamId, (mc) => matchCodeResults.get(mc));
+      if (id) { updates.awayTeamId = id; updates.awayRef = FieldValue.delete(); }
+    }
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = Date.now();
+      batch.update(gdoc.ref, updates);
+    }
+  }
+
   await batch.commit();
 });

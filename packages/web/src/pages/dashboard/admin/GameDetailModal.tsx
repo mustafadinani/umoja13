@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { CATEGORIES, COLLECTIONS, type Game, type GameStatus } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
@@ -7,17 +7,34 @@ import { useReferees, useTeam } from "../../../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
 
+const ROUND_LABEL: Record<Game["round"], string> = {
+  group: "Group stage", wildcard: "Wild card", qf: "Quarter-final", sf: "Semi-final", final: "Final",
+};
+const BRACKET_LABEL: Record<NonNullable<Game["bracket"]>, string> = { cup: "Cup", shield: "Shield", classic: "Classic" };
+
 export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => void }) {
   const { data: home } = useTeam(game.homeTeamId);
   const { data: away } = useTeam(game.awayTeamId);
   const { data: referees } = useReferees();
   const [cardPhotoOpen, setCardPhotoOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const category = CATEGORIES.find((c) => c.id === game.categoryId);
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
 
   async function setStatus(status: GameStatus) {
     await updateDoc(doc(db, COLLECTIONS.games, game.id), { status, updatedAt: Date.now() });
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.games, game.id));
+      onClose();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function assignRef(uid: string | null) {
@@ -40,8 +57,15 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>
         {home?.name ?? "TBD"} vs {away?.name ?? "TBD"}
       </div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 4 }}>
         {category?.label} · {game.field} · {game.day.toUpperCase()} {game.kickoffTime}
+      </div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 16 }}>
+        {ROUND_LABEL[game.round]}
+        {game.bracket ? ` · ${BRACKET_LABEL[game.bracket]}` : ""}
+        {game.matchCode ? ` · ${game.matchCode}` : ""}
+        {!home && game.homeDrawPos != null && ` · awaiting draw (Team ${game.homeDrawPos} v Team ${game.awayDrawPos})`}
+        {!home && game.homeRef && ` · awaiting results`}
       </div>
 
       <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 16, textAlign: "center", marginBottom: 16 }}>
@@ -68,6 +92,18 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
           <PrimaryButton onClick={() => setCardPhotoOpen(true)} style={{ flex: 1 }}>View card photo</PrimaryButton>
         )}
       </div>
+
+      {confirmingDelete ? (
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ flex: 1, fontSize: 13, color: theme.color.danger }}>Delete this game? This can't be undone.</div>
+          <button onClick={() => setConfirmingDelete(false)} disabled={deleting} style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "10px 14px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+          <button onClick={handleDelete} disabled={deleting} style={{ background: theme.color.danger, color: "#fff", border: "none", borderRadius: theme.radius.sm, padding: "10px 14px", fontWeight: 700, cursor: "pointer" }}>
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmingDelete(true)} style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: 0 }}>Delete game</button>
+      )}
 
       {cardPhotoOpen && game.gameCard?.photoUrl && <GameCardPhotoModal url={game.gameCard.photoUrl} onClose={() => setCardPhotoOpen(false)} />}
     </Modal>

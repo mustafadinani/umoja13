@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, FIELDS, podForField, type Game } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, GAME_FIELDS, fieldCluster, podForField, type Game } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { usePods, useReferees, useTeams } from "../../../hooks/useData";
@@ -12,6 +12,18 @@ const DAYS: { id: Game["day"]; label: string }[] = [
   { id: "sun", label: "Sunday" },
 ];
 
+// Manually-added games always have both teams picked directly, so they never need
+// a matchCode/bracket/ref — round is offered mainly so a make-up or rescheduled
+// knockout game can be tagged correctly for display, not to wire it into the
+// bracket resolver (which only ever acts on matchCode/homeRef/awayRef).
+const ROUNDS: { id: Game["round"]; label: string }[] = [
+  { id: "group", label: "Group stage" },
+  { id: "wildcard", label: "Wild card" },
+  { id: "qf", label: "Quarter-final" },
+  { id: "sf", label: "Semi-final" },
+  { id: "final", label: "Final" },
+];
+
 export function AddGameModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -20,6 +32,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
   const [day, setDay] = useState<Game["day"] | null>(null);
   const [kickoffTime, setKickoffTime] = useState("10:00");
   const [field, setField] = useState<string | null>(null);
+  const [round, setRound] = useState<Game["round"]>("group");
   const [refereeUid, setRefereeUid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,11 +49,11 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
         day,
         kickoffTime,
         field,
-        podId: podForField(pods, field) ?? null,
+        podId: podForField(pods, fieldCluster(field)) ?? null,
         homeTeamId,
         awayTeamId,
         status: "scheduled",
-        round: "group",
+        round,
         refereeUid: refereeUid ?? null,
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
         events: [],
@@ -102,8 +115,12 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
             {["08:00", "09:00", "10:00", "10:40", "11:30", "12:20", "13:10", "14:00", "15:00", "16:00"].map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Field</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+            {GAME_FIELDS.map((f) => <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>)}
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Round</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-            {FIELDS.map((f) => <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>)}
+            {ROUNDS.map((r) => <Pill key={r.id} active={round === r.id} onClick={() => setRound(r.id)}>{r.label}</Pill>)}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => setStep(2)} style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "12px 16px", fontWeight: 700 }}>Back</button>

@@ -34,18 +34,54 @@ export interface GameCard {
   calledFinalAt?: number;
 }
 
+/** Round shape used across every division's bracket — see BracketTemplateId (types/team.ts) and BRACKET_TEMPLATES (constants/bracketTemplates.ts) for which rounds a given division actually uses (e.g. Girls U10 has no wildcard/qf/sf at all). */
+export type GameRound = "group" | "wildcard" | "qf" | "sf" | "final";
+
+/** Which parallel bracket track a playoff game belongs to. Every division's SF/wildcard rounds feed a single Cup/Shield split at the Final round — undefined until then. Men's Open is the one division with two fully parallel tracks (Cup vs Classic) starting from the QF, so `bracket` is set from the QF onward there. Always undefined for `round: "group"`. */
+export type GameBracket = "cup" | "shield" | "classic";
+
+/**
+ * How a playoff game's participant is determined before it's knowable as a
+ * concrete team id. "seed" means the division's final group-stage standing
+ * (Team.stats.groupRank once every group game is final/forfeited) — distinct
+ * from a group-stage game's `home/awayDrawPos`, which is the *draw* position
+ * fixed by the published schedule, not a standing. "winner"/"loser" resolve
+ * once the named `matchCode` game itself is final/forfeited.
+ */
+export type TeamRef =
+  | { type: "seed"; seed: number }
+  | { type: "winner"; matchCode: string }
+  | { type: "loser"; matchCode: string };
+
 export interface Game {
   id: string;
   categoryId: string;
   day: "fri" | "sat" | "sun";
   kickoffTime: string; // "10:40"
-  field: string; // "Field 12" — see FIELDS in constants/categories.ts for the venue's actual field numbering
-  /** Derived from `field` at creation via podForField() — lets a Pod Hub show its games without a fields<->pod join at read time. */
+  field: string; // "12B" — see GAME_FIELDS in constants/categories.ts for the venue's actual sub-pitch codes
+  /** Derived from `field` at creation via podForField(pods, fieldCluster(field)) — lets a Pod Hub show its games without a fields<->pod join at read time. */
   podId?: string;
+  /**
+   * Real team doc ids once known — "" until resolved. For a group-stage game
+   * that's until the division's Live Draw runs (see `homeDrawPos`/
+   * `awayDrawPos`); for a playoff game it's until `homeRef`/`awayRef`
+   * resolves. Existing UI (Schedule/Standings) already renders a lookup miss
+   * as "TBD", so "" is a safe placeholder with no extra handling required.
+   */
   homeTeamId: string;
   awayTeamId: string;
+  /** Group-stage only: 1-indexed draw position ("Team N" in the published schedule) — fixed by the schedule regardless of which real team the Live Draw assigns to it. Undefined for playoff games, which use homeRef/awayRef instead. */
+  homeDrawPos?: number;
+  awayDrawPos?: number;
+  /** Playoff games only (round !== "group"): how to resolve this side once its prerequisite is known. Cleared once resolved (homeTeamId/awayTeamId become the source of truth from then on, like any other game). */
+  homeRef?: TeamRef;
+  awayRef?: TeamRef;
   status: GameStatus;
-  round: "group" | "qf" | "sf_ab" | "sf_cd" | "final";
+  round: GameRound;
+  /** Which parallel bracket this game belongs to — see GameBracket. */
+  bracket?: GameBracket;
+  /** Slot label for playoff games so later rounds can reference "winner of X" concretely, e.g. "SF1", "QF3", "Wildcard", "CupFinal" — see TeamRef. Undefined for group games (draw position is identifier enough). */
+  matchCode?: string;
   refereeUid?: string;
   gateCheck: {
     completedAt?: number;

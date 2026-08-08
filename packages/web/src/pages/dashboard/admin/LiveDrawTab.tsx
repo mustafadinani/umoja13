@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { collection, doc, where, writeBatch } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, FESTIVAL_CATEGORY_IDS, podForField, type Game, type Team } from "@umoja/shared";
+import { doc, setDoc, where, writeBatch } from "firebase/firestore";
+import { CATEGORIES, COLLECTIONS, compareGamesByKickoff, fieldCluster, podForField, type Game, type Team } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { Modal, PrimaryButton } from "../../../components/ui";
-import { useGames, usePods, useTeams } from "../../../hooks/useData";
+import { useDraw, useGames, usePods, useTeams } from "../../../hooks/useData";
 
-// Festival categories don't track standings/brackets — nothing to draw or schedule.
-const DRAW_CATEGORIES = CATEGORIES.filter((c) => !FESTIVAL_CATEGORY_IDS.includes(c.id));
+const DRAW_CATEGORIES = CATEGORIES;
 const ROLL_COLORS = [
   theme.color.purple, theme.color.blue, theme.color.teal, theme.color.pink,
   theme.color.orange, theme.color.tealLight, theme.color.purpleLight, theme.color.gold,
@@ -31,61 +30,32 @@ function colorFor(name: string) {
   return ROLL_COLORS[Math.abs(hash) % ROLL_COLORS.length];
 }
 
-interface DrawState {
-  order: string[]; // team ids, in the order they were drawn
+interface RollState {
   rolling: boolean;
   rollName: string;
   landed: string | null;
   chaining: boolean;
 }
-const emptyDraw = (): DrawState => ({ order: [], rolling: false, rollName: "", landed: null, chaining: false });
-
-interface ShellRow {
-  day: Game["day"];
-  time: string;
-  field: string;
-  slotA: number; // 1-indexed draw position
-  slotB: number;
-}
-
-const DAY_ALIASES: Record<string, Game["day"]> = {
-  fri: "fri", friday: "fri", sat: "sat", saturday: "sat", sun: "sun", sunday: "sun",
-};
-
-/** Uploaded shell CSV: Day,Time,Field,Team 1,Team 2 — the two team columns are draw-position numbers (1st ball out, 2nd ball out, ...), resolved against the live draw once it's done. A header row or any malformed row is silently skipped. */
-function parseShellCsv(text: string): { rows: ShellRow[]; skipped: number } {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const rows: ShellRow[] = [];
-  let skipped = 0;
-  for (const line of lines) {
-    const cells = line.split(",").map((c) => c.trim().replace(/^"(.*)"$/, "$1"));
-    if (cells.length < 5) { skipped++; continue; }
-    const [dayRaw, time, field, aRaw, bRaw] = cells;
-    const day = DAY_ALIASES[dayRaw.toLowerCase()];
-    const slotA = Number(aRaw), slotB = Number(bRaw);
-    if (!day || !time || !field || !Number.isFinite(slotA) || !Number.isFinite(slotB)) { skipped++; continue; }
-    rows.push({ day, time, field, slotA, slotB });
-  }
-  return { rows, skipped };
-}
+const emptyRoll = (): RollState => ({ rolling: false, rollName: "", landed: null, chaining: false });
 
 /**
- * Admin-only live draw: pick a category, draw teams one at a time (or all at
- * once) out of the pot, watch the schedule fill in live as picks land, then
- * review and confirm before anything gets written to the real Games
- * collection. Day/time/field come from a pre-built CSV shell you upload per
- * category — Team 1/Team 2 columns are draw positions, not names, and get
- * resolved to real teams once the draw lands them.
+ * Admin-only live draw: pick a division, draw its real registered teams one
+ * at a time (or all at once) into 1-indexed draw positions, then publish —
+ * which backfills homeTeamId/awayTeamId on that division's already-seeded
+ * group-stage games (the full 226-game Aug 2026 schedule is pre-loaded with
+ * each game's day/time/field and its `homeDrawPos`/`awayDrawPos`; the draw's
+ * only job is deciding which real team sits at which position). Sunday's
+ * playoff games resolve separately, automatically, off final group-stage
+ * standings and results (see the onGameWrite bracket-resolution trigger) —
+ * nothing to publish here for those.
  *
- * Draw progress and uploaded shells are deliberately session-only — this is
- * an in-person, one-sitting event-day tool, not something meant to be
- * resumed days later.
+ * Draw order is persisted to Firestore (draws/{categoryId}) as each pick
+ * lands, so — unlike the old CSV-shell tool — this is resumable across a
+ * refresh or multiple sittings, not a one-shot in-person-only session.
  */
 export function LiveDrawTab() {
   const [categoryId, setCategoryId] = useState(DRAW_CATEGORIES[0]?.id ?? "");
-  const [draws, setDraws] = useState<Record<string, DrawState>>({});
-  const [shells, setShells] = useState<Record<string, ShellRow[]>>({});
-  const [shellNotice, setShellNotice] = useState<string | null>(null);
+  const [rolls, setRolls] = useState<Record<string, RollState>>({});
   const [reviewOpen, setReviewOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -93,17 +63,21 @@ export function LiveDrawTab() {
 
   const { data: teams } = useTeams(categoryId);
   const { data: pods } = usePods();
-  const { data: existingGames } = useGames(categoryId ? [where("categoryId", "==", categoryId)] : []);
+  const { data: draw } = useDraw(categoryId);
+  const { data: categoryGames } = useGames(categoryId ? [where("categoryId", "==", categoryId)] : []);
 
   const rollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const landTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chainTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const drawsRef = useRef(draws);
-  drawsRef.current = draws;
   const teamsRef = useRef(teams);
   teamsRef.current = teams;
+  const orderRef = useRef<string[]>(draw?.order ?? []);
+  orderRef.current = draw?.order ?? [];
+  const rollsRef = useRef(rolls);
+  rollsRef.current = rolls;
 
   useEffect(() => () => stopTimers(), []);
+  useEffect(() => { setJustPublished(null); setPublishError(null); }, [categoryId]);
 
   function stopTimers() {
     if (rollTimer.current) { clearInterval(rollTimer.current); rollTimer.current = null; }
@@ -111,54 +85,58 @@ export function LiveDrawTab() {
     if (chainTimer.current) { clearTimeout(chainTimer.current); chainTimer.current = null; }
   }
 
-  function updateDraw(catId: string, patch: Partial<DrawState> | ((d: DrawState) => Partial<DrawState>)) {
-    setDraws((prev) => {
-      const cur = prev[catId] ?? emptyDraw();
+  function updateRoll(catId: string, patch: Partial<RollState> | ((d: RollState) => Partial<RollState>)) {
+    setRolls((prev) => {
+      const cur = prev[catId] ?? emptyRoll();
       const delta = typeof patch === "function" ? patch(cur) : patch;
       return { ...prev, [catId]: { ...cur, ...delta } };
     });
   }
 
-  function remainingFor(catId: string) {
-    const ord = drawsRef.current[catId]?.order ?? [];
-    return teamsRef.current.filter((t) => !ord.includes(t.id));
+  async function persistOrder(catId: string, order: string[]) {
+    await setDoc(doc(db, COLLECTIONS.draws, catId), { categoryId: catId, order, updatedAt: Date.now() }, { merge: true });
+  }
+
+  function remainingFor() {
+    return teamsRef.current.filter((t) => !orderRef.current.includes(t.id));
   }
 
   function roll(catId: string, duration: number, onDone?: () => void) {
-    if (drawsRef.current[catId]?.rolling) return;
-    const pool0 = remainingFor(catId);
+    if (rollsRef.current[catId]?.rolling) return;
+    const pool0 = remainingFor();
     if (!pool0.length) return;
-    updateDraw(catId, { rolling: true, landed: null, rollName: pool0[0].name });
+    updateRoll(catId, { rolling: true, landed: null, rollName: pool0[0].name });
     rollTimer.current = setInterval(() => {
-      const pool = remainingFor(catId);
+      const pool = remainingFor();
       if (!pool.length) return;
-      updateDraw(catId, { rollName: pool[Math.floor(Math.random() * pool.length)].name });
+      updateRoll(catId, { rollName: pool[Math.floor(Math.random() * pool.length)].name });
     }, 68);
     landTimer.current = setTimeout(() => {
       if (rollTimer.current) { clearInterval(rollTimer.current); rollTimer.current = null; }
-      const pool = remainingFor(catId);
+      const pool = remainingFor();
       const won = pool[Math.floor(Math.random() * pool.length)];
-      updateDraw(catId, (cur) => ({ rolling: false, landed: won.id, order: [...cur.order, won.id] }));
+      const nextOrder = [...orderRef.current, won.id];
+      updateRoll(catId, { rolling: false, landed: won.id });
+      persistOrder(catId, nextOrder);
       onDone?.();
     }, duration);
   }
 
   function selectCategory(id: string) {
     stopTimers();
-    updateDraw(categoryId, { rolling: false, chaining: false, landed: null });
+    updateRoll(categoryId, { rolling: false, chaining: false, landed: null });
     setCategoryId(id);
-    setShellNotice(null);
   }
 
-  const drawNext = () => { updateDraw(categoryId, { chaining: false }); roll(categoryId, 1650); };
+  const drawNext = () => { updateRoll(categoryId, { chaining: false }); roll(categoryId, 1650); };
 
   const drawAll = () => {
     const catId = categoryId;
-    if (drawsRef.current[catId]?.rolling || remainingFor(catId).length === 0) return;
-    updateDraw(catId, { chaining: true });
+    if (rollsRef.current[catId]?.rolling || remainingFor().length === 0) return;
+    updateRoll(catId, { chaining: true });
     const step = () => {
-      if (!drawsRef.current[catId]?.chaining) return;
-      if (remainingFor(catId).length === 0) { updateDraw(catId, { chaining: false }); return; }
+      if (!rollsRef.current[catId]?.chaining) return;
+      if (remainingFor().length === 0) { updateRoll(catId, { chaining: false }); return; }
       roll(catId, 820, () => { chainTimer.current = setTimeout(step, 620); });
     };
     step();
@@ -166,53 +144,43 @@ export function LiveDrawTab() {
 
   const undo = () => {
     stopTimers();
-    updateDraw(categoryId, (cur) => ({ order: cur.order.slice(0, -1), rolling: false, landed: null, chaining: false }));
+    updateRoll(categoryId, { rolling: false, landed: null, chaining: false });
+    persistOrder(categoryId, orderRef.current.slice(0, -1));
   };
 
   const reset = () => {
     stopTimers();
-    updateDraw(categoryId, { order: [], rolling: false, landed: null, chaining: false });
+    updateRoll(categoryId, { rolling: false, landed: null, chaining: false });
+    persistOrder(categoryId, []);
     setJustPublished((p) => (p === categoryId ? null : p));
   };
 
-  function handleShellFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const { rows, skipped } = parseShellCsv(String(reader.result ?? ""));
-      if (!rows.length) {
-        setShellNotice("Couldn't find any valid rows — expected columns Day, Time, Field, Team 1, Team 2.");
-        return;
-      }
-      const maxSlot = Math.max(...rows.flatMap((r) => [r.slotA, r.slotB]));
-      setShells((prev) => ({ ...prev, [categoryId]: rows }));
-      setJustPublished((p) => (p === categoryId ? null : p));
-      const notes: string[] = [`Loaded ${rows.length} fixture${rows.length === 1 ? "" : "s"}.`];
-      if (skipped > 0) notes.push(`Skipped ${skipped} row${skipped === 1 ? "" : "s"} (header or malformed).`);
-      if (maxSlot > teams.length) notes.push(`Warning: references Team ${maxSlot}, but this category only has ${teams.length} teams.`);
-      setShellNotice(notes.join(" "));
-    };
-    reader.onerror = () => setShellNotice("Couldn't read that file.");
-    reader.readAsText(file);
-  }
-
-  const draw = draws[categoryId] ?? emptyDraw();
   const category = DRAW_CATEGORIES.find((c) => c.id === categoryId) ?? DRAW_CATEGORIES[0];
+  const order = draw?.order ?? [];
   const n = teams.length;
-  const picks = draw.order.map((id) => teams.find((t) => t.id === id)).filter((t): t is Team => !!t);
-  const remaining = teams.filter((t) => !draw.order.includes(t.id));
+  const picks = order.map((id) => teams.find((t) => t.id === id)).filter((t): t is Team => !!t);
+  const remaining = teams.filter((t) => !order.includes(t.id));
   const done = n > 0 && picks.length === n;
-  const busy = draw.rolling || draw.chaining;
-  const landedIdx = draw.landed ? picks.findIndex((t) => t.id === draw.landed) : -1;
+  const rollState = rolls[categoryId] ?? emptyRoll();
+  const busy = rollState.rolling || rollState.chaining;
+  const landedIdx = rollState.landed ? picks.findIndex((t) => t.id === rollState.landed) : -1;
   const slots: (Team | null)[] = Array.from({ length: n }, (_, i) => picks[i] ?? null);
 
-  const shell = shells[categoryId] ?? [];
-  const shellRows = useMemo(
-    () => shell.map((r) => ({ ...r, home: slots[r.slotA - 1] ?? null, away: slots[r.slotB - 1] ?? null })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shell, draw.order.join(",")]
+  const groupGames = useMemo(
+    () => categoryGames.filter((g) => g.round === "group").sort(compareGamesByKickoff),
+    [categoryGames]
   );
-  const shellReady = shell.length > 0 && Math.max(0, ...shell.flatMap((r) => [r.slotA, r.slotB])) <= n;
-  const canPublish = done && shellReady;
+  const fixtures = useMemo(
+    () => groupGames.map((g) => ({
+      game: g,
+      home: g.homeDrawPos != null ? slots[g.homeDrawPos - 1] ?? null : null,
+      away: g.awayDrawPos != null ? slots[g.awayDrawPos - 1] ?? null : null,
+    })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groupGames, order.join(",")]
+  );
+  const alreadyPublished = groupGames.length > 0 && groupGames.every((g) => !!g.homeTeamId && !!g.awayTeamId);
+  const canPublish = done && groupGames.length > 0;
 
   async function confirmPublish() {
     if (!canPublish || publishing) return;
@@ -220,27 +188,20 @@ export function LiveDrawTab() {
     setPublishError(null);
     try {
       const batch = writeBatch(db);
-      for (const row of shellRows) {
-        if (!row.home || !row.away) continue;
-        const ref = doc(collection(db, COLLECTIONS.games));
-        batch.set(ref, {
-          categoryId,
-          day: row.day,
-          kickoffTime: row.time,
-          field: row.field,
-          podId: podForField(pods, row.field) ?? null,
-          homeTeamId: row.home.id,
-          awayTeamId: row.away.id,
-          status: "scheduled",
-          round: "group",
-          refereeUid: null,
-          gateCheck: { homeClearedUids: [], awayClearedUids: [] },
-          events: [],
-          createdAt: Date.now(),
+      for (const g of groupGames) {
+        if (g.homeDrawPos == null || g.awayDrawPos == null) continue;
+        const home = order[g.homeDrawPos - 1];
+        const away = order[g.awayDrawPos - 1];
+        if (!home || !away) continue;
+        batch.update(doc(db, COLLECTIONS.games, g.id), {
+          homeTeamId: home,
+          awayTeamId: away,
+          podId: podForField(pods, fieldCluster(g.field)) ?? null,
           updatedAt: Date.now(),
         });
       }
       await batch.commit();
+      await setDoc(doc(db, COLLECTIONS.draws, categoryId), { publishedAt: Date.now() }, { merge: true });
       setJustPublished(categoryId);
       setReviewOpen(false);
     } catch (e) {
@@ -254,9 +215,8 @@ export function LiveDrawTab() {
     <div>
       <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginBottom: 20 }}>
         {DRAW_CATEGORIES.map((c) => {
-          const catDraw = draws[c.id];
           const catTeamCount = c.id === categoryId ? n : undefined;
-          const filled = catDraw?.order.length ?? 0;
+          const filled = c.id === categoryId ? picks.length : undefined;
           const active = c.id === categoryId;
           return (
             <div
@@ -269,7 +229,7 @@ export function LiveDrawTab() {
               }}
             >
               {c.label}
-              {filled > 0 && catTeamCount !== undefined && (
+              {!!filled && catTeamCount !== undefined && (
                 <span style={{ fontWeight: 800, color: filled === catTeamCount ? theme.color.teal : GOLD }}>
                   {"  "}{filled === catTeamCount ? "✓" : `${filled}/${catTeamCount}`}
                 </span>
@@ -296,17 +256,23 @@ export function LiveDrawTab() {
             </div>
           </div>
 
+          {n > 0 && category && n !== category.teamCount && (
+            <div style={{ marginTop: 10, fontSize: 12, color: theme.color.warning, lineHeight: 1.4 }}>
+              Heads up — {category.label} has {n} registered team{n === 1 ? "" : "s"}, but the schedule expects {category.teamCount}. Fixtures referencing a missing position will show as TBD after publishing.
+            </div>
+          )}
+
           <div style={{ height: 5, borderRadius: 999, background: INSET, margin: "16px 0 22px", overflow: "hidden" }}>
             <div style={{ height: "100%", width: n ? `${Math.round((picks.length / n) * 100)}%` : "0%", background: `linear-gradient(90deg,${theme.color.purple},${GOLD})`, borderRadius: 999, transition: "width .45s cubic-bezier(.2,.8,.3,1)" }} />
           </div>
 
           <div style={{
-            borderRadius: 18, border: `1px solid ${draw.rolling ? "rgba(253,181,40,.4)" : INSET}`, background: draw.rolling ? "rgba(253,181,40,.05)" : "rgba(255,255,255,.02)",
+            borderRadius: 18, border: `1px solid ${rollState.rolling ? "rgba(253,181,40,.4)" : INSET}`, background: rollState.rolling ? "rgba(253,181,40,.05)" : "rgba(255,255,255,.02)",
             minHeight: 236, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 26, textAlign: "center", position: "relative", transition: "border-color .3s,background .3s",
           }}>
             {n === 0 && <div style={{ color: DIM, fontSize: 13.5 }}>No teams registered in this category yet.</div>}
 
-            {n > 0 && !draw.rolling && !draw.landed && !done && (
+            {n > 0 && !rollState.rolling && !rollState.landed && !done && (
               <>
                 <div style={{ width: 70, height: 70, borderRadius: "50%", border: `2px dashed ${FAINT}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, fontSize: 27 }}>⚽</div>
                 <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 23, color: "#B4ABD0" }}>Ready to draw POSITION {picks.length + 1}</div>
@@ -314,15 +280,15 @@ export function LiveDrawTab() {
               </>
             )}
 
-            {draw.rolling && (
+            {rollState.rolling && (
               <>
                 <div style={{ width: 70, height: 70, borderRadius: "50%", border: "3px solid #FDB528", borderTopColor: "transparent", marginBottom: 16, animation: "liveDrawBallSpin .7s linear infinite" }} />
                 <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 1.6, color: GOLD }}>POSITION {picks.length + 1}</div>
-                <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 36, marginTop: 6, color: INK, opacity: 0.62, minHeight: 44 }}>{draw.rollName}</div>
+                <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 36, marginTop: 6, color: INK, opacity: 0.62, minHeight: 44 }}>{rollState.rollName}</div>
               </>
             )}
 
-            {!draw.rolling && !!draw.landed && !done && (
+            {!rollState.rolling && !!rollState.landed && !done && (
               <div style={{ animation: "liveDrawLand .42s cubic-bezier(.2,.9,.3,1.2)" }}>
                 {(() => {
                   const wonTeam = picks[landedIdx];
@@ -339,7 +305,7 @@ export function LiveDrawTab() {
               </div>
             )}
 
-            {!draw.rolling && done && (
+            {!rollState.rolling && done && (
               <div style={{ animation: "liveDrawLand .42s cubic-bezier(.2,.9,.3,1.2)" }}>
                 <div style={{ fontSize: 38, marginBottom: 8 }}>🏆</div>
                 <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 31, color: GOLD }}>Draw complete</div>
@@ -374,7 +340,7 @@ export function LiveDrawTab() {
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {teams.map((t) => {
-                const taken = draw.order.includes(t.id);
+                const taken = order.includes(t.id);
                 return (
                   <div key={t.id} style={{
                     padding: "8px 13px", borderRadius: 10, fontSize: 12.5, fontWeight: 700,
@@ -382,9 +348,9 @@ export function LiveDrawTab() {
                     color: taken ? FAINT : INK,
                     border: `1px solid ${taken ? "#241D3C" : "rgba(196,132,232,.4)"}`,
                     opacity: taken ? 0.45 : 1,
-                    animation: !taken && draw.rolling ? "liveDrawPotPulse .9s ease-in-out infinite" : "none",
+                    animation: !taken && rollState.rolling ? "liveDrawPotPulse .9s ease-in-out infinite" : "none",
                   }}>
-                    {taken ? `${t.name}  ·  ${draw.order.indexOf(t.id) + 1}` : t.name}
+                    {taken ? `${t.name}  ·  ${order.indexOf(t.id) + 1}` : t.name}
                   </div>
                 );
               })}
@@ -401,7 +367,7 @@ export function LiveDrawTab() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {slots.map((team, i) => {
-                const isNew = !!team && team.id === draw.landed;
+                const isNew = !!team && team.id === rollState.landed;
                 return (
                   <div key={i} style={{
                     display: "flex", alignItems: "center", gap: 12, padding: "11px 13px", borderRadius: 11,
@@ -421,42 +387,30 @@ export function LiveDrawTab() {
 
           <div style={{ background: CARD_BG, border: `1px solid ${LINE}`, borderRadius: 20, padding: 20, color: INK }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 13 }}>
-              <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, letterSpacing: 0.8, whiteSpace: "nowrap" }}>SCHEDULE</div>
-              <div style={{ fontSize: 11.5, color: DIM, whiteSpace: "nowrap" }}>{shellRows.length} fixture{shellRows.length === 1 ? "" : "s"}</div>
+              <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, letterSpacing: 0.8, whiteSpace: "nowrap" }}>GROUP-STAGE SCHEDULE</div>
+              <div style={{ fontSize: 11.5, color: DIM, whiteSpace: "nowrap" }}>{fixtures.length} fixture{fixtures.length === 1 ? "" : "s"}</div>
             </div>
 
-            <label style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 12px", marginBottom: 12,
-              borderRadius: 10, border: `1px dashed ${LINE}`, cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: "#B4ABD0",
-            }}>
-              📄 {shell.length ? "Replace shell CSV" : "Upload shell CSV (Day, Time, Field, Team 1, Team 2)"}
-              <input
-                type="file" accept=".csv,text/csv" style={{ display: "none" }}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleShellFile(f); e.target.value = ""; }}
-              />
-            </label>
-            {shellNotice && <div style={{ fontSize: 12, color: DIM2, marginBottom: 12, lineHeight: 1.4 }}>{shellNotice}</div>}
-
-            {shell.length === 0 ? (
-              <div style={{ color: DIM, fontSize: 13, marginBottom: 4 }}>Upload {category?.label}'s shell to see fixtures here.</div>
+            {fixtures.length === 0 ? (
+              <div style={{ color: DIM, fontSize: 13, marginBottom: 4 }}>No group-stage games seeded yet for {category?.label}.</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 320, overflowY: "auto" }}>
-                {shellRows.map((f, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "40px 52px 1fr 26px 1fr 74px", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: f.home && f.away ? "rgba(15,174,158,.07)" : "rgba(255,255,255,.02)", border: `1px solid ${f.home && f.away ? "rgba(15,174,158,.22)" : INSET}` }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: DIM }}>{DAY_LABEL[f.day].slice(0, 3).toUpperCase()}</div>
-                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13.5, color: DIM2 }}>{f.time}</div>
-                    <div style={{ fontSize: 13.5, fontWeight: f.home ? 700 : 500, color: f.home ? INK : "#6B6390", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.home?.name ?? `Team ${f.slotA}`}</div>
+                {fixtures.map((f) => (
+                  <div key={f.game.id} style={{ display: "grid", gridTemplateColumns: "40px 52px 1fr 26px 1fr 74px", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: f.home && f.away ? "rgba(15,174,158,.07)" : "rgba(255,255,255,.02)", border: `1px solid ${f.home && f.away ? "rgba(15,174,158,.22)" : INSET}` }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: DIM }}>{DAY_LABEL[f.game.day].slice(0, 3).toUpperCase()}</div>
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13.5, color: DIM2 }}>{f.game.kickoffTime}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: f.home ? 700 : 500, color: f.home ? INK : "#6B6390", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.home?.name ?? `Team ${f.game.homeDrawPos}`}</div>
                     <div style={{ fontSize: 11, color: "#5E5580", textAlign: "center" }}>v</div>
-                    <div style={{ fontSize: 13.5, fontWeight: f.away ? 700 : 500, color: f.away ? INK : "#6B6390", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.away?.name ?? `Team ${f.slotB}`}</div>
-                    <div style={{ fontSize: 11, color: DIM, textAlign: "right", whiteSpace: "nowrap" }}>{f.field}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: f.away ? 700 : 500, color: f.away ? INK : "#6B6390", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.away?.name ?? `Team ${f.game.awayDrawPos}`}</div>
+                    <div style={{ fontSize: 11, color: DIM, textAlign: "right", whiteSpace: "nowrap" }}>{f.game.field}</div>
                   </div>
                 ))}
               </div>
             )}
 
-            {existingGames.length > 0 && justPublished !== categoryId && (
-              <div style={{ fontSize: 12, color: GOLD, marginTop: 12, lineHeight: 1.4 }}>
-                {existingGames.length} game{existingGames.length === 1 ? "" : "s"} already exist for {category?.label} — publishing will add more alongside them.
+            {alreadyPublished && justPublished !== categoryId && (
+              <div style={{ fontSize: 12, color: theme.color.teal, marginTop: 12, lineHeight: 1.4 }}>
+                {category?.label}'s group games already show real teams — publishing again will overwrite them with this draw.
               </div>
             )}
 
@@ -469,7 +423,7 @@ export function LiveDrawTab() {
                 color: justPublished === categoryId ? theme.color.teal : canPublish ? "#062E2A" : MUTED2,
               }}
             >
-              {justPublished === categoryId ? "PUBLISHED TO SCHEDULE ✓" : !done ? "COMPLETE THE DRAW FIRST" : shell.length === 0 ? "UPLOAD A SHELL FIRST" : !shellReady ? "SHELL DOESN'T MATCH TEAM COUNT" : "REVIEW & PUBLISH"}
+              {justPublished === categoryId ? "PUBLISHED TO SCHEDULE ✓" : !done ? "COMPLETE THE DRAW FIRST" : groupGames.length === 0 ? "NO GAMES SEEDED YET" : alreadyPublished ? "RE-PUBLISH TO SCHEDULE" : "REVIEW & PUBLISH"}
             </div>
           </div>
 
@@ -492,7 +446,7 @@ export function LiveDrawTab() {
         <Modal onClose={() => (publishing ? null : setReviewOpen(false))} width={560}>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>Review before publishing</div>
           <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
-            {category?.label} · {shellRows.length} fixture{shellRows.length === 1 ? "" : "s"}
+            {category?.label} · {fixtures.length} fixture{fixtures.length === 1 ? "" : "s"}
           </div>
 
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Draw positions</div>
@@ -506,17 +460,17 @@ export function LiveDrawTab() {
 
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Fixtures</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
-            {shellRows.map((f, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: theme.color.bg, fontSize: 13 }}>
-                <span style={{ color: theme.color.textMuted, minWidth: 118 }}>{DAY_LABEL[f.day]} {f.time} · {f.field}</span>
+            {fixtures.map((f) => (
+              <div key={f.game.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: theme.color.bg, fontSize: 13 }}>
+                <span style={{ color: theme.color.textMuted, minWidth: 118 }}>{DAY_LABEL[f.game.day]} {f.game.kickoffTime} · {f.game.field}</span>
                 <span style={{ fontWeight: 700, textAlign: "right", flex: 1 }}>{f.home?.name ?? "?"} v {f.away?.name ?? "?"}</span>
               </div>
             ))}
           </div>
 
-          {existingGames.length > 0 && (
+          {alreadyPublished && (
             <div style={{ fontSize: 13, color: theme.color.warning, marginBottom: 12, lineHeight: 1.4 }}>
-              Heads up — {existingGames.length} game{existingGames.length === 1 ? "" : "s"} already exist for {category?.label}. This will add {shellRows.filter((f) => f.home && f.away).length} more alongside them, not replace them.
+              Heads up — {category?.label}'s group games already have real teams assigned. Publishing will overwrite them with this draw.
             </div>
           )}
           {publishError && <div style={{ fontSize: 13, color: theme.color.danger, marginBottom: 12 }}>{publishError}</div>}
@@ -530,7 +484,7 @@ export function LiveDrawTab() {
               Cancel
             </button>
             <PrimaryButton disabled={publishing} onClick={confirmPublish} style={{ flex: 1 }}>
-              {publishing ? "Publishing…" : `Confirm & publish ${shellRows.filter((f) => f.home && f.away).length} games`}
+              {publishing ? "Publishing…" : `Confirm & publish ${fixtures.filter((f) => f.home && f.away).length} games`}
             </PrimaryButton>
           </div>
         </Modal>
