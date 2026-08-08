@@ -4,6 +4,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import {
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
+  TOURNAMENT_DAY_DATES,
   compareGamesByKickoff,
   formatKickoffTime,
   provisionalSideLabel,
@@ -11,6 +12,11 @@ import {
   type RegistrationCategoryBucket,
   type Team,
 } from "@umoja/shared";
+
+/** "FRI, AUG 14" — a bare day abbreviation alone doesn't say which one. */
+function dayDateLabel(day: Game["day"]) {
+  return `${day.toUpperCase()}, ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
+}
 import { theme } from "../lib/theme";
 import { useGames, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
@@ -194,7 +200,7 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
                     <StatusBadge status={g.status} />
                   </View>
                   <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
-                    {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
+                    {g.field} · {dayDateLabel(g.day)} · {formatKickoffTime(g.kickoffTime)}
                   </Text>
                 </Card>
               );
@@ -282,7 +288,7 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
                           <Text style={styles.roundBadge}>
                             {g.bracket ? `${BRACKET_LABELS[g.bracket]} ` : ""}{ROUND_LABELS[g.round]}
                           </Text>
-                          <Text style={{ fontSize: 12, color: theme.color.textMuted }}>{g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
+                          <Text style={{ fontSize: 12, color: theme.color.textMuted }}>{g.field} · {dayDateLabel(g.day)} · {formatKickoffTime(g.kickoffTime)}</Text>
                         </View>
                         <Text style={{ fontWeight: "600", marginTop: 4 }}>
                           <Text style={!home ? styles.provisional : undefined}>{homeLabel}</Text> vs{" "}

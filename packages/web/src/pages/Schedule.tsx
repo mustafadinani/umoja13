@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { GAME_FIELDS, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
+import { GAME_FIELDS, TOURNAMENT_DAY_DATES, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
@@ -9,10 +9,14 @@ import { SponsorStrip } from "../components/SponsorStrip";
 import { FieldMapCard } from "../components/FieldMapCard";
 
 const DAYS: { id: Game["day"]; label: string }[] = [
-  { id: "fri", label: "Fri" },
-  { id: "sat", label: "Sat" },
-  { id: "sun", label: "Sun" },
+  { id: "fri", label: `Fri, ${TOURNAMENT_DAY_DATES.fri}` },
+  { id: "sat", label: `Sat, ${TOURNAMENT_DAY_DATES.sat}` },
+  { id: "sun", label: `Sun, ${TOURNAMENT_DAY_DATES.sun}` },
 ];
+/** Short "FRI · AUG 14" tile label — day abbreviation always paired with its actual date, since a bare "FRI"/"SAT"/"SUN" doesn't say which one. */
+function dayDateLabel(day: Game["day"]) {
+  return `${day.toUpperCase()} · ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
+}
 
 export function Schedule() {
   const navigate = useNavigate();
@@ -130,7 +134,10 @@ export function Schedule() {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <StatusBadge status={g.status} />
-                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginTop: 6 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, letterSpacing: 0.3, marginTop: 6 }}>
+                      {dayDateLabel(g.day)}
+                    </div>
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>
                       {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
                     </div>
                   </div>

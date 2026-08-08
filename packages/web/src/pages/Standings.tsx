@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
+  TOURNAMENT_DAY_DATES,
   compareGamesByKickoff,
   formatKickoffTime,
   provisionalSideLabel,
@@ -264,7 +265,9 @@ export function Standings() {
                     {home ? homeLabel : <em style={{ color: theme.color.textMuted, fontStyle: "italic", fontWeight: 500 }}>{homeLabel}</em>} vs{" "}
                     {away ? awayLabel : <em style={{ color: theme.color.textMuted, fontStyle: "italic", fontWeight: 500 }}>{awayLabel}</em>}
                   </span>
-                  <span style={{ fontSize: 12.5, color: theme.color.textMuted, whiteSpace: "nowrap" }}>{g.field} · {formatKickoffTime(g.kickoffTime)}</span>
+                  <span style={{ fontSize: 12.5, color: theme.color.textMuted, whiteSpace: "nowrap" }}>
+                    {g.field} · {g.day.toUpperCase()}, {TOURNAMENT_DAY_DATES[g.day]} · {formatKickoffTime(g.kickoffTime)}
+                  </span>
                 </div>
               );
             })}

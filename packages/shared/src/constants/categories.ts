@@ -69,6 +69,13 @@ export const PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS = [
 /** Aug 14 2026 00:00 America/New_York — once check-in/jersey numbers are locked for the tournament. */
 export const TOURNAMENT_START_AT = new Date("2026-08-14T00:00:00-04:00").getTime();
 
+/** Actual calendar date per tournament day — "Fri"/"Sat"/"Sun" alone doesn't say which Friday, so anywhere a bare day abbreviation is shown to a user should pair it with this. */
+export const TOURNAMENT_DAY_DATES: Record<"fri" | "sat" | "sun", string> = {
+  fri: "Aug 14",
+  sat: "Aug 15",
+  sun: "Aug 16",
+};
+
 /** Non-match tournament-wide calendar entries (not Games, but shown alongside schedule). */
 export const SPECIAL_EVENTS = [
   { id: "all-star-game", label: "All-Star Game", day: "sun", field: "Stadium Field" },
