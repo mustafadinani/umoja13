@@ -5,7 +5,7 @@ import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useAnnouncements, useGames, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
-import { CATEGORIES, VENUE } from "@umoja/shared";
+import { CATEGORIES, VENUE, formatKickoffTime } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
 import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 import { SponsorStrip } from "../components/SponsorStrip";
@@ -133,7 +133,7 @@ export function Home() {
                     <div style={{ fontSize: 12, color: theme.color.textMuted, margin: "2px 0" }}>vs</div>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{away?.name ?? "TBD"}</div>
                     <div style={{ marginTop: 10, fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, color: theme.color.purple }}>
-                      {g.kickoffTime}
+                      {formatKickoffTime(g.kickoffTime)}
                     </div>
                   </Card>
                 );

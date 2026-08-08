@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, compareTaskTimes, type VolunteerTask } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, compareTaskTimes, formatKickoffTime, type VolunteerTask } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
@@ -127,7 +127,7 @@ export function PodShiftsPanel({ podId }: { podId: string }) {
               <Card key={g.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</Text>
-                  <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{g.day.toUpperCase()} · {g.field} · {g.kickoffTime}</Text>
+                  <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
                 </View>
                 <StatusBadge status={g.status} />
               </Card>

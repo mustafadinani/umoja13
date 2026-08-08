@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, GAME_FIELDS, fieldCluster, podForField, type Game } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, GAME_FIELDS, fieldCluster, formatKickoffTime, podForField, type Game } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { usePods, useReferees, useTeams } from "../../../hooks/useData";
@@ -112,7 +112,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
           </div>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Kickoff time</div>
           <select value={kickoffTime} onChange={(e) => setKickoffTime(e.target.value)} style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16 }}>
-            {["08:00", "09:00", "10:00", "10:40", "11:30", "12:20", "13:10", "14:00", "15:00", "16:00"].map((t) => <option key={t} value={t}>{t}</option>)}
+            {["08:00", "09:00", "10:00", "10:40", "11:30", "12:20", "13:10", "14:00", "15:00", "16:00"].map((t) => <option key={t} value={t}>{formatKickoffTime(t)}</option>)}
           </select>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Field</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>

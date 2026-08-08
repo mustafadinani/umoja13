@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-nati
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, formatKickoffTime, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -114,7 +114,7 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           <Text style={{ color: "#A79FC0", fontSize: 13, marginBottom: 10 }}>‹ Back to assignments</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{home.name} vs {away.name}</Text>
-        <Text style={styles.headerSub}>{category?.label} · {game.field} · {game.day.toUpperCase()} {game.kickoffTime}</Text>
+        <Text style={styles.headerSub}>{category?.label} · {game.field} · {game.day.toUpperCase()} {formatKickoffTime(game.kickoffTime)}</Text>
       </View>
 
       {game.status === "forfeited" ? (

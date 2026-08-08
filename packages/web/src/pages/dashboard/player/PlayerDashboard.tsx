@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, type PlayerMembership } from "@umoja/shared";
+import { CATEGORIES, formatKickoffTime, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
@@ -112,7 +112,7 @@ export function PlayerDashboard() {
                 >
                   {CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}
                 </span>
-                <span style={{ fontSize: 13.5 }}>{g.day.toUpperCase()} · {g.field} · {g.kickoffTime}</span>
+                <span style={{ fontSize: 13.5 }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</span>
               </Card>
             ))}
             {myGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}

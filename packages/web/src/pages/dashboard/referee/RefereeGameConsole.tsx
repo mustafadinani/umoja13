@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, formatKickoffTime, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
@@ -125,7 +125,7 @@ export function RefereeGameConsole() {
       <div style={{ background: theme.color.navy, color: "#fff", padding: 24 }}>
         <div onClick={() => navigate("/dashboard")} style={{ fontSize: 13, color: "#A79FC0", cursor: "pointer", marginBottom: 10 }}>‹ Back to assignments</div>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24 }}>{home.name} vs {away.name}</div>
-        <div style={{ fontSize: 13, color: "#A79FC0", marginTop: 4 }}>{category?.label} · {game.field} · {game.day.toUpperCase()} {game.kickoffTime}</div>
+        <div style={{ fontSize: 13, color: "#A79FC0", marginTop: 4 }}>{category?.label} · {game.field} · {game.day.toUpperCase()} {formatKickoffTime(game.kickoffTime)}</div>
       </div>
 
       {game.status === "forfeited" ? (

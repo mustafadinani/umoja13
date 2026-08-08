@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { FESTIVAL_CATEGORY_IDS, compareGamesByKickoff, type RegistrationCategoryBucket, type Team } from "@umoja/shared";
+import {
+  FESTIVAL_CATEGORY_IDS,
+  FORMAT_DESCRIPTIONS,
+  compareGamesByKickoff,
+  formatKickoffTime,
+  provisionalSideLabel,
+  type Game,
+  type RegistrationCategoryBucket,
+  type Team,
+} from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
@@ -67,6 +76,19 @@ function CategoryChipRow({
   );
 }
 
+const ROUND_LABELS: Record<Game["round"], string> = {
+  group: "Group stage",
+  wildcard: "Wild Card",
+  qf: "Quarter-Final",
+  sf: "Semi-Final",
+  final: "Final",
+};
+const BRACKET_LABELS: Record<NonNullable<Game["bracket"]>, string> = {
+  cup: "Cup",
+  shield: "Shield",
+  classic: "Classic",
+};
+
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { buckets } = useRegistrationCategoryBuckets();
   const [seg, setSeg] = useState<"schedule" | "standings" | "fieldMap">("schedule");
@@ -124,6 +146,13 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
     return byGroup;
   }, [teams]);
 
+  const bracketGames = useMemo(
+    () => games.filter((g) => g.categoryId === standingsCategoryId && g.round !== "group").sort(compareGamesByKickoff),
+    [games, standingsCategoryId]
+  );
+  const teamByIdActive = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  const formatDescription = standingsCategoryId ? FORMAT_DESCRIPTIONS[standingsCategoryId] : undefined;
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
@@ -150,19 +179,26 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
           filteredGames.length === 0 ? (
             <Text style={{ color: theme.color.textMuted }}>No games in this category yet.</Text>
           ) : (
-            filteredGames.map((g) => (
-              <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 8 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                  <Text style={{ fontWeight: "600", flex: 1 }}>
-                    {teamMap.get(g.homeTeamId)?.name ?? "TBD"} vs {teamMap.get(g.awayTeamId)?.name ?? "TBD"}
+            filteredGames.map((g) => {
+              const home = teamMap.get(g.homeTeamId);
+              const away = teamMap.get(g.awayTeamId);
+              const homeLabel = home?.name ?? provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD";
+              const awayLabel = away?.name ?? provisionalSideLabel(g.awayDrawPos, g.awayRef) ?? "TBD";
+              return (
+                <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 8 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontWeight: "600", flex: 1 }}>
+                      <Text style={!home ? styles.provisional : undefined}>{homeLabel}</Text> vs{" "}
+                      <Text style={!away ? styles.provisional : undefined}>{awayLabel}</Text>
+                    </Text>
+                    <StatusBadge status={g.status} />
+                  </View>
+                  <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
+                    {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
                   </Text>
-                  <StatusBadge status={g.status} />
-                </View>
-                <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
-                  {g.field} · {g.day.toUpperCase()} {g.kickoffTime}
-                </Text>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           )
         ) : (
           <>
@@ -214,6 +250,50 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
                 </View>
               ))
             )}
+
+            {!isFestival && activeBucket?.matched && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.groupTitle}>ROAD TO THE FINAL</Text>
+
+                {formatDescription && (
+                  <Card style={{ marginBottom: 10 }}>
+                    <Text style={{ fontSize: 13, lineHeight: 19 }}>
+                      <Text style={{ fontWeight: "700" }}>Format: </Text>
+                      {formatDescription.format}
+                    </Text>
+                    <Text style={{ fontSize: 13, lineHeight: 19, marginTop: 6 }}>
+                      <Text style={{ fontWeight: "700" }}>Road to the Final: </Text>
+                      {formatDescription.roadToFinal}
+                    </Text>
+                  </Card>
+                )}
+
+                {bracketGames.length === 0 ? (
+                  <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>Bracket games are seeded once group play wraps up.</Text>
+                ) : (
+                  bracketGames.map((g) => {
+                    const home = teamByIdActive.get(g.homeTeamId);
+                    const away = teamByIdActive.get(g.awayTeamId);
+                    const homeLabel = home?.name ?? provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD";
+                    const awayLabel = away?.name ?? provisionalSideLabel(g.awayDrawPos, g.awayRef) ?? "TBD";
+                    return (
+                      <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <Text style={styles.roundBadge}>
+                            {g.bracket ? `${BRACKET_LABELS[g.bracket]} ` : ""}{ROUND_LABELS[g.round]}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: theme.color.textMuted }}>{g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
+                        </View>
+                        <Text style={{ fontWeight: "600", marginTop: 4 }}>
+                          <Text style={!home ? styles.provisional : undefined}>{homeLabel}</Text> vs{" "}
+                          <Text style={!away ? styles.provisional : undefined}>{awayLabel}</Text>
+                        </Text>
+                      </Card>
+                    );
+                  })
+                )}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -229,4 +309,17 @@ const styles = StyleSheet.create({
   filterLabel: { fontSize: 10.5, fontWeight: "800", color: theme.color.textMuted, letterSpacing: 0.5, marginTop: 16, marginBottom: 8 },
   chipRow: { flexGrow: 0, marginHorizontal: -16, marginBottom: 4 },
   groupTitle: { fontWeight: "800", fontSize: 14, marginBottom: 8, color: theme.color.text },
+  provisional: { color: theme.color.textMuted, fontStyle: "italic", fontWeight: "500" },
+  roundBadge: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    color: theme.color.purple,
+    backgroundColor: "rgba(139,47,209,.12)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
 });

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, FIELDS, type Game } from "@umoja/shared";
+import { CATEGORIES, GAME_FIELDS, formatKickoffTime, type Game } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
@@ -40,7 +40,7 @@ export function AllGamesTab() {
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         <Pill active={!field} onClick={() => setField(null)}>All fields</Pill>
-        {FIELDS.map((f) => <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>)}
+        {GAME_FIELDS.map((f) => <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>)}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -52,7 +52,7 @@ export function AllGamesTab() {
               <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                  {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {g.kickoffTime}
+                  {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
                   {!g.refereeUid && <span style={{ color: theme.color.warning, fontWeight: 700 }}> · No ref assigned</span>}
                 </div>
               </div>

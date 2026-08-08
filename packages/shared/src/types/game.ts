@@ -118,6 +118,37 @@ export function compareGamesLiveFirst(a: Game, b: Game): number {
   return compareGamesByKickoff(a, b);
 }
 
+/** "16:30" -> "4:30 PM" — every kickoff time is stored 24-hour ("HH:MM"), formatted 12-hour for display. */
+export function formatKickoffTime(time: string): string {
+  const [hStr, m] = time.split(":");
+  let h = Number(hStr);
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+/** "CupQF1" -> "Cup QF1", "ShieldFinal" -> "Shield Final", "Wildcard" -> "Wild Card" — for referencing another game in copy ("Winner of X"). */
+export function formatMatchCode(matchCode: string): string {
+  if (matchCode === "Wildcard") return "Wild Card";
+  return matchCode.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+/**
+ * Human label for one side of a game that doesn't have a real team assigned
+ * yet — "Team 4" (draw position, group stage), "Seed 1", "Winner of Wild
+ * Card", "Loser of SF1" — or null once resolved (callers should show the
+ * real team name instead, same as they already do). Takes the raw fields
+ * rather than a full Game so it works for either side without a
+ * home/away-specific overload.
+ */
+export function provisionalSideLabel(drawPos: number | undefined, ref: TeamRef | undefined): string | null {
+  if (drawPos != null) return `Team ${drawPos}`;
+  if (!ref) return null;
+  if (ref.type === "seed") return `Seed ${ref.seed}`;
+  const verb = ref.type === "winner" ? "Winner" : "Loser";
+  return `${verb} of ${formatMatchCode(ref.matchCode)}`;
+}
+
 export interface PlayerGameStats {
   gamesPlayed: number;
   yellowCards: number;

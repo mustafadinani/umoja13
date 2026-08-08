@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, channelHasUnread } from "@umoja/shared";
+import { CATEGORIES, channelHasUnread, formatKickoffTime } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useRoleChannel } from "../../../hooks/useData";
@@ -64,7 +64,7 @@ export function RefereeDashboard() {
                 <div style={{ minWidth: 120 }}>
                   <div style={{ fontWeight: 700 }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</div>
                   <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
-                    {g.day.toUpperCase()} · {g.field} · {g.kickoffTime}
+                    {g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}
                     {!g.gateCheck?.completedAt && g.status !== "final" && (
                       <span style={{ color: theme.color.warning, fontWeight: 700 }}> · Gate check needed</span>
                     )}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { doc, setDoc, where, writeBatch } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, compareGamesByKickoff, fieldCluster, podForField, type Game, type Team } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, compareGamesByKickoff, fieldCluster, formatKickoffTime, podForField, type Game, type Team } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { Modal, PrimaryButton } from "../../../components/ui";
@@ -398,7 +398,7 @@ export function LiveDrawTab() {
                 {fixtures.map((f) => (
                   <div key={f.game.id} style={{ display: "grid", gridTemplateColumns: "40px 52px 1fr 26px 1fr 74px", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: f.home && f.away ? "rgba(15,174,158,.07)" : "rgba(255,255,255,.02)", border: `1px solid ${f.home && f.away ? "rgba(15,174,158,.22)" : INSET}` }}>
                     <div style={{ fontSize: 10.5, fontWeight: 700, color: DIM }}>{DAY_LABEL[f.game.day].slice(0, 3).toUpperCase()}</div>
-                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13.5, color: DIM2 }}>{f.game.kickoffTime}</div>
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13.5, color: DIM2 }}>{formatKickoffTime(f.game.kickoffTime)}</div>
                     <div style={{ fontSize: 13.5, fontWeight: f.home ? 700 : 500, color: f.home ? INK : "#6B6390", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.home?.name ?? `Team ${f.game.homeDrawPos}`}</div>
                     <div style={{ fontSize: 11, color: "#5E5580", textAlign: "center" }}>v</div>
                     <div style={{ fontSize: 13.5, fontWeight: f.away ? 700 : 500, color: f.away ? INK : "#6B6390", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.away?.name ?? `Team ${f.game.awayDrawPos}`}</div>
@@ -462,7 +462,7 @@ export function LiveDrawTab() {
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
             {fixtures.map((f) => (
               <div key={f.game.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 8, background: theme.color.bg, fontSize: 13 }}>
-                <span style={{ color: theme.color.textMuted, minWidth: 118 }}>{DAY_LABEL[f.game.day]} {f.game.kickoffTime} · {f.game.field}</span>
+                <span style={{ color: theme.color.textMuted, minWidth: 118 }}>{DAY_LABEL[f.game.day]} {formatKickoffTime(f.game.kickoffTime)} · {f.game.field}</span>
                 <span style={{ fontWeight: 700, textAlign: "right", flex: 1 }}>{f.home?.name ?? "?"} v {f.away?.name ?? "?"}</span>
               </div>
             ))}

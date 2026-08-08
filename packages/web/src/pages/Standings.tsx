@@ -1,17 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FESTIVAL_CATEGORY_IDS, type Team } from "@umoja/shared";
+import {
+  FESTIVAL_CATEGORY_IDS,
+  FORMAT_DESCRIPTIONS,
+  compareGamesByKickoff,
+  formatKickoffTime,
+  provisionalSideLabel,
+  type Game,
+  type Team,
+} from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useSponsors, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
 import { Pill, Card } from "../components/ui";
 import { SponsorStrip } from "../components/SponsorStrip";
 
-const ROUND_LABELS: Record<string, string> = {
-  qf: "QUARTERFINAL",
-  sf_ab: "SEMIFINAL · A/B",
-  sf_cd: "SEMIFINAL · C/D",
-  final: "FINAL",
+const ROUND_LABELS: Record<Game["round"], string> = {
+  group: "Group stage",
+  wildcard: "Wild Card",
+  qf: "Quarter-Final",
+  sf: "Semi-Final",
+  final: "Final",
+};
+const BRACKET_LABELS: Record<NonNullable<Game["bracket"]>, string> = {
+  cup: "Cup",
+  shield: "Shield",
+  classic: "Classic",
+};
+const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: string }> = {
+  cup: { fg: theme.color.purple, bg: "rgba(139,47,209,.12)" },
+  shield: { fg: theme.color.pink, bg: "rgba(236,59,99,.12)" },
+  classic: { fg: theme.color.blue, bg: "rgba(37,99,235,.12)" },
 };
 
 export function Standings() {
@@ -65,7 +84,11 @@ export function Standings() {
     return byGroup;
   }, [teams]);
 
-  const bracketGames = games.filter((g) => g.categoryId === activeCategoryId && g.round !== "group");
+  const bracketGames = games
+    .filter((g) => g.categoryId === activeCategoryId && g.round !== "group")
+    .sort(compareGamesByKickoff);
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const formatDescription = activeCategoryId ? FORMAT_DESCRIPTIONS[activeCategoryId] : undefined;
   const loadError = bucketsError || teamsError;
 
   return (
@@ -208,18 +231,43 @@ export function Standings() {
 
       {!isFestival && activeBucket?.matched && (
         <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROAD TO SUNDAY</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {bracketGames.map((g) => (
-              <div
-                key={g.id}
-                onClick={() => navigate(`/game/${g.id}`)}
-                style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}
-              >
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted }}>{ROUND_LABELS[g.round] ?? g.round.toUpperCase()}</span>
-                <span style={{ fontWeight: 600 }}>{g.field} · {g.kickoffTime}</span>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROAD TO THE FINAL</div>
+
+          {formatDescription && (
+            <div style={{ background: theme.color.bg, border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "14px 16px", marginBottom: 14 }}>
+              <div style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+                <strong>Format:</strong> {formatDescription.format}
               </div>
-            ))}
+              <div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 6 }}>
+                <strong>Road to the Final:</strong> {formatDescription.roadToFinal}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {bracketGames.map((g) => {
+              const home = teamById.get(g.homeTeamId);
+              const away = teamById.get(g.awayTeamId);
+              const homeLabel = home?.name ?? provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD";
+              const awayLabel = away?.name ?? provisionalSideLabel(g.awayDrawPos, g.awayRef) ?? "TBD";
+              const bracketColor = g.bracket ? BRACKET_COLORS[g.bracket] : { fg: theme.color.textMuted, bg: theme.color.bg };
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => navigate(`/game/${g.id}`)}
+                  style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "12px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+                >
+                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: bracketColor.fg, background: bracketColor.bg, padding: "4px 9px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                    {g.bracket ? `${BRACKET_LABELS[g.bracket]} ` : ""}{ROUND_LABELS[g.round]}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 160, fontWeight: 600 }}>
+                    {home ? homeLabel : <em style={{ color: theme.color.textMuted, fontStyle: "italic", fontWeight: 500 }}>{homeLabel}</em>} vs{" "}
+                    {away ? awayLabel : <em style={{ color: theme.color.textMuted, fontStyle: "italic", fontWeight: 500 }}>{awayLabel}</em>}
+                  </span>
+                  <span style={{ fontSize: 12.5, color: theme.color.textMuted, whiteSpace: "nowrap" }}>{g.field} · {formatKickoffTime(g.kickoffTime)}</span>
+                </div>
+              );
+            })}
             {bracketGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Bracket games are seeded once group play wraps up.</div>}
           </div>
         </div>

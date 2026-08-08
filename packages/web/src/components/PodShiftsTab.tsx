@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, compareTaskTimes, type VolunteerTask } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, compareTaskTimes, formatKickoffTime, type VolunteerTask } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
@@ -140,7 +140,7 @@ export function PodShiftsTab({ podId }: { podId: string }) {
                 <Card key={g.id} style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                   <div style={{ minWidth: 120 }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5 }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</div>
-                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{g.day.toUpperCase()} · {g.field} · {g.kickoffTime}</div>
+                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</div>
                   </div>
                   <StatusBadge status={g.status} />
                 </Card>

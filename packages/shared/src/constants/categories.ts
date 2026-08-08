@@ -102,31 +102,23 @@ export const GAME_FIELDS = [
 
 export const PRIVATE_GAME_FIELD = "5A";
 
-/** Maps a fine-grained Game field code (e.g. "12B") back to its cluster (e.g. "Field 12"), for Pod/FieldMap lookups that only know about clusters. Falls back to the input unchanged for anything that isn't a numbered sub-pitch (e.g. "Stadium Field"). */
+/** Maps a fine-grained Game field code (e.g. "12B") back to its cluster (e.g. "Field 12"), for Pod lookups that only know about clusters. Falls back to the input unchanged for anything that isn't a numbered sub-pitch (e.g. "Stadium Field"). */
 export function fieldCluster(field: string): string {
   const m = /^(\d+)/.exec(field);
   return m ? `Field ${m[1]}` : field;
 }
 
-/**
- * Loose schematic layout for the field map — shared by web's SVG rendering
- * and mobile's View-based rendering, so both draw the exact same grid from
- * one source. Coordinates are in a 250x260 unit box; stylized for visual
- * flavor, not a literal to-scale reproduction of the venue.
- */
-export const FIELD_BOXES: { label: (typeof FIELDS)[number]; x: number; y: number; w: number; h: number }[] = [
-  { label: "Field 5", x: 16, y: 14, w: 66, h: 48 },
-  { label: "Field 9", x: 92, y: 14, w: 66, h: 48 },
-  { label: "Field 12", x: 168, y: 14, w: 66, h: 48 },
-  { label: "Field 13", x: 16, y: 72, w: 66, h: 48 },
-  { label: "Field 14", x: 92, y: 72, w: 66, h: 48 },
-  { label: "Field 15", x: 168, y: 72, w: 66, h: 48 },
-  { label: "Field 16", x: 16, y: 130, w: 66, h: 48 },
-  { label: "Field 17", x: 92, y: 130, w: 66, h: 48 },
-  { label: "Stadium Field", x: 16, y: 196, w: 218, h: 52 },
+/** The Field Map's actual grouping — each numbered field cluster alongside the sub-pitch codes Games are really scheduled on, in field-number order. */
+export const FIELD_CLUSTERS: { cluster: string; pitches: readonly string[] }[] = [
+  { cluster: "Field 5", pitches: ["5A", "5B", "5C"] },
+  { cluster: "Field 9", pitches: ["9A", "9B"] },
+  { cluster: "Field 12", pitches: ["12A", "12B"] },
+  { cluster: "Field 13", pitches: ["13A", "13B"] },
+  { cluster: "Field 14", pitches: ["14A", "14B"] },
+  { cluster: "Field 15", pitches: ["15A", "15B"] },
+  { cluster: "Field 16", pitches: ["16A", "16B"] },
+  { cluster: "Field 17", pitches: ["17A", "17B"] },
 ];
-export const FIELD_MAP_BOX_WIDTH = 250;
-export const FIELD_MAP_BOX_HEIGHT = 260;
 
 export const VENUE = {
   name: "Maryland SoccerPlex",

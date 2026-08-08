@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
+import { COLLECTIONS, formatKickoffTime, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -54,7 +54,7 @@ export function Game() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 10, textAlign: "center", marginTop: 18 }}>
           <TeamAvatar name={home?.name} color={home?.color} onClick={() => home && navigate(`/team/${home.id}`)} />
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: "clamp(36px, 10vw, 56px)", whiteSpace: "nowrap" }}>
-            {game.status === "scheduled" ? game.kickoffTime : `${homeGoals}–${awayGoals}`}
+            {game.status === "scheduled" ? formatKickoffTime(game.kickoffTime) : `${homeGoals}–${awayGoals}`}
           </div>
           <TeamAvatar name={away?.name} color={away?.color} onClick={() => away && navigate(`/team/${away.id}`)} />
         </div>

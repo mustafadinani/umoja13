@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
+import { CATEGORIES, formatKickoffTime, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGame, useMoments, useTeam } from "../hooks/useData";
 import { StatusBadge, Card } from "../components/ui";
@@ -39,7 +39,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
             </View>
             <Text style={styles.tapHint}>View details</Text>
           </TouchableOpacity>
-          <Text style={styles.score}>{game.status === "scheduled" ? game.kickoffTime : `${homeGoals} – ${awayGoals}`}</Text>
+          <Text style={styles.score}>{game.status === "scheduled" ? formatKickoffTime(game.kickoffTime) : `${homeGoals} – ${awayGoals}`}</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Team", { teamId: away.id })} style={{ flex: 1, alignItems: "flex-end" }} activeOpacity={0.6}>
             <View style={[styles.colorDot, { backgroundColor: away.color ?? theme.color.blue }]} />
             <View style={{ flexDirection: "row", alignItems: "center" }}>

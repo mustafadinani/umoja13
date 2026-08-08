@@ -10,6 +10,7 @@ import {
   channelHasUnread,
   buildInbox,
   unreadCount,
+  formatKickoffTime,
   type Sponsor,
   type PlayerMembership,
 } from "@umoja/shared";
@@ -193,7 +194,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             <Text style={styles.sectionTitle}>MY GAMES</Text>
             {myGames.map((g) => (
               <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6 }}>
-                <Text style={{ fontWeight: "600" }}>{g.day.toUpperCase()} · {g.field} · {g.kickoffTime}</Text>
+                <Text style={{ fontWeight: "600" }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
               </Card>
             ))}
             {myGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
@@ -220,7 +221,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         {upNext.map((g) => (
           <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 8 }}>
             <Text style={{ fontWeight: "600" }}>{teamById.get(g.homeTeamId)?.name ?? "TBD"} vs {teamById.get(g.awayTeamId)?.name ?? "TBD"}</Text>
-            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{g.field} · {g.kickoffTime}</Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>{g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
           </Card>
         ))}
         {upNext.length === 0 && <Text style={{ color: theme.color.textMuted }}>No upcoming games yet.</Text>}

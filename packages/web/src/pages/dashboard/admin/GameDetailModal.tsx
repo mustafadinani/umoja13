@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type Game, type GameStatus } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, formatKickoffTime, type Game, type GameStatus } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { useReferees, useTeam } from "../../../hooks/useData";
@@ -58,7 +58,7 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
         {home?.name ?? "TBD"} vs {away?.name ?? "TBD"}
       </div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 4 }}>
-        {category?.label} · {game.field} · {game.day.toUpperCase()} {game.kickoffTime}
+        {category?.label} · {game.field} · {game.day.toUpperCase()} {formatKickoffTime(game.kickoffTime)}
       </div>
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 16 }}>
         {ROUND_LABEL[game.round]}

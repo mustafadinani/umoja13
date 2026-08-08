@@ -21,6 +21,7 @@ export * from "./types/inbox.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/bracketTemplates.js";
+export * from "./constants/formatGuide.js";
 export * from "./constants/sponsors.js";
 export * from "./constants/huntMissions.js";
 export * from "./constants/moments.js";

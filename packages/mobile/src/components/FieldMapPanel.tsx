@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { CATEGORIES, compareGamesLiveFirst, type Game, type Team } from "@umoja/shared";
+import { CATEGORIES, compareGamesLiveFirst, formatKickoffTime, type Game, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Card, Pill, StatusBadge } from "./ui";
 import { FieldMap } from "./FieldMap";
@@ -67,7 +67,7 @@ export function FieldMapPanel({ games, allGames, teamMap }: { games: Game[]; all
                 </Text>
                 <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
                   {CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId} · {g.field} ·{" "}
-                  {g.status === "live" ? "LIVE" : `${g.day.toUpperCase()} ${g.kickoffTime}`}
+                  {g.status === "live" ? "LIVE" : `${g.day.toUpperCase()} ${formatKickoffTime(g.kickoffTime)}`}
                 </Text>
               </View>
               <StatusBadge status={g.status} />

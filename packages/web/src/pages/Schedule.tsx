@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { FIELDS, type Game } from "@umoja/shared";
+import { GAME_FIELDS, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
@@ -68,7 +68,7 @@ export function Schedule() {
             />
             <FilterDropdown<Game["day"]> label="Day" value={day} options={DAYS} onChange={setDay} />
             <FilterDropdown label="Category" value={categoryId} options={categories.map((c) => ({ id: c.id, label: c.label }))} onChange={setCategoryId} />
-            <FilterDropdown label="Field" value={field} options={FIELDS.map((f) => ({ id: f, label: f }))} onChange={setField} />
+            <FilterDropdown label="Field" value={field} options={GAME_FIELDS.map((f) => ({ id: f, label: f }))} onChange={setField} />
             {profile && (
               <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
                 ★ My teams
@@ -123,12 +123,15 @@ export function Schedule() {
                         <span style={{ marginLeft: 8, color: followedTeam.color, fontWeight: 700 }}>★ {followedTeam.name.toUpperCase()}</span>
                       )}
                     </div>
-                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>
+                      {home?.name ?? <Provisional>{provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD"}</Provisional>} vs{" "}
+                      {away?.name ?? <Provisional>{provisionalSideLabel(g.awayDrawPos, g.awayRef) ?? "TBD"}</Provisional>}
+                    </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <StatusBadge status={g.status} />
                     <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginTop: 6 }}>
-                      {g.status === "scheduled" ? g.kickoffTime : `${homeGoals}–${awayGoals}`}
+                      {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
                     </div>
                   </div>
                 </div>
@@ -145,6 +148,11 @@ export function Schedule() {
       </div>
     </div>
   );
+}
+
+/** A not-yet-real team side — "Team 3", "Seed 1", "Winner of QF2" — styled distinctly from a resolved team name so it reads as provisional, not as a typo. */
+function Provisional({ children }: { children: ReactNode }) {
+  return <span style={{ color: theme.color.textMuted, fontStyle: "italic", fontWeight: 500 }}>{children}</span>;
 }
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {

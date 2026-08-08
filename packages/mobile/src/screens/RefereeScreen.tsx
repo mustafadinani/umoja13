@@ -2,7 +2,7 @@ import { useState } from "react";
 import { where } from "firebase/firestore";
 import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, formatKickoffTime } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames } from "../hooks/useData";
@@ -60,7 +60,7 @@ export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: "700" }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</Text>
                     <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
-                      {g.day.toUpperCase()} · {g.field} · {g.kickoffTime}
+                      {g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}
                       {!g.gateCheck?.completedAt && g.status !== "final" && (
                         <Text style={{ color: theme.color.warning, fontWeight: "700" }}> · Gate check needed</Text>
                       )}

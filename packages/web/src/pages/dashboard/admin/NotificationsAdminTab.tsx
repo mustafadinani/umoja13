@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ROLES, type Role } from "@umoja/shared";
+import { ROLES, formatKickoffTime, type Role } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { sendNotification } from "../../../lib/callables";
@@ -42,7 +42,7 @@ export function NotificationsAdminTab() {
     const home = teamById.get(g.homeTeamId)?.name ?? "TBD";
     const away = teamById.get(g.awayTeamId)?.name ?? "TBD";
     setTitle("Game reminder");
-    setBody(`${home} vs ${away} — ${g.day.toUpperCase()} ${g.kickoffTime} at ${g.field}. See you there!`);
+    setBody(`${home} vs ${away} — ${g.day.toUpperCase()} ${formatKickoffTime(g.kickoffTime)} at ${g.field}. See you there!`);
   }
 
   async function send() {
@@ -102,7 +102,7 @@ export function NotificationsAdminTab() {
               <option value="" disabled>Pick a game…</option>
               {upcomingGames.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {teamById.get(g.homeTeamId)?.name ?? "TBD"} vs {teamById.get(g.awayTeamId)?.name ?? "TBD"} · {g.day.toUpperCase()} {g.kickoffTime}
+                  {teamById.get(g.homeTeamId)?.name ?? "TBD"} vs {teamById.get(g.awayTeamId)?.name ?? "TBD"} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
                 </option>
               ))}
             </select>
