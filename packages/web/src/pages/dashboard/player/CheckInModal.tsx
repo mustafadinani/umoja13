@@ -4,7 +4,6 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   COLLECTIONS,
   CHECKIN_CONSENT_POLICY_VERSION,
-  CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
   TOURNAMENT_START_AT,
@@ -41,7 +40,6 @@ export function CheckInModal({
   const [professionQuery, setProfessionQuery] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian" | null>(null);
   const [guardianName, setGuardianName] = useState("");
-  const [agreed, setAgreed] = useState(false);
   const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [govId, setGovId] = useState<File | null>(null);
@@ -52,7 +50,7 @@ export function CheckInModal({
   const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
   const canContinueFromDetails =
     existingJerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
-  const canContinueFromConsent = agreed && acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const canContinueFromConsent = acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useVolunteerApplications(user ? [where("filedByUid", "==", user.uid)] : []);
   const playerName = (membership.playerName ?? profile?.displayName ?? "").trim();
   // Checked per player name, not the account's overall volunteer role — a
@@ -185,13 +183,6 @@ export function CheckInModal({
               style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 16 }}
             />
           )}
-
-          <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 12 }}>{CHECKIN_CONSENT_COPY}</div>
-
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 18 }}>
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
-            I have read and agree to this identity-verification process.
-          </label>
 
           <PrimaryButton disabled={!canContinueFromConsent} style={{ width: "100%" }} onClick={() => setStep("details")}>CONTINUE</PrimaryButton>
         </div>
