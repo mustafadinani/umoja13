@@ -1,15 +1,27 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { categoryLabelFor, CHECKIN_NOTE_REASONS, COLLECTIONS, checkInStatusLabel, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
+import {
+  categoryLabelFor,
+  CHECKIN_NOTE_REASONS,
+  COLLECTIONS,
+  checkInStatusLabel,
+  PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
+  type CheckInNote,
+  type CheckInNoteReason,
+  type CheckIn,
+  type UserProfile,
+} from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { adminReviewCheckIn } from "../../../lib/callables";
+import { useTeam } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
 export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; onClose: () => void }) {
   const { profile } = useAuth();
+  const { data: team } = useTeam(checkIn.teamId);
   const [busy, setBusy] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [noteReason, setNoteReason] = useState<CheckInNoteReason>(CHECKIN_NOTE_REASONS[0]);
@@ -25,6 +37,10 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
     user?.playerOf?.find(
       (m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId && (m.profileId?.trim() || user.uid) === playerKey
     ) ?? user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
+  // Jersey number lives on the rosterCheckIns overlay, not the CheckIn doc
+  // itself — buildTeamFromRegistration already merges it onto each roster
+  // entry, so this is the same jersey number captains/referees see.
+  const rosterEntry = team?.roster.find((p) => (p.playerKey ?? p.userId) === playerKey);
   const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
 
   function buildNote(): CheckInNote | null {
@@ -85,10 +101,20 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? fallbackName ?? "Player"}</div>
         <StatusPill status={checkIn.status} />
       </div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
-        {categoryLabel} · attempt {checkIn.attempt}
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 4 }}>
+        {team?.name ?? "Team"} · {categoryLabel} · attempt {checkIn.attempt}
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
       </div>
+
+      {(rosterEntry?.jerseyNumber != null || checkIn.lineOfWork || checkIn.privateFieldPreference !== undefined) && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          {rosterEntry?.jerseyNumber != null && <InfoChip>Jersey #{rosterEntry.jerseyNumber}</InfoChip>}
+          {checkIn.lineOfWork && <InfoChip>{checkIn.lineOfWork}</InfoChip>}
+          {PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(checkIn.categoryId) && checkIn.privateFieldPreference !== undefined && (
+            <InfoChip>{checkIn.privateFieldPreference ? "Wants private field" : "No private field preference"}</InfoChip>
+          )}
+        </div>
+      )}
 
       <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>Click any photo to zoom in.</div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
@@ -188,6 +214,15 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
       </div>
       {lightboxUrl && <Lightbox src={lightboxUrl} mediaType="photo" onClose={() => setLightboxUrl(null)} />}
     </Modal>
+  );
+}
+
+/** Small tag for a single piece of info submitted at check-in (jersey #, profession, private-field preference). */
+function InfoChip({ children }: { children: ReactNode }) {
+  return (
+    <span style={{ background: "#F1EFF5", color: theme.color.text, fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
+      {children}
+    </span>
   );
 }
 

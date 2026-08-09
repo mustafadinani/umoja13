@@ -265,7 +265,12 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
               )}
             </TouchableOpacity>
           ))}
-          {moments.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No moments yet — be the first to share one.</Text>}
+          {moments.length === 0 &&
+            [0, 1, 2].map((i) => (
+              <View key={i} style={styles.momentTile}>
+                <Text style={{ fontSize: 20, opacity: 0.7 }}>📷</Text>
+              </View>
+            ))}
         </ScrollView>
       </View>
 

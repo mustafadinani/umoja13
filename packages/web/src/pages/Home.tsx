@@ -169,7 +169,18 @@ export function Home() {
                   </div>
                 </Card>
               ))}
-              {moments.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No moments yet — be the first to share one.</div>}
+              {moments.length === 0 &&
+                [0, 1, 2].map((i) => (
+                  <Card key={i} style={{ padding: 0, overflow: "hidden" }} onClick={() => navigate("/moments")}>
+                    <div style={{ height: 110, background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, opacity: 0.6 }}>
+                      📷
+                    </div>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.color.textMuted }}>No moments yet</div>
+                      <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>Be the first to share one</div>
+                    </div>
+                  </Card>
+                ))}
             </div>
           </div>
         </div>

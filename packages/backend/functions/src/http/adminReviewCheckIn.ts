@@ -1,9 +1,19 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { COLLECTIONS, type CheckIn } from "@umoja/shared";
-import { db } from "../util/admin.js";
+import { FieldValue } from "firebase-admin/firestore";
+import {
+  COLLECTIONS,
+  PLAYERS_REGISTERED,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  type CheckIn,
+  type RegisteredPlayer,
+  type TeamChannelMessage,
+} from "@umoja/shared";
+import { db, defaultDb } from "../util/admin.js";
 import { nextPassId } from "../util/counters.js";
 import { syncRosterCheckInStatus } from "../util/roster.js";
 import { notifyUsers } from "../util/notify.js";
+import { resolveAuthorName } from "../util/authorName.js";
 
 interface AdminReviewCheckInRequest {
   checkInId: string;
@@ -70,6 +80,7 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
         ? `Your check-in was declined: ${trimmedReason}. Please review and resubmit in the app.`
         : "Your check-in was declined. Please review and resubmit in the app."
     );
+    await postDeclineToTeamChannel(checkIn.teamId, playerKey, uid, callerSnap.data()?.displayName);
   } else if (decision === "nullify") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });
@@ -82,3 +93,47 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
 
   return { status: decision };
 });
+
+/**
+ * Posts the required decline notice into the team's channel (same
+ * `teamChannels/{teamId}` doc sendTeamMessage writes to) so the whole roster
+ * sees it, not just the declined player's own notification. Player name
+ * comes from the real registration data (`playersRegistered`), matching the
+ * same playerKey-lookup pattern setJerseyNumber uses — the checkIns doc
+ * itself never stores a display name.
+ */
+async function postDeclineToTeamChannel(teamId: string, playerKey: string, adminUid: string, adminDisplayName?: string): Promise<void> {
+  const playersSnap = await defaultDb
+    .collection(REGISTRATION_ROOT)
+    .doc(REGISTRATION_YEAR)
+    .collection(PLAYERS_REGISTERED)
+    .where("teamId", "==", teamId)
+    .get();
+
+  const playerDoc = playersSnap.docs.find((d) => {
+    const p = d.data() as RegisteredPlayer;
+    return (p.profileId?.trim() || d.id) === playerKey;
+  });
+  const playerName = playerDoc
+    ? `${(playerDoc.data() as RegisteredPlayer).firstName ?? ""} ${(playerDoc.data() as RegisteredPlayer).lastName ?? ""}`.trim() || "This player"
+    : "This player";
+
+  const message: TeamChannelMessage = {
+    id: db.collection(COLLECTIONS.teamChannels).doc().id,
+    from: "admin",
+    authorUid: adminUid,
+    authorName: await resolveAuthorName(adminUid, adminDisplayName),
+    text: `Unfortunately, ${playerName}'s check-in was declined. Please kindly check-in again and address issues noted in the check-in.`,
+    createdAt: Date.now(),
+  };
+
+  await db.collection(COLLECTIONS.teamChannels).doc(teamId).set(
+    { teamId, updatedAt: Date.now(), messages: FieldValue.arrayUnion(message) },
+    { merge: true }
+  );
+
+  const rosterUids = [...new Set(playersSnap.docs.map((d) => (d.data() as RegisteredPlayer).uid).filter((v): v is string => !!v))];
+  if (rosterUids.length > 0) {
+    await notifyUsers(rosterUids, "Team check-in update", message.text);
+  }
+}
