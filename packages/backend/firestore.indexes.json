@@ -10,14 +10,6 @@
       ]
     },
     {
-      "collectionGroup": "games",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "refereeUid", "order": "ASCENDING" },
-        { "fieldPath": "day", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "moments",
       "queryScope": "COLLECTION",
       "fields": [

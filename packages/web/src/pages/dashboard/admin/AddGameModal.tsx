@@ -33,7 +33,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
   const [kickoffTime, setKickoffTime] = useState("10:00");
   const [field, setField] = useState<string | null>(null);
   const [round, setRound] = useState<Game["round"]>("group");
-  const [refereeUid, setRefereeUid] = useState<string | null>(null);
+  const [refereeUids, setRefereeUids] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const { data: teams } = useTeams(categoryId ?? undefined);
@@ -54,7 +54,7 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
         awayTeamId,
         status: "scheduled",
         round,
-        refereeUid: refereeUid ?? null,
+        refereeUids,
         gateCheck: { homeClearedUids: [], awayClearedUids: [] },
         events: [],
         createdAt: Date.now(),
@@ -131,10 +131,17 @@ export function AddGameModal({ onClose }: { onClose: () => void }) {
 
       {step === 4 && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Referee (optional)</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Referees (optional — pick more than one for a double-ref game)</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-            <Pill active={!refereeUid} onClick={() => setRefereeUid(null)}>Unassigned</Pill>
-            {referees.map((r) => <Pill key={r.uid} active={refereeUid === r.uid} onClick={() => setRefereeUid(r.uid)}>{r.displayName}</Pill>)}
+            {referees.map((r) => (
+              <Pill
+                key={r.uid}
+                active={refereeUids.includes(r.uid)}
+                onClick={() => setRefereeUids((prev) => (prev.includes(r.uid) ? prev.filter((u) => u !== r.uid) : [...prev, r.uid]))}
+              >
+                {r.displayName}
+              </Pill>
+            ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => setStep(3)} style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "12px 16px", fontWeight: 700 }}>Back</button>

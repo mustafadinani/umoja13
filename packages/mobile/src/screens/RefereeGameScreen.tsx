@@ -40,7 +40,7 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   );
 
   if (!game || !home || !away) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
-  if (user && game.refereeUid !== user.uid) {
+  if (user && !(game.refereeUids ?? []).includes(user.uid)) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.color.bg, alignItems: "center", justifyContent: "center", padding: 40 }}>
         <Text style={{ color: theme.color.textMuted, textAlign: "center" }}>You're not assigned to this game.</Text>

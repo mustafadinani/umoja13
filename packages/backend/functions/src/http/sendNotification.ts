@@ -40,7 +40,7 @@ async function resolveRecipientUids(target: NotificationTarget): Promise<string[
       const roster: { userId: string }[] = teamSnap.data()?.roster ?? [];
       roster.forEach((p) => p.userId && uids.add(p.userId));
     }
-    if (game.refereeUid) uids.add(game.refereeUid);
+    for (const refUid of game.refereeUids ?? []) uids.add(refUid);
     return [...uids];
   }
 

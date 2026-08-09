@@ -15,7 +15,7 @@ type Tab = "assignments" | "channel";
 export function RefereeDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: games } = useGames(user ? [where("refereeUid", "==", user.uid)] : []);
+  const { data: games } = useGames(user ? [where("refereeUids", "array-contains", user.uid)] : []);
   const { data: channel } = useRoleChannel("referee");
   const [tab, setTab] = useState<Tab>("assignments");
   const channelUnread = channelHasUnread(channel?.messages, channel?.lastReadBy, user?.uid);

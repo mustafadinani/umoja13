@@ -55,7 +55,8 @@ export function AllGamesTab() {
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
                   {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
-                  {!g.refereeUid && <span style={{ color: theme.color.warning, fontWeight: 700 }}> · No ref assigned</span>}
+                  {(g.refereeUids ?? []).length === 0 && <span style={{ color: theme.color.warning, fontWeight: 700 }}> · No ref assigned</span>}
+                  {(g.refereeUids ?? []).length > 1 && <span style={{ color: theme.color.textMuted }}> · {g.refereeUids?.length} refs</span>}
                 </div>
               </div>
               <StatusBadge status={g.status} />

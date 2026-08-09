@@ -13,7 +13,7 @@ type Tab = "assignments" | "channel";
 
 export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user } = useAuth();
-  const { data: games } = useGames(user ? [where("refereeUid", "==", user.uid)] : []);
+  const { data: games } = useGames(user ? [where("refereeUids", "array-contains", user.uid)] : []);
   const [tab, setTab] = useState<Tab>("assignments");
 
   const sorted = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));

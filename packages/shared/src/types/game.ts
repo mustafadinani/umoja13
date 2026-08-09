@@ -82,7 +82,8 @@ export interface Game {
   bracket?: GameBracket;
   /** Slot label for playoff games so later rounds can reference "winner of X" concretely, e.g. "SF1", "QF3", "Wildcard", "CupFinal" — see TeamRef. Undefined for group games (draw position is identifier enough). */
   matchCode?: string;
-  refereeUid?: string;
+  /** Zero, one, or more — some games (finals, higher-stakes matches) run with two referees rather than one. Anyone in this list has the same gate-check/match-console/game-card access. */
+  refereeUids?: string[];
   gateCheck: {
     completedAt?: number;
     completedBy?: string;

@@ -59,7 +59,10 @@ export function AddPodPeopleModal({
     if (!canManage || pod.fields.length === 0) return [];
     const uids = new Set<string>();
     for (const g of games) {
-      if (g.refereeUid && pod.fields.includes(g.field) && !pod.memberUids.includes(g.refereeUid)) uids.add(g.refereeUid);
+      if (!pod.fields.includes(g.field)) continue;
+      for (const refUid of g.refereeUids ?? []) {
+        if (!pod.memberUids.includes(refUid)) uids.add(refUid);
+      }
     }
     return [...uids]
       .map((uid) => users.find((u) => u.uid === uid))

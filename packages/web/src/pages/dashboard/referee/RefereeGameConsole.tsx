@@ -53,7 +53,7 @@ export function RefereeGameConsole() {
       </div>
     );
   }
-  if (user && game.refereeUid !== user.uid) {
+  if (user && !(game.refereeUids ?? []).includes(user.uid)) {
     return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>You're not assigned to this game.</div>;
   }
 

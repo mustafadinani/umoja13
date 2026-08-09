@@ -84,7 +84,8 @@ service cloud.firestore {
     }
 
     // ---- games ----
-    // Referee assigned to a game may update only gate-check/events/motm/score/forfeit
+    // Any referee assigned to a game (refereeUids — some games run with two,
+    // not just one) may update only gate-check/events/motm/score/forfeit
     // (exactly the fields their own console writes) and may flip `status` only to
     // 'forfeited' — never directly to 'live'/'final', which stay commissioner/admin-
     // only (and, for 'final', gated by callItFinal's own preconditions). `gameCard` is
@@ -94,7 +95,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isStaff();
       allow update: if isStaff() ||
-        (isSignedIn() && resource.data.refereeUid == request.auth.uid &&
+        (isSignedIn() && request.auth.uid in resource.data.get('refereeUids', []) &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['gateCheck', 'events', 'motmUserId', 'homeScore', 'awayScore', 'forfeit', 'status', 'updatedAt']) &&
          (request.resource.data.status == resource.data.status || request.resource.data.status == 'forfeited'));

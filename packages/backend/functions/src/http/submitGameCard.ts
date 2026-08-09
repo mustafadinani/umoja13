@@ -21,7 +21,7 @@ export const submitGameCard = onCall<SubmitGameCardRequest>(async (request) => {
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Game not found.");
   const game = snap.data() as Game;
-  if (game.refereeUid !== uid) throw new HttpsError("permission-denied", "Not your assigned game.");
+  if (!(game.refereeUids ?? []).includes(uid)) throw new HttpsError("permission-denied", "Not your assigned game.");
   if (!game.gateCheck?.completedAt) {
     throw new HttpsError("failed-precondition", "Complete the gate check before submitting the game card.");
   }

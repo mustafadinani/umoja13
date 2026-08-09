@@ -51,8 +51,13 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
     }
   }
 
-  async function assignRef(uid: string | null) {
-    await updateDoc(doc(db, COLLECTIONS.games, game.id), { refereeUid: uid, updatedAt: Date.now() });
+  // Some games (finals, higher-stakes matches) run with two referees rather
+  // than one, so this toggles membership in the list instead of picking a
+  // single assignee.
+  async function toggleRef(uid: string) {
+    const current = game.refereeUids ?? [];
+    const next = current.includes(uid) ? current.filter((u) => u !== uid) : [...current, uid];
+    await updateDoc(doc(db, COLLECTIONS.games, game.id), { refereeUids: next, updatedAt: Date.now() });
   }
 
   async function shift(minutes: number) {
@@ -114,10 +119,14 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
         ))}
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Referee</div>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+        Referees{(game.refereeUids?.length ?? 0) > 1 ? ` (${game.refereeUids?.length})` : ""}
+      </div>
+      <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>Tap to toggle — pick more than one for a double-ref game.</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!game.refereeUid} onClick={() => assignRef(null)}>Unassigned</Pill>
-        {referees.map((r) => <Pill key={r.uid} active={game.refereeUid === r.uid} onClick={() => assignRef(r.uid)}>{r.displayName}</Pill>)}
+        {referees.map((r) => <Pill key={r.uid} active={(game.refereeUids ?? []).includes(r.uid)} onClick={() => toggleRef(r.uid)}>{r.displayName}</Pill>)}
+        {referees.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No referees yet.</div>}
+        {referees.length > 0 && (game.refereeUids ?? []).length === 0 && <div style={{ color: theme.color.warning, fontSize: 12, fontWeight: 700, width: "100%" }}>No referee assigned yet.</div>}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
