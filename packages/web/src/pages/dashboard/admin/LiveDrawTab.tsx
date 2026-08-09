@@ -75,6 +75,10 @@ export function LiveDrawTab() {
   orderRef.current = draw?.order ?? [];
   const rollsRef = useRef(rolls);
   rollsRef.current = rolls;
+  // Mutated synchronously (unlike rollsRef, which only reflects state as of
+  // the last render) so drawAll's own step() loop can read the flag it just
+  // set in the same tick, instead of racing React's batched re-render.
+  const chainingRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => () => stopTimers(), []);
   useEffect(() => { setJustPublished(null); setPublishError(null); }, [categoryId]);
@@ -124,19 +128,21 @@ export function LiveDrawTab() {
 
   function selectCategory(id: string) {
     stopTimers();
+    chainingRef.current[categoryId] = false;
     updateRoll(categoryId, { rolling: false, chaining: false, landed: null });
     setCategoryId(id);
   }
 
-  const drawNext = () => { updateRoll(categoryId, { chaining: false }); roll(categoryId, 1650); };
+  const drawNext = () => { chainingRef.current[categoryId] = false; updateRoll(categoryId, { chaining: false }); roll(categoryId, 1650); };
 
   const drawAll = () => {
     const catId = categoryId;
     if (rollsRef.current[catId]?.rolling || remainingFor().length === 0) return;
+    chainingRef.current[catId] = true;
     updateRoll(catId, { chaining: true });
     const step = () => {
-      if (!rollsRef.current[catId]?.chaining) return;
-      if (remainingFor().length === 0) { updateRoll(catId, { chaining: false }); return; }
+      if (!chainingRef.current[catId]) return;
+      if (remainingFor().length === 0) { chainingRef.current[catId] = false; updateRoll(catId, { chaining: false }); return; }
       roll(catId, 820, () => { chainTimer.current = setTimeout(step, 620); });
     };
     step();
@@ -144,12 +150,14 @@ export function LiveDrawTab() {
 
   const undo = () => {
     stopTimers();
+    chainingRef.current[categoryId] = false;
     updateRoll(categoryId, { rolling: false, landed: null, chaining: false });
     persistOrder(categoryId, orderRef.current.slice(0, -1));
   };
 
   const reset = () => {
     stopTimers();
+    chainingRef.current[categoryId] = false;
     updateRoll(categoryId, { rolling: false, landed: null, chaining: false });
     persistOrder(categoryId, []);
     setJustPublished((p) => (p === categoryId ? null : p));
