@@ -27,10 +27,39 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
     ) ?? user?.playerOf?.find((m) => m.teamId === checkIn.teamId && m.categoryId === checkIn.categoryId);
   const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
 
+  function buildNote(): CheckInNote | null {
+    if (!profile || !noteText.trim()) return null;
+    if (noteReason === "Other" && !noteReasonOther.trim()) return null;
+    return {
+      id: crypto.randomUUID(),
+      authorUid: profile.uid,
+      authorName: profile.displayName,
+      reason: noteReason,
+      ...(noteReason === "Other" ? { reasonOther: noteReasonOther.trim() } : {}),
+      text: noteText.trim(),
+      createdAt: Date.now(),
+    };
+  }
+
   async function decide(decision: "approve" | "reject" | "nullify" | "restore") {
     setBusy(true);
     try {
-      await adminReviewCheckIn({ checkInId: checkIn.id, decision });
+      // On decline, reuse whatever reason/note the admin already typed above
+      // (if any) both as the internal note AND as the reason shown to the
+      // player in their notification — one input, two destinations, so
+      // declining always tells the player what to fix without a second form.
+      let reason: string | undefined;
+      if (decision === "reject") {
+        const note = buildNote();
+        if (note) {
+          await updateDoc(doc(db, COLLECTIONS.checkIns, checkIn.id), { internalNotes: arrayUnion(note) });
+          const reasonLabel = note.reason === "Other" ? note.reasonOther || "Other" : note.reason;
+          reason = `${reasonLabel} — ${note.text}`;
+          setNoteText("");
+          setNoteReasonOther("");
+        }
+      }
+      await adminReviewCheckIn({ checkInId: checkIn.id, decision, reason });
       onClose();
     } finally {
       setBusy(false);
@@ -38,19 +67,10 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   }
 
   async function addNote() {
-    if (!profile || !noteText.trim()) return;
-    if (noteReason === "Other" && !noteReasonOther.trim()) return;
+    const note = buildNote();
+    if (!note) return;
     setSavingNote(true);
     try {
-      const note: CheckInNote = {
-        id: crypto.randomUUID(),
-        authorUid: profile.uid,
-        authorName: profile.displayName,
-        reason: noteReason,
-        ...(noteReason === "Other" ? { reasonOther: noteReasonOther.trim() } : {}),
-        text: noteText.trim(),
-        createdAt: Date.now(),
-      };
       await updateDoc(doc(db, COLLECTIONS.checkIns, checkIn.id), { internalNotes: arrayUnion(note) });
       setNoteText("");
       setNoteReasonOther("");
@@ -197,9 +217,15 @@ function StatusPill({ status }: { status: CheckIn["status"] }) {
       : status === "admin_review" || status === "pending_review"
       ? { bg: theme.color.warningBg, fg: theme.color.warning }
       : { bg: theme.color.dangerBg, fg: theme.color.danger };
+  // checkInStatusLabel groups "rejected" under the player-facing "Pending"
+  // label (deliberately, so a declined player just sees "needs resubmit") —
+  // but this pill's color already calls out "rejected" as its own red case,
+  // so on this admin-only surface the text needs to match: a staff member
+  // who just declined a check-in should see "Declined", not a red "Pending".
+  const label = status === "rejected" ? "Declined" : checkInStatusLabel(status);
   return (
     <span style={{ background: bg, color: fg, fontWeight: 700, fontSize: 12, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
-      {checkInStatusLabel(status)}
+      {label}
     </span>
   );
 }

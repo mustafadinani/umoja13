@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, formatKickoffTime, type PlayerMembership } from "@umoja/shared";
+import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, formatKickoffTime, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
@@ -78,10 +78,29 @@ export function PlayerDashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
             {(() => {
               const valid = activeMemberships.filter((m) => CATEGORIES.some((c) => c.id === m.categoryId));
-              if (valid.length > 0) {
-                return valid.map((m) => (
-                  <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />
-                ));
+              // Toddlers Camp registrants have a real categoryId that's
+              // intentionally NOT in CATEGORIES (no games/check-in for camp)
+              // — they used to fall into the "Registration issue" error
+              // below just because they didn't match a tournament division.
+              const nonCompetitive = activeMemberships.filter(
+                (m) => !CATEGORIES.some((c) => c.id === m.categoryId) && TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]
+              );
+              if (valid.length > 0 || nonCompetitive.length > 0) {
+                return (
+                  <>
+                    {valid.map((m) => (
+                      <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />
+                    ))}
+                    {nonCompetitive.map((m) => (
+                      <Card key={`${m.teamId}-${m.categoryId}`} style={{ padding: 16 }}>
+                        <div style={{ fontWeight: 700 }}>{TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]}</div>
+                        <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 4, lineHeight: 1.45 }}>
+                          No check-in needed for camp — just come to the venue and have fun!
+                        </div>
+                      </Card>
+                    ))}
+                  </>
+                );
               }
               if (activeMemberships.length > 0) {
                 return (

@@ -7,6 +7,7 @@ import {
   SPONSOR_TIER_ORDER,
   SPONSOR_TIER_LABELS,
   CATEGORIES,
+  TODDLERS_CAMP_CATEGORY_LABELS,
   channelHasUnread,
   buildInbox,
   unreadCount,
@@ -161,15 +162,34 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             {user &&
               (() => {
                 const valid = activeMemberships.filter((m) => CATEGORIES.some((c) => c.id === m.categoryId));
-                if (valid.length > 0) {
-                  return valid.map((m) => (
-                    <CheckInCard
-                      key={`${m.teamId}-${m.categoryId}`}
-                      uid={user.uid}
-                      membership={m}
-                      onCheckIn={() => navigation.getParent()?.navigate("CheckIn", { teamId: m.teamId, categoryId: m.categoryId })}
-                    />
-                  ));
+                // Same Toddlers Camp carve-out as the web dashboard — a real
+                // categoryId that's intentionally outside CATEGORIES (no
+                // games/check-in for camp) shouldn't read as a "Registration
+                // issue" error.
+                const nonCompetitive = activeMemberships.filter(
+                  (m) => !CATEGORIES.some((c) => c.id === m.categoryId) && TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]
+                );
+                if (valid.length > 0 || nonCompetitive.length > 0) {
+                  return (
+                    <>
+                      {valid.map((m) => (
+                        <CheckInCard
+                          key={`${m.teamId}-${m.categoryId}`}
+                          uid={user.uid}
+                          membership={m}
+                          onCheckIn={() => navigation.getParent()?.navigate("CheckIn", { teamId: m.teamId, categoryId: m.categoryId })}
+                        />
+                      ))}
+                      {nonCompetitive.map((m) => (
+                        <Card key={`${m.teamId}-${m.categoryId}`} style={{ marginBottom: 8 }}>
+                          <Text style={{ fontWeight: "700" }}>{TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]}</Text>
+                          <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4, lineHeight: 18 }}>
+                            No check-in needed for camp — just come to the venue and have fun!
+                          </Text>
+                        </Card>
+                      ))}
+                    </>
+                  );
                 }
                 if (activeMemberships.length > 0) {
                   return (

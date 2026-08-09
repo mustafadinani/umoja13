@@ -202,10 +202,19 @@ export function HuntScreen() {
 
   async function respondInvite(accept: boolean) {
     if (!pendingInvite || !user || !profile) return;
+    setBusy(true);
+    setCrewError(null);
     const members = pendingInvite.members.map((m) =>
       m.email === profile.email.toLowerCase() ? { ...m, status: accept ? "accepted" : "declined", userId: accept ? user.uid : m.userId } : m
     );
-    await updateDoc(doc(db, COLLECTIONS.huntCrews, pendingInvite.id), { members, ...(accept ? { memberUids: arrayUnion(user.uid) } : {}) });
+    try {
+      await updateDoc(doc(db, COLLECTIONS.huntCrews, pendingInvite.id), { members, ...(accept ? { memberUids: arrayUnion(user.uid) } : {}) });
+    } catch (e) {
+      // This used to fail silently — ACCEPT looked like it did nothing.
+      setCrewError(e instanceof Error ? e.message : "Couldn't respond to this invite. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function completeInstant(correct: boolean) {
@@ -227,8 +236,9 @@ export function HuntScreen() {
         {pendingInvite && (
           <Card style={{ backgroundColor: theme.color.warningBg, borderWidth: 0, marginBottom: 16 }}>
             <Text style={{ fontWeight: "700" }}>You're invited to join "{pendingInvite.name}"</Text>
+            {crewError && <Text style={{ color: theme.color.danger, fontSize: 12, marginTop: 6 }}>{crewError}</Text>}
             <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              <PrimaryButton onPress={() => respondInvite(true)}>ACCEPT</PrimaryButton>
+              <PrimaryButton disabled={busy} onPress={() => respondInvite(true)}>ACCEPT</PrimaryButton>
             </View>
           </Card>
         )}

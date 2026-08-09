@@ -22,7 +22,11 @@ function hasSubmittedCheckIn(checkIns: CheckIn[], playerUid: string, teamId: str
   return checkIns.some((c) => {
     if (c.userId !== playerUid) return false;
     if (teamId && c.teamId && c.teamId !== teamId) return false;
-    return c.status !== "not_started";
+    // "rejected" is also !== "not_started", but a declined check-in is
+    // explicitly NOT checked in — the player needs to fix and resubmit.
+    // Without this exclusion, this tab kept showing "Checked in." for
+    // players an admin had just declined.
+    return c.status !== "not_started" && c.status !== "rejected";
   });
 }
 

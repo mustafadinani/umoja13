@@ -18,7 +18,7 @@ import { app } from "./firebase";
 const functions = getFunctions(app, "us-central1");
 
 export const adminReviewCheckIn = httpsCallable<
-  { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore" },
+  { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore"; reason?: string },
   { status: string }
 >(functions, "adminReviewCheckIn");
 

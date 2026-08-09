@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import {
   CATEGORIES,
+  COLLECTIONS,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TOURNAMENT_DAY_DATES,
@@ -15,6 +17,8 @@ import {
   type SeedDestination,
   type Team,
 } from "@umoja/shared";
+import { db } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
 
 /** "FRI, AUG 14" — a bare day abbreviation alone doesn't say which one. */
 function dayDateLabel(day: Game["day"]) {
@@ -105,11 +109,20 @@ const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: str
 const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
+  const { user, profile } = useAuth();
   const { buckets } = useRegistrationCategoryBuckets();
   const [seg, setSeg] = useState<"schedule" | "standings" | "fieldMap">("schedule");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const { data: games } = useGames();
   const { data: allTeams } = useTeams();
+  const followed = new Set(profile?.followedTeamIds ?? []);
+
+  async function toggleFollow(teamId: string) {
+    if (!user) return;
+    await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
+      followedTeamIds: followed.has(teamId) ? arrayRemove(teamId) : arrayUnion(teamId),
+    });
+  }
 
   // Standings always uses a concrete bucket (same as web). Schedule may use All.
   useEffect(() => {
@@ -264,9 +277,18 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
                         style={{ marginBottom: 6, ...(pathColor ? { backgroundColor: pathColor.bg } : null) }}
                       >
                         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                          <Text style={{ fontWeight: "700", flex: 1 }}>
-                            #{t.stats.groupRank ?? i + 1} {t.name}
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                            {user && (
+                              <TouchableOpacity onPress={() => toggleFollow(t.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ marginRight: 6 }}>
+                                <Text style={{ fontSize: 15, color: followed.has(t.id) ? theme.color.gold : theme.color.textMuted }}>
+                                  {followed.has(t.id) ? "★" : "☆"}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                            <Text style={{ fontWeight: "700", flex: 1 }}>
+                              #{t.stats.groupRank ?? i + 1} {t.name}
+                            </Text>
+                          </View>
                           {!isFestival && (
                             <Text style={{ color: theme.color.textMuted }}>
                               {t.stats.wins}-{t.stats.draws}-{t.stats.losses} · {t.stats.points} pts

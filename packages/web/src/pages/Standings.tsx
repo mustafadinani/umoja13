@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import {
   CATEGORIES,
+  COLLECTIONS,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TOURNAMENT_DAY_DATES,
@@ -13,6 +15,8 @@ import {
   type Team,
 } from "@umoja/shared";
 import { theme } from "../lib/theme";
+import { db } from "../lib/firebase";
+import { useAuth } from "../auth/AuthProvider";
 import { useGames, useSponsors, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
 import { Pill, Card } from "../components/ui";
@@ -39,8 +43,17 @@ const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
 export function Standings() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const { buckets, loading: bucketsLoading, error: bucketsError } = useRegistrationCategoryBuckets();
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const followed = new Set(profile?.followedTeamIds ?? []);
+
+  async function toggleFollow(teamId: string) {
+    if (!user) return;
+    await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
+      followedTeamIds: followed.has(teamId) ? arrayRemove(teamId) : arrayUnion(teamId),
+    });
+  }
 
   // Keep selection valid as buckets load / change — same default as Admin Teams (first pill).
   useEffect(() => {
@@ -230,7 +243,18 @@ export function Standings() {
                         }}
                       >
                         <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
-                        <span style={{ fontWeight: 600 }}>{t.name}</span>
+                        <span style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                          {user && (
+                            <span
+                              onClick={(e) => { e.stopPropagation(); toggleFollow(t.id); }}
+                              title={followed.has(t.id) ? "Unfollow this team" : "Follow this team"}
+                              style={{ cursor: "pointer", fontSize: 15, color: followed.has(t.id) ? theme.color.gold : theme.color.textMuted, lineHeight: 1 }}
+                            >
+                              {followed.has(t.id) ? "★" : "☆"}
+                            </span>
+                          )}
+                          {t.name}
+                        </span>
                         {!isFestival && (
                           <>
                             <span style={{ fontWeight: 800 }}>{t.stats.points}</span>

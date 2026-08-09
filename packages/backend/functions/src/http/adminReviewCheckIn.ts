@@ -3,10 +3,13 @@ import { COLLECTIONS, type CheckIn } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { nextPassId } from "../util/counters.js";
 import { syncRosterCheckInStatus } from "../util/roster.js";
+import { notifyUsers } from "../util/notify.js";
 
 interface AdminReviewCheckInRequest {
   checkInId: string;
   decision: "approve" | "reject" | "nullify" | "restore";
+  /** Only meaningful for "reject" — shown to the player so they know what to fix before resubmitting. */
+  reason?: string;
 }
 
 /**
@@ -25,7 +28,7 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
     throw new HttpsError("permission-denied", "Only admin/commissioner can review check-ins.");
   }
 
-  const { checkInId, decision } = request.data;
+  const { checkInId, decision, reason } = request.data;
   const ref = db.collection(COLLECTIONS.checkIns).doc(checkInId);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Check-in not found.");
@@ -56,6 +59,17 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
   } else if (decision === "reject") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
+    // Rejecting silently left the player with no way to know their check-in
+    // needed fixing — notify them (in-app + push) with whatever reason the
+    // admin gave, so they know what to correct before resubmitting.
+    const trimmedReason = reason?.trim();
+    await notifyUsers(
+      [checkIn.userId],
+      "Check-in declined",
+      trimmedReason
+        ? `Your check-in was declined: ${trimmedReason}. Please review and resubmit in the app.`
+        : "Your check-in was declined. Please review and resubmit in the app."
+    );
   } else if (decision === "nullify") {
     await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });

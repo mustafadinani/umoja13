@@ -10,7 +10,7 @@ const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: strin
   { id: "all", label: "All" },
   { id: "needs_review", label: "Admin Review" },
   { id: "approved", label: "Verified" },
-  { id: "rejected", label: "Pending" },
+  { id: "rejected", label: "Declined" },
 ];
 
 type View = "queue" | "fieldPrefs";
@@ -180,5 +180,8 @@ function StatusChip({ status }: { status: CheckInStatus }) {
     rejected: { bg: theme.color.dangerBg, fg: theme.color.danger },
   };
   const s = map[status];
-  return <Pill bg={s.bg} fg={s.fg}>{checkInStatusLabel(status)}</Pill>;
+  // Same admin-only label override as PlayerDocumentsModal's StatusPill — see
+  // its comment for why "rejected" needs to say "Declined" here specifically.
+  const label = status === "rejected" ? "Declined" : checkInStatusLabel(status);
+  return <Pill bg={s.bg} fg={s.fg}>{label}</Pill>;
 }

@@ -66,16 +66,27 @@ export const reviewVolunteerApplication = onCall<ReviewVolunteerApplicationReque
     // would silently blank their real name/photo/family/team memberships.
     let baseProfile: Partial<UserProfile> = {};
     if (!targetSnap.exists) {
-      const outreachSnap = await defaultDb.collection(DATA_SOURCES.registration.profilesCollection).doc(targetUid).get();
-      if (outreachSnap.exists) {
-        const playersSnap = await defaultDb
-          .collection(REGISTRATION_ROOT)
-          .doc(REGISTRATION_YEAR)
-          .collection(PLAYERS_REGISTERED)
-          .where("uid", "==", targetUid)
-          .get();
-        const players = playersSnap.docs.map((d) => ({ ...(d.data() as RegisteredPlayer), id: d.id }));
-        baseProfile = mapOutreachProfileToUserProfile(targetUid, outreachSnap.data() as OutreachProfile, players);
+      // Best-effort enrichment from the separate Outreach production
+      // database — this used to be able to throw and abort the ENTIRE
+      // approval (custom claims already set, but the Firestore write below
+      // never ran), which looked like the approve button just hanging with
+      // zero feedback. A first-time volunteer with no Outreach match at all
+      // is a normal case (e.g. staff/referee-only accounts), not an error —
+      // fall back to the bare-stub profile rather than failing the review.
+      try {
+        const outreachSnap = await defaultDb.collection(DATA_SOURCES.registration.profilesCollection).doc(targetUid).get();
+        if (outreachSnap.exists) {
+          const playersSnap = await defaultDb
+            .collection(REGISTRATION_ROOT)
+            .doc(REGISTRATION_YEAR)
+            .collection(PLAYERS_REGISTERED)
+            .where("uid", "==", targetUid)
+            .get();
+          const players = playersSnap.docs.map((d) => ({ ...(d.data() as RegisteredPlayer), id: d.id }));
+          baseProfile = mapOutreachProfileToUserProfile(targetUid, outreachSnap.data() as OutreachProfile, players);
+        }
+      } catch (err) {
+        console.error(`reviewVolunteerApplication: Outreach profile lookup failed for ${targetUid}, continuing without enrichment:`, err);
       }
     }
 

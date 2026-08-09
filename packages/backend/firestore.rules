@@ -191,8 +191,17 @@ service cloud.firestore {
     match /huntCrews/{crewId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.leadUserId == request.auth.uid;
-      allow update: if isStaff() || (isSignedIn() && !resource.data.locked &&
-        request.auth.uid in resource.data.memberUids);
+      allow update: if isStaff() ||
+        (isSignedIn() && !resource.data.locked && request.auth.uid in resource.data.memberUids) ||
+        // A merely-invited member only appears in memberEmails — memberUids
+        // only gains their uid once they accept, via this very update — so
+        // accept/decline needs its own branch keyed on email, and it's
+        // restricted to touching just members/memberUids so an invitee
+        // can't otherwise rewrite the crew's points/missions/name.
+        (isSignedIn() && !resource.data.locked &&
+          request.auth.token.email != null &&
+          request.auth.token.email.lower() in resource.data.memberEmails &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberUids']));
     }
     match /huntSubmissions/{submissionId} {
       allow read: if true;

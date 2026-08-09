@@ -7,15 +7,22 @@ import { Modal, PrimaryButton } from "../../../components/ui";
 
 export function VolunteerApplicationModal({ application, onClose }: { application: VolunteerApplication; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { data: categories } = useCategories();
   const { data: team } = useTeam(application.teamId);
   const categoryLabel = categories.find((c) => c.id === application.categoryId)?.label;
 
   async function decide(decision: "approve" | "reject") {
     setBusy(true);
+    setError(null);
     try {
       await reviewVolunteerApplication({ applicationId: application.id, decision });
       onClose();
+    } catch (e) {
+      // Previously uncaught — a backend failure looked exactly like the
+      // button "just sitting" there, with no way for the admin to know
+      // anything had gone wrong (or to retry with useful information).
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -38,6 +45,12 @@ export function VolunteerApplicationModal({ application, onClose }: { applicatio
         {categoryLabel && <Row label="Category" value={categoryLabel} />}
         {team && <Row label="Team" value={team.name} />}
       </div>
+
+      {error && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "8px 10px", fontSize: 12.5, marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
 
       {application.status === "pending" ? (
         <div style={{ display: "flex", gap: 8 }}>
