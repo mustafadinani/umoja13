@@ -11,6 +11,8 @@ import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 import { SponsorStrip } from "../components/SponsorStrip";
 import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
 
+const MOMENT_SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUNT", community: "🎉 COMMUNITY" };
+
 export function Home() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -146,8 +148,20 @@ export function Home() {
             <div className="grid-3">
               {moments.slice(0, 3).map((m) => (
                 <Card key={m.id} style={{ padding: 0, overflow: "hidden" }} onClick={() => navigate("/moments")}>
-                  <div style={{ height: 110, background: theme.color.purple, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>
-                    {m.source.toUpperCase()}
+                  <div style={{ height: 110, background: "#211A33", position: "relative" }}>
+                    {m.mediaType === "video" ? (
+                      <video src={m.mediaUrl} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <img src={m.mediaUrl} alt={m.caption} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    )}
+                    <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 99 }}>
+                      {MOMENT_SOURCE_BADGE[m.source] ?? m.source.toUpperCase()}
+                    </div>
+                    {m.mediaType === "video" && (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>
+                        ▶
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: "10px 12px" }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.caption}</div>
