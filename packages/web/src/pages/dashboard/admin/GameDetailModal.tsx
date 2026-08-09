@@ -22,9 +22,23 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
   const category = CATEGORIES.find((c) => c.id === game.categoryId);
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
+  const roster = [...(home?.roster ?? []), ...(away?.roster ?? [])];
+  const playerByKey = new Map(roster.map((p) => [p.playerKey ?? p.userId, p]));
+  const motmPlayer = game.motmUserId ? playerByKey.get(game.motmUserId) : undefined;
 
   async function setStatus(status: GameStatus) {
     await updateDoc(doc(db, COLLECTIONS.games, game.id), { status, updatedAt: Date.now() });
+  }
+
+  // Same direct write the referee console makes (firestore.rules already lets
+  // staff — admin/commissioner — update any game field; only the referee's
+  // own branch of that rule is field-restricted), so admin gets the same
+  // score-adjustment power without a new backend path.
+  async function adjustScore(side: "home" | "away", delta: number) {
+    const field = side === "home" ? "homeScore" : "awayScore";
+    const current = side === "home" ? homeGoals : awayGoals;
+    const next = Math.max(0, current + delta);
+    await updateDoc(doc(db, COLLECTIONS.games, game.id), { [field]: next, updatedAt: Date.now() });
   }
 
   async function handleDelete() {
@@ -68,9 +82,29 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
         {!home && game.homeRef && ` · awaiting results`}
       </div>
 
-      <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 16, textAlign: "center", marginBottom: 16 }}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32 }}>{homeGoals} – {awayGoals}</div>
-        {game.gameCard?.status && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>Game card: {game.gameCard.status.replace("_", " ")}</div>}
+      <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
+          <ScoreStepper label={home?.name ?? "Home"} value={homeGoals} onAdjust={(d) => adjustScore("home", d)} />
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28, opacity: 0.6 }}>–</div>
+          <ScoreStepper label={away?.name ?? "Away"} value={awayGoals} onAdjust={(d) => adjustScore("away", d)} />
+        </div>
+        {game.gameCard?.status && <div style={{ fontSize: 12, opacity: 0.8, marginTop: 10, textAlign: "center" }}>Game card: {game.gameCard.status.replace("_", " ")}</div>}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Player game cards</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+        {game.events.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No cards issued.</div>}
+        {game.events.map((e) => {
+          const player = playerByKey.get(e.playerId);
+          return (
+            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 10px", background: theme.color.bg, borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
+              <span>{e.type === "red_card" ? "🟥" : "🟨"} {e.minute}' #{e.playerNumber} {player?.displayName ?? ""}</span>
+            </div>
+          );
+        })}
+        {motmPlayer && (
+          <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 4 }}>⭐ Man of the match: {motmPlayer.displayName}</div>
+        )}
       </div>
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Status</div>
@@ -107,5 +141,30 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
 
       {cardPhotoOpen && game.gameCard?.photoUrl && <GameCardPhotoModal url={game.gameCard.photoUrl} onClose={() => setCardPhotoOpen(false)} />}
     </Modal>
+  );
+}
+
+/** Same stepper as the referee console's match console, so admin gets identical score-adjustment UX. */
+function ScoreStepper({ label, value, onAdjust }: { label: string; value: number; onAdjust: (delta: number) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 90 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.75, textAlign: "center" }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button
+          onClick={() => onAdjust(-1)}
+          disabled={value <= 0}
+          style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.4)", background: "none", color: "#fff", fontSize: 16, fontWeight: 800, opacity: value <= 0 ? 0.35 : 1 }}
+        >
+          −
+        </button>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, width: 36, textAlign: "center" }}>{value}</div>
+        <button
+          onClick={() => onAdjust(1)}
+          style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid rgba(255,255,255,.4)", background: "none", color: "#fff", fontSize: 16, fontWeight: 800 }}
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }
