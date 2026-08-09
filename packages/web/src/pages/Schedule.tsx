@@ -1,6 +1,16 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { GAME_FIELDS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, formatKickoffTime, provisionalSideLabel, type Game } from "@umoja/shared";
+import {
+  GAME_FIELDS,
+  TODDLER_CAMP_HIGHLIGHT_NOTE,
+  TODDLER_CAMP_NOTE,
+  TODDLER_CAMP_SCHEDULE,
+  TOURNAMENT_DAY_DATES,
+  compareGamesByKickoff,
+  formatKickoffTime,
+  provisionalSideLabel,
+  type Game,
+} from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useGames, useSponsors, useTeams } from "../hooks/useData";
@@ -155,6 +165,67 @@ export function Schedule() {
           <SponsorStrip sponsors={sponsors} />
         </div>
       </div>
+
+      <ToddlerCampScheduleCard />
+    </div>
+  );
+}
+
+const DAY_LABEL: Record<Game["day"], string> = { fri: "Friday", sat: "Saturday", sun: "Sunday" };
+
+/**
+ * Umoja Soccer Camp (Toddlers, ages 3-6) doesn't play real Games — no team
+ * vs. team matches, so it never shows up in the filtered list above. This is
+ * its own static itinerary, always visible on Game Day regardless of the
+ * team/category filters (which only ever apply to real Games).
+ */
+function ToddlerCampScheduleCard() {
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>
+        🍼 TODDLER SOCCER CAMP
+      </div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 14 }}>
+        Ages 3–6 · non-competitive, so it won't show up in the games list above.
+      </div>
+
+      <div className="grid-3">
+        {(["fri", "sat", "sun"] as const).map((day) => (
+          <div key={day} style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>
+              {DAY_LABEL[day].toUpperCase()} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>· {TOURNAMENT_DAY_DATES[day]}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {TODDLER_CAMP_SCHEDULE.filter((s) => s.day === day).map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    padding: "9px 11px",
+                    borderRadius: theme.radius.sm,
+                    background: s.highlight ? theme.color.purpleLight + "22" : "#F7F6F3",
+                    border: s.highlight ? `1px solid ${theme.color.purple}` : "1px solid transparent",
+                  }}
+                >
+                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>
+                    {s.start}{s.end ? `–${s.end}` : ""}
+                  </div>
+                  <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                    {s.group} · {s.activity}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 1 }}>{s.location}</div>
+                  {s.highlight && (
+                    <div style={{ fontSize: 11.5, color: theme.color.purple, fontWeight: 700, marginTop: 4 }}>
+                      ⭐ {TODDLER_CAMP_HIGHLIGHT_NOTE}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>{TODDLER_CAMP_NOTE}</div>
     </div>
   );
 }

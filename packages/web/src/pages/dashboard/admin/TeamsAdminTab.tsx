@@ -4,6 +4,7 @@ import {
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
+  TODDLERS_CAMP_CATEGORY_LABELS,
   resolveTeamCategoryId,
   type RegisteredPlayer,
   type RegisteredTeam,
@@ -67,6 +68,15 @@ export function TeamsAdminTab() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  // Toddlers Camp categories only ever hold one auto-generated "shell" team
+  // (a placeholder name, since camp signup never asks for a real team name)
+  // wrapping however many campers actually registered. Drilling into that
+  // shell team's own detail view — with its irrelevant Standings
+  // placement/group editor — just to see the roster is a dead end for staff.
+  // This bypasses the team entirely: picking one of these two category pills
+  // jumps straight to a flat camper list built directly off registration
+  // players, independent of whatever team they happen to be linked to.
+  const [campCategoryId, setCampCategoryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -134,6 +144,44 @@ export function TeamsAdminTab() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (campCategoryId) {
+    const label = TODDLERS_CAMP_CATEGORY_LABELS[campCategoryId] ?? "Camp";
+    const campers = players
+      .filter((p) => p.categoryId?.trim() === campCategoryId)
+      .sort((a, b) =>
+        `${a.lastName ?? ""} ${a.firstName ?? ""}`.localeCompare(`${b.lastName ?? ""} ${b.firstName ?? ""}`)
+      );
+
+    return (
+      <div>
+        <PrimaryButton onClick={() => setCampCategoryId(null)} style={{ marginBottom: 16 }}>
+          ← All teams
+        </PrimaryButton>
+
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28 }}>{label}</div>
+        <div style={{ fontSize: 13.5, color: theme.color.textMuted, marginTop: 4, marginBottom: 8 }}>
+          Non-competitive — no team, games, or standings. Every registered camper shows up here directly.
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>
+          {campers.length} camper{campers.length === 1 ? "" : "s"} registered
+        </div>
+
+        {loading ? (
+          <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Loading players…</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {campers.map((player) => (
+              <PlayerRow key={player.id} player={player} />
+            ))}
+            {campers.length === 0 && (
+              <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No campers registered yet.</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (selectedTeam) {
@@ -236,41 +284,9 @@ export function TeamsAdminTab() {
         </Card>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {selectedPlayers.map((player) => {
-            const name = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
-            return (
-              <Card key={player.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-                  {player.profilePicture ? (
-                    <img src={player.profilePicture} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
-                  ) : (
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        background: theme.color.purple,
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 800,
-                        fontSize: 13,
-                      }}
-                    >
-                      {name.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{name}</div>
-                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                      {[player.email, player.status].filter(Boolean).join(" · ")}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+          {selectedPlayers.map((player) => (
+            <PlayerRow key={player.id} player={player} />
+          ))}
           {selectedPlayers.length === 0 && (
             <div style={{ color: theme.color.danger, fontWeight: 700, fontSize: 13.5 }}>No players assigned.</div>
           )}
@@ -306,9 +322,13 @@ export function TeamsAdminTab() {
       />
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!categoryFilter} onClick={() => setCategoryFilter(null)}>All categories</Pill>
+        <Pill active={!categoryFilter && !campCategoryId} onClick={() => { setCategoryFilter(null); setCampCategoryId(null); }}>All categories</Pill>
         {buckets.map((c) => (
-          <Pill key={c.id} active={categoryFilter === c.id} onClick={() => setCategoryFilter(c.id)}>
+          <Pill
+            key={c.id}
+            active={campCategoryId === c.id || categoryFilter === c.id}
+            onClick={() => (TODDLERS_CAMP_CATEGORY_LABELS[c.id] ? setCampCategoryId(c.id) : setCategoryFilter(c.id))}
+          >
             {c.label} ({c.count})
             {!c.matched ? " !" : ""}
           </Pill>
@@ -381,6 +401,43 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: theme.color.textMuted }}>{label.toUpperCase()}</div>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28, marginTop: 4, color: accent ? theme.color.danger : theme.color.text }}>
         {value}
+      </div>
+    </Card>
+  );
+}
+
+/** Shared row for both a real team's roster and a camp category's flat camper list. */
+function PlayerRow({ player }: { player: RegisteredPlayer }) {
+  const name = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
+  return (
+    <Card style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        {player.profilePicture ? (
+          <img src={player.profilePicture} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+        ) : (
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              background: theme.color.purple,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            {name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{name}</div>
+          <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+            {[player.email, player.status].filter(Boolean).join(" · ")}
+          </div>
+        </div>
       </div>
     </Card>
   );

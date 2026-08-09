@@ -113,6 +113,48 @@ export const SPECIAL_EVENTS = [
   { id: "awards-ceremony", label: "Awards Ceremony", day: "sun", time: "17:30", field: "Main Stage" },
 ] as const;
 
+export interface ToddlerCampSession {
+  day: "fri" | "sat" | "sun";
+  start: string;
+  /** Absent for a single point-in-time entry (the Sunday exhibition/walkout) rather than a session with a duration. */
+  end?: string;
+  location: string;
+  group: "Ages 3 & 4" | "Ages 5 & 6" | "All ages";
+  activity: string;
+  /** The Sunday walkout on the Men's Cup Final field — called out distinctly wherever this schedule renders. */
+  highlight?: boolean;
+}
+
+/**
+ * Umoja Soccer Camp (Toddlers, ages 3-6) session schedule — from the real
+ * "Umoja13 Toddler Camp Preliminary Schedule" (Rev 07.08.2026) PDF. Distinct
+ * from `SPECIAL_EVENTS`: this is a full 3-day itinerary of training blocks
+ * per age group, not a single tournament-wide calendar entry, and it has no
+ * backing `Game` docs (camp is non-competitive — see TODDLERS_CAMP_CATEGORY_LABELS).
+ */
+export const TODDLER_CAMP_SCHEDULE: ToddlerCampSession[] = [
+  // Friday
+  { day: "fri", start: "10:00 AM", end: "10:50 AM", location: "Field 12 (outdoor)", group: "Ages 3 & 4", activity: "Soccer training" },
+  { day: "fri", start: "11:00 AM", end: "12:15 PM", location: "Field 12 (outdoor)", group: "Ages 5 & 6", activity: "Soccer training" },
+  { day: "fri", start: "2:00 PM", end: "2:50 PM", location: "Field 12 (outdoor)", group: "Ages 3 & 4", activity: "Soccer training" },
+  { day: "fri", start: "3:00 PM", end: "4:00 PM", location: "Field 12 (outdoor)", group: "Ages 5 & 6", activity: "Soccer training" },
+  { day: "fri", start: "4:15 PM", end: "5:15 PM", location: "Field 12 (outdoor)", group: "All ages", activity: "Fun activities" },
+  // Saturday
+  { day: "sat", start: "10:00 AM", end: "10:50 AM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { day: "sat", start: "11:00 AM", end: "12:15 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { day: "sat", start: "2:00 PM", end: "2:50 PM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { day: "sat", start: "3:00 PM", end: "4:00 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { day: "sat", start: "4:15 PM", end: "5:15 PM", location: "Indoor arena", group: "All ages", activity: "Fun activities" },
+  // Sunday
+  { day: "sun", start: "10:00 AM", end: "10:50 AM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { day: "sun", start: "11:00 AM", end: "12:15 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { day: "sun", start: "3:00 PM", end: "4:00 PM", location: "Indoor arena", group: "All ages", activity: "Soccer training" },
+  { day: "sun", start: "5:00 PM", location: "Men's Cup Final field", group: "All ages", activity: "Exhibition game & walk out on field", highlight: true },
+];
+
+export const TODDLER_CAMP_NOTE = "Coaches may make adjustments to groups and sessions based on skill, age, and development — their decision is final.";
+export const TODDLER_CAMP_HIGHLIGHT_NOTE = "Cameras ready! Families, please have your players at the field 15 minutes early.";
+
 // The venue's own field numbering — not a made-up 1-6 sequence. Umoja Games
 // actually plays on fields 5, 9, and 12-17 at Maryland SoccerPlex, plus the
 // Stadium Field for marquee matches. This is the coarse cluster-level list —
