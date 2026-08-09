@@ -9,6 +9,7 @@ import {
   COLLECTIONS,
   CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
+  CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
   TOURNAMENT_START_AT,
@@ -57,6 +58,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [professionQuery, setProfessionQuery] = useState("");
   const [acceptedBy, setAcceptedBy] = useState<"self" | "guardian" | null>(null);
   const [guardianName, setGuardianName] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [privateFieldPreference, setPrivateFieldPreference] = useState<boolean | null>(null);
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [govIdUri, setGovIdUri] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const canContinueFromDetails =
     rosterInfo?.jerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
-  const canContinueFromConsent = acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
+  const canContinueFromConsent = agreed && acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
   const { data: volunteerApplications } = useMyVolunteerApplications(user?.uid);
   const playerName = (membership?.playerName ?? profile?.displayName ?? "").trim();
   // Checked per player name, not the account's overall volunteer role — a
@@ -245,6 +247,10 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             />
           )}
 
+          <Text style={[styles.sub, { textAlign: "left" }]}>{CHECKIN_CONSENT_COPY}</Text>
+
+          <CheckRow label="I have read and agree to this identity-verification process." checked={agreed} onPress={() => setAgreed(!agreed)} />
+
           <PrimaryButton disabled={!canContinueFromConsent} onPress={() => setStep("details")} style={{ width: "100%", marginTop: 8 }}>CONTINUE</PrimaryButton>
         </View>
       )}
@@ -419,6 +425,15 @@ function RoleCard({ icon, label, active, onPress }: { icon: string; label: strin
   );
 }
 
+function CheckRow({ label, checked, onPress }: { label: string; checked: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.consentRow}>
+      <View style={[styles.checkboxOuter, checked && styles.checkboxOuterChecked]}>{checked && <Text style={styles.checkboxMark}>✓</Text>}</View>
+      <Text style={styles.consentLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   h1: { fontWeight: "800", fontSize: 20, marginBottom: 8, textAlign: "center" },
   sub: { color: theme.color.textMuted, fontSize: 13, marginBottom: 14, textAlign: "center" },
@@ -432,7 +447,12 @@ const styles = StyleSheet.create({
   professionChipText: { fontSize: 13.5, fontWeight: "700", color: theme.color.text },
   professionList: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, backgroundColor: "#fff", marginTop: -6, marginBottom: 12, overflow: "hidden" },
   professionRow: { paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: theme.color.border },
+  consentRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 10 },
+  consentLabel: { flex: 1, fontSize: 13, color: theme.color.text },
   roleCard: { flex: 1, alignItems: "center", padding: 16, borderRadius: 12, borderWidth: 2, borderColor: theme.color.border, backgroundColor: "#fff" },
   roleCardActive: { borderColor: theme.color.purple, backgroundColor: "#F1EFF5" },
   roleCardLabel: { fontSize: 12, fontWeight: "700", textAlign: "center" },
+  checkboxOuter: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: theme.color.border, alignItems: "center", justifyContent: "center", marginTop: 1 },
+  checkboxOuterChecked: { borderColor: theme.color.purple, backgroundColor: theme.color.purple },
+  checkboxMark: { color: "#fff", fontSize: 13, fontWeight: "800", lineHeight: 14 },
 });
