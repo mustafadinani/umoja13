@@ -76,7 +76,7 @@ export function RosterTile({
               {showRosterCheck && (
                 <>
                   <Text style={styles.sep}>·</Text>
-                  <StatusDot tone={rosterChecked ? "ok" : "warn"} label={rosterChecked ? "Cleared by Ref" : "Not cleared yet"} />
+                  <StatusDot tone={rosterChecked ? "ok" : "warn"} label={rosterChecked ? "Cleared to play" : "Ref check pending"} />
                 </>
               )}
             </>

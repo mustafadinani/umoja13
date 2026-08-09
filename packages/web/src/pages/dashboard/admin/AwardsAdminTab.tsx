@@ -64,12 +64,20 @@ export function AwardsAdminTab() {
 
   async function savePlayerSlot(type: PlayerAwardType, nominees: PlayerAwardNominee[], winnerPlayerKey?: string) {
     try {
+      // Firestore's setDoc rejects an explicit `undefined` field value
+      // outright (it has to be an *absent* key, not a key set to undefined)
+      // — winnerPlayerKey is undefined for every category until a winner is
+      // starred, so passing it through directly failed on literally every
+      // first nominee added anywhere in the tool.
+      const slot: { nominees: PlayerAwardNominee[]; winnerPlayerKey?: string } = winnerPlayerKey
+        ? { nominees, winnerPlayerKey }
+        : { nominees };
       await setDoc(
         doc(db, COLLECTIONS.categoryAwards, categoryId),
         {
           categoryId,
           updatedAt: Date.now(),
-          player: { ...(awards?.player ?? {}), [type]: { nominees, winnerPlayerKey } },
+          player: { ...(awards?.player ?? {}), [type]: slot },
         },
         { merge: true }
       );

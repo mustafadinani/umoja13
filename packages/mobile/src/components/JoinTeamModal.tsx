@@ -73,7 +73,12 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       });
 
       const membership: PlayerMembership = {
-        teamId, categoryId, jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined, isCaptain: false, registrationPhotoUrl,
+        teamId, categoryId, isCaptain: false, registrationPhotoUrl,
+        // Omit rather than set `undefined` when no jersey number was given —
+        // this object goes straight into arrayUnion() below, which rejects
+        // an explicit `undefined` value outright, so joining without a
+        // jersey number always failed.
+        ...(jerseyNumber ? { jerseyNumber: Number(jerseyNumber) } : {}),
         playerName: playerName.trim(),
         // Own registration row's id — the same disambiguator Outreach-derived
         // memberships get automatically, so this child gets a proper

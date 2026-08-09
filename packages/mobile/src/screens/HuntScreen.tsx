@@ -204,8 +204,14 @@ export function HuntScreen() {
     if (!pendingInvite || !user || !profile) return;
     setBusy(true);
     setCrewError(null);
+    // Omit userId rather than set it `undefined` on a decline for a member
+    // who never accepted before (no userId on file yet) — this array goes
+    // straight into updateDoc below, which rejects an explicit `undefined`
+    // value outright, so declining a never-accepted invite always failed.
     const members = pendingInvite.members.map((m) =>
-      m.email === profile.email.toLowerCase() ? { ...m, status: accept ? "accepted" : "declined", userId: accept ? user.uid : m.userId } : m
+      m.email === profile.email.toLowerCase()
+        ? { ...m, status: accept ? "accepted" : "declined", ...(accept ? { userId: user.uid } : {}) }
+        : m
     );
     try {
       await updateDoc(doc(db, COLLECTIONS.huntCrews, pendingInvite.id), { members, ...(accept ? { memberUids: arrayUnion(user.uid) } : {}) });

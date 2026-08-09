@@ -69,7 +69,13 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
       const membership: PlayerMembership = {
         teamId,
         categoryId,
-        jerseyNumber: jerseyNumber ? Number(jerseyNumber) : undefined,
+        // Omit rather than set `undefined` when no jersey number was given —
+        // jerseyNumber is a genuinely optional field on this form, and this
+        // object goes straight into arrayUnion() below, which validates its
+        // payload the same way setDoc/updateDoc do: an explicit `undefined`
+        // throws outright, so joining a team without a jersey number always
+        // failed.
+        ...(jerseyNumber ? { jerseyNumber: Number(jerseyNumber) } : {}),
         isCaptain: false,
         registrationPhotoUrl,
         playerName: playerName.trim(),

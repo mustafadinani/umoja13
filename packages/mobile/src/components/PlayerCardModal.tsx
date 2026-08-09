@@ -51,7 +51,7 @@ export function PlayerCardModal({
           <CheckInStatusPill status={player.checkInStatus} />
           {player.checkInStatus === "approved" && rosterChecked !== undefined && (
             <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
-              {rosterChecked ? "Cleared by Ref" : "Not cleared yet"}
+              {rosterChecked ? "Cleared to play" : "Ref check pending"}
             </Pill>
           )}
         </View>

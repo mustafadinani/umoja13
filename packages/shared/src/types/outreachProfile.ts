@@ -46,7 +46,13 @@ export function mapOutreachProfileToUserProfile(
       teamId: p.teamId,
       categoryId: resolvePlayerCategoryId(p),
       isCaptain: false,
-      registrationPhotoUrl: p.profilePicture,
+      // Omit rather than set `undefined` when there's no registration photo —
+      // every caller of this mapper eventually spreads its result straight
+      // into a Firestore write, and both the Admin and client SDKs reject an
+      // explicit `undefined` field value outright (a real player with no
+      // photo on file threw "INTERNAL" out of reviewVolunteerApplication,
+      // silently stranding their application in "pending" forever).
+      ...(p.profilePicture ? { registrationPhotoUrl: p.profilePicture } : {}),
       playerName: `${p.firstName} ${p.lastName}`.trim(),
       // Prefer explicit profileId; otherwise the playersRegistered doc id is often the profile id.
       profileId: p.profileId?.trim() || p.id,
@@ -59,14 +65,16 @@ export function mapOutreachProfileToUserProfile(
         ? ["player"]
         : ["fan"];
 
+  const photoUrl = raw.photoUrl || raw.profilePicture || raw.photoURL;
+
   return {
     uid,
     email: raw.email ?? "",
     displayName: displayNameFromOutreach(raw, raw.email),
-    photoUrl: raw.photoUrl || raw.profilePicture || raw.photoURL,
+    ...(photoUrl ? { photoUrl } : {}),
     roles,
     primaryRole: raw.primaryRole && roles.includes(raw.primaryRole) ? raw.primaryRole : roles[0],
-    playerOf: playerOf.length > 0 ? playerOf : undefined,
+    ...(playerOf.length > 0 ? { playerOf } : {}),
     followedTeamIds: [],
     createdAt: now,
     updatedAt: now,

@@ -22,8 +22,14 @@ export function InvitesBanner() {
     if (!user || !profile) return;
     setBusyId(crew.id);
     setErrorId(null);
+    // Omit userId rather than set it `undefined` on a decline for a member
+    // who never accepted before (no userId on file yet) — this array goes
+    // straight into updateDoc below, which rejects an explicit `undefined`
+    // value outright, so declining a never-accepted invite always failed.
     const members = crew.members.map((m) =>
-      m.email === profile.email.toLowerCase() ? { ...m, status: accept ? "accepted" : "declined", userId: accept ? user.uid : m.userId } : m
+      m.email === profile.email.toLowerCase()
+        ? { ...m, status: accept ? "accepted" : "declined", ...(accept ? { userId: user.uid } : {}) }
+        : m
     );
     try {
       await updateDoc(doc(db, COLLECTIONS.huntCrews, crew.id), {
