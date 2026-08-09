@@ -301,8 +301,11 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {tierSponsors.map((s) => (
                   <TouchableOpacity key={s.id} style={styles.sponsorChip} onPress={() => setOpenSponsor(s)} activeOpacity={0.7}>
-                    {s.logoUrl && <Image source={{ uri: s.logoUrl }} style={{ width: 22, height: 22, borderRadius: 4, marginRight: 8 }} resizeMode="contain" />}
-                    <Text style={{ fontWeight: "700", fontSize: 13 }}>{s.name}</Text>
+                    {s.logoUrl ? (
+                      <Image source={{ uri: s.logoUrl }} style={{ width: 60, height: 32 }} resizeMode="contain" />
+                    ) : (
+                      <Text style={{ fontWeight: "700", fontSize: 13 }}>{s.name}</Text>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>

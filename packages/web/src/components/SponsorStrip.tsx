@@ -50,8 +50,11 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
                       gap: 8,
                     }}
                   >
-                    {s.logoUrl && <img src={s.logoUrl} alt="" style={{ height: tier === "legacy_builder" ? 28 : 20, objectFit: "contain" }} />}
-                    {s.name}
+                    {s.logoUrl ? (
+                      <img src={s.logoUrl} alt={s.name} style={{ height: tier === "legacy_builder" ? 40 : 32, objectFit: "contain" }} />
+                    ) : (
+                      s.name
+                    )}
                   </div>
                 ))}
               </div>

@@ -105,11 +105,16 @@ export interface Game {
 }
 
 /** Real chronological day order — the "fri" < "sat" < "sun" string-sort trick some screens use happens to match this tournament's actual days, but only by coincidence; this is the version that doesn't depend on that. */
-const DAY_ORDER: Record<Game["day"], number> = { fri: 0, sat: 1, sun: 2 };
+export const DAY_ORDER: Record<Game["day"], number> = { fri: 0, sat: 1, sun: 2 };
 
 /** Chronological order: day, then kickoff time. For a straight schedule list. */
 export function compareGamesByKickoff(a: Game, b: Game): number {
   return DAY_ORDER[a.day] - DAY_ORDER[b.day] || a.kickoffTime.localeCompare(b.kickoffTime);
+}
+
+/** Chronological order for anything with a day + 24-hour "HH:MM" time — Games and Toddler Camp sessions share this shape, so one merged schedule can sort both the same way. */
+export function compareByDayAndTime(a: { day: Game["day"]; time: string }, b: { day: Game["day"]; time: string }): number {
+  return DAY_ORDER[a.day] - DAY_ORDER[b.day] || a.time.localeCompare(b.time);
 }
 
 /** Live games first, then chronological — for a "what's on now" feed where live matters more than kickoff order. */

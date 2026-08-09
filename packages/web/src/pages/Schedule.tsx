@@ -2,14 +2,16 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   GAME_FIELDS,
+  TODDLER_CAMP_FIELDS,
   TODDLER_CAMP_HIGHLIGHT_NOTE,
-  TODDLER_CAMP_NOTE,
   TODDLER_CAMP_SCHEDULE,
   TOURNAMENT_DAY_DATES,
-  compareGamesByKickoff,
+  compareByDayAndTime,
   formatKickoffTime,
   provisionalSideLabel,
   type Game,
+  type Team,
+  type ToddlerCampSession,
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -27,6 +29,8 @@ const DAYS: { id: Game["day"]; label: string }[] = [
 function dayDateLabel(day: Game["day"]) {
   return `${day.toUpperCase()} · ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
 }
+
+type ScheduleRow = { kind: "game"; game: Game } | { kind: "camp"; session: ToddlerCampSession };
 
 export function Schedule() {
   const navigate = useNavigate();
@@ -48,23 +52,54 @@ export function Schedule() {
     return ids;
   }, [profile]);
 
-  const filtered = games
-    .filter((g) => {
-      if (day && g.day !== day) return false;
-      if (categoryId && g.categoryId !== categoryId) return false;
-      if (field && g.field !== field) return false;
-      if (myTeamsOnly && !myTeamIds.has(g.homeTeamId) && !myTeamIds.has(g.awayTeamId)) return false;
-      if (search) {
-        const home = teamById.get(g.homeTeamId)?.name ?? "";
-        const away = teamById.get(g.awayTeamId)?.name ?? "";
-        const category = categories.find((c) => c.id === g.categoryId)?.label ?? "";
-        const q = search.toLowerCase();
-        const matches = [home, away, category, g.field].some((v) => v.toLowerCase().includes(q));
-        if (!matches) return false;
-      }
-      return true;
-    })
-    .sort(compareGamesByKickoff);
+  const filteredGames = games.filter((g) => {
+    if (day && g.day !== day) return false;
+    if (categoryId && g.categoryId !== categoryId) return false;
+    if (field && g.field !== field) return false;
+    if (myTeamsOnly && !myTeamIds.has(g.homeTeamId) && !myTeamIds.has(g.awayTeamId)) return false;
+    if (search) {
+      const home = teamById.get(g.homeTeamId)?.name ?? "";
+      const away = teamById.get(g.awayTeamId)?.name ?? "";
+      const category = categories.find((c) => c.id === g.categoryId)?.label ?? "";
+      const q = search.toLowerCase();
+      const matches = [home, away, category, g.field].some((v) => v.toLowerCase().includes(q));
+      if (!matches) return false;
+    }
+    return true;
+  });
+
+  // Toddler Camp isn't a tournament category and has no team of its own, so
+  // it drops out of any category or "my teams" filter — those only make
+  // sense for real Games. Day/field/search still apply, same as a Game.
+  const filteredCampSessions = categoryId || myTeamsOnly
+    ? []
+    : TODDLER_CAMP_SCHEDULE.filter((s) => {
+        if (day && s.day !== day) return false;
+        if (field && s.location !== field) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          const matches = ["toddler camp", "umoja soccer camp", s.group, s.activity, s.location].some((v) =>
+            v.toLowerCase().includes(q)
+          );
+          if (!matches) return false;
+        }
+        return true;
+      });
+
+  // One merged, chronologically sorted feed — the camp schedule used to be
+  // its own section at the bottom; baking it in here means "what's on Friday
+  // at 2pm" actually shows everything happening then, camp included.
+  const rows: ScheduleRow[] = [
+    ...filteredGames.map((game): ScheduleRow => ({ kind: "game", game })),
+    ...filteredCampSessions.map((session): ScheduleRow => ({ kind: "camp", session })),
+  ].sort((a, b) =>
+    compareByDayAndTime(
+      a.kind === "game" ? { day: a.game.day, time: a.game.kickoffTime } : { day: a.session.day, time: a.session.start },
+      b.kind === "game" ? { day: b.game.day, time: b.game.kickoffTime } : { day: b.session.day, time: b.session.start }
+    )
+  );
+
+  const fieldOptions = [...GAME_FIELDS, ...TODDLER_CAMP_FIELDS].map((f) => ({ id: f, label: f }));
 
   return (
     <div className="page-shell">
@@ -84,7 +119,7 @@ export function Schedule() {
             />
             <FilterDropdown<Game["day"]> label="Day" value={day} options={DAYS} onChange={setDay} />
             <FilterDropdown label="Category" value={categoryId} options={categories.map((c) => ({ id: c.id, label: c.label }))} onChange={setCategoryId} />
-            <FilterDropdown label="Field" value={field} options={GAME_FIELDS.map((f) => ({ id: f, label: f }))} onChange={setField} />
+            <FilterDropdown label="Field" value={field} options={fieldOptions} onChange={setField} />
             {profile && (
               <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
                 ★ My teams
@@ -108,55 +143,22 @@ export function Schedule() {
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {filtered.map((g) => {
-              const home = teamById.get(g.homeTeamId);
-              const away = teamById.get(g.awayTeamId);
-              const isMine = myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId);
-              const followedTeam = myTeamIds.has(g.homeTeamId) ? home : myTeamIds.has(g.awayTeamId) ? away : null;
-              const homeGoals = g.homeScore ?? 0;
-              const awayGoals = g.awayScore ?? 0;
-
-              return (
-                <div
-                  key={g.id}
-                  onClick={() => navigate(`/game/${g.id}`)}
-                  style={{
-                    background: isMine ? "#EFFBF3" : "#fff",
-                    border: `1px solid ${isMine ? theme.color.success : theme.color.border}`,
-                    borderRadius: theme.radius.md,
-                    padding: 14,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 4 }}>
-                      {categories.find((c) => c.id === g.categoryId)?.label ?? g.categoryId} · {g.field}
-                      {followedTeam && (
-                        <span style={{ marginLeft: 8, color: followedTeam.color, fontWeight: 700 }}>★ {followedTeam.name.toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>
-                      {home?.name ?? <Provisional>{provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD"}</Provisional>} vs{" "}
-                      {away?.name ?? <Provisional>{provisionalSideLabel(g.awayDrawPos, g.awayRef) ?? "TBD"}</Provisional>}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <StatusBadge status={g.status} />
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, letterSpacing: 0.3, marginTop: 6 }}>
-                      {dayDateLabel(g.day)}
-                    </div>
-                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>
-                      {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {filtered.length === 0 && <div style={{ color: theme.color.textMuted, padding: 20, textAlign: "center" }}>No games match those filters.</div>}
+            {rows.map((row) =>
+              row.kind === "game" ? (
+                <GameRow
+                  key={row.game.id}
+                  game={row.game}
+                  home={teamById.get(row.game.homeTeamId)}
+                  away={teamById.get(row.game.awayTeamId)}
+                  myTeamIds={myTeamIds}
+                  categoryLabel={categories.find((c) => c.id === row.game.categoryId)?.label ?? row.game.categoryId}
+                  onClick={() => navigate(`/game/${row.game.id}`)}
+                />
+              ) : (
+                <CampSessionRow key={row.session.id} session={row.session} />
+              )
+            )}
+            {rows.length === 0 && <div style={{ color: theme.color.textMuted, padding: 20, textAlign: "center" }}>No games match those filters.</div>}
           </div>
         </div>
 
@@ -165,67 +167,99 @@ export function Schedule() {
           <SponsorStrip sponsors={sponsors} />
         </div>
       </div>
-
-      <ToddlerCampScheduleCard />
     </div>
   );
 }
 
-const DAY_LABEL: Record<Game["day"], string> = { fri: "Friday", sat: "Saturday", sun: "Sunday" };
+function GameRow({
+  game, home, away, myTeamIds, categoryLabel, onClick,
+}: {
+  game: Game;
+  home: Team | undefined;
+  away: Team | undefined;
+  myTeamIds: Set<string>;
+  categoryLabel: string;
+  onClick: () => void;
+}) {
+  const isMine = myTeamIds.has(game.homeTeamId) || myTeamIds.has(game.awayTeamId);
+  const followedTeam = myTeamIds.has(game.homeTeamId) ? home : myTeamIds.has(game.awayTeamId) ? away : null;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
 
-/**
- * Umoja Soccer Camp (Toddlers, ages 3-6) doesn't play real Games — no team
- * vs. team matches, so it never shows up in the filtered list above. This is
- * its own static itinerary, always visible on Game Day regardless of the
- * team/category filters (which only ever apply to real Games).
- */
-function ToddlerCampScheduleCard() {
   return (
-    <div style={{ marginTop: 28 }}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>
-        🍼 TODDLER SOCCER CAMP
+    <div
+      onClick={onClick}
+      style={{
+        background: isMine ? "#EFFBF3" : "#fff",
+        border: `1px solid ${isMine ? theme.color.success : theme.color.border}`,
+        borderRadius: theme.radius.md,
+        padding: 14,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 4 }}>
+          {categoryLabel} · {game.field}
+          {followedTeam && (
+            <span style={{ marginLeft: 8, color: followedTeam.color, fontWeight: 700 }}>★ {followedTeam.name.toUpperCase()}</span>
+          )}
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14.5 }}>
+          {home?.name ?? <Provisional>{provisionalSideLabel(game.homeDrawPos, game.homeRef) ?? "TBD"}</Provisional>} vs{" "}
+          {away?.name ?? <Provisional>{provisionalSideLabel(game.awayDrawPos, game.awayRef) ?? "TBD"}</Provisional>}
+        </div>
       </div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 14 }}>
-        Ages 3–6 · non-competitive, so it won't show up in the games list above.
+      <div style={{ textAlign: "right" }}>
+        <StatusBadge status={game.status} />
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, letterSpacing: 0.3, marginTop: 6 }}>
+          {dayDateLabel(game.day)}
+        </div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>
+          {game.status === "scheduled" ? formatKickoffTime(game.kickoffTime) : `${homeGoals}–${awayGoals}`}
+        </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="grid-3">
-        {(["fri", "sat", "sun"] as const).map((day) => (
-          <div key={day} style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.lg, padding: 16 }}>
-            <div style={{ fontWeight: 800, fontSize: 13.5, marginBottom: 10 }}>
-              {DAY_LABEL[day].toUpperCase()} <span style={{ color: theme.color.textMuted, fontWeight: 600 }}>· {TOURNAMENT_DAY_DATES[day]}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {TODDLER_CAMP_SCHEDULE.filter((s) => s.day === day).map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    padding: "9px 11px",
-                    borderRadius: theme.radius.sm,
-                    background: s.highlight ? theme.color.purpleLight + "22" : "#F7F6F3",
-                    border: s.highlight ? `1px solid ${theme.color.purple}` : "1px solid transparent",
-                  }}
-                >
-                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>
-                    {s.start}{s.end ? `–${s.end}` : ""}
-                  </div>
-                  <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                    {s.group} · {s.activity}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 1 }}>{s.location}</div>
-                  {s.highlight && (
-                    <div style={{ fontSize: 11.5, color: theme.color.purple, fontWeight: 700, marginTop: 4 }}>
-                      ⭐ {TODDLER_CAMP_HIGHLIGHT_NOTE}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+/** Same row shape as a Game, but no teams/score — a training block or the Sunday exhibition instead. */
+function CampSessionRow({ session }: { session: ToddlerCampSession }) {
+  return (
+    <div
+      style={{
+        background: session.highlight ? theme.color.purpleLight + "16" : "#fff",
+        border: `1px solid ${session.highlight ? theme.color.purple : theme.color.border}`,
+        borderRadius: theme.radius.md,
+        padding: 14,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 160 }}>
+        <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 4 }}>
+          🍼 Umoja Soccer Camp · {session.location}
+        </div>
+        <div style={{ fontWeight: 600, fontSize: 14.5 }}>
+          {session.group} · {session.activity}
+        </div>
+        {session.highlight && (
+          <div style={{ fontSize: 12, color: theme.color.purple, fontWeight: 700, marginTop: 4 }}>⭐ {TODDLER_CAMP_HIGHLIGHT_NOTE}</div>
+        )}
       </div>
-
-      <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>{TODDLER_CAMP_NOTE}</div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: theme.color.textMuted, letterSpacing: 0.3, marginTop: 6 }}>
+          {dayDateLabel(session.day)}
+        </div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>
+          {formatKickoffTime(session.start)}{session.end ? `–${formatKickoffTime(session.end)}` : ""}
+        </div>
+      </div>
     </div>
   );
 }

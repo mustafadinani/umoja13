@@ -114,7 +114,9 @@ export const SPECIAL_EVENTS = [
 ] as const;
 
 export interface ToddlerCampSession {
+  id: string;
   day: "fri" | "sat" | "sun";
+  /** 24-hour "HH:MM", same convention as Game.kickoffTime — lets camp sessions sort/format alongside real games in one merged schedule. */
   start: string;
   /** Absent for a single point-in-time entry (the Sunday exhibition/walkout) rather than a session with a duration. */
   end?: string;
@@ -126,30 +128,39 @@ export interface ToddlerCampSession {
 }
 
 /**
+ * The two camp-only locations sessions below are held at — not real
+ * tournament sub-pitches (see GAME_FIELDS), so they're kept as their own
+ * list rather than folded into FIELDS/GAME_FIELDS, but still offered as real
+ * choices anywhere a schedule's field filter is built.
+ */
+export const TODDLER_CAMP_FIELDS = ["Field 12 Camp", "Indoor arena"] as const;
+
+/**
  * Umoja Soccer Camp (Toddlers, ages 3-6) session schedule — from the real
- * "Umoja13 Toddler Camp Preliminary Schedule" (Rev 07.08.2026) PDF. Distinct
- * from `SPECIAL_EVENTS`: this is a full 3-day itinerary of training blocks
- * per age group, not a single tournament-wide calendar entry, and it has no
- * backing `Game` docs (camp is non-competitive — see TODDLERS_CAMP_CATEGORY_LABELS).
+ * "Umoja13 Toddler Camp Preliminary Schedule" (Rev 07.08.2026) PDF. Baked
+ * directly into the master Game Day schedule (merged and sorted alongside
+ * real Games by day/time — see compareScheduleRows) rather than shown as a
+ * separate section, even though camp has no backing `Game` docs (it's
+ * non-competitive — see TODDLERS_CAMP_CATEGORY_LABELS).
  */
 export const TODDLER_CAMP_SCHEDULE: ToddlerCampSession[] = [
   // Friday
-  { day: "fri", start: "10:00 AM", end: "10:50 AM", location: "Field 12 (outdoor)", group: "Ages 3 & 4", activity: "Soccer training" },
-  { day: "fri", start: "11:00 AM", end: "12:15 PM", location: "Field 12 (outdoor)", group: "Ages 5 & 6", activity: "Soccer training" },
-  { day: "fri", start: "2:00 PM", end: "2:50 PM", location: "Field 12 (outdoor)", group: "Ages 3 & 4", activity: "Soccer training" },
-  { day: "fri", start: "3:00 PM", end: "4:00 PM", location: "Field 12 (outdoor)", group: "Ages 5 & 6", activity: "Soccer training" },
-  { day: "fri", start: "4:15 PM", end: "5:15 PM", location: "Field 12 (outdoor)", group: "All ages", activity: "Fun activities" },
+  { id: "camp-fri-1", day: "fri", start: "10:00", end: "10:50", location: "Field 12 Camp", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-2", day: "fri", start: "11:00", end: "12:15", location: "Field 12 Camp", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-3", day: "fri", start: "14:00", end: "14:50", location: "Field 12 Camp", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-4", day: "fri", start: "15:00", end: "16:00", location: "Field 12 Camp", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-5", day: "fri", start: "16:15", end: "17:15", location: "Field 12 Camp", group: "All ages", activity: "Fun activities" },
   // Saturday
-  { day: "sat", start: "10:00 AM", end: "10:50 AM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
-  { day: "sat", start: "11:00 AM", end: "12:15 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
-  { day: "sat", start: "2:00 PM", end: "2:50 PM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
-  { day: "sat", start: "3:00 PM", end: "4:00 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
-  { day: "sat", start: "4:15 PM", end: "5:15 PM", location: "Indoor arena", group: "All ages", activity: "Fun activities" },
+  { id: "camp-sat-1", day: "sat", start: "10:00", end: "10:50", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-sat-2", day: "sat", start: "11:00", end: "12:15", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-sat-3", day: "sat", start: "14:00", end: "14:50", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-sat-4", day: "sat", start: "15:00", end: "16:00", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-sat-5", day: "sat", start: "16:15", end: "17:15", location: "Indoor arena", group: "All ages", activity: "Fun activities" },
   // Sunday
-  { day: "sun", start: "10:00 AM", end: "10:50 AM", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
-  { day: "sun", start: "11:00 AM", end: "12:15 PM", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
-  { day: "sun", start: "3:00 PM", end: "4:00 PM", location: "Indoor arena", group: "All ages", activity: "Soccer training" },
-  { day: "sun", start: "5:00 PM", location: "Men's Cup Final field", group: "All ages", activity: "Exhibition game & walk out on field", highlight: true },
+  { id: "camp-sun-1", day: "sun", start: "10:00", end: "10:50", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-sun-2", day: "sun", start: "11:00", end: "12:15", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-sun-3", day: "sun", start: "15:00", end: "16:00", location: "Indoor arena", group: "All ages", activity: "Soccer training" },
+  { id: "camp-sun-4", day: "sun", start: "17:00", location: "Men's Cup Final field", group: "All ages", activity: "Exhibition game & walk out on field", highlight: true },
 ];
 
 export const TODDLER_CAMP_NOTE = "Coaches may make adjustments to groups and sessions based on skill, age, and development — their decision is final.";

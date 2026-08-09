@@ -9,9 +9,9 @@ import {
   FORMAT_DESCRIPTIONS,
   TODDLERS_CAMP_CATEGORY_LABELS,
   TODDLER_CAMP_HIGHLIGHT_NOTE,
-  TODDLER_CAMP_NOTE,
   TODDLER_CAMP_SCHEDULE,
   TOURNAMENT_DAY_DATES,
+  compareByDayAndTime,
   compareGamesByKickoff,
   formatKickoffTime,
   provisionalSideLabel,
@@ -20,6 +20,7 @@ import {
   type RegistrationCategoryBucket,
   type SeedDestination,
   type Team,
+  type ToddlerCampSession,
 } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
@@ -112,6 +113,8 @@ const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: str
 };
 const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
+type ScheduleRow = { kind: "game"; game: Game } | { kind: "camp"; session: ToddlerCampSession };
+
 export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user, profile } = useAuth();
   const { buckets } = useRegistrationCategoryBuckets();
@@ -153,6 +156,36 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
     [games, categoryId]
   );
   const teamMap = useMemo(() => new Map(allTeams.map((t) => [t.id, t])), [allTeams]);
+
+  // Toddler Camp isn't a real tournament category — it has no Game docs, so
+  // it's baked into the schedule feed here rather than shown as its own
+  // section. Picking one of its two chips narrows to that age bracket (plus
+  // the "All ages" sessions everyone attends); picking "All" merges every
+  // session in; picking a real tournament category hides camp entirely,
+  // same as it hides every other category's games.
+  const campSessions = useMemo(() => {
+    if (categoryId && TODDLERS_CAMP_CATEGORY_LABELS[categoryId]) {
+      const bracketGroup: ToddlerCampSession["group"] = TODDLERS_CAMP_CATEGORY_LABELS[categoryId].includes("3 and 4")
+        ? "Ages 3 & 4"
+        : "Ages 5 & 6";
+      return TODDLER_CAMP_SCHEDULE.filter((s) => s.group === bracketGroup || s.group === "All ages");
+    }
+    if (categoryId) return [];
+    return TODDLER_CAMP_SCHEDULE;
+  }, [categoryId]);
+
+  const scheduleRows = useMemo(() => {
+    const rows: ScheduleRow[] = [
+      ...filteredGames.map((game): ScheduleRow => ({ kind: "game", game })),
+      ...campSessions.map((session): ScheduleRow => ({ kind: "camp", session })),
+    ];
+    return rows.sort((a, b) =>
+      compareByDayAndTime(
+        a.kind === "game" ? { day: a.game.day, time: a.game.kickoffTime } : { day: a.session.day, time: a.session.start },
+        b.kind === "game" ? { day: b.game.day, time: b.game.kickoffTime } : { day: b.session.day, time: b.session.start }
+      )
+    );
+  }, [filteredGames, campSessions]);
 
   const grouped = useMemo(() => {
     const hasRealGroups = teams.some((t) => t.group === "A" || t.group === "B");
@@ -210,12 +243,12 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
         {seg === "fieldMap" ? (
           <FieldMapPanel games={filteredGames} allGames={games} teamMap={teamMap} />
         ) : seg === "schedule" ? (
-          categoryId && TODDLERS_CAMP_CATEGORY_LABELS[categoryId] ? (
-            <ToddlerCampScheduleView />
-          ) : filteredGames.length === 0 ? (
+          scheduleRows.length === 0 ? (
             <Text style={{ color: theme.color.textMuted }}>No games in this category yet.</Text>
           ) : (
-            filteredGames.map((g) => {
+            scheduleRows.map((row) => {
+              if (row.kind === "camp") return <CampSessionCard key={row.session.id} session={row.session} />;
+              const g = row.game;
               const home = teamMap.get(g.homeTeamId);
               const away = teamMap.get(g.awayTeamId);
               const homeLabel = home?.name ?? provisionalSideLabel(g.homeDrawPos, g.homeRef) ?? "TBD";
@@ -363,45 +396,23 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   );
 }
 
-const CAMP_DAY_LABEL: Record<Game["day"], string> = { fri: "Friday", sat: "Saturday", sun: "Sunday" };
-
-/**
- * Umoja Soccer Camp (Toddlers, ages 3-6) doesn't play real Games, so it never
- * shows up in `filteredGames` above — this is a static itinerary shown
- * instead of the "no games" empty state when a camp category chip is active.
- */
-function ToddlerCampScheduleView() {
+/** Same card shape as a Game row, but no teams/score — a training block or the Sunday exhibition instead. Sits inline in the merged schedule feed, not a separate section. */
+function CampSessionCard({ session }: { session: ToddlerCampSession }) {
   return (
-    <View>
-      {(["fri", "sat", "sun"] as const).map((day) => {
-        const sessions = TODDLER_CAMP_SCHEDULE.filter((s) => s.day === day);
-        if (sessions.length === 0) return null;
-        return (
-          <View key={day} style={{ marginBottom: 18 }}>
-            <Text style={styles.groupTitle}>
-              {CAMP_DAY_LABEL[day].toUpperCase()} · {TOURNAMENT_DAY_DATES[day]}
-            </Text>
-            {sessions.map((s, i) => (
-              <Card key={i} style={s.highlight ? { marginBottom: 6, borderColor: theme.color.purple, backgroundColor: "rgba(139,47,209,.06)" } : { marginBottom: 6 }}>
-                <Text style={{ fontWeight: "700", fontSize: 13.5 }}>
-                  {s.start}{s.end ? `–${s.end}` : ""}
-                </Text>
-                <Text style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
-                  {s.group} · {s.activity}
-                </Text>
-                <Text style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 1 }}>{s.location}</Text>
-                {s.highlight && (
-                  <Text style={{ fontSize: 12, color: theme.color.purple, fontWeight: "700", marginTop: 6 }}>
-                    ⭐ {TODDLER_CAMP_HIGHLIGHT_NOTE}
-                  </Text>
-                )}
-              </Card>
-            ))}
-          </View>
-        );
-      })}
-      <Text style={{ fontSize: 12, color: theme.color.textMuted, lineHeight: 17 }}>{TODDLER_CAMP_NOTE}</Text>
-    </View>
+    <Card style={session.highlight ? { marginBottom: 8, borderColor: theme.color.purple, backgroundColor: "rgba(139,47,209,.06)" } : { marginBottom: 8 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ fontWeight: "600", flex: 1 }}>
+          🍼 {session.group} · {session.activity}
+        </Text>
+      </View>
+      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 4 }}>
+        {session.location} · {dayDateLabel(session.day)} · {formatKickoffTime(session.start)}
+        {session.end ? `–${formatKickoffTime(session.end)}` : ""}
+      </Text>
+      {session.highlight && (
+        <Text style={{ fontSize: 12, color: theme.color.purple, fontWeight: "700", marginTop: 6 }}>⭐ {TODDLER_CAMP_HIGHLIGHT_NOTE}</Text>
+      )}
+    </Card>
   );
 }
 
