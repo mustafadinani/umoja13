@@ -3,12 +3,12 @@ import { doc, setDoc, getDoc, deleteField, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   COLLECTIONS,
-  CATEGORIES,
   CHECKIN_CONSENT_POLICY_VERSION,
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
   TOURNAMENT_START_AT,
+  categoryLabelFor,
   playerKeyFor,
   type PlayerMembership,
 } from "@umoja/shared";
@@ -48,7 +48,6 @@ export function CheckInModal({
   const [result, setResult] = useState<{ status: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
-  const category = CATEGORIES.find((c) => c.id === membership.categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(membership.categoryId);
   const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
   const canContinueFromDetails =
@@ -140,7 +139,7 @@ export function CheckInModal({
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Is this you?</div>
           <div style={{ background: "#F7F6F3", borderRadius: theme.radius.md, padding: 16, margin: "12px 0" }}>
             <Row label="Name" value={membership.playerName ?? profile?.displayName ?? ""} />
-            <Row label="Category" value={category?.label ?? membership.categoryId} />
+            <Row label="Category" value={categoryLabelFor(membership.categoryId)} />
             <Row label="Waiver" value="Signed at registration ✓" valueColor={theme.color.success} />
           </div>
 
@@ -392,7 +391,7 @@ function ResultStep({
     return (
       <div style={{ textAlign: "center", padding: "10px 0" }}>
         <div style={{ fontSize: 40 }}>⏳</div>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginTop: 8 }}>Admin Review</div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginTop: 8 }}>Pending review</div>
         <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
           A staff member will review your photos and ID, usually within the hour.
         </div>

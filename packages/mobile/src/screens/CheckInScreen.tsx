@@ -13,7 +13,9 @@ import {
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
   TOURNAMENT_START_AT,
+  categoryLabelFor,
   checkInIdFor,
+  isNonCompetitiveCategory,
   playerKeyFor,
   rosterCheckInIdFor,
 } from "@umoja/shared";
@@ -28,9 +30,17 @@ import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 type Step = "confirm" | "fieldPref" | "consent" | "details" | "selfie" | "govid" | "submitting" | "result";
 
 export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamList, "CheckIn">) {
-  const { teamId, categoryId } = route.params;
+  const { teamId, categoryId, profileId } = route.params;
   const { user, profile } = useAuth();
-  const membership = profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
+  // Match on profileId first — teamId+categoryId alone is ambiguous whenever
+  // two siblings on the same family account share a team and category, and
+  // .find() would silently return whichever kid happens to sit first in the
+  // array (this was the "check-in kept reverting to the wrong sibling" bug).
+  // profileId is only missing for a legacy nav call that predates this field,
+  // so the fallback keeps those working exactly as before.
+  const membership = profileId
+    ? profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId && (m.profileId?.trim() || user?.uid) === profileId)
+    : profile?.playerOf?.find((m) => m.teamId === teamId && m.categoryId === categoryId);
   // Unique per child (falls back to the account uid only if this membership
   // predates profileId) — never the bare uid, which every sibling shares.
   const playerKey = user ? playerKeyFor(user.uid, membership?.profileId) : "";
@@ -70,7 +80,10 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
     (a) => a.name.trim() === playerName && a.status !== "rejected"
   );
 
-  if (!category) {
+  // Toddlers Camp categoryIds are real, checkin-able registrations that are
+  // intentionally NOT in CATEGORIES (no games/standings for camp) — only
+  // block on a categoryId that matches neither list, which is genuinely broken.
+  if (!category && !isNonCompetitiveCategory(categoryId)) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.color.bg, padding: 20, justifyContent: "center" }}>
         <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 8 }}>Category not found</Text>
@@ -189,7 +202,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
           <Text style={styles.h1}>Is this you?</Text>
           <View style={styles.infoCard}>
             <Row label="Name" value={membership?.playerName ?? profile?.displayName ?? ""} />
-            <Row label="Category" value={category?.label ?? categoryId} />
+            <Row label="Category" value={categoryLabelFor(categoryId)} />
             <Row label="Waiver" value="Signed at registration ✓" />
           </View>
 
@@ -355,13 +368,13 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
               {pass?.qrPayload ? (
                 <View style={styles.qrBox}><Text style={{ fontSize: 11, color: theme.color.textMuted }}>{pass.passId}</Text></View>
               ) : (
-                <Text style={{ color: theme.color.warning, fontWeight: "700", marginTop: 10 }}>PENDING</Text>
+                <Text style={{ color: theme.color.warning, fontWeight: "700", marginTop: 10 }}>PENDING REVIEW</Text>
               )}
             </>
           ) : result.status === "admin_review" ? (
             <>
               <Text style={{ fontSize: 40 }}>⏳</Text>
-              <Text style={styles.h1}>Admin Review</Text>
+              <Text style={styles.h1}>Pending review</Text>
               <Text style={styles.sub}>A staff member will review your photos and ID, usually within the hour.</Text>
             </>
           ) : (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -8,7 +8,7 @@ import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
 const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "needs_review", label: "Admin Review" },
+  { id: "needs_review", label: "Pending review" },
   { id: "approved", label: "Verified" },
   { id: "rejected", label: "Declined" },
 ];
@@ -107,7 +107,7 @@ function ReviewQueue() {
           <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
-              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}</div>
+              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{categoryLabelFor(c.categoryId)}</div>
             </div>
             <StatusChip status={c.status} />
           </Card>
@@ -157,7 +157,7 @@ function FieldPreferencesTable() {
             <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
               <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                {teamById.get(c.teamId)?.name ?? c.teamId} · {CATEGORIES.find((cat) => cat.id === c.categoryId)?.label}
+                {teamById.get(c.teamId)?.name ?? c.teamId} · {categoryLabelFor(c.categoryId)}
               </div>
             </div>
             <Pill bg={c.privateFieldPreference ? theme.color.successBg : "#F1EFF5"} fg={c.privateFieldPreference ? theme.color.success : theme.color.textMuted}>
@@ -180,8 +180,5 @@ function StatusChip({ status }: { status: CheckInStatus }) {
     rejected: { bg: theme.color.dangerBg, fg: theme.color.danger },
   };
   const s = map[status];
-  // Same admin-only label override as PlayerDocumentsModal's StatusPill — see
-  // its comment for why "rejected" needs to say "Declined" here specifically.
-  const label = status === "rejected" ? "Declined" : checkInStatusLabel(status);
-  return <Pill bg={s.bg} fg={s.fg}>{label}</Pill>;
+  return <Pill bg={s.bg} fg={s.fg}>{checkInStatusLabel(status)}</Pill>;
 }

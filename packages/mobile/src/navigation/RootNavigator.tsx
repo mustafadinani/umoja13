@@ -31,7 +31,12 @@ export type RootStackParamList = {
   Tabs: undefined;
   Game: { gameId: string };
   Team: { teamId: string };
-  CheckIn: { teamId: string; categoryId: string };
+  // profileId disambiguates which sibling on a shared family account this
+  // check-in is for — without it, CheckInScreen has to guess by searching
+  // profile.playerOf for the first teamId+categoryId match, which silently
+  // resolves to the WRONG kid whenever two siblings share a team+category
+  // (e.g. Ayaan's check-in landing on Amaar's record).
+  CheckIn: { teamId: string; categoryId: string; profileId?: string };
   RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;

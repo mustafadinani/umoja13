@@ -64,6 +64,23 @@ export const TODDLERS_CAMP_CATEGORY_LABELS: Record<string, string> = {
 };
 
 /**
+ * Resolve a categoryId to a display label everywhere a raw CATEGORIES.find()
+ * would otherwise come up empty for a legitimate non-competitive (Toddlers
+ * Camp) registration — one canonical fallback instead of every call site
+ * reimplementing the same "or check TODDLERS_CAMP_CATEGORY_LABELS" logic.
+ * Falls back to the bare id only for a genuinely unmapped categoryId.
+ */
+export function categoryLabelFor(categoryId: string | undefined): string {
+  if (!categoryId) return "";
+  return CATEGORIES.find((c) => c.id === categoryId)?.label ?? TODDLERS_CAMP_CATEGORY_LABELS[categoryId] ?? categoryId;
+}
+
+/** True for a Toddlers Camp categoryId — no games/standings/team, but a real, checkin-able registration. */
+export function isNonCompetitiveCategory(categoryId: string | undefined): boolean {
+  return !!categoryId && categoryId in TODDLERS_CAMP_CATEGORY_LABELS;
+}
+
+/**
  * Categories that don't track standings/W-D-L — every player medals, no bracket.
  * Empty as of the Aug 2026 Schedule & Format Guide: that guide gives Boy's 8 &
  * Under (the one division previously flagged here) a fully competitive bracket

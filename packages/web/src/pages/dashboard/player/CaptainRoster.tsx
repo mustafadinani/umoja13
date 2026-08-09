@@ -86,7 +86,7 @@ export function CaptainRoster({ team }: { team: Team }) {
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
-                  color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted }[checkInStatusTone(p.checkInStatus)],
+                  color: { success: theme.color.success, warning: theme.color.warning, muted: theme.color.textMuted, danger: theme.color.danger }[checkInStatusTone(p.checkInStatus)],
                 }}
               >
                 {checkInStatusLabel(p.checkInStatus)}

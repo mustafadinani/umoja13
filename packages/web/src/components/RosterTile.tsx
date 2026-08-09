@@ -8,13 +8,13 @@ import { VerifiedBadge } from "./ui";
  *
  * The tile's background always reflects whichever status needs attention
  * most: red when Verified (the identity check-in) hasn't happened, yellow
- * when Verified but not yet Roster Checked (the referee hasn't gate-cleared
- * them into this specific game), clean once both are done.
+ * when Verified but not yet Cleared by Ref (the referee hasn't confirmed
+ * them for this specific game), clean once both are done.
  *
- * Roster Check is inherently scoped to one game — pass `rosterChecked` only
- * from a game-scoped page (Game); leave it `undefined` on the Team roster
- * tab, where there's no single game to check it against, and only Verified
- * is shown.
+ * The ref-clearance check is inherently scoped to one game — pass
+ * `rosterChecked` only from a game-scoped page (Game); leave it `undefined`
+ * on the Team roster tab, where there's no single game to check it against,
+ * and only Verified is shown.
  */
 export function RosterTile({
   player,
@@ -87,7 +87,7 @@ export function RosterTile({
               {showRosterCheck && (
                 <>
                   <span style={{ color: theme.color.border, fontSize: 11 }}>·</span>
-                  <StatusDot tone={rosterChecked ? "ok" : "warn"} label={rosterChecked ? "Roster Checked" : "Not Roster Checked"} />
+                  <StatusDot tone={rosterChecked ? "ok" : "warn"} label={rosterChecked ? "Cleared by Ref" : "Not cleared yet"} />
                 </>
               )}
             </>

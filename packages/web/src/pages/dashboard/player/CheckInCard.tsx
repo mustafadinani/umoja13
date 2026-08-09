@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATEGORIES, checkInIdFor, checkInStatusLabel, playerKeyFor, rosterCheckInIdFor, type PlayerMembership, type CheckIn, type RosterCheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, categoryLabelFor, checkInIdFor, checkInStatusLabel, isNonCompetitiveCategory, playerKeyFor, rosterCheckInIdFor, type PlayerMembership, type CheckIn, type RosterCheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useDocument } from "../../../hooks/firestore";
 import { COLLECTIONS } from "@umoja/shared";
@@ -18,16 +18,19 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
   const [open, setOpen] = useState(false);
   const [passOpen, setPassOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
+  const categoryLabel = categoryLabelFor(membership.categoryId);
   const status = checkIn?.status ?? "not_started";
 
-  // Parent dashboard hides unknown categories when another valid membership exists.
-  if (!category) return null;
+  // Parent dashboard hides genuinely unmatched categories (neither a real
+  // tournament division nor a known non-competitive one like Toddlers Camp)
+  // when another valid membership exists.
+  if (!category && !isNonCompetitiveCategory(membership.categoryId)) return null;
 
   return (
     <Card style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div style={{ minWidth: 120 }}>
-          <div style={{ fontWeight: 700 }}>{category.label}</div>
+          <div style={{ fontWeight: 700 }}>{categoryLabel}</div>
           <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{checkInStatusLabel(status)}</div>
         </div>
         {status === "approved" && pass ? (
@@ -36,7 +39,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
             <div style={{ fontSize: 10.5, color: theme.color.textMuted, marginTop: 2 }}>View pass</div>
           </div>
         ) : status === "pending_review" || status === "admin_review" ? (
-          <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>Admin Review</div>
+          <div style={{ fontSize: 12.5, color: theme.color.warning, fontWeight: 700 }}>{checkInStatusLabel(status)}</div>
         ) : status === "rejected" ? null : (
           <PrimaryButton onClick={() => setOpen(true)}>Check in</PrimaryButton>
         )}
@@ -57,7 +60,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
         <Modal onClose={() => setPassOpen(false)} width={320}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>TOURNAMENT PASS</div>
-            <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>{category.label}</div>
+            <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>{categoryLabel}</div>
             {pass.status === "approved" ? (
               <>
                 <div style={{ position: "relative", width: 180, height: 180, margin: "0 auto", borderRadius: 16, overflow: "hidden", background: theme.color.navy }}>
@@ -71,7 +74,7 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
                 <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 10 }}>{pass.passId}</div>
               </>
             ) : (
-              <div style={{ padding: "40px 0", color: theme.color.warning, fontWeight: 800, letterSpacing: 1 }}>PENDING</div>
+              <div style={{ padding: "40px 0", color: theme.color.warning, fontWeight: 800, letterSpacing: 1 }}>PENDING REVIEW</div>
             )}
           </div>
         </Modal>

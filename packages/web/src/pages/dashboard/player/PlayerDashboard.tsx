@@ -77,30 +77,19 @@ export function PlayerDashboard() {
           <SectionLabel>CHECK-IN</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
             {(() => {
-              const valid = activeMemberships.filter((m) => CATEGORIES.some((c) => c.id === m.categoryId));
               // Toddlers Camp registrants have a real categoryId that's
-              // intentionally NOT in CATEGORIES (no games/check-in for camp)
-              // — they used to fall into the "Registration issue" error
-              // below just because they didn't match a tournament division.
-              const nonCompetitive = activeMemberships.filter(
-                (m) => !CATEGORIES.some((c) => c.id === m.categoryId) && TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]
+              // intentionally NOT in CATEGORIES (no games/standings for camp)
+              // — they still go through the same real check-in flow as
+              // everyone else (CheckInCard itself falls back to their camp
+              // label via TODDLERS_CAMP_CATEGORY_LABELS); only a genuinely
+              // unmatched categoryId falls through to "Registration issue".
+              const valid = activeMemberships.filter(
+                (m) => CATEGORIES.some((c) => c.id === m.categoryId) || TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]
               );
-              if (valid.length > 0 || nonCompetitive.length > 0) {
-                return (
-                  <>
-                    {valid.map((m) => (
-                      <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />
-                    ))}
-                    {nonCompetitive.map((m) => (
-                      <Card key={`${m.teamId}-${m.categoryId}`} style={{ padding: 16 }}>
-                        <div style={{ fontWeight: 700 }}>{TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId]}</div>
-                        <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 4, lineHeight: 1.45 }}>
-                          No check-in needed for camp — just come to the venue and have fun!
-                        </div>
-                      </Card>
-                    ))}
-                  </>
-                );
+              if (valid.length > 0) {
+                return valid.map((m) => (
+                  <CheckInCard key={`${m.teamId}-${m.categoryId}`} uid={user.uid} membership={m} />
+                ));
               }
               if (activeMemberships.length > 0) {
                 return (

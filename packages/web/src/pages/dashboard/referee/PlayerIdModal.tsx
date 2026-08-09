@@ -50,13 +50,13 @@ export function PlayerIdModal({
                 marginTop: 16,
               }}
             >
-              {cleared ? "VERIFIED · CHECKED-IN ✓" : "VERIFIED · NEEDS CHECK-IN"}
+              {cleared ? "VERIFIED · CLEARED BY REF ✓" : "VERIFIED · NOT CLEARED YET"}
             </div>
             <PrimaryButton
               style={{ marginTop: 16, width: "100%", background: cleared ? theme.color.success : theme.color.navy }}
               onClick={onToggleClear}
             >
-              {cleared ? "CHECKED-IN — TAP TO UNDO" : "PHOTO MATCHES — CHECK IN"}
+              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR PLAYER"}
             </PrimaryButton>
           </>
         ) : (

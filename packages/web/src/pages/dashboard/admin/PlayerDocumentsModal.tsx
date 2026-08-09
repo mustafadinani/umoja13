@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
-import { CATEGORIES, CHECKIN_NOTE_REASONS, COLLECTIONS, checkInStatusLabel, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
+import { categoryLabelFor, CHECKIN_NOTE_REASONS, COLLECTIONS, checkInStatusLabel, type CheckInNote, type CheckInNoteReason, type CheckIn, type UserProfile } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
@@ -16,7 +16,7 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   const [noteReasonOther, setNoteReasonOther] = useState("");
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-  const category = CATEGORIES.find((c) => c.id === checkIn.categoryId);
+  const categoryLabel = categoryLabelFor(checkIn.categoryId);
   // Match on playerKey too, not just team+category — a shared family
   // account can have two siblings' memberships colliding on the exact same
   // team+category, and only playerKey actually tells them apart.
@@ -86,7 +86,7 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         <StatusPill status={checkIn.status} />
       </div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 16 }}>
-        {category?.label} · attempt {checkIn.attempt}
+        {categoryLabel} · attempt {checkIn.attempt}
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
       </div>
 
@@ -217,12 +217,7 @@ function StatusPill({ status }: { status: CheckIn["status"] }) {
       : status === "admin_review" || status === "pending_review"
       ? { bg: theme.color.warningBg, fg: theme.color.warning }
       : { bg: theme.color.dangerBg, fg: theme.color.danger };
-  // checkInStatusLabel groups "rejected" under the player-facing "Pending"
-  // label (deliberately, so a declined player just sees "needs resubmit") —
-  // but this pill's color already calls out "rejected" as its own red case,
-  // so on this admin-only surface the text needs to match: a staff member
-  // who just declined a check-in should see "Declined", not a red "Pending".
-  const label = status === "rejected" ? "Declined" : checkInStatusLabel(status);
+  const label = checkInStatusLabel(status);
   return (
     <span style={{ background: bg, color: fg, fontWeight: 700, fontSize: 12, padding: "4px 10px", borderRadius: 999, whiteSpace: "nowrap" }}>
       {label}

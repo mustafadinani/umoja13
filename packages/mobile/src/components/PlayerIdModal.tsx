@@ -51,14 +51,14 @@ export function PlayerIdModal({
           <>
             <View style={{ backgroundColor: cleared ? theme.color.successBg : theme.color.warningBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
               <Text style={{ color: cleared ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 13 }}>
-                {cleared ? "VERIFIED · CHECKED-IN ✓" : "VERIFIED · NEEDS CHECK-IN"}
+                {cleared ? "VERIFIED · CLEARED BY REF ✓" : "VERIFIED · NOT CLEARED YET"}
               </Text>
             </View>
             <PrimaryButton
               onPress={onToggleClear}
               style={{ marginTop: 16, width: "100%", backgroundColor: cleared ? theme.color.success : theme.color.navy }}
             >
-              {cleared ? "CHECKED-IN — TAP TO UNDO" : "PHOTO MATCHES — CHECK IN"}
+              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR PLAYER"}
             </PrimaryButton>
           </>
         ) : (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
-import { CATEGORIES, COLLECTIONS, checkInIdFor, checkInStatusLabel, playerKeyFor, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
+import { CATEGORIES, COLLECTIONS, categoryLabelFor, checkInIdFor, checkInStatusLabel, isNonCompetitiveCategory, playerKeyFor, type PlayerMembership, type CheckIn, type TournamentPass } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useDocument } from "../hooks/firestore";
 import { Card, PrimaryButton, Modal, VerifiedRibbon } from "./ui";
@@ -20,16 +20,19 @@ export function CheckInCard({
   const { data: pass } = useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
   const [passOpen, setPassOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === membership.categoryId);
+  const categoryLabel = categoryLabelFor(membership.categoryId);
   const status = checkIn?.status ?? "not_started";
 
-  // Parent screen hides unknown categories when another valid membership exists.
-  if (!category) return null;
+  // Parent screen hides genuinely unmatched categories (neither a real
+  // tournament division nor a known non-competitive one like Toddlers Camp)
+  // when another valid membership exists.
+  if (!category && !isNonCompetitiveCategory(membership.categoryId)) return null;
 
   return (
     <Card style={{ marginBottom: 8 }}>
       <View style={styles.row}>
         <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={{ fontWeight: "700" }}>{category.label}</Text>
+          <Text style={{ fontWeight: "700" }}>{categoryLabel}</Text>
           <Text style={styles.status}>{checkInStatusLabel(status)}</Text>
         </View>
         {status === "approved" && pass ? (
@@ -37,7 +40,7 @@ export function CheckInCard({
             VIEW PASS
           </PrimaryButton>
         ) : status === "pending_review" || status === "admin_review" ? (
-          <Text style={styles.pending}>Admin Review</Text>
+          <Text style={styles.pending}>{checkInStatusLabel(status)}</Text>
         ) : status === "rejected" ? null : (
           <PrimaryButton onPress={onCheckIn} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
             CHECK IN
@@ -52,7 +55,7 @@ export function CheckInCard({
 
       <Modal visible={passOpen} onClose={() => setPassOpen(false)}>
         <Text style={styles.passTitle}>TOURNAMENT PASS</Text>
-        <Text style={[styles.status, { textAlign: "center", marginBottom: 12 }]}>{category.label}</Text>
+        <Text style={[styles.status, { textAlign: "center", marginBottom: 12 }]}>{categoryLabel}</Text>
         {pass?.status === "approved" ? (
           <>
             <View style={styles.photoBox}>
@@ -66,7 +69,7 @@ export function CheckInCard({
             <Text style={[styles.status, { textAlign: "center", marginTop: 10 }]}>{pass.passId}</Text>
           </>
         ) : (
-          <Text style={styles.passPending}>PENDING</Text>
+          <Text style={styles.passPending}>PENDING REVIEW</Text>
         )}
       </Modal>
     </Card>

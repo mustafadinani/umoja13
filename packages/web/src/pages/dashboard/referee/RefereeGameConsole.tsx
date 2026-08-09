@@ -303,14 +303,14 @@ function StepLabel({ n, title, done }: { n: number; title: string; done?: boolea
   );
 }
 
-/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Checked-in) in a single glance. */
+/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Cleared by Ref) in a single glance. */
 function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg: string; bg: string } {
   if (p.checkInStatus !== "approved") {
     return { label: "NOT VERIFIED", fg: "#fff", bg: theme.color.danger };
   }
   return isCleared
-    ? { label: "VERIFIED · CHECKED-IN", fg: theme.color.success, bg: theme.color.successBg }
-    : { label: "VERIFIED · NEEDS CHECK-IN", fg: theme.color.warning, bg: theme.color.warningBg };
+    ? { label: "VERIFIED · CLEARED BY REF", fg: theme.color.success, bg: theme.color.successBg }
+    : { label: "VERIFIED · NOT CLEARED YET", fg: theme.color.warning, bg: theme.color.warningBg };
 }
 
 function RosterColumn({

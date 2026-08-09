@@ -351,10 +351,11 @@ export function StatusBadge({ status }: { status: string }) {
   return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
 }
 
-const CHECKIN_TONE_COLORS: Record<"success" | "warning" | "muted", { fg: string; bg: string }> = {
+const CHECKIN_TONE_COLORS: Record<"success" | "warning" | "muted" | "danger", { fg: string; bg: string }> = {
   success: { fg: theme.color.success, bg: theme.color.successBg },
   warning: { fg: theme.color.warning, bg: theme.color.warningBg },
   muted: { fg: theme.color.textMuted, bg: theme.color.bg },
+  danger: { fg: theme.color.danger, bg: theme.color.dangerBg },
 };
 
 /**

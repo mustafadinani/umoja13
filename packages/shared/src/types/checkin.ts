@@ -148,11 +148,11 @@ export function checkInIdFor(playerKey: string, teamId: string, categoryId: stri
 
 /**
  * The one check-in status vocabulary shown anywhere in the app, player- or
- * staff-facing: submissions start/land back on PENDING (not yet submitted,
- * or sent back after a decline — either way the player needs to check in),
- * move to ADMIN REVIEW once submitted, then a staff decision either marks
- * them VERIFIED or reverts them to PENDING for a resubmit. There is no
- * automated step in this lifecycle — every decision is a human one.
+ * staff-facing — four distinct states, never collapsed into each other:
+ * PENDING CHECK-IN (never submitted), PENDING REVIEW (submitted, staff
+ * hasn't decided), VERIFIED (approved), DECLINED (staff sent it back —
+ * the player needs to fix something and resubmit). Every decision in this
+ * lifecycle is a human one; nothing here is automated.
  */
 export function checkInStatusLabel(status: CheckInStatus | undefined): string {
   switch (status) {
@@ -160,23 +160,24 @@ export function checkInStatusLabel(status: CheckInStatus | undefined): string {
       return "Verified";
     case "admin_review":
     case "pending_review": // legacy value, no longer produced
-      return "Admin Review";
+      return "Pending review";
     case "rejected":
+      return "Declined";
     case "not_started":
     default:
-      return "Pending";
+      return "Pending check-in";
   }
 }
 
 /**
  * The one color vocabulary for a check-in status, shared by every surface
- * that shows it (roster rows, the player card, the Tournament Pass) so
- * "Verified" is always the same green and "Pending" is never alarmingly
- * red on a page that isn't asking anyone to act on it right now — unlike
- * the referee gate-check screen, which deliberately uses red for "NOT
- * VERIFIED" since it's blocking that player from playing.
+ * that shows it (roster rows, the player card, the Tournament Pass) — each
+ * of the four states above gets its own tone, including "Declined" now
+ * getting its own (danger/red) tone rather than sharing "Pending check-in"'s
+ * muted one, so a decline is never visually indistinguishable from someone
+ * who simply hasn't checked in yet.
  */
-export type CheckInStatusTone = "success" | "warning" | "muted";
+export type CheckInStatusTone = "success" | "warning" | "muted" | "danger";
 
 export function checkInStatusTone(status: CheckInStatus | undefined): CheckInStatusTone {
   switch (status) {
@@ -186,6 +187,7 @@ export function checkInStatusTone(status: CheckInStatus | undefined): CheckInSta
     case "pending_review":
       return "warning";
     case "rejected":
+      return "danger";
     case "not_started":
     default:
       return "muted";
