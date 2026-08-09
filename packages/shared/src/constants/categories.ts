@@ -20,7 +20,7 @@ export const CATEGORIES: Category[] = [
   { id: "21a84945-3ceb-44f1-a409-5721a23d5264", label: "Boy's 12 & Under", format: "7-aside", minPlayersToStart: 3, teamCount: 8, groupLegs: 1, bracketTemplate: "quarterfinal8" },
   { id: "9147c9c5-2446-452b-8047-8a78bd9c7860", label: "Boy's 10 & Under", format: "7-aside", minPlayersToStart: 3, teamCount: 5, groupLegs: 1, bracketTemplate: "seed3_wildcard" },
   { id: "33eef558-de37-4513-81d1-a1181b60778f", label: "Boy's 8 & Under", format: "5-aside", minPlayersToStart: 3, teamCount: 6, groupLegs: 1, bracketTemplate: "top4_semis" },
-  { id: "edc8142f-2ef0-4586-a576-2444875c4167", label: "Women's Open", format: "5-aside", minPlayersToStart: 3, teamCount: 4, groupLegs: 1, bracketTemplate: "top4_semis" },
+  { id: "edc8142f-2ef0-4586-a576-2444875c4167", label: "Women's Open", format: "5-aside", minPlayersToStart: 3, teamCount: 4, groupLegs: 2, bracketTemplate: "top2_bottom2" },
   { id: "c2b13374-b84f-45b0-b234-7595d5701de5", label: "Girls 14 & Under", format: "5-aside", minPlayersToStart: 3, teamCount: 5, groupLegs: 1, bracketTemplate: "seed3_wildcard" },
   { id: "38dcf88a-e524-4de3-9459-4614421fa801", label: "Girls 10 & Under", format: "5-aside", minPlayersToStart: 3, teamCount: 4, groupLegs: 2, bracketTemplate: "top2_bottom2" },
 ];

@@ -6,9 +6,9 @@
  * Schedule & Format Guide, since several divisions share an identical shape.
  */
 export type BracketTemplateId =
-  | "top2_bottom2" // Girls U10: double RR, top 2 -> Cup Final, bottom 2 -> Shield Final (no semis)
+  | "top2_bottom2" // Girls U10, Women's Open: double RR, top 2 -> Cup Final, bottom 2 -> Shield Final (no semis)
   | "seed3_wildcard" // Girls U14, Boys U10, Boys U17: seeds 1-3 auto-SF, 4v5 wildcard fills the 4th spot
-  | "top4_semis" // Boys U8, Boys U14, Women's Open: seeds 1-4 -> SF (1v4, 2v3) -> Cup/Shield Final
+  | "top4_semis" // Boys U8, Boys U14: seeds 1-4 -> SF (1v4, 2v3) -> Cup/Shield Final
   | "quarterfinal8" // Boys U12, Men's O30: 8 teams seeded straight into QF -> SF -> Cup/Shield Final
   | "dual_bracket_16" // Men's Open: seeds 1-8 -> Cup bracket, seeds 9-16 -> Classic bracket, run in parallel
   | "seed1_bye_playin"; // Men's O40: double RR (3 teams), seed 1 byes to Cup Final, 2v3 play in for the other spot

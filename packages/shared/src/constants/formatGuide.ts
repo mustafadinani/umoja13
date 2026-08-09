@@ -48,8 +48,8 @@ export const FORMAT_DESCRIPTIONS: Record<string, { format: string; roadToFinal: 
   },
   "edc8142f-2ef0-4586-a576-2444875c4167": {
     // Women's Open
-    format: "All 4 teams play each other once (1x) in a single round-robin league format.",
-    roadToFinal: "All teams advance to the Semi-Finals. Semi-Final winners advance to the Cup Final; Semi-Final losers advance to the Shield Final.",
+    format: "All 4 teams play each other 2X in a league format.",
+    roadToFinal: "Seeds 1–2 advance to the Cup Final and Seeds 3–4 advance to the Shield Final.",
   },
   "c2b13374-b84f-45b0-b234-7595d5701de5": {
     // Girls 14 & Under

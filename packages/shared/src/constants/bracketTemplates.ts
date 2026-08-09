@@ -26,22 +26,15 @@ const loser = (matchCode: string): TeamRef => ({ type: "loser", matchCode });
  * resolveBracketTeamRef. `winner`/`loser` refs resolve once the named
  * matchCode game itself is final/forfeited.
  *
- * Two normalizations from the literal PDF text, both because the printed
- * label doesn't match the division's own prose rule or its own semis:
+ * One normalization from the literal PDF text, because the printed label
+ * doesn't match the division's own semis:
  * - Boys U8 and Boys U14 print every playoff row with a stray "SF1:" prefix,
  *   including their Cup/Shield Finals — the actual matchup text ("Winner
  *   SF1 vs Winner SF2" / "Loser SF1 v Loser SF2") is unambiguous, so that's
  *   what's encoded here, not the copy-pasted label.
- * - Women's Open's Sunday finals print "Seed 1 vs Seed 2 (Cup Final)" and
- *   "Seed 3 vs Seed 4 (Shield Final)" even though its own semis (uniquely
- *   scheduled Saturday, not Sunday) can produce upsets — those numbers can't
- *   be taken literally without contradicting the format guide's own prose
- *   ("Semi-Final winners advance to the Cup Final; Semi-Final losers advance
- *   to the Shield Final"). Encoded here as winner/loser of the semis, per
- *   the prose rule, not the loose seed-number label.
  */
 export const BRACKET_TEMPLATES: Record<BracketTemplateId, BracketTemplateGame[]> = {
-  // Girls U10: double RR, no semis at all — straight from final standing to a final.
+  // Girls U10, Women's Open: double RR, no semis at all — straight from final standing to a final.
   top2_bottom2: [
     { round: "final", bracket: "cup", matchCode: "CupFinal", homeRef: seed(1), awayRef: seed(2) },
     { round: "final", bracket: "shield", matchCode: "ShieldFinal", homeRef: seed(3), awayRef: seed(4) },
@@ -56,7 +49,7 @@ export const BRACKET_TEMPLATES: Record<BracketTemplateId, BracketTemplateGame[]>
     { round: "final", bracket: "shield", matchCode: "ShieldFinal", homeRef: loser("SF1"), awayRef: loser("SF2") },
   ],
 
-  // Boys U8, Boys U14, Women's Open: seeds 1-4 -> SF (1v4, 2v3) -> Cup/Shield Final.
+  // Boys U8, Boys U14: seeds 1-4 -> SF (1v4, 2v3) -> Cup/Shield Final.
   top4_semis: [
     { round: "sf", matchCode: "SF1", homeRef: seed(1), awayRef: seed(4) },
     { round: "sf", matchCode: "SF2", homeRef: seed(2), awayRef: seed(3) },
@@ -133,7 +126,7 @@ export function resolveBracketTeamRef(
  * template rather than hand-listed per division — for a standings table row
  * showing "this seed's path" (e.g. Men's Open seeds 1-8 -> Cup, 9-16 ->
  * Classic). `bracket` is only set when the template fixes it by seed alone
- * (Men's Open's dual bracket, Girls U10's top2/bottom2) — for a division
+ * (Men's Open's dual bracket, Girls U10/Women's Open's top2/bottom2) — for a division
  * where the same seed's Cup/Shield fate depends on winning a Semi-Final
  * first, `bracket` stays undefined even though `label` still names the next
  * game, since claiming a bracket before it's actually decided would be
