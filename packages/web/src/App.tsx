@@ -19,6 +19,7 @@ import { Experiences } from "./pages/Experiences";
 import { Privacy } from "./pages/Privacy";
 import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
+import { Stage } from "./pages/Stage";
 
 export default function App() {
   return (
@@ -77,6 +78,15 @@ export default function App() {
               element={
                 <ProtectedRoute requireRole={["referee"]}>
                   <RefereeGameConsole />
+                </ProtectedRoute>
+              }
+            />
+            {/* Award-ceremony presenter screen — deliberately not linked anywhere in the nav; staff bring it up by typing the URL directly. */}
+            <Route
+              path="/stage"
+              element={
+                <ProtectedRoute requireRole={["admin", "commissioner"]}>
+                  <Stage />
                 </ProtectedRoute>
               }
             />

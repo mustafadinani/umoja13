@@ -28,6 +28,7 @@ import {
   type PodChannel,
   type PodTask,
   type Draw,
+  type CategoryAwards,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -87,6 +88,12 @@ export const useGames = (constraints: QueryConstraint[] = []) =>
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
 
 export const useDraw = (categoryId: string | undefined) => useDocument<Draw>(COLLECTIONS.draws, categoryId);
+
+/** Award-ceremony nominees/winners for one category — id == categoryId. */
+export const useCategoryAwards = (categoryId: string | undefined) =>
+  useDocument<CategoryAwards>(COLLECTIONS.categoryAwards, categoryId);
+/** Every category's awards doc at once — the sidebar progress dots and the presenter stage both need the full set, not one category at a time. */
+export const useAllCategoryAwards = () => useCollection<CategoryAwards>(COLLECTIONS.categoryAwards);
 
 export const useMoments = (approvedOnly = true) =>
   useCollection<Moment>(

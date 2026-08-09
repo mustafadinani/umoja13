@@ -55,6 +55,11 @@ export function Layout({ children }: { children: ReactNode }) {
     };
   }, [menuOpen]);
 
+  // The award-ceremony stage page is meant to fill the venue screen edge to
+  // edge — the site nav/footer chrome would just be dead space (and a stray
+  // "Sign in" link) on a projector nobody in the crowd should be reading.
+  if (pathname.startsWith("/stage")) return <>{children}</>;
+
   const barStyle: CSSProperties = {
     background: theme.color.navy,
     color: "#fff",

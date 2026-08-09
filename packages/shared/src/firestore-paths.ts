@@ -41,6 +41,8 @@ export const COLLECTIONS = {
   podTasks: "podTasks",
   /** Account deletion requests (Apple Guideline 5.1.1(v)). Staff process; not auto-delete. */
   accountDelete: "accountDelete",
+  /** One doc per category, id == categoryId — award-ceremony nominees/winners (see types/awards.ts). */
+  categoryAwards: "categoryAwards",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

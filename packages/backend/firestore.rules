@@ -62,6 +62,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaff();
     }
+    // ---- Award ceremony: nominees/winners per category — staff-only in both directions, never public ----
+    match /categoryAwards/{categoryId} {
+      allow read, write: if isStaff();
+    }
     // ---- announcements: public/always-readable (signed-out Home visitors see these too); posted only via the postAnnouncement Cloud Function ----
     match /announcements/{id} {
       allow read: if true;

@@ -18,6 +18,7 @@ export * from "./types/pod.js";
 export * from "./types/podTask.js";
 export * from "./types/channelRead.js";
 export * from "./types/inbox.js";
+export * from "./types/awards.js";
 
 export * from "./constants/categories.js";
 export * from "./constants/bracketTemplates.js";
