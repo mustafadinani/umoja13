@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   GAME_FIELDS,
+  SOCCER_CAMP,
   TODDLER_CAMP_FIELDS,
   TODDLER_CAMP_HIGHLIGHT_NOTE,
   TODDLER_CAMP_SCHEDULE,
@@ -68,10 +69,13 @@ export function Schedule() {
     return true;
   });
 
-  // Toddler Camp isn't a tournament category and has no team of its own, so
-  // it drops out of any category or "my teams" filter — those only make
-  // sense for real Games. Day/field/search still apply, same as a Game.
-  const filteredCampSessions = categoryId || myTeamsOnly
+  // Toddler Camp isn't a real tournament category and has no team of its
+  // own — picking a real category (or "My teams") hides it, same as it
+  // hides every other category's games. Picking the synthetic "Soccer
+  // Camp" entry (added to the dropdown below, alongside the 11 real ones)
+  // isolates it instead. Day/field/search still apply either way.
+  const isCampFilter = categoryId === SOCCER_CAMP.id;
+  const filteredCampSessions = myTeamsOnly || (categoryId && !isCampFilter)
     ? []
     : TODDLER_CAMP_SCHEDULE.filter((s) => {
         if (day && s.day !== day) return false;
@@ -100,6 +104,8 @@ export function Schedule() {
   );
 
   const fieldOptions = [...GAME_FIELDS, ...TODDLER_CAMP_FIELDS].map((f) => ({ id: f, label: f }));
+  const categoryOptions = [...categories.map((c) => ({ id: c.id, label: c.label })), { id: SOCCER_CAMP.id, label: SOCCER_CAMP.label }];
+  const categoryLabelFor = (id: string) => (id === SOCCER_CAMP.id ? SOCCER_CAMP.label : categories.find((c) => c.id === id)?.label ?? id);
 
   return (
     <div className="page-shell">
@@ -118,7 +124,7 @@ export function Schedule() {
               style={{ flex: "1 1 200px", padding: "10px 14px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 14 }}
             />
             <FilterDropdown<Game["day"]> label="Day" value={day} options={DAYS} onChange={setDay} />
-            <FilterDropdown label="Category" value={categoryId} options={categories.map((c) => ({ id: c.id, label: c.label }))} onChange={setCategoryId} />
+            <FilterDropdown label="Category" value={categoryId} options={categoryOptions} onChange={setCategoryId} />
             <FilterDropdown label="Field" value={field} options={fieldOptions} onChange={setField} />
             {profile && (
               <Pill active={myTeamsOnly} onClick={() => setMyTeamsOnly((v) => !v)} bg={myTeamsOnly ? theme.color.gold : undefined} fg={myTeamsOnly ? theme.color.navy : undefined}>
@@ -130,7 +136,7 @@ export function Schedule() {
           {(day || categoryId || field || myTeamsOnly) && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
               {day && <FilterChip label={DAYS.find((d) => d.id === day)?.label ?? day} onRemove={() => setDay(null)} />}
-              {categoryId && <FilterChip label={categories.find((c) => c.id === categoryId)?.label ?? categoryId} onRemove={() => setCategoryId(null)} />}
+              {categoryId && <FilterChip label={categoryLabelFor(categoryId)} onRemove={() => setCategoryId(null)} />}
               {field && <FilterChip label={field} onRemove={() => setField(null)} />}
               {myTeamsOnly && <FilterChip label="★ My teams" onRemove={() => setMyTeamsOnly(false)} />}
               <div
