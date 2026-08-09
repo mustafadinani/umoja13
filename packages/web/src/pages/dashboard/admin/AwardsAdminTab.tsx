@@ -36,6 +36,7 @@ const NO_NOMINEES: PlayerAwardNominee[] = [];
 
 export function AwardsAdminTab() {
   const [categoryId, setCategoryId] = useState<string>(CATEGORIES[0].id);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const { data: allAwards } = useAllCategoryAwards();
   const { data: awards } = useCategoryAwards(categoryId);
   const { data: teams } = useTeams(categoryId);
@@ -62,26 +63,41 @@ export function AwardsAdminTab() {
   );
 
   async function savePlayerSlot(type: PlayerAwardType, nominees: PlayerAwardNominee[], winnerPlayerKey?: string) {
-    await setDoc(
-      doc(db, COLLECTIONS.categoryAwards, categoryId),
-      {
-        categoryId,
-        updatedAt: Date.now(),
-        player: { ...(awards?.player ?? {}), [type]: { nominees, winnerPlayerKey } },
-      },
-      { merge: true }
-    );
+    try {
+      await setDoc(
+        doc(db, COLLECTIONS.categoryAwards, categoryId),
+        {
+          categoryId,
+          updatedAt: Date.now(),
+          player: { ...(awards?.player ?? {}), [type]: { nominees, winnerPlayerKey } },
+        },
+        { merge: true }
+      );
+      setSaveError(null);
+    } catch (err) {
+      // setDoc rejections were previously swallowed by the `void` at the call
+      // site — a permission-denied or offline write failed with zero
+      // on-screen sign that anything had gone wrong.
+      setSaveError(err instanceof Error ? err.message : "Couldn't save — check your connection and try again.");
+      throw err;
+    }
   }
 
   async function saveOverride(type: TeamAwardType, override: TeamAwardOverride | null) {
     const next = { ...(awards?.teamOverrides ?? {}) };
     if (override) next[type] = override;
     else delete next[type];
-    await setDoc(
-      doc(db, COLLECTIONS.categoryAwards, categoryId),
-      { categoryId, updatedAt: Date.now(), teamOverrides: next },
-      { merge: true }
-    );
+    try {
+      await setDoc(
+        doc(db, COLLECTIONS.categoryAwards, categoryId),
+        { categoryId, updatedAt: Date.now(), teamOverrides: next },
+        { merge: true }
+      );
+      setSaveError(null);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Couldn't save — check your connection and try again.");
+      throw err;
+    }
   }
 
   function categoryStatus(catId: string): "done" | "partial" | "none" {
@@ -142,6 +158,12 @@ export function AwardsAdminTab() {
           {CATEGORIES.find((c) => c.id === categoryId)?.label}
         </div>
 
+        {saveError && (
+          <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: 9, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, marginBottom: 16 }}>
+            ⚠ {saveError}
+          </div>
+        )}
+
         <SectionLabel>🎖 Player awards</SectionLabel>
         {PLAYER_AWARD_TYPES.map((type) => (
           <PlayerAwardCard
@@ -149,7 +171,7 @@ export function AwardsAdminTab() {
             type={type}
             roster={roster}
             slot={awards?.player?.[type]}
-            onChange={(nominees, winnerPlayerKey) => void savePlayerSlot(type, nominees, winnerPlayerKey)}
+            onChange={(nominees, winnerPlayerKey) => savePlayerSlot(type, nominees, winnerPlayerKey)}
           />
         ))}
 
@@ -166,7 +188,7 @@ export function AwardsAdminTab() {
               games={games}
               categoryId={categoryId}
               override={awards?.teamOverrides?.[type]}
-              onOverride={(o) => void saveOverride(type, o)}
+              onOverride={(o) => saveOverride(type, o)}
             />
           ))}
         </Card>
@@ -192,9 +214,10 @@ function PlayerAwardCard({
   type: PlayerAwardType;
   roster: FlatPlayer[];
   slot?: { nominees: PlayerAwardNominee[]; winnerPlayerKey?: string };
-  onChange: (nominees: PlayerAwardNominee[], winnerPlayerKey?: string) => void;
+  onChange: (nominees: PlayerAwardNominee[], winnerPlayerKey?: string) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const nominees = slot?.nominees ?? NO_NOMINEES;
   const winnerPlayerKey = slot?.winnerPlayerKey;
 
@@ -207,20 +230,34 @@ function PlayerAwardCard({
       .slice(0, 6);
   }, [query, roster, nominees]);
 
+  // Every change here writes straight to Firestore — there's no separate
+  // Save button — so this is the only signal the admin gets that a click
+  // actually did something (and, on a real failure, that it didn't).
+  async function commit(next: PlayerAwardNominee[], nextWinner: string | undefined) {
+    setSaveState("saving");
+    try {
+      await onChange(next, nextWinner);
+      setSaveState("saved");
+      setTimeout(() => setSaveState((s) => (s === "saved" ? "idle" : s)), 1500);
+    } catch {
+      setSaveState("failed");
+    }
+  }
+
   function addNominee(p: FlatPlayer) {
     if (nominees.length >= MAX_PLAYER_AWARD_NOMINEES) return;
     const next = [...nominees, { playerKey: p.playerKey, name: p.name, teamId: p.teamId, teamName: p.teamName }];
-    onChange(next, winnerPlayerKey);
     setQuery("");
+    void commit(next, winnerPlayerKey);
   }
 
   function removeNominee(playerKey: string) {
     const next = nominees.filter((n) => n.playerKey !== playerKey);
-    onChange(next, winnerPlayerKey === playerKey ? undefined : winnerPlayerKey);
+    void commit(next, winnerPlayerKey === playerKey ? undefined : winnerPlayerKey);
   }
 
   function toggleWinner(playerKey: string) {
-    onChange(nominees, winnerPlayerKey === playerKey ? undefined : playerKey);
+    void commit(nominees, winnerPlayerKey === playerKey ? undefined : playerKey);
   }
 
   return (
@@ -233,13 +270,16 @@ function PlayerAwardCard({
             marginLeft: "auto",
             fontSize: 11,
             fontWeight: 700,
-            color: winnerPlayerKey ? theme.color.success : theme.color.textMuted,
-            background: winnerPlayerKey ? theme.color.successBg : theme.color.bg,
+            color: saveState === "failed" ? theme.color.danger : winnerPlayerKey ? theme.color.success : theme.color.textMuted,
+            background: saveState === "failed" ? theme.color.dangerBg : winnerPlayerKey ? theme.color.successBg : theme.color.bg,
             padding: "2px 8px",
             borderRadius: 999,
           }}
         >
-          {nominees.length}/{MAX_PLAYER_AWARD_NOMINEES}{winnerPlayerKey ? " · Winner set" : ""}
+          {saveState === "saving" && "Saving…"}
+          {saveState === "saved" && "✓ Saved"}
+          {saveState === "failed" && "⚠ Couldn't save — retry"}
+          {saveState === "idle" && `${nominees.length}/${MAX_PLAYER_AWARD_NOMINEES}${winnerPlayerKey ? " · Winner set" : ""}`}
         </span>
       </div>
 
@@ -248,6 +288,7 @@ function PlayerAwardCard({
           <input
             placeholder="Search player name…"
             value={query}
+            autoComplete="off"
             onChange={(e) => setQuery(e.target.value)}
             style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: `1.5px solid ${theme.color.border}`, fontSize: 13 }}
           />
@@ -371,7 +412,7 @@ function TeamAwardRow({
   games: Parameters<typeof resolveTeamAward>[0];
   categoryId: string;
   override?: TeamAwardOverride;
-  onOverride: (o: TeamAwardOverride | null) => void;
+  onOverride: (o: TeamAwardOverride | null) => Promise<void>;
 }) {
   const [picking, setPicking] = useState(false);
   if (!applicable) {
@@ -410,10 +451,10 @@ function TeamAwardRow({
             defaultValue=""
             onChange={(e) => {
               if (!e.target.value) {
-                onOverride(null);
+                void onOverride(null);
               } else {
                 const t = teams.find((x) => x.id === e.target.value);
-                if (t) onOverride({ teamId: t.id, teamName: t.name });
+                if (t) void onOverride({ teamId: t.id, teamName: t.name });
               }
               setPicking(false);
             }}

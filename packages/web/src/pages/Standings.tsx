@@ -41,6 +41,18 @@ const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: str
 };
 const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
+// A soft rule between the W-D-L results block and the Path to Sunday column
+// — without it the two groups read as one run-on row of text, since both
+// are just terse right-aligned fragments with no other visual break.
+const pathDividerStyle: React.CSSProperties = {
+  alignSelf: "stretch",
+  display: "flex",
+  alignItems: "center",
+  borderLeft: `1px solid ${theme.color.border}`,
+  paddingLeft: 16,
+  justifySelf: "start",
+};
+
 export function Standings() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -199,7 +211,7 @@ export function Standings() {
                     style={{
                       display: "grid",
                       gridTemplateColumns: gridCols,
-                      gap: 10,
+                      gap: 16,
                       padding: "10px 14px",
                       fontSize: 11.5,
                       fontWeight: 700,
@@ -211,13 +223,15 @@ export function Standings() {
                     <span>TEAM</span>
                     {!isFestival && (
                       <>
-                        <span>PTS</span>
-                        <span>GD</span>
-                        <span>GF</span>
-                        <span>W-D-L</span>
+                        <span style={{ textAlign: "right" }}>PTS</span>
+                        <span style={{ textAlign: "right" }}>GD</span>
+                        <span style={{ textAlign: "right" }}>GF</span>
+                        <span style={{ textAlign: "right" }}>W-D-L</span>
                       </>
                     )}
-                    {showPath && <span>PATH TO SUNDAY</span>}
+                    {showPath && (
+                      <span style={pathDividerStyle}>PATH TO SUNDAY</span>
+                    )}
                   </div>
                   {list.map((t, i) => {
                     const dest = showPath ? seedDestination(activeCategory!.bracketTemplate, t.stats.groupRank ?? i + 1) : null;
@@ -233,7 +247,7 @@ export function Standings() {
                         style={{
                           display: "grid",
                           gridTemplateColumns: gridCols,
-                          gap: 10,
+                          gap: 16,
                           padding: "12px 14px",
                           fontSize: 14,
                           alignItems: "center",
@@ -257,32 +271,33 @@ export function Standings() {
                         </span>
                         {!isFestival && (
                           <>
-                            <span style={{ fontWeight: 800 }}>{t.stats.points}</span>
-                            <span>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
-                            <span>{t.stats.goalsFor}</span>
-                            <span>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
+                            <span style={{ fontWeight: 800, textAlign: "right" }}>{t.stats.points}</span>
+                            <span style={{ textAlign: "right" }}>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
+                            <span style={{ textAlign: "right" }}>{t.stats.goalsFor}</span>
+                            <span style={{ textAlign: "right" }}>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
                           </>
                         )}
                         {showPath && dest && (
-                          <span
-                            style={
-                              pathColor
-                                ? {
-                                    fontSize: 11,
-                                    fontWeight: 800,
-                                    letterSpacing: 0.3,
-                                    textTransform: "uppercase",
-                                    color: pathColor.fg,
-                                    background: pathColor.bg,
-                                    padding: "4px 9px",
-                                    borderRadius: 999,
-                                    whiteSpace: "nowrap",
-                                    justifySelf: "start",
-                                  }
-                                : { fontSize: 12.5, color: theme.color.textMuted, justifySelf: "start" }
-                            }
-                          >
-                            {dest.eliminated ? "Eliminated" : dest.label}
+                          <span style={pathDividerStyle}>
+                            <span
+                              style={
+                                pathColor
+                                  ? {
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      letterSpacing: 0.3,
+                                      textTransform: "uppercase",
+                                      color: pathColor.fg,
+                                      background: pathColor.bg,
+                                      padding: "4px 9px",
+                                      borderRadius: 999,
+                                      whiteSpace: "nowrap",
+                                    }
+                                  : { fontSize: 12.5, color: theme.color.textMuted }
+                              }
+                            >
+                              {dest.eliminated ? "Eliminated" : dest.label}
+                            </span>
                           </span>
                         )}
                       </div>
