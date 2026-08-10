@@ -117,13 +117,11 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   }
 
   async function uploadUri(uri: string, path: string): Promise<string> {
-    // TEMPORARILY reverted off expo-image-manipulator (see git history) —
-    // that import is the prime suspect for build #58 crashing on open in
-    // TestFlight (it calls requireNativeModule at module scope, and this
-    // screen is statically imported by RootNavigator at app startup, so a
-    // missing native module there throws before any screen ever renders).
-    // Shipping this as a plain fetch+upload removes the import entirely so
-    // it goes out as an OTA hotfix without needing a new native build.
+    // Plain fetch+upload — expo-image-manipulator was removed entirely after
+    // it crashed build #58 on launch (it calls requireNativeModule at module
+    // scope, and this screen is statically imported by RootNavigator at app
+    // startup, so a missing native module there throws before any screen
+    // ever renders). See git history if the JPEG-reencode fix is retried.
     const response = await withTimeout(fetch(uri), 20000, "Reading photo");
     const blob = await response.blob();
     const storageRef = ref(storage, path);
