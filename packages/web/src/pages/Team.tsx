@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { channelHasUnread, type RosterEntry } from "@umoja/shared";
+import {
+  channelHasUnread,
+  formatKickoffTime,
+  provisionalSideLabel,
+  TOURNAMENT_DAY_DATES,
+  type Game,
+  type RosterEntry,
+} from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
-import { useCategories, useGames, useMoments, useSponsors, useTeam, useTeamChannel } from "../hooks/useData";
+import { useCategories, useGames, useMoments, useSponsors, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
 import { markChannelRead } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { RosterTile } from "../components/RosterTile";
@@ -15,6 +22,11 @@ import { SponsorStrip } from "../components/SponsorStrip";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
 
+/** Short "SAT · AUG 15" tile label — day abbreviation always paired with its actual date. */
+function dayDateLabel(day: Game["day"]) {
+  return `${day.toUpperCase()} · ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
+}
+
 export function Team() {
   const { teamId } = useParams();
   const navigate = useNavigate();
@@ -25,11 +37,13 @@ export function Team() {
   const { data: moments } = useMoments();
   const { data: channel } = useTeamChannel(teamId);
   const { data: sponsors } = useSponsors();
+  const { data: teams } = useTeams();
   const [tab, setTab] = useState<Tab>("roster");
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
   const channelUnread = channelHasUnread(channel?.messages, channel?.lastReadBy, user?.uid);
+  const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   useEffect(() => {
     if (tab === "channel" && user && teamId) void markChannelRead({ kind: "team", id: teamId });
@@ -94,12 +108,38 @@ export function Team() {
 
         {tab === "schedule" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {teamGames.map((g) => (
-              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-                <span style={{ fontSize: 13.5 }}>{g.day.toUpperCase()} · {g.field}</span>
-                <StatusBadge status={g.status} />
-              </Card>
-            ))}
+            {teamGames.map((g) => {
+              const isHome = g.homeTeamId === team.id;
+              const opponent = teamById.get(isHome ? g.awayTeamId : g.homeTeamId);
+              const opponentLabel =
+                opponent?.name ??
+                provisionalSideLabel(isHome ? g.awayDrawPos : g.homeDrawPos, isHome ? g.awayRef : g.homeRef) ??
+                "TBD";
+              const homeGoals = g.homeScore ?? 0;
+              const awayGoals = g.awayScore ?? 0;
+              return (
+                <Card
+                  key={g.id}
+                  onClick={() => navigate(`/game/${g.id}`)}
+                  style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}
+                >
+                  <div>
+                    <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 2 }}>
+                      {dayDateLabel(g.day)} · {g.field}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>
+                      {isHome ? "vs" : "@"} {opponentLabel}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <StatusBadge status={g.status} />
+                    <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 16, marginTop: 4 }}>
+                      {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
             {teamGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
         )}

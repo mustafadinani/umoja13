@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, TOURNAMENT_START_AT, type RosterEntry } from "@umoja/shared";
+import {
+  CATEGORIES,
+  TOURNAMENT_START_AT,
+  TOURNAMENT_DAY_DATES,
+  formatKickoffTime,
+  provisionalSideLabel,
+  type Game,
+  type RosterEntry,
+} from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
+import { useGames, useMoments, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
 import { sendTeamMessage, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
@@ -16,6 +24,11 @@ import { MomentUploadModal } from "../components/MomentUploadModal";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
 
+/** Short "SAT · AUG 15" tile label — day abbreviation always paired with its actual date. */
+function dayDateLabel(day: Game["day"]) {
+  return `${day.toUpperCase()} · ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
+}
+
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
   const { profile } = useAuth();
@@ -23,6 +36,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data: games } = useGames();
   const { data: moments } = useMoments();
   const { data: channel } = useTeamChannel(teamId);
+  const { data: teams } = useTeams();
   const [tab, setTab] = useState<Tab>("roster");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -32,6 +46,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [addMomentOpen, setAddMomentOpen] = useState(false);
   const [channelDraft, setChannelDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
@@ -150,12 +165,38 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
       {tab === "schedule" && (
         <View style={styles.section}>
-          {teamGames.map((g) => (
-            <Card key={g.id} onPress={() => navigation.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between" }}>
-              <Text>{g.day.toUpperCase()} · {g.field}</Text>
-              <StatusBadge status={g.status} />
-            </Card>
-          ))}
+          {teamGames.map((g) => {
+            const isHome = g.homeTeamId === team.id;
+            const opponent = teamById.get(isHome ? g.awayTeamId : g.homeTeamId);
+            const opponentLabel =
+              opponent?.name ??
+              provisionalSideLabel(isHome ? g.awayDrawPos : g.homeDrawPos, isHome ? g.awayRef : g.homeRef) ??
+              "TBD";
+            const homeGoals = g.homeScore ?? 0;
+            const awayGoals = g.awayScore ?? 0;
+            return (
+              <Card
+                key={g.id}
+                onPress={() => navigation.navigate("Game", { gameId: g.id })}
+                style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <View>
+                  <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 2 }}>
+                    {dayDateLabel(g.day)} · {g.field}
+                  </Text>
+                  <Text style={{ fontWeight: "600", fontSize: 14.5 }}>
+                    {isHome ? "vs" : "@"} {opponentLabel}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <StatusBadge status={g.status} />
+                  <Text style={{ fontWeight: "800", fontSize: 16, marginTop: 4 }}>
+                    {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
+                  </Text>
+                </View>
+              </Card>
+            );
+          })}
           {teamGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
         </View>
       )}
