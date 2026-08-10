@@ -263,6 +263,11 @@ export function Modal({ children, onClose, width = 440 }: { children: ReactNode;
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#fff",
+          // Explicit, not inherited: a Modal rendered from inside the nav
+          // bar (e.g. NotificationsBell/MessagesBell) would otherwise
+          // inherit the nav's white text color onto this white background —
+          // any child div that doesn't set its own color goes invisible.
+          color: theme.color.text,
           borderRadius: theme.radius.lg,
           width,
           maxWidth: "100%",
@@ -307,6 +312,7 @@ export function Drawer({
         style={{
           position: "relative",
           background: "#fff",
+          color: theme.color.text, // same not-inherited fix as Modal — see comment there
           width,
           maxWidth: "100%",
           height: "100%",

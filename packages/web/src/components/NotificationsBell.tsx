@@ -54,7 +54,11 @@ export function NotificationsBell() {
           {inbox.map((e) => (
             <div
               key={`${e.kind}-${e.id}`}
-              onClick={() => e.kind === "announcement" && setOpenAnnouncementId(e.id)}
+              onClick={() => {
+                if (e.kind !== "announcement") return;
+                setOpenAnnouncementId(e.id);
+                setOpen(false);
+              }}
               style={{ padding: "10px 14px", borderBottom: `1px solid ${theme.color.border}`, cursor: e.kind === "announcement" ? "pointer" : "default" }}
             >
               {e.kind === "announcement" && (
