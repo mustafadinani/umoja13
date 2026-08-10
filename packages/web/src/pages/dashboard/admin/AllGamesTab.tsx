@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, GAME_FIELDS, compareGamesByKickoff, formatKickoffTime, type Game } from "@umoja/shared";
+import { CATEGORIES, GAME_FIELDS, compareGamesByKickoff, formatKickoffTime } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
@@ -12,7 +12,15 @@ export function AllGamesTab() {
   const [search, setSearch] = useState("");
   const [field, setField] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [detailGame, setDetailGame] = useState<Game | null>(null);
+  // Track just the id, not the Game object itself — a frozen object snapshot
+  // from click-time never picked up any of GameDetailModal's own edits (or
+  // anyone else's), so every save silently "worked" in Firestore while the
+  // open modal kept showing the pre-edit value, looking exactly like nothing
+  // saved. Deriving the game fresh from the live `games` list every render
+  // means the modal re-renders with real data the moment its own writes
+  // (or another tab's) land.
+  const [detailGameId, setDetailGameId] = useState<string | null>(null);
+  const detailGame = detailGameId ? games.find((g) => g.id === detailGameId) ?? null : null;
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -50,7 +58,7 @@ export function AllGamesTab() {
           const home = teamById.get(g.homeTeamId);
           const away = teamById.get(g.awayTeamId);
           return (
-            <Card key={g.id} onClick={() => setDetailGame(g)} data-testid="admin-game-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <Card key={g.id} onClick={() => setDetailGameId(g.id)} data-testid="admin-game-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <div style={{ minWidth: 160 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
                 <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
@@ -67,7 +75,7 @@ export function AllGamesTab() {
       </div>
 
       {addOpen && <AddGameModal onClose={() => setAddOpen(false)} />}
-      {detailGame && <GameDetailModal game={detailGame} onClose={() => setDetailGame(null)} />}
+      {detailGame && <GameDetailModal game={detailGame} onClose={() => setDetailGameId(null)} />}
     </div>
   );
 }
