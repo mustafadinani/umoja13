@@ -165,7 +165,7 @@ function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team:
       rosterChecked={rosterChecked}
       trailing={
         <>
-          {isMotm && <span style={{ fontSize: 11, fontWeight: 700, color: theme.color.warning }}>★ MOTM</span>}
+          {isMotm && <span style={{ fontSize: 11, fontWeight: 700, color: theme.color.warning }}>★ Player of the Game</span>}
           {cardEvents.map((e) => (
             <span key={e.id} style={{ fontSize: 12 }}>{EVENT_ICON[e.type]}</span>
           ))}

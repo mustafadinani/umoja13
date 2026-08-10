@@ -186,9 +186,9 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
             </View>
           </View>
 
-          {/* Step 3: MOTM */}
+          {/* Step 3: Player of the Game */}
           <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
-            <StepLabel n={3} title="MAN OF THE MATCH" />
+            <StepLabel n={3} title="PLAYER OF THE GAME" />
             <View style={{ gap: 6 }}>
               {roster.map((p) => {
                 const playerKey = p.playerKey ?? p.userId;

@@ -26,7 +26,7 @@ export const submitGameCard = onCall<SubmitGameCardRequest>(async (request) => {
     throw new HttpsError("failed-precondition", "Complete the gate check before submitting the game card.");
   }
   if (!game.motmUserId) {
-    throw new HttpsError("failed-precondition", "Pick Man of the Match before submitting the game card.");
+    throw new HttpsError("failed-precondition", "Pick Player of the Game before submitting the game card.");
   }
 
   await ref.set(

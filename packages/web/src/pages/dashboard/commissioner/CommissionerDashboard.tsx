@@ -8,6 +8,7 @@ import { Card, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { IncidentReplyModal } from "../../../components/IncidentReplyModal";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
+import { AllGamesTab } from "../admin/AllGamesTab";
 
 export function CommissionerDashboard() {
   const { data: awaitingGames } = useGames([where("gameCard.status", "==", "awaiting_commissioner")]);
@@ -16,6 +17,7 @@ export function CommissionerDashboard() {
   const [cardPhotoUrl, setCardPhotoUrl] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const [showAllGames, setShowAllGames] = useState(false);
 
   const openIncident = incidents.find((i) => i.id === openIncidentId) ?? null;
 
@@ -71,6 +73,17 @@ export function CommissionerDashboard() {
         {incidents.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Nothing here.</div>}
       </div>
 
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, marginTop: 28 }}>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>ALL GAMES</div>
+        <button
+          onClick={() => setShowAllGames((v) => !v)}
+          style={{ background: "none", border: "none", color: theme.color.purple, fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0 }}
+        >
+          {showAllGames ? "Hide" : "Adjust time, field, teams, cards…"}
+        </button>
+      </div>
+      {showAllGames && <AllGamesTab />}
+
       {openIncident && <IncidentReplyModal incident={openIncident} onClose={() => setOpenIncidentId(null)} />}
       {cardPhotoUrl && <GameCardPhotoModal url={cardPhotoUrl} onClose={() => setCardPhotoUrl(null)} />}
     </div>
@@ -101,7 +114,7 @@ function FinalizeRow({
         <div style={{ minWidth: 160 }}>
           <div style={{ fontWeight: 700 }}>{home.name} {homeGoals}–{awayGoals} {away.name}</div>
           <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>
-            {CATEGORIES.find((c) => c.id === home.categoryId)?.label} {motmPlayer && `· MOTM: ${motmPlayer.displayName}`}
+            {CATEGORIES.find((c) => c.id === home.categoryId)?.label} {motmPlayer && `· Player of the Game: ${motmPlayer.displayName}`}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

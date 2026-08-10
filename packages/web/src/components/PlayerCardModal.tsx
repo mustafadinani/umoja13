@@ -62,7 +62,7 @@ export function PlayerCardModal({
           <StatBox icon="⚽" value={stats.gamesPlayed} label="Games" />
           <StatBox icon="🟨" value={stats.yellowCards} label="Yellow" />
           <StatBox icon="🟥" value={stats.redCards} label="Red" />
-          <StatBox icon="★" value={stats.motmCount} label="MOTM" />
+          <StatBox icon="★" value={stats.motmCount} label="Player of the Game" />
         </div>
 
         {player.lineOfWork && (

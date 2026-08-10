@@ -202,9 +202,9 @@ export function RefereeGameConsole() {
             </div>
           </div>
 
-          {/* Step 3: MOTM */}
+          {/* Step 3: Player of the Game */}
           <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
-            <StepLabel n={3} title="MAN OF THE MATCH" />
+            <StepLabel n={3} title="PLAYER OF THE GAME" />
             <div data-testid="motm-section" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {roster.map((p) => {
                 const playerKey = p.playerKey ?? p.userId;
