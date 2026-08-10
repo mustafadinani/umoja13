@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
 import { doc, setDoc, getDoc, deleteField } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -118,22 +117,14 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   }
 
   async function uploadUri(uri: string, path: string): Promise<string> {
-    // The camera capture can come back HEIC on some phones (mostly iPhones
-    // set to "High Efficiency" photo format) even though the picker was
-    // asked for "images" — ImagePicker just hands back whatever the OS
-    // captured. Labeling the upload `contentType: "image/jpeg"` alone (the
-    // old code) doesn't fix that: the bytes are still real HEIC, so
-    // browsers other than Safari (i.e. basically every admin reviewing
-    // check-ins on a laptop) can't decode it and the review screen shows a
-    // blank box even though the file uploaded fine. Actually re-encoding
-    // through ImageManipulator guarantees the uploaded bytes are real JPEG
-    // regardless of source format.
-    const jpeg = await withTimeout(
-      ImageManipulator.manipulateAsync(uri, [], { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }),
-      20000,
-      "Preparing photo"
-    );
-    const response = await withTimeout(fetch(jpeg.uri), 20000, "Reading photo");
+    // TEMPORARILY reverted off expo-image-manipulator (see git history) —
+    // that import is the prime suspect for build #58 crashing on open in
+    // TestFlight (it calls requireNativeModule at module scope, and this
+    // screen is statically imported by RootNavigator at app startup, so a
+    // missing native module there throws before any screen ever renders).
+    // Shipping this as a plain fetch+upload removes the import entirely so
+    // it goes out as an OTA hotfix without needing a new native build.
+    const response = await withTimeout(fetch(uri), 20000, "Reading photo");
     const blob = await response.blob();
     const storageRef = ref(storage, path);
     await withTimeout(uploadBytes(storageRef, blob, { contentType: "image/jpeg" }), 45000, "Photo upload");
