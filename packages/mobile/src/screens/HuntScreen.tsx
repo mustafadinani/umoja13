@@ -4,12 +4,12 @@ import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
+import { COLLECTIONS, HUNT_LAUNCH_LABEL, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useMyInvites } from "../hooks/useData";
+import { useChallenges, useHuntConfig, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useMyInvites } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
 import { ChallengeDetailModal } from "../components/ChallengeDetailModal";
 import { Lightbox } from "../components/Lightbox";
@@ -65,6 +65,7 @@ function ResultBadge({ status, wonPoints }: { status: "won" | "pending" | "rejec
 
 export function HuntScreen() {
   const { user, profile } = useAuth();
+  const { data: huntConfig, loading: huntConfigLoading } = useHuntConfig();
   const { data: crew } = useMyCrew(user?.uid);
   const { data: missions } = useHuntMissions();
   const { data: challenges } = useChallenges();
@@ -229,6 +230,33 @@ export function HuntScreen() {
       await updateDoc(doc(db, COLLECTIONS.huntCrews, crew.id), { points: crew.points + openMission.points, missionsCompleted: arrayUnion(openMission.id) });
     }
     setJustSubmitted(correct ? "correct" : "wrong");
+  }
+
+  // Built and seeded well ahead of when it should be playable — hidden
+  // behind this admin-controlled switch (web Admin → The Hunt) until staff
+  // are ready. Wait for the config doc to actually load first, so a fresh
+  // screen mount doesn't flash the coming-soon view before it's known.
+  if (!huntConfigLoading && !huntConfig?.started) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
+        <LinearGradient colors={hunterGradient} style={styles.hero}>
+          <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
+          <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
+        </LinearGradient>
+        <View style={{ padding: 16 }}>
+          <Card style={{ alignItems: "center", paddingVertical: 40 }}>
+            <Text style={{ fontSize: 36, marginBottom: 10 }}>🔒</Text>
+            <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 8, textAlign: "center" }}>
+              Scavenger Hunt opens {HUNT_LAUNCH_LABEL}
+            </Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 13, lineHeight: 20, textAlign: "center" }}>
+              Crews, missions, challenges, and the leaderboard all go live once the weekend kicks off. Check back
+              then — or keep an eye on your notifications, we'll let you know.
+            </Text>
+          </Card>
+        </View>
+      </ScrollView>
+    );
   }
 
   return (

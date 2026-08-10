@@ -29,6 +29,8 @@ import {
   type PodTask,
   type Draw,
   type CategoryAwards,
+  type HuntConfig,
+  HUNT_CONFIG_DOC_ID,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -104,6 +106,9 @@ export const useMoments = (approvedOnly = true) =>
   );
 
 export const useHuntCrews = () => useCollection<HuntCrew>(COLLECTIONS.huntCrews, [orderBy("points", "desc")]);
+
+/** The single admin-controlled switch that reveals The Hunt to everyone — see types/huntConfig.ts. */
+export const useHuntConfig = () => useDocument<HuntConfig>(COLLECTIONS.config, HUNT_CONFIG_DOC_ID);
 
 export const useIncidents = (constraints: QueryConstraint[] = []) =>
   useCollection<Incident>(COLLECTIONS.incidents, [orderBy("createdAt", "desc"), ...constraints]);

@@ -2,11 +2,12 @@ import { useState } from "react";
 import type { HuntMissionType, HuntMission, Challenge } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useSponsors } from "../hooks/useData";
+import { useChallenges, useHuntConfig, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useSponsors } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
 import { HuntFeed } from "../components/HuntFeed";
 import { SponsorStrip } from "../components/SponsorStrip";
 import { CrewCreateWizard } from "./hunt/CrewCreateWizard";
+import { HuntComingSoon } from "./hunt/HuntComingSoon";
 import { InvitesBanner } from "./hunt/InvitesBanner";
 import { MissionDetailModal } from "./hunt/MissionDetailModal";
 import { ChallengeDetailModal } from "./hunt/ChallengeDetailModal";
@@ -41,6 +42,7 @@ function activeChallenge(c: Challenge, now: number) {
 
 export function Hunt() {
   const { user } = useAuth();
+  const { data: huntConfig, loading: huntConfigLoading } = useHuntConfig();
   const { data: missions } = useHuntMissions();
   const { data: challenges } = useChallenges();
   const { data: crew } = useMyCrew(user?.uid);
@@ -69,6 +71,14 @@ export function Hunt() {
   const totalDone = crew ? crew.missionsCompleted.length + (crew.challengesCompleted?.length ?? 0) : 0;
   const totalAvailable = missions.length + challenges.length;
   const progressPct = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
+
+  // Built and seeded well ahead of when it should be playable — hidden
+  // behind this admin-controlled switch until staff are ready (Admin →
+  // The Hunt). Wait for the config doc to actually load before deciding,
+  // so a fresh page load doesn't flash the coming-soon page first.
+  if (!huntConfigLoading && !huntConfig?.started) {
+    return <HuntComingSoon sponsors={sponsors} />;
+  }
 
   return (
     <div>

@@ -142,6 +142,14 @@ export const PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS = [
 /** Aug 14 2026 00:00 America/New_York — once check-in/jersey numbers are locked for the tournament. */
 export const TOURNAMENT_START_AT = new Date("2026-08-14T00:00:00-04:00").getTime();
 
+/**
+ * Display-only — the date shown on the Hunt's "coming soon" page. The
+ * actual gate is the admin-controlled `config/hunt.started` flag (see
+ * types/huntConfig.ts), not this date; staff flip that switch whenever
+ * they're ready, which may or may not be exactly this day.
+ */
+export const HUNT_LAUNCH_LABEL = "August 13";
+
 /** Actual calendar date per tournament day — "Fri"/"Sat"/"Sun" alone doesn't say which Friday, so anywhere a bare day abbreviation is shown to a user should pair it with this. */
 export const TOURNAMENT_DAY_DATES: Record<"fri" | "sat" | "sun", string> = {
   fri: "Aug 14",

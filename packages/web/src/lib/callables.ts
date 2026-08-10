@@ -162,6 +162,11 @@ export const markChannelRead = httpsCallable<
   { ok: true }
 >(functions, "markChannelRead");
 
+export const setHuntStarted = httpsCallable<{ started: boolean }, { started: boolean }>(
+  functions,
+  "setHuntStarted"
+);
+
 export const setJerseyNumber = httpsCallable<
   { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }

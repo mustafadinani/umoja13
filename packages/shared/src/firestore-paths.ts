@@ -43,6 +43,8 @@ export const COLLECTIONS = {
   accountDelete: "accountDelete",
   /** One doc per category, id == categoryId — award-ceremony nominees/winners (see types/awards.ts). */
   categoryAwards: "categoryAwards",
+  /** Single-doc-per-feature settings, Cloud-Function-only writes (see types/huntConfig.ts for the Hunt's doc). */
+  config: "config",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

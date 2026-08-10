@@ -14,6 +14,7 @@ import {
   unreadCount,
   compareGamesByKickoff,
   formatKickoffTime,
+  HUNT_LAUNCH_LABEL,
   type Sponsor,
   type PlayerMembership,
 } from "@umoja/shared";
@@ -22,6 +23,7 @@ import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import {
   useAnnouncements,
   useGames,
+  useHuntConfig,
   useMoments,
   useMyNotifications,
   useSponsors,
@@ -65,6 +67,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: notifications } = useMyNotifications(user?.uid);
   const hasUnreadNotifications = unreadCount(buildInbox(notifications, announcements)) > 0;
   const { data: sponsors } = useSponsors();
+  const { data: huntConfig } = useHuntConfig();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
   const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
@@ -255,8 +258,10 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       {!isReferee && (
         <TouchableOpacity onPress={() => navigation.navigate("Hunt")} activeOpacity={0.85}>
           <LinearGradient colors={hunterGradient} style={styles.huntTile}>
-            <Text style={styles.huntTitle}>THE HUNT · WIN $500</Text>
-            <Text style={styles.huntSub}>45 missions around the plex →</Text>
+            <Text style={styles.huntTitle}>{huntConfig?.started ? "THE HUNT · WIN $500" : "🔒 THE HUNT"}</Text>
+            <Text style={styles.huntSub}>
+              {huntConfig?.started ? "45 missions around the plex →" : `45 missions, $500 grand prize — opens ${HUNT_LAUNCH_LABEL}`}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       )}

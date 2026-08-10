@@ -26,6 +26,8 @@ import {
   type Pod,
   type PodChannel,
   type PodTask,
+  type HuntConfig,
+  HUNT_CONFIG_DOC_ID,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -44,6 +46,9 @@ export function useCategories() {
 export const useSponsors = () => useCollection<Sponsor>(COLLECTIONS.sponsors);
 export const useAnnouncements = () => useCollection<Announcement>(COLLECTIONS.announcements, [orderBy("postedAt", "desc")]);
 export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.huntMissions);
+
+/** The single admin-controlled switch that reveals The Hunt to everyone — see types/huntConfig.ts. */
+export const useHuntConfig = () => useDocument<HuntConfig>(COLLECTIONS.config, HUNT_CONFIG_DOC_ID);
 
 export const useTeams = (categoryId?: string) => useRegistrationTeams(categoryId);
 

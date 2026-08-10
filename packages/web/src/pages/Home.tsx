@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useAnnouncements, useGames, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
+import { useAnnouncements, useGames, useHuntConfig, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
-import { CATEGORIES, VENUE, formatKickoffTime } from "@umoja/shared";
+import { CATEGORIES, HUNT_LAUNCH_LABEL, VENUE, formatKickoffTime } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
 import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
 import { SponsorStrip } from "../components/SponsorStrip";
@@ -22,6 +22,7 @@ export function Home() {
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
   const { data: crews } = useHuntCrews();
+  const { data: huntConfig } = useHuntConfig();
   const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [volunteerOpen, setVolunteerOpen] = useState(false);
@@ -199,15 +200,25 @@ export function Home() {
             {announcements.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13 }}>No announcements yet.</div>}
           </Card>
           <div style={{ background: hunterGradient, color: "#fff", borderRadius: 16, padding: 18, cursor: "pointer" }} onClick={() => navigate("/hunt")}>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>JOIN THE HUNT</div>
-            <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>45 missions across 3 days. $500 grand prize at Sunday's ceremony.</div>
-            {topCrews.map((c, i) => (
-              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)", flexWrap: "wrap", gap: 6 }}>
-                <span>{i + 1}. {c.name}</span>
-                <span>{c.points} pts</span>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>
+              {huntConfig?.started ? "JOIN THE HUNT" : "🔒 THE HUNT"}
+            </div>
+            {huntConfig?.started ? (
+              <>
+                <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>45 missions across 3 days. $500 grand prize at Sunday's ceremony.</div>
+                {topCrews.map((c, i) => (
+                  <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)", flexWrap: "wrap", gap: 6 }}>
+                    <span>{i + 1}. {c.name}</span>
+                    <span>{c.points} pts</span>
+                  </div>
+                ))}
+                {topCrews.length === 0 && <div style={{ fontSize: 13, opacity: 0.85 }}>Be the first crew on the board.</div>}
+              </>
+            ) : (
+              <div style={{ fontSize: 13.5, opacity: 0.92, marginTop: 6 }}>
+                45 missions across 3 days, $500 grand prize — opens {HUNT_LAUNCH_LABEL}.
               </div>
-            ))}
-            {topCrews.length === 0 && <div style={{ fontSize: 13, opacity: 0.85 }}>Be the first crew on the board.</div>}
+            )}
           </div>
         </div>
       </div>

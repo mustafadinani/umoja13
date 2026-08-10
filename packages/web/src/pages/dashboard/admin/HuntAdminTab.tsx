@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { addDoc, collection, doc, deleteDoc, updateDoc, arrayUnion, where } from "firebase/firestore";
-import { COLLECTIONS, type HuntMissionType, type HuntSubmission } from "@umoja/shared";
+import { COLLECTIONS, HUNT_LAUNCH_LABEL, type HuntMissionType, type HuntSubmission } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
-import { useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
+import { useHuntConfig, useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
 import { useAuth } from "../../../auth/AuthProvider";
+import { setHuntStarted } from "../../../lib/callables";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 import { ChallengesAdminTab } from "./ChallengesAdminTab";
@@ -28,6 +29,7 @@ const DAYS: { id: "1" | "2" | "3" | "open"; label: string }[] = [
 
 export function HuntAdminTab() {
   const { user } = useAuth();
+  const { data: huntConfig } = useHuntConfig();
   const { data: missions } = useHuntMissions();
   const { data: crews } = useHuntCrews();
   const { data: pendingSubmissions } = useHuntSubmissions([where("status", "==", "pending")]);
@@ -37,8 +39,22 @@ export function HuntAdminTab() {
   const [day, setDay] = useState<"1" | "2" | "3" | "open">("open");
   const [points, setPoints] = useState(75);
   const [busy, setBusy] = useState(false);
+  const [launchBusy, setLaunchBusy] = useState(false);
   const [section, setSection] = useState<"missions" | "challenges">("missions");
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
+
+  async function toggleHuntStarted(started: boolean) {
+    const confirmMsg = started
+      ? "Launch The Hunt now? It becomes visible to everyone immediately."
+      : "Pause The Hunt? It goes back to the \"coming soon\" page for everyone until you launch it again.";
+    if (!window.confirm(confirmMsg)) return;
+    setLaunchBusy(true);
+    try {
+      await setHuntStarted({ started });
+    } finally {
+      setLaunchBusy(false);
+    }
+  }
 
   async function reviewSubmission(submission: HuntSubmission, approve: boolean) {
     if (!user) return;
@@ -97,6 +113,32 @@ export function HuntAdminTab() {
 
   return (
     <div>
+      <Card style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>
+            {huntConfig?.started ? "🟢 The Hunt is LIVE" : "🔒 The Hunt is not started yet"}
+          </div>
+          <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+            {huntConfig?.started
+              ? `Started ${huntConfig.startedAt ? new Date(huntConfig.startedAt).toLocaleString() : ""}${huntConfig.startedByName ? ` by ${huntConfig.startedByName}` : ""}.`
+              : `Everyone sees a "coming soon" page (opens ${HUNT_LAUNCH_LABEL}) until you launch it here.`}
+          </div>
+        </div>
+        {huntConfig?.started ? (
+          <button
+            disabled={launchBusy}
+            onClick={() => toggleHuntStarted(false)}
+            style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", color: theme.color.textMuted }}
+          >
+            {launchBusy ? "…" : "Pause The Hunt"}
+          </button>
+        ) : (
+          <PrimaryButton disabled={launchBusy} onClick={() => toggleHuntStarted(true)}>
+            {launchBusy ? "Launching…" : "🚀 LAUNCH THE HUNT"}
+          </PrimaryButton>
+        )}
+      </Card>
+
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         <Pill active={section === "missions"} onClick={() => setSection("missions")}>Missions</Pill>
         <Pill active={section === "challenges"} onClick={() => setSection("challenges")}>Challenges</Pill>

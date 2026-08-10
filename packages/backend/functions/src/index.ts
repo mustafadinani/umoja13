@@ -39,3 +39,4 @@ export { sendPodMessage } from "./http/sendPodMessage.js";
 export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
 export { markChannelRead } from "./http/markChannelRead.js";
 export { setJerseyNumber } from "./http/setJerseyNumber.js";
+export { setHuntStarted } from "./http/huntConfig.js";
