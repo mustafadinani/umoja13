@@ -6,12 +6,6 @@ import { useRegisteredPlayers } from "../../../hooks/useRegistration";
 import { Card, FilterDropdown, Pill } from "../../../components/ui";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
-const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "needs_review", label: "Pending review" },
-  { id: "approved", label: "Verified" },
-  { id: "rejected", label: "Declined" },
-];
 const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ id: c.id, label: c.label }));
 
 type View = "queue" | "fieldPrefs";
@@ -65,7 +59,7 @@ function ReviewQueue() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("needs_review");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
   const [showEligibility, setShowEligibility] = useState(false);
 
@@ -145,14 +139,10 @@ function ReviewQueue() {
       </div>
 
       <div className="grid-kpi-4" style={{ marginBottom: 16 }}>
-        <Kpi label="Check-ins" value={String(stats.total)} />
-        <Kpi label="Pending review" value={String(stats.pending)} />
-        <Kpi label="Verified" value={String(stats.approved)} />
-        <Kpi label="Declined" value={String(stats.rejected)} />
-      </div>
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
-        {STATUS_FILTERS.map((s) => <Pill key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</Pill>)}
+        <Kpi label="Check-ins" value={String(stats.total)} active={statusFilter === "all"} onClick={() => setStatusFilter("all")} />
+        <Kpi label="Pending review" value={String(stats.pending)} active={statusFilter === "needs_review"} onClick={() => setStatusFilter("needs_review")} />
+        <Kpi label="Verified" value={String(stats.approved)} active={statusFilter === "approved"} onClick={() => setStatusFilter("approved")} />
+        <Kpi label="Declined" value={String(stats.rejected)} active={statusFilter === "rejected"} onClick={() => setStatusFilter("rejected")} />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -255,9 +245,17 @@ function EligibilityReferenceTable() {
 const eligTh: React.CSSProperties = { textAlign: "left", padding: "9px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted };
 const eligTd: React.CSSProperties = { textAlign: "left", padding: "10px 14px" };
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, active, onClick }: { label: string; value: string; active?: boolean; onClick?: () => void }) {
   return (
-    <Card style={{ textAlign: "center", padding: 16 }}>
+    <Card
+      onClick={onClick}
+      style={{
+        textAlign: "center",
+        padding: 16,
+        border: `1.5px solid ${active ? theme.color.navy : theme.color.border}`,
+        background: active ? "#F1EFF5" : "#fff",
+      }}
+    >
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 26 }}>{value}</div>
       <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>{label}</div>
     </Card>
