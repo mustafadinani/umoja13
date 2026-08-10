@@ -40,7 +40,14 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   async function pickLogo() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+    // Ask iOS for the "compatible" asset representation (real JPEG, not
+    // whatever the photo library actually stores it as) — a photo library
+    // pick, unlike a fresh capture, is HEIC on iOS far more often than not.
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+    });
     if (!result.canceled && result.assets[0]) setLogoUri(result.assets[0].uri);
   }
 

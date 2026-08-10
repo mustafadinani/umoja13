@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
-import { db, storage } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useTeams } from "../hooks/useData";
@@ -45,10 +45,7 @@ export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => 
       let selfieUrl: string | undefined;
       if (file) {
         try {
-          const path = `volunteers/${user.uid}/${Date.now()}-${file.name}`;
-          const storageRef = ref(storage, path);
-          await uploadBytes(storageRef, file);
-          selfieUrl = await getDownloadURL(storageRef);
+          selfieUrl = await uploadPickedPhoto(file, `volunteers/${user.uid}/${Date.now()}-${file.name}`);
         } catch {
           setPhotoWarning("Couldn't upload your photo, so we submitted your application without it.");
         }

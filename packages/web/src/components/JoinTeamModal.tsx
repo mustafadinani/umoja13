@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { addDoc, arrayUnion, collection, doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   CATEGORIES,
   COLLECTIONS,
@@ -9,7 +8,8 @@ import {
   REGISTRATION_YEAR,
   type PlayerMembership,
 } from "@umoja/shared";
-import { db, defaultDb, storage } from "../lib/firebase";
+import { db, defaultDb } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { useAuth } from "../auth/AuthProvider";
 import { useTeams } from "../hooks/useData";
 import { theme } from "../lib/theme";
@@ -35,10 +35,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const path = `checkins/${user.uid}/registration/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const registrationPhotoUrl = await getDownloadURL(storageRef);
+      const registrationPhotoUrl = await uploadPickedPhoto(file, `checkins/${user.uid}/registration/${Date.now()}-${file.name}`);
 
       const team = teams.find((t) => t.id === teamId);
       const categoryLabel = CATEGORIES.find((c) => c.id === categoryId)?.label ?? "";

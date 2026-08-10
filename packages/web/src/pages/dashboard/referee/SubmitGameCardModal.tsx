@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../../../lib/firebase";
+import { uploadPickedPhoto } from "../../../lib/uploadPhoto";
 import { theme } from "../../../lib/theme";
 import { submitGameCard } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
@@ -15,10 +14,7 @@ export function SubmitGameCardModal({ gameId, onClose, onSubmitted }: { gameId: 
     setStep("uploading");
     setError(null);
     try {
-      const path = `gameCards/${gameId}/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const photoUrl = await getDownloadURL(storageRef);
+      const photoUrl = await uploadPickedPhoto(file, `gameCards/${gameId}/${Date.now()}-${file.name}`);
       await submitGameCard({ gameId, photoUrl });
       setStep("done");
       onSubmitted();

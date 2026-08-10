@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { doc, setDoc, getDoc, deleteField, where } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   COLLECTIONS,
   CHECKIN_CONSENT_POLICY_VERSION,
@@ -12,7 +11,8 @@ import {
   playerKeyFor,
   type PlayerMembership,
 } from "@umoja/shared";
-import { db, storage } from "../../../lib/firebase";
+import { db } from "../../../lib/firebase";
+import { uploadPickedPhoto } from "../../../lib/uploadPhoto";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useVolunteerApplications } from "../../../hooks/useData";
@@ -74,13 +74,8 @@ export function CheckInModal({
       const existing = await getDoc(doc(db, COLLECTIONS.checkIns, checkInId));
       const attempt = existing.exists() ? (existing.data().attempt ?? 0) + 1 : 1;
 
-      const selfieRef = ref(storage, `checkins/${user.uid}/${checkInId}/selfie-${Date.now()}.jpg`);
-      await uploadBytes(selfieRef, selfie);
-      const selfieUrl = await getDownloadURL(selfieRef);
-
-      const govIdRef = ref(storage, `checkins/${user.uid}/${checkInId}/govid-${Date.now()}.jpg`);
-      await uploadBytes(govIdRef, govId);
-      const govIdUrl = await getDownloadURL(govIdRef);
+      const selfieUrl = await uploadPickedPhoto(selfie, `checkins/${user.uid}/${checkInId}/selfie-${Date.now()}.jpg`);
+      const govIdUrl = await uploadPickedPhoto(govId, `checkins/${user.uid}/${checkInId}/govid-${Date.now()}.jpg`);
 
       await setDoc(
         doc(db, COLLECTIONS.checkIns, checkInId),
@@ -282,14 +277,7 @@ export function CheckInModal({
       )}
 
       {step === "selfie" && (
-        <CaptureStep
-          title="Take a selfie"
-          subtitle="Staff match it to your Tournament Pass at the gate."
-          file={selfie}
-          onPick={setSelfie}
-          capture="user"
-          onNext={() => setStep("govid")}
-        />
+        <LiveSelfieCapture file={selfie} onPick={setSelfie} onNext={() => setStep("govid")} />
       )}
 
       {step === "govid" && (
@@ -357,6 +345,108 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13.5, flexWrap: "wrap", gap: 8 }}>
       <span style={{ color: theme.color.textMuted }}>{label}</span>
       <span style={{ fontWeight: 600, color: valueColor }}>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * The govid step's plain `<input type="file" capture>` is only a HINT on
+ * mobile browsers to open the camera — on a laptop/desktop browser (no
+ * camera-app affordance to hint at) it's just a normal file picker, so
+ * anyone could upload an arbitrary saved photo as their "selfie" instead of
+ * actually taking one live. That's the whole point of a check-in selfie
+ * (matching the person in front of staff to their ID), so it can't be a
+ * file upload on any platform. This drives getUserMedia directly: a live
+ * camera preview with a capture button and no file input anywhere in the
+ * DOM — there is no upload path to bypass, on desktop or mobile web.
+ */
+function LiveSelfieCapture({ file, onPick, onNext }: { file: File | null; onPick: (f: File | null) => void; onNext: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [ready, setReady] = useState(false);
+  const [camError, setCamError] = useState<string | null>(null);
+  const preview = file ? URL.createObjectURL(file) : null;
+
+  useEffect(() => {
+    if (file) return; // already captured this round — don't reopen the camera behind the preview
+    setReady(false);
+    setCamError(null);
+    let cancelled = false;
+    navigator.mediaDevices
+      ?.getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        setReady(true);
+      })
+      .catch(() => {
+        setCamError("Camera access is required for your check-in selfie — this step doesn't accept an uploaded photo. Please allow camera access in your browser and try again.");
+      });
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, [file]);
+
+  function capture() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // The live preview is mirrored like every front-camera app — mirror the
+    // capture back so the saved photo reads the way a normal selfie does.
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onPick(new File([blob], "selfie.jpg", { type: "image/jpeg" }));
+      },
+      "image/jpeg",
+      0.85
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Take a selfie</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 14 }}>
+        Turn on your camera, smile, and snap a live selfie/photo — staff match it to your Tournament Pass at the gate. This step doesn't accept a photo from your files.
+      </div>
+
+      <div style={{ borderRadius: theme.radius.md, overflow: "hidden", background: "#111", marginBottom: 16, aspectRatio: "4 / 3", position: "relative" }}>
+        {preview ? (
+          <img src={preview} alt="Selfie preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : camError ? (
+          <div style={{ color: "#fff", padding: 20, fontSize: 13, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>{camError}</div>
+        ) : (
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+        )}
+      </div>
+
+      {preview ? (
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => onPick(null)}
+            style={{ flex: 1, padding: "12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, background: "#fff", fontWeight: 700, cursor: "pointer" }}
+          >
+            RETAKE
+          </button>
+          <PrimaryButton onClick={onNext} style={{ flex: 2 }}>LOOKS GOOD — CONTINUE</PrimaryButton>
+        </div>
+      ) : (
+        <PrimaryButton disabled={!ready} onClick={capture} style={{ width: "100%" }}>
+          {ready ? "📸 CAPTURE" : camError ? "CAMERA UNAVAILABLE" : "STARTING CAMERA…"}
+        </PrimaryButton>
+      )}
     </div>
   );
 }

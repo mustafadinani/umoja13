@@ -2,7 +2,6 @@ import { useState } from "react";
 import { View, Text, TextInput, Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, arrayUnion, collection, doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   CATEGORIES,
   COLLECTIONS,
@@ -11,7 +10,8 @@ import {
   REGISTRATION_YEAR,
   type PlayerMembership,
 } from "@umoja/shared";
-import { db, defaultDb, storage } from "../lib/firebase";
+import { db, defaultDb } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useTeams } from "../hooks/useData";
@@ -31,7 +31,14 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
   async function pickPhoto() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 });
+    // Ask iOS for the "compatible" asset representation (real JPEG, not
+    // whatever the photo library actually stores it as) — a photo library
+    // pick, unlike a fresh capture, is HEIC on iOS far more often than not.
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+    });
     if (!result.canceled && result.assets[0]) setUri(result.assets[0].uri);
   }
 
@@ -40,11 +47,7 @@ export function JoinTeamModal({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const storageRef = ref(storage, `checkins/${user.uid}/registration/${Date.now()}.jpg`);
-      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      const registrationPhotoUrl = await getDownloadURL(storageRef);
+      const registrationPhotoUrl = await uploadPickedPhoto(uri, `checkins/${user.uid}/registration/${Date.now()}.jpg`);
 
       const team = teams.find((t) => t.id === teamId);
       const categoryLabel = CATEGORIES.find((c) => c.id === categoryId)?.label ?? "";
