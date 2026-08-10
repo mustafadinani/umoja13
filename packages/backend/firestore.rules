@@ -36,8 +36,15 @@ service cloud.firestore {
       // Self-serve join-a-team (no admin registration/invite system exists yet) may
       // promote a user to 'player'/'captain', but never to referee/commissioner/admin —
       // those privileged roles are only ever granted via the setUserRole Cloud Function
-      // (Admin SDK, bypasses rules).
+      // (Admin SDK, bypasses rules). The `resource.data.primaryRole` check on the
+      // CURRENT value (not just the new one) is load-bearing: without it, this rule
+      // also allowed a self-write to DOWNGRADE an existing referee/commissioner/admin
+      // down to fan/player/captain, since ['fan'] legitimately satisfies hasOnly(...)
+      // regardless of what the account was before. A buggy client write exploited
+      // exactly that gap in production; this closes it so this path can never touch
+      // an account that isn't already low-privilege.
       allow update: if isOwner(uid) &&
+        resource.data.primaryRole in ['fan', 'player', 'captain'] &&
         request.resource.data.roles.hasOnly(['fan', 'player', 'captain']) &&
         request.resource.data.primaryRole in ['fan', 'player', 'captain'];
       // Staff may edit non-role profile fields directly (e.g. syncing playerOf on a
