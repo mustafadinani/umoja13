@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -38,35 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthLoading(false);
     });
   }, []);
-
-  // Umoja Outreach runs several other programs on this same Firebase
-  // project, so a sign-in can succeed for a real Auth account that has no
-  // umoja13-app profile and no Outreach registration under that uid (e.g. it
-  // was created for a different program, or a signup here was interrupted
-  // between the Auth account and its profile write). Without this, that
-  // account silently sees a blank dashboard forever — Dashboard.tsx bails
-  // out on `!profile` with nothing shown. Self-heal by provisioning the same
-  // default "fan" profile signUp() would have written, the first time this
-  // gap is observed.
-  const provisioning = useRef<string | null>(null);
-  useEffect(() => {
-    if (!user || profileLoading || profile || provisioning.current === user.uid) return;
-    provisioning.current = user.uid;
-    const now = Date.now();
-    const fallbackProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email ?? "",
-      displayName: user.displayName?.trim() || user.email?.split("@")[0] || "Umoja Fan",
-      roles: ["fan"],
-      primaryRole: "fan",
-      followedTeamIds: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    setDoc(doc(db, COLLECTIONS.users, user.uid), fallbackProfile).catch(() => {
-      provisioning.current = null; // let it retry on the next render if the write failed
-    });
-  }, [user, profile, profileLoading]);
 
   async function signIn(email: string, password: string) {
     await signInWithEmailAndPassword(auth, email, password);
