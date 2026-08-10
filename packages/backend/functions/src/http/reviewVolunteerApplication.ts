@@ -6,8 +6,10 @@ import {
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   mapOutreachProfileToUserProfile,
+  pickPrimaryRole,
   type OutreachProfile,
   type RegisteredPlayer,
+  type Role,
   type UserProfile,
   type VolunteerApplication,
 } from "@umoja/shared";
@@ -46,15 +48,7 @@ export const reviewVolunteerApplication = onCall<ReviewVolunteerApplicationReque
   if (decision === "approve") {
     const targetUid = application.filedByUid;
     const targetSnap = await db.collection(COLLECTIONS.users).doc(targetUid).get();
-    const targetRoles: string[] = targetSnap.data()?.roles ?? [];
-    const targetPrimaryRole: string = targetSnap.data()?.primaryRole ?? "fan";
-    const newRoles = targetRoles.includes("volunteer") ? targetRoles : [...targetRoles, "volunteer"];
-    // Only take over primaryRole for someone who hasn't picked a more
-    // specific role yet (e.g. player/captain) — a volunteer who's also
-    // a player keeps their player dashboard as primary.
-    const newPrimaryRole = targetPrimaryRole === "fan" ? "volunteer" : targetPrimaryRole;
-
-    await auth.setCustomUserClaims(targetUid, { roles: newRoles });
+    const targetRoles: Role[] = targetSnap.data()?.roles ?? [];
 
     // Whoever files a "Become a Volunteer" application is very often a real
     // Outreach-registered person (check-in flow links straight to this) whose
@@ -89,6 +83,24 @@ export const reviewVolunteerApplication = onCall<ReviewVolunteerApplicationReque
         console.error(`reviewVolunteerApplication: Outreach profile lookup failed for ${targetUid}, continuing without enrichment:`, err);
       }
     }
+
+    // Union of whatever roles the account already had, whatever Outreach
+    // says it should have (e.g. "player", only known once baseProfile is
+    // computed above), and "volunteer" for this approval. The previous
+    // version computed newRoles from targetRoles ALONE, before baseProfile
+    // was known — for anyone approved on their very first-ever visit to
+    // this app (no users/{uid} doc yet), targetRoles was always `[]`, so a
+    // real registered player got only `["volunteer"]` written, silently
+    // dropping "player" and every dashboard/check-in tab that comes with
+    // it. primaryRole is then always the highest-priority role present
+    // (see PRIMARY_ROLE_PRIORITY) rather than a one-off "unless they were
+    // already 'fan'" special case, so playing (or any staff role) never
+    // gets bumped by volunteering — layering "volunteer" on top of an
+    // existing role can no longer replace it.
+    const newRoles = Array.from(new Set<Role>([...targetRoles, ...(baseProfile.roles ?? []), "volunteer"]));
+    const newPrimaryRole = pickPrimaryRole(newRoles);
+
+    await auth.setCustomUserClaims(targetUid, { roles: newRoles });
 
     await db.collection(COLLECTIONS.users).doc(targetUid).set(
       {

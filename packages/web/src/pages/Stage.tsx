@@ -29,6 +29,25 @@ const SLIDES: Slide[] = CATEGORIES.flatMap((c) => [
 /** Umoja13's actual flame-trophy gradient — used for the winner glow/eyebrow instead of generic gold. */
 const FLAME = "linear-gradient(135deg, #F2A23A, #E23E82)";
 
+// A ceremony screen is read from across a room, not a laptop's lap — every
+// size here is deliberately huge and viewport-scaled (clamp'd on vw so it
+// keeps filling the screen at any resolution) rather than the fixed small
+// px values a normal in-app page uses.
+const SIZE = {
+  logo: "clamp(72px, 9vw, 160px)",
+  categoryTag: "clamp(20px, 2.2vw, 34px)",
+  title: "clamp(48px, 6.5vw, 96px)",
+  subLabel: "clamp(18px, 2vw, 28px)",
+  nomineeName: "clamp(22px, 2.6vw, 38px)",
+  nomineeTeam: "clamp(16px, 1.8vw, 24px)",
+  winnerEyebrow: "clamp(20px, 2.4vw, 32px)",
+  winnerName: "clamp(56px, 8vw, 128px)",
+  winnerTeam: "clamp(24px, 3vw, 42px)",
+  winnerFooter: "clamp(18px, 2vw, 26px)",
+  score: "clamp(22px, 2.8vw, 40px)",
+  crestLabel: "clamp(18px, 2vw, 26px)",
+};
+
 export function Stage() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -62,14 +81,14 @@ export function Stage() {
   const teamNameById = useMemo(() => new Map(teams.map((t) => [t.id, t.name])), [teams]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0B0A12", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", width: "100%", background: "#0B0A12", display: "flex", flexDirection: "column" }}>
       <style>{`
         @keyframes stageFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .stage-slide { animation: stageFadeIn 0.35s ease; }
         @media (prefers-reduced-motion: reduce) { .stage-slide { animation: none; } }
       `}</style>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "min(5vh, 60px) min(5vw, 80px)", minHeight: 0 }}>
         {slide.kind === "player" ? (
           <PlayerSlide
             key={index + String(revealed)}
@@ -106,7 +125,7 @@ export function Stage() {
 }
 
 function StageLogo() {
-  return <img src="/logo-icon.png" alt="Umoja13" style={{ height: 34, width: "auto", marginBottom: 16, opacity: 0.96 }} />;
+  return <img src="/logo-icon.png" alt="Umoja13" style={{ height: SIZE.logo, width: "auto", marginBottom: "clamp(20px, 2.5vw, 40px)", opacity: 0.97 }} />;
 }
 
 function PlayerSlide({
@@ -129,24 +148,24 @@ function PlayerSlide({
     return (
       <div className="stage-slide" style={{ textAlign: "center", color: "#8B87A3" }}>
         <StageLogo />
-        <div style={{ fontSize: 13, fontWeight: 700 }}>No nominees set yet for {categoryLabel} · {PLAYER_AWARD_LABELS[type]}</div>
+        <div style={{ fontSize: SIZE.subLabel, fontWeight: 700 }}>No nominees set yet for {categoryLabel} · {PLAYER_AWARD_LABELS[type]}</div>
       </div>
     );
   }
 
   if (revealed && winner) {
     return (
-      <div className="stage-slide" style={{ textAlign: "center", position: "relative", color: "#F1EFFA" }}>
+      <div className="stage-slide" style={{ textAlign: "center", position: "relative", color: "#F1EFFA", width: "100%" }}>
         <div style={{ position: "absolute", inset: "-40% -30%", background: "radial-gradient(circle at 50% 38%, rgba(242,162,58,0.26), rgba(226,62,130,0.10) 45%, transparent 65%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
           <StageLogo />
-          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: 20 }}>
+          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(24px, 3vw, 48px)" }}>
             ✦ Winner ✦
           </div>
-          <PhotoCircle name={winner.name} url={photoFor(winner.playerKey)} size={168} ringGradient={FLAME} />
-          <div style={{ fontSize: 34, fontWeight: 800, marginTop: 22, marginBottom: 6 }}>{winner.name}</div>
-          <div style={{ fontSize: 15, color: "#C9C4E6", fontWeight: 600 }}>{winner.teamName}</div>
-          <div style={{ marginTop: 26, fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>
+          <PhotoCircle name={winner.name} url={photoFor(winner.playerKey)} size="clamp(220px, 26vw, 460px)" ringGradient={FLAME} />
+          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(24px, 3vw, 44px)", marginBottom: "clamp(8px, 1vw, 16px)", lineHeight: 1.1 }}>{winner.name}</div>
+          <div style={{ fontSize: SIZE.winnerTeam, color: "#C9C4E6", fontWeight: 600 }}>{winner.teamName}</div>
+          <div style={{ marginTop: "clamp(28px, 3.5vw, 52px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>
             {categoryLabel} · {PLAYER_AWARD_LABELS[type]}
           </div>
         </div>
@@ -155,17 +174,17 @@ function PlayerSlide({
   }
 
   return (
-    <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA" }}>
+    <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA", width: "100%" }}>
       <StageLogo />
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: 10 }}>{categoryLabel}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>{PLAYER_AWARD_ICONS[type]} {PLAYER_AWARD_LABELS[type]}</div>
-      <div style={{ fontSize: 12, color: "#8B87A3", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 32 }}>Nominees</div>
-      <div style={{ display: "flex", gap: 28, justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ fontSize: SIZE.categoryTag, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: "clamp(14px, 1.6vw, 22px)" }}>{categoryLabel}</div>
+      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(10px, 1.2vw, 18px)" }}>{PLAYER_AWARD_ICONS[type]} {PLAYER_AWARD_LABELS[type]}</div>
+      <div style={{ fontSize: SIZE.subLabel, color: "#8B87A3", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: "clamp(40px, 5vw, 72px)" }}>Nominees</div>
+      <div style={{ display: "flex", gap: "clamp(32px, 4vw, 64px)", justifyContent: "center", flexWrap: "wrap" }}>
         {nominees.map((n) => (
-          <div key={n.playerKey} style={{ width: 130 }}>
-            <PhotoCircle name={n.name} url={photoFor(n.playerKey)} size={88} />
-            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 12 }}>{n.name}</div>
-            <div style={{ fontSize: 11.5, color: "#8B87A3", marginTop: 2 }}>{n.teamName}</div>
+          <div key={n.playerKey} style={{ width: "clamp(160px, 16vw, 260px)" }}>
+            <PhotoCircle name={n.name} url={photoFor(n.playerKey)} size="clamp(120px, 13vw, 210px)" />
+            <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(16px, 1.8vw, 26px)", lineHeight: 1.15 }}>{n.name}</div>
+            <div style={{ fontSize: SIZE.nomineeTeam, color: "#8B87A3", marginTop: "clamp(4px, 0.6vw, 8px)" }}>{n.teamName}</div>
           </div>
         ))}
       </div>
@@ -192,7 +211,7 @@ function TeamSlide({
     return (
       <div className="stage-slide" style={{ textAlign: "center", color: "#8B87A3" }}>
         <StageLogo />
-        <div style={{ fontSize: 13, fontWeight: 700 }}>{categoryLabel} · {TEAM_AWARD_LABELS[type]} not decided yet</div>
+        <div style={{ fontSize: SIZE.subLabel, fontWeight: 700 }}>{categoryLabel} · {TEAM_AWARD_LABELS[type]} not decided yet</div>
       </div>
     );
   }
@@ -207,47 +226,49 @@ function TeamSlide({
 
   if (revealed) {
     return (
-      <div className="stage-slide" style={{ textAlign: "center", position: "relative", color: "#F1EFFA" }}>
+      <div className="stage-slide" style={{ textAlign: "center", position: "relative", color: "#F1EFFA", width: "100%" }}>
         <div style={{ position: "absolute", inset: "-40% -30%", background: "radial-gradient(circle at 50% 38%, rgba(242,162,58,0.26), rgba(226,62,130,0.10) 45%, transparent 65%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
           <StageLogo />
-          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: 20 }}>
+          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(24px, 3vw, 48px)" }}>
             {TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}
           </div>
-          <TeamCrest name={featuredName} size={140} ringGradient={FLAME} />
-          <div style={{ fontSize: 38, fontWeight: 800, marginTop: 22 }}>{featuredName}</div>
-          <div style={{ marginTop: 22, fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>{categoryLabel}</div>
+          <TeamCrest name={featuredName} size="clamp(190px, 22vw, 380px)" ringGradient={FLAME} />
+          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(24px, 3vw, 44px)", lineHeight: 1.1 }}>{featuredName}</div>
+          <div style={{ marginTop: "clamp(24px, 3vw, 44px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>{categoryLabel}</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA" }}>
+    <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA", width: "100%" }}>
       <StageLogo />
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: 10 }}>{categoryLabel}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 26 }}>{TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 26, justifyContent: "center" }}>
+      <div style={{ fontSize: SIZE.categoryTag, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: "clamp(14px, 1.6vw, 22px)" }}>{categoryLabel}</div>
+      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(36px, 4.5vw, 64px)" }}>{TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "clamp(36px, 4.5vw, 72px)", justifyContent: "center", flexWrap: "wrap" }}>
         <div>
-          <TeamCrest name={winnerName} size={72} />
-          <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10 }}>{winnerName}</div>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 4, backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+          <TeamCrest name={winnerName} size="clamp(110px, 11vw, 180px)" />
+          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(14px, 1.6vw, 22px)" }}>{winnerName}</div>
+          <div style={{ fontSize: SIZE.crestLabel, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "clamp(6px, 0.8vw, 10px)", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
             Champion
           </div>
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#8B87A3" }}>{finalGame.homeTeamId === winnerId ? `${finalGame.homeScore ?? 0} – ${finalGame.awayScore ?? 0}` : `${finalGame.awayScore ?? 0} – ${finalGame.homeScore ?? 0}`}</div>
+        <div style={{ fontSize: SIZE.score, fontWeight: 700, color: "#8B87A3" }}>{finalGame.homeTeamId === winnerId ? `${finalGame.homeScore ?? 0} – ${finalGame.awayScore ?? 0}` : `${finalGame.awayScore ?? 0} – ${finalGame.homeScore ?? 0}`}</div>
         <div>
-          <TeamCrest name={loserName} size={72} />
-          <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10 }}>{loserName}</div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#8B87A3", marginTop: 4 }}>Runner-Up</div>
+          <TeamCrest name={loserName} size="clamp(110px, 11vw, 180px)" />
+          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(14px, 1.6vw, 22px)" }}>{loserName}</div>
+          <div style={{ fontSize: SIZE.crestLabel, fontWeight: 700, color: "#8B87A3", marginTop: "clamp(6px, 0.8vw, 10px)" }}>Runner-Up</div>
         </div>
       </div>
     </div>
   );
 }
 
-function PhotoCircle({ name, url, size, ringGradient }: { name: string; url?: string; size: number; ringGradient?: string }) {
-  const border = ringGradient ? { border: "3px solid transparent", backgroundImage: `linear-gradient(#241F38,#241F38), ${ringGradient}`, backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" } : { border: "1.5px solid #453B6E" };
+function PhotoCircle({ name, url, size, ringGradient }: { name: string; url?: string; size: string; ringGradient?: string }) {
+  const border = ringGradient
+    ? { border: "clamp(3px, 0.4vw, 6px) solid transparent", backgroundImage: `linear-gradient(#241F38,#241F38), ${ringGradient}`, backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }
+    : { border: "clamp(2px, 0.25vw, 3px) solid #453B6E" };
   return (
     <div
       style={{
@@ -261,7 +282,7 @@ function PhotoCircle({ name, url, size, ringGradient }: { name: string; url?: st
         justifyContent: "center",
         background: "linear-gradient(145deg, #3A3358, #241F38)",
         color: "#766EA8",
-        fontSize: size * 0.34,
+        fontSize: `calc(${size} * 0.34)`,
         fontWeight: 800,
         ...border,
       }}
@@ -271,20 +292,20 @@ function PhotoCircle({ name, url, size, ringGradient }: { name: string; url?: st
   );
 }
 
-function TeamCrest({ name, size, ringGradient }: { name: string; size: number; ringGradient?: string }) {
+function TeamCrest({ name, size, ringGradient }: { name: string; size: string; ringGradient?: string }) {
   return (
     <div
       style={{
         width: size,
         height: size,
-        borderRadius: size * 0.22,
+        borderRadius: `calc(${size} * 0.22)`,
         margin: "0 auto",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         background: ringGradient ?? "linear-gradient(145deg, #453B6E, #2C2547)",
         color: "#fff",
-        fontSize: size * 0.36,
+        fontSize: `calc(${size} * 0.36)`,
         fontWeight: 900,
         boxShadow: "0 14px 30px -10px rgba(0,0,0,0.5)",
       }}
@@ -323,6 +344,7 @@ function StageControls({
         color: "#8B87A3",
         fontSize: 12,
         flexWrap: "wrap",
+        flexShrink: 0,
       }}
     >
       <button onClick={onPrev} disabled={index === 0} style={ctrlBtnStyle}>‹ Prev</button>
