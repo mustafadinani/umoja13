@@ -8,6 +8,7 @@ import {
   TRAVEL_GUIDE,
   LOCAL_EXPERIENCES,
   MUSLIM_FAMILY_GUIDE,
+  formatKickoffTime,
 } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { openMaps, openPhone } from "../lib/links";
@@ -58,7 +59,7 @@ export function HubInfoScreen() {
           <View key={e.id} style={styles.eventChip}>
             <Text style={{ fontSize: 12.5 }}>
               <Text style={{ fontWeight: "700" }}>{e.label}</Text> — {e.day === "sun" ? "Sunday" : e.day}
-              {"time" in e ? ` ${e.time}` : ""}, {e.field}
+              {"time" in e ? ` ${formatKickoffTime(e.time)}` : ""}, {e.field}
             </Text>
           </View>
         ))}

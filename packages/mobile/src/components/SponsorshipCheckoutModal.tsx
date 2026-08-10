@@ -1,24 +1,30 @@
 import { useState } from "react";
-import { View, Text, TextInput, Image, Linking, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
-import { storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { createSponsorshipCheckout } from "../lib/callables";
+import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { Modal, PrimaryButton, Pill } from "./ui";
+import { StripePaymentForm } from "./StripePaymentForm";
 import { SponsorInquiryModal } from "./SponsorInquiryModal";
-
-const WEB_APP_URL = "https://umoja-games-proto.web.app";
 
 function formatDollars(cents: number) {
   return `$${(cents / 100).toLocaleString()}`;
 }
 
+function callableMessage(err: unknown, fallback: string) {
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
+
 export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
   const [showInquiry, setShowInquiry] = useState(false);
+  const [step, setStep] = useState<"form" | "pay" | "done">("form");
   const [tierId, setTierId] = useState<SponsorTier | null>(null);
   const [donorType, setDonorType] = useState<SponsorshipDonorType>("individual");
   const [donorName, setDonorName] = useState(profile?.displayName ?? "");
@@ -29,6 +35,11 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [paidAmountCents, setPaidAmountCents] = useState<number | null>(null);
 
   if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
 
@@ -51,21 +62,20 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
     if (!result.canceled && result.assets[0]) setLogoUri(result.assets[0].uri);
   }
 
-  async function checkout() {
+  // Same embedded Stripe Payment Element pattern as Report to Commissioner
+  // (createReportFeeIntent + StripePaymentForm) — no more bouncing the
+  // donor out to their phone's browser to finish checkout.
+  async function continueToPayment() {
     if (!tier || !canSubmit) return;
     setBusy(true);
     setError(null);
     try {
       let companyLogoUrl: string | undefined;
       if (donorType === "business" && logoUri) {
-        const response = await fetch(logoUri);
-        const blob = await response.blob();
-        const storageRef = ref(storage, `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}.jpg`);
-        await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-        companyLogoUrl = await getDownloadURL(storageRef);
+        companyLogoUrl = await uploadPickedPhoto(logoUri, `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}.jpg`);
       }
 
-      const res = await createSponsorshipCheckout({
+      const intent = await createSponsorshipIntent({
         tierId: tier.id,
         donorType,
         donorName: donorName.trim(),
@@ -75,20 +85,48 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
         ...(tier.priceCents == null
           ? { customAmountCents, ...(customNote.trim() ? { customNote: customNote.trim() } : {}) }
           : {}),
-        successUrl: `${WEB_APP_URL}/?sponsored=1`,
-        cancelUrl: WEB_APP_URL,
       });
-
-      if (res.data.checkoutUrl) {
-        Linking.openURL(res.data.checkoutUrl);
-      } else {
-        setError("Couldn't start checkout.");
-      }
+      setClientSecret(intent.data.clientSecret);
+      setPublishableKey(intent.data.publishableKey);
+      setPaymentIntentId(intent.data.paymentIntentId);
+      setOrderId(intent.data.orderId);
+      setPaidAmountCents(intent.data.amountCents);
+      setStep("pay");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't start checkout.");
+      setError(callableMessage(e, "Couldn't start payment."));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onCardPaid() {
+    if (!orderId || !paymentIntentId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await confirmSponsorshipPayment({ orderId, paymentIntentId });
+      setStep("done");
+    } catch (e) {
+      setError(callableMessage(e, "Payment succeeded but confirming it failed. Contact us with your payment receipt."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step === "done") {
+    return (
+      <Modal visible onClose={onClose}>
+        <View style={{ alignItems: "center", paddingVertical: 10 }}>
+          <Text style={{ fontSize: 40 }}>✓</Text>
+          <Text style={{ fontWeight: "800", fontSize: 20, marginTop: 8 }}>Thank you for your support!</Text>
+          <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 8, textAlign: "center", lineHeight: 19 }}>
+            Your {tier?.label.toLowerCase()} sponsorship{paidAmountCents ? ` (${formatDollars(paidAmountCents)})` : ""} is confirmed. Our team
+            will follow up by email.
+          </Text>
+          <PrimaryButton onPress={onClose} style={{ marginTop: 20, width: "100%" }}>DONE</PrimaryButton>
+        </View>
+      </Modal>
+    );
   }
 
   return (
@@ -98,6 +136,22 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
         Pick a tier, tell us about yourself, then pay securely through Stripe.
       </Text>
 
+      {step === "pay" && clientSecret && publishableKey && (
+        <>
+          {error && <Text style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</Text>}
+          <StripePaymentForm
+            clientSecret={clientSecret}
+            publishableKey={publishableKey}
+            onPaid={() => void onCardPaid()}
+            onError={setError}
+            statusText={`Enter card details for your ${paidAmountCents != null ? formatDollars(paidAmountCents) : ""} sponsorship.`}
+            payLabel={`PAY ${paidAmountCents != null ? formatDollars(paidAmountCents) : ""}`}
+          />
+        </>
+      )}
+
+      {step === "form" && (
+      <>
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 8 }}>Choose a tier</Text>
       <View style={{ gap: 10, marginBottom: 16 }}>
         {SPONSORSHIP_TIERS.map((t) => {
@@ -176,15 +230,19 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
           )}
 
           {error && <Text style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</Text>}
-          <PrimaryButton disabled={!canSubmit || busy} onPress={checkout} style={{ width: "100%" }}>
-            {busy ? "Redirecting to Stripe…" : "CONTINUE TO PAYMENT"}
+          <PrimaryButton disabled={!canSubmit || busy} onPress={() => void continueToPayment()} style={{ width: "100%" }}>
+            {busy ? "Preparing payment…" : "CONTINUE TO PAYMENT"}
           </PrimaryButton>
         </>
       )}
+      </>
+      )}
 
-      <Text onPress={() => setShowInquiry(true)} style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: theme.color.textMuted }}>
-        Prefer to just talk to our team first? Send an inquiry instead →
-      </Text>
+      {step === "form" && (
+        <Text onPress={() => setShowInquiry(true)} style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: theme.color.textMuted }}>
+          Prefer to just talk to our team first? Send an inquiry instead →
+        </Text>
+      )}
     </Modal>
   );
 }

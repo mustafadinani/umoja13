@@ -10,7 +10,7 @@ export { askUmojaChannel } from "./ai/chatAssistant.js";
 export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
 export { confirmIncidentPayment } from "./stripe/confirmIncidentPayment.js";
 export { createReportFeeIntent, filePaidReport } from "./stripe/createReportFeeIntent.js";
-export { createSponsorshipCheckout } from "./stripe/createSponsorshipCheckout.js";
+export { createSponsorshipIntent, confirmSponsorshipPayment } from "./stripe/createSponsorshipIntent.js";
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { stripePayment } from "./http/stripePayment.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";

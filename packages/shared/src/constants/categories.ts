@@ -151,8 +151,7 @@ export const TOURNAMENT_DAY_DATES: Record<"fri" | "sat" | "sun", string> = {
 
 /** Non-match tournament-wide calendar entries (not Games, but shown alongside schedule). */
 export const SPECIAL_EVENTS = [
-  { id: "all-star-game", label: "All-Star Game", day: "sun", field: "Stadium Field" },
-  { id: "awards-ceremony", label: "Awards Ceremony", day: "sun", time: "17:30", field: "Main Stage" },
+  { id: "awards-ceremony", label: "Umoja Family Awards Ceremony", day: "sun", time: "19:00", field: "Indoor arena" },
 ] as const;
 
 export interface ToddlerCampSession {

@@ -76,7 +76,7 @@ export const filePaidReport = httpsCallable<
   { id: string; caseNumber: string; stripeConfirmationId: string }
 >(functions, "filePaidReport");
 
-export const createSponsorshipCheckout = httpsCallable<
+export const createSponsorshipIntent = httpsCallable<
   {
     tierId: SponsorTier;
     donorType: SponsorshipDonorType;
@@ -86,11 +86,14 @@ export const createSponsorshipCheckout = httpsCallable<
     companyLogoUrl?: string;
     customNote?: string;
     customAmountCents?: number;
-    successUrl: string;
-    cancelUrl: string;
   },
-  { checkoutUrl: string | null; orderId: string }
->(functions, "createSponsorshipCheckout");
+  { clientSecret: string; paymentIntentId: string; publishableKey: string; orderId: string; amountCents: number }
+>(functions, "createSponsorshipIntent");
+
+export const confirmSponsorshipPayment = httpsCallable<
+  { orderId: string; paymentIntentId: string },
+  { orderId: string; status: "paid" }
+>(functions, "confirmSponsorshipPayment");
 
 export const setUserRole = httpsCallable<
   { targetUid: string; roles: string[]; primaryRole: string },

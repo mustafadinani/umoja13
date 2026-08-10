@@ -42,9 +42,10 @@ export function PlayerIdModal({
         >
           {player.selfieUrl && <Image source={{ uri: player.selfieUrl }} style={{ width: "100%", height: "100%" }} />}
         </TouchableOpacity>
-        <Text style={{ fontWeight: "800", fontSize: 20 }}>{player.displayName}</Text>
+        <Text style={{ fontWeight: "900", fontSize: 44, color: theme.color.purple, lineHeight: 48 }}>#{player.jerseyNumber ?? "—"}</Text>
+        <Text style={{ fontWeight: "800", fontSize: 28, marginTop: 6, textAlign: "center" }}>{player.displayName}</Text>
         <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, textAlign: "center" }}>
-          #{player.jerseyNumber ?? "—"} · {teamName} · {category?.label ?? ""}
+          {teamName} · {category?.label ?? ""}
         </Text>
 
         {approved ? (

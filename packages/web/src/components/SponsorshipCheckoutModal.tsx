@@ -1,20 +1,28 @@
 import { useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
-import { storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { createSponsorshipCheckout } from "../lib/callables";
+import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { Modal, PrimaryButton, Pill } from "./ui";
+import { StripePaymentForm } from "./StripePaymentForm";
 import { SponsorInquiryModal } from "./SponsorInquiryModal";
 
 function formatDollars(cents: number) {
   return `$${(cents / 100).toLocaleString()}`;
 }
 
+function callableMessage(err: unknown, fallback: string) {
+  if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+}
+
 export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const { user, profile } = useAuth();
   const [showInquiry, setShowInquiry] = useState(false);
+  const [step, setStep] = useState<"form" | "pay" | "done">("form");
   const [tierId, setTierId] = useState<SponsorTier | null>(null);
   const [donorType, setDonorType] = useState<SponsorshipDonorType>("individual");
   const [donorName, setDonorName] = useState(profile?.displayName ?? "");
@@ -29,6 +37,11 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [paidAmountCents, setPaidAmountCents] = useState<number | null>(null);
 
   if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
 
@@ -37,20 +50,20 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
   const validCustomAmount = tier?.priceCents == null ? customAmountCents >= 100 : true;
   const canSubmit = !!tier && !!donorName.trim() && !!email.trim() && validCustomAmount;
 
-  async function checkout() {
+  // Same embedded Stripe Payment Element pattern as Report to Commissioner
+  // (createReportFeeIntent + StripePaymentForm) — no more redirecting the
+  // donor to an external Stripe Checkout tab.
+  async function continueToPayment() {
     if (!tier || !canSubmit) return;
     setBusy(true);
     setError(null);
     try {
       let companyLogoUrl: string | undefined;
       if (donorType === "business" && logoFile) {
-        const path = `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}-${logoFile.name}`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, logoFile, { contentType: logoFile.type });
-        companyLogoUrl = await getDownloadURL(storageRef);
+        companyLogoUrl = await uploadPickedPhoto(logoFile, `sponsorshipLogos/${user?.uid ?? "guest"}/${Date.now()}-${logoFile.name}`);
       }
 
-      const res = await createSponsorshipCheckout({
+      const intent = await createSponsorshipIntent({
         tierId: tier.id,
         donorType,
         donorName: donorName.trim(),
@@ -64,20 +77,48 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
         ...(instagramUrl.trim() ? { instagramUrl: instagramUrl.trim() } : {}),
         ...(socialUrl.trim() ? { socialUrl: socialUrl.trim() } : {}),
         ...(description.trim() ? { description: description.trim() } : {}),
-        successUrl: `${window.location.origin}/?sponsored=1`,
-        cancelUrl: window.location.origin,
       });
-
-      if (res.data.checkoutUrl) {
-        window.location.assign(res.data.checkoutUrl);
-      } else {
-        setError("Couldn't start checkout.");
-      }
+      setClientSecret(intent.data.clientSecret);
+      setPublishableKey(intent.data.publishableKey);
+      setPaymentIntentId(intent.data.paymentIntentId);
+      setOrderId(intent.data.orderId);
+      setPaidAmountCents(intent.data.amountCents);
+      setStep("pay");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't start checkout.");
+      setError(callableMessage(e, "Couldn't start payment."));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onCardPaid() {
+    if (!orderId || !paymentIntentId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await confirmSponsorshipPayment({ orderId, paymentIntentId });
+      setStep("done");
+    } catch (e) {
+      setError(callableMessage(e, "Payment succeeded but confirming it failed. Contact us with your payment receipt."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step === "done") {
+    return (
+      <Modal onClose={onClose} width={420}>
+        <div style={{ textAlign: "center", padding: "10px 0" }}>
+          <div style={{ fontSize: 40 }}>✓</div>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginTop: 8 }}>Thank you for your support!</div>
+          <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 8, lineHeight: 1.45 }}>
+            Your {tier?.label.toLowerCase()} sponsorship{paidAmountCents ? ` (${formatDollars(paidAmountCents)})` : ""} is confirmed. Our team
+            will follow up by email.
+          </div>
+          <PrimaryButton style={{ marginTop: 20, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
+        </div>
+      </Modal>
+    );
   }
 
   return (
@@ -87,6 +128,23 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
         Pick a tier, tell us about yourself, then pay securely through Stripe.
       </div>
 
+      {step === "pay" && clientSecret && publishableKey && (
+        <>
+          {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+          <StripePaymentForm
+            clientSecret={clientSecret}
+            publishableKey={publishableKey}
+            onPaid={() => void onCardPaid()}
+            onError={setError}
+            statusText={`Enter card details for your ${tier ? formatDollars(paidAmountCents ?? tier.priceCents ?? customAmountCents) : ""} sponsorship.`}
+            payLabel={`PAY ${paidAmountCents != null ? formatDollars(paidAmountCents) : ""}`}
+          />
+          {busy && <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 12 }}>Confirming your sponsorship…</div>}
+        </>
+      )}
+
+      {step === "form" && (
+      <>
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose a tier</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
         {SPONSORSHIP_TIERS.map((t) => {
@@ -210,15 +268,19 @@ export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
           />
 
           {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-          <PrimaryButton disabled={!canSubmit || busy} onClick={checkout} style={{ width: "100%" }}>
-            {busy ? "Redirecting to Stripe…" : `CONTINUE TO PAYMENT`}
+          <PrimaryButton disabled={!canSubmit || busy} onClick={() => void continueToPayment()} style={{ width: "100%" }}>
+            {busy ? "Preparing payment…" : `CONTINUE TO PAYMENT`}
           </PrimaryButton>
         </>
       )}
+      </>
+      )}
 
-      <div onClick={() => setShowInquiry(true)} style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: theme.color.textMuted, cursor: "pointer" }}>
-        Prefer to just talk to our team first? Send an inquiry instead →
-      </div>
+      {step === "form" && (
+        <div onClick={() => setShowInquiry(true)} style={{ textAlign: "center", marginTop: 14, fontSize: 12.5, color: theme.color.textMuted, cursor: "pointer" }}>
+          Prefer to just talk to our team first? Send an inquiry instead →
+        </div>
+      )}
     </Modal>
   );
 }

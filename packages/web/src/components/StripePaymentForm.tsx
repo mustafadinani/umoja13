@@ -49,11 +49,16 @@ export function StripePaymentForm({
   publishableKey,
   onPaid,
   onError,
+  statusText = "Enter card details for the $35 Umoja Games review fee.",
+  payLabel = "PAY $35",
 }: {
   clientSecret: string;
   publishableKey: string;
   onPaid: () => void;
   onError: (message: string) => void;
+  /** Defaults preserve the original $35 report-fee copy — pass real values for any other amount (e.g. sponsorship). */
+  statusText?: string;
+  payLabel?: string;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -123,11 +128,11 @@ export function StripePaymentForm({
 
   return (
     <div style={wrapStyle}>
-      <div style={statusStyle}>Enter card details for the $35 Umoja Games review fee.</div>
+      <div style={statusStyle}>{statusText}</div>
       <div ref={mountRef} style={{ minHeight: 200 }} />
       {!ready && <div style={statusStyle}>Loading card form…</div>}
       <button type="button" disabled={!ready || busy} onClick={() => void pay()} style={payBtnStyle(!ready || busy)}>
-        {busy ? "Processing…" : "PAY $35"}
+        {busy ? "Processing…" : payLabel}
       </button>
     </div>
   );

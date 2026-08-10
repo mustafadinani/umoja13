@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TRAVEL_GUIDE, LOCAL_EXPERIENCES, MUSLIM_FAMILY_GUIDE, UMOJA_FAQ, VENUE_LOGISTICS, VENUE, SPECIAL_EVENTS } from "@umoja/shared";
+import { TRAVEL_GUIDE, LOCAL_EXPERIENCES, MUSLIM_FAMILY_GUIDE, UMOJA_FAQ, VENUE_LOGISTICS, VENUE, SPECIAL_EVENTS, formatKickoffTime } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useSponsors } from "../hooks/useData";
 import { Card, Pill } from "../components/ui";
@@ -63,7 +63,7 @@ function InfoSection() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {SPECIAL_EVENTS.map((e) => (
             <div key={e.id} style={{ background: theme.color.purpleLight + "22", borderRadius: 10, padding: "10px 14px", fontSize: 13.5 }}>
-              <strong>{e.label}</strong> — {e.day === "sun" ? "Sunday" : e.day}{"time" in e ? ` ${e.time}` : ""}, {e.field}
+              <strong>{e.label}</strong> — {e.day === "sun" ? "Sunday" : e.day}{"time" in e ? ` ${formatKickoffTime(e.time)}` : ""}, {e.field}
             </div>
           ))}
         </div>

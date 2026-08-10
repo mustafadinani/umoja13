@@ -12,11 +12,16 @@ export function StripePaymentForm({
   publishableKey,
   onPaid,
   onError,
+  statusText = "Enter card details for the $35 Umoja Games review fee.",
+  payLabel = "PAY $35",
 }: {
   clientSecret: string;
   publishableKey: string;
   onPaid: () => void;
   onError: (message: string) => void;
+  /** Defaults preserve the original $35 report-fee copy — pass real values for any other amount (e.g. sponsorship). */
+  statusText?: string;
+  payLabel?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const webRef = useRef<WebView>(null);
@@ -36,10 +41,10 @@ export function StripePaymentForm({
   </style>
 </head>
 <body>
-  <div id="status">Enter card details for the $35 Umoja Games review fee.</div>
+  <div id="status">${statusText.replace(/</g, "&lt;")}</div>
   <div id="payment-element"></div>
   <div id="err"></div>
-  <button id="pay" disabled>PAY $35</button>
+  <button id="pay" disabled>${payLabel.replace(/</g, "&lt;")}</button>
   <script>
     const CLIENT_SECRET = ${JSON.stringify(clientSecret)};
     const PUBLISHABLE_KEY = ${JSON.stringify(publishableKey)};
@@ -85,7 +90,7 @@ export function StripePaymentForm({
   </script>
 </body>
 </html>`,
-    [clientSecret, publishableKey]
+    [clientSecret, publishableKey, statusText, payLabel]
   );
 
   function onMessage(event: WebViewMessageEvent) {

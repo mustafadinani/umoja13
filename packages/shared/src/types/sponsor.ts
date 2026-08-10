@@ -85,10 +85,11 @@ export type SponsorshipDonorType = "business" | "individual";
 export type SponsorshipOrderStatus = "pending" | "paid" | "converted" | "cancelled";
 
 /**
- * A real-money sponsorship purchase made through Stripe Checkout (see
- * createSponsorshipCheckout). Created as "pending", flipped to "paid" by the
- * Stripe webhook, and later "converted" by an admin into a public Sponsor
- * entry (see SponsorshipOrdersAdminTab).
+ * A real-money sponsorship purchase made through an embedded Stripe Payment
+ * Element (see createSponsorshipIntent). Created as "pending", flipped to
+ * "paid" by confirmSponsorshipPayment once the PaymentIntent succeeds, and
+ * later "converted" by an admin into a public Sponsor entry (see
+ * SponsorshipOrdersAdminTab).
  */
 export interface SponsorshipOrder {
   id: string;

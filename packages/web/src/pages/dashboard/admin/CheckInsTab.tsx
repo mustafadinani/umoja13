@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
-import { Card, Pill } from "../../../components/ui";
+import { Card, FilterDropdown, Pill } from "../../../components/ui";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 
 const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: string }[] = [
@@ -12,6 +12,7 @@ const STATUS_FILTERS: { id: CheckInStatus | "needs_review" | "all"; label: strin
   { id: "approved", label: "Verified" },
   { id: "rejected", label: "Declined" },
 ];
+const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ id: c.id, label: c.label }));
 
 type View = "queue" | "fieldPrefs";
 
@@ -59,12 +60,29 @@ export function CheckInsTab() {
 function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
+  const { data: teams } = useTeams(undefined);
   const registeredPlayerByKey = useRegisteredPlayerByKey();
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
   const [showEligibility, setShowEligibility] = useState(false);
+
+  // A team picked under one category doesn't exist once you switch to a
+  // different one — clear it so the team filter never silently hides
+  // every row after a category change.
+  useEffect(() => setTeamId(null), [categoryId]);
+
+  const teamOptions = useMemo(
+    () =>
+      teams
+        .filter((t) => !categoryId || t.categoryId === categoryId)
+        .map((t) => ({ id: t.id, label: t.name }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [teams, categoryId]
+  );
+  const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   // Registration name (keyed by playerKey, per-child) must win over the
@@ -78,12 +96,27 @@ function ReviewQueue() {
     registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name || userById.get(c.userId)?.displayName || c.userId;
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
 
-  const filtered = checkIns.filter((c) => {
+  // Category/team/search filters only — status is excluded here so the
+  // stats row below can show the status breakdown for whatever
+  // category+team+search slice is selected, independent of which status
+  // pill happens to be active.
+  const scoped = checkIns.filter((c) => {
     if (categoryId && c.categoryId !== categoryId) return false;
+    if (teamId && c.teamId !== teamId) return false;
+    if (search && !nameFor(c).toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  const stats = {
+    total: scoped.length,
+    pending: scoped.filter((c) => c.status === "pending_review" || c.status === "admin_review").length,
+    approved: scoped.filter((c) => c.status === "approved").length,
+    rejected: scoped.filter((c) => c.status === "rejected").length,
+  };
+
+  const filtered = scoped.filter((c) => {
     if (statusFilter === "needs_review" && c.status !== "pending_review" && c.status !== "admin_review") return false;
     if (statusFilter === "approved" && c.status !== "approved") return false;
     if (statusFilter === "rejected" && c.status !== "rejected") return false;
-    if (search && !nameFor(c).toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -106,10 +139,18 @@ function ReviewQueue() {
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 12 }}
       />
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-        <Pill active={!categoryId} onClick={() => setCategoryId(null)}>All categories</Pill>
-        {CATEGORIES.map((c) => <Pill key={c.id} active={categoryId === c.id} onClick={() => setCategoryId(c.id)}>{c.label}</Pill>)}
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <FilterDropdown label="Category" value={categoryId} options={CATEGORY_OPTIONS} onChange={setCategoryId} />
+        <FilterDropdown label="Team" value={teamId} options={teamOptions} onChange={setTeamId} />
       </div>
+
+      <div className="grid-kpi-4" style={{ marginBottom: 16 }}>
+        <Kpi label="Check-ins" value={String(stats.total)} />
+        <Kpi label="Pending review" value={String(stats.pending)} />
+        <Kpi label="Verified" value={String(stats.approved)} />
+        <Kpi label="Declined" value={String(stats.rejected)} />
+      </div>
+
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {STATUS_FILTERS.map((s) => <Pill key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</Pill>)}
       </div>
@@ -119,7 +160,9 @@ function ReviewQueue() {
           <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
-              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>{categoryLabelFor(c.categoryId)}</div>
+              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                {teamById.get(c.teamId)?.name ?? c.teamId} · {categoryLabelFor(c.categoryId)}
+              </div>
             </div>
             <StatusChip status={c.status} />
           </Card>
@@ -211,6 +254,15 @@ function EligibilityReferenceTable() {
 
 const eligTh: React.CSSProperties = { textAlign: "left", padding: "9px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted };
 const eligTd: React.CSSProperties = { textAlign: "left", padding: "10px 14px" };
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card style={{ textAlign: "center", padding: 16 }}>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 26 }}>{value}</div>
+      <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2 }}>{label}</div>
+    </Card>
+  );
+}
 
 function StatusChip({ status }: { status: CheckInStatus }) {
   const map: Record<CheckInStatus, { bg: string; fg: string }> = {

@@ -32,9 +32,12 @@ export function PlayerIdModal({
             border: approved ? `3px solid ${theme.color.gold}` : `3px solid ${theme.color.border}`,
           }}
         />
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{player.displayName}</div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 900, fontSize: 44, color: theme.color.purple, lineHeight: 1 }}>
+          #{player.jerseyNumber ?? "—"}
+        </div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28, marginTop: 6 }}>{player.displayName}</div>
         <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
-          #{player.jerseyNumber ?? "—"} · {teamName} · {category?.label ?? ""}
+          {teamName} · {category?.label ?? ""}
         </div>
 
         {approved ? (
