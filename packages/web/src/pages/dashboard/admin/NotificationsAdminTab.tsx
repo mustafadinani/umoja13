@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
-import { ROLES, formatKickoffTime, type Role } from "@umoja/shared";
+import { ROLES, formatKickoffTime, type Announcement, type Role } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useGames, useTeams } from "../../../hooks/useData";
-import { sendNotification } from "../../../lib/callables";
+import { useAnnouncements, useGames, useTeams } from "../../../hooks/useData";
+import {
+  sendNotification,
+  postAnnouncement as postAnnouncementCallable,
+  updateAnnouncement,
+  deleteAnnouncement,
+} from "../../../lib/callables";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 
 type TargetMode = "all" | "role" | "game";
@@ -20,6 +25,7 @@ const ROLE_LABELS: Record<Role, string> = {
 export function NotificationsAdminTab() {
   const { data: games } = useGames();
   const { data: teams } = useTeams();
+  const { data: announcements } = useAnnouncements();
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   const [title, setTitle] = useState("");
@@ -30,6 +36,18 @@ export function NotificationsAdminTab() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifiedCount: number; pushCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [annTitle, setAnnTitle] = useState("");
+  const [annBody, setAnnBody] = useState("");
+  const [alsoNotify, setAlsoNotify] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [annResult, setAnnResult] = useState<{ notifiedCount: number; pushCount: number } | null>(null);
+  const [annError, setAnnError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
 
   const upcomingGames = [...games]
     .filter((g) => g.status !== "final")
@@ -70,11 +88,63 @@ export function NotificationsAdminTab() {
     }
   }
 
+  async function postAnnouncement() {
+    if (!annTitle.trim() || !annBody.trim()) return;
+    setPosting(true);
+    setAnnError(null);
+    setAnnResult(null);
+    try {
+      const res = await postAnnouncementCallable({ title: annTitle, body: annBody, alsoNotify });
+      setAnnResult({ notifiedCount: res.data.notifiedCount, pushCount: res.data.pushCount });
+      setAnnTitle("");
+      setAnnBody("");
+      setAlsoNotify(false);
+    } catch (e) {
+      setAnnError(e instanceof Error ? e.message : "Couldn't post this announcement.");
+    } finally {
+      setPosting(false);
+    }
+  }
+
+  function startEdit(a: Announcement) {
+    setEditingId(a.id);
+    setEditTitle(a.title);
+    setEditBody(a.body);
+    setRowError(null);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editTitle.trim() || !editBody.trim()) return;
+    setRowBusyId(id);
+    setRowError(null);
+    try {
+      await updateAnnouncement({ id, title: editTitle.trim(), body: editBody.trim() });
+      setEditingId(null);
+    } catch (e) {
+      setRowError(e instanceof Error ? e.message : "Couldn't save changes.");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
+
+  async function removeAnnouncement(id: string) {
+    if (!window.confirm("Delete this announcement? It will disappear from Home and everyone's inbox immediately.")) return;
+    setRowBusyId(id);
+    setRowError(null);
+    try {
+      await deleteAnnouncement({ id });
+    } catch (e) {
+      setRowError(e instanceof Error ? e.message : "Couldn't delete this announcement.");
+    } finally {
+      setRowBusyId(null);
+    }
+  }
+
   return (
     <div>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 4 }}>SEND A TARGETED ALERT</div>
       <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>
-        For a public bulletin everyone should see, use "Post an announcement" on the Moderation tab instead — this is for reaching a specific role or the two rosters + referee for one game.
+        Use this to reach a specific role, or the two rosters + referee for one game. For a public bulletin everyone should see (including signed-out visitors on Home), post an announcement below instead.
       </div>
       <Card style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Send to</div>
@@ -140,6 +210,104 @@ export function NotificationsAdminTab() {
           {sending ? "Sending…" : "SEND"}
         </PrimaryButton>
       </Card>
+
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 4 }}>POST AN ANNOUNCEMENT</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>
+        A public bulletin — shown on Home to everyone, including signed-out visitors — not just a personal notification.
+      </div>
+      <Card style={{ marginBottom: 20 }}>
+        <input
+          placeholder="Title"
+          value={annTitle}
+          onChange={(e) => setAnnTitle(e.target.value)}
+          style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+        />
+        <textarea
+          placeholder="Body"
+          value={annBody}
+          onChange={(e) => setAnnBody(e.target.value)}
+          rows={3}
+          style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 12, cursor: "pointer" }}>
+          <input type="checkbox" checked={alsoNotify} onChange={(e) => setAlsoNotify(e.target.checked)} />
+          Also send as a personal notification to everyone
+        </label>
+        {annError && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{annError}</div>}
+        {annResult && (
+          <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
+            Posted{annResult.notifiedCount > 0 ? ` and notified ${annResult.notifiedCount} ${annResult.notifiedCount === 1 ? "person" : "people"} (${annResult.pushCount} got a push)` : ""}.
+          </div>
+        )}
+        <PrimaryButton disabled={posting || !annTitle.trim() || !annBody.trim()} onClick={postAnnouncement}>{posting ? "Posting…" : "POST"}</PrimaryButton>
+      </Card>
+
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>SENT ANNOUNCEMENTS</div>
+      {rowError && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{rowError}</div>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {announcements.map((a) => {
+          const editing = editingId === a.id;
+          const busy = rowBusyId === a.id;
+          return (
+            <Card key={a.id} style={{ padding: "12px 16px" }}>
+              {editing ? (
+                <>
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5, fontWeight: 700 }}
+                  />
+                  <textarea
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    rows={3}
+                    style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <PrimaryButton disabled={busy || !editTitle.trim() || !editBody.trim()} onClick={() => void saveEdit(a.id)} style={{ flex: 1 }}>
+                      {busy ? "Saving…" : "SAVE"}
+                    </PrimaryButton>
+                    <button
+                      disabled={busy}
+                      onClick={() => setEditingId(null)}
+                      style={{ flex: 1, background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</div>
+                    <div style={{ fontSize: 13, color: theme.color.text, marginTop: 4, lineHeight: 1.45 }}>{a.body}</div>
+                    <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>
+                      {a.postedByName ?? "Umoja"} · {new Date(a.postedAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button
+                      disabled={busy}
+                      onClick={() => startEdit(a)}
+                      style={{ background: "#F1EFF5", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => void removeAnnouncement(a.id)}
+                      style={{ background: theme.color.dangerBg, color: theme.color.danger, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      {busy ? "…" : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+        {announcements.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No announcements posted yet.</div>}
+      </div>
     </div>
   );
 }
