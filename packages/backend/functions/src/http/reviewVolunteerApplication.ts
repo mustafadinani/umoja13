@@ -1,20 +1,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import {
-  COLLECTIONS,
-  DATA_SOURCES,
-  PLAYERS_REGISTERED,
-  REGISTRATION_ROOT,
-  REGISTRATION_YEAR,
-  mapOutreachProfileToUserProfile,
-  pickPrimaryRole,
-  type OutreachProfile,
-  type RegisteredPlayer,
-  type Role,
-  type UserProfile,
-  type VolunteerApplication,
-} from "@umoja/shared";
-import { auth, db, defaultDb } from "../util/admin.js";
+import { COLLECTIONS, pickPrimaryRole, type Role, type UserProfile, type VolunteerApplication } from "@umoja/shared";
+import { auth, db } from "../util/admin.js";
 import { ensureInGeneralPod } from "../util/generalPod.js";
+import { buildBaseProfileFromOutreach } from "../util/outreachProfile.js";
 
 interface ReviewVolunteerApplicationRequest {
   applicationId: string;
@@ -58,31 +46,10 @@ export const reviewVolunteerApplication = onCall<ReviewVolunteerApplicationReque
     // create the doc for the first time, seed it from their real Outreach
     // data instead of a bare {roles} stub, or approving this application
     // would silently blank their real name/photo/family/team memberships.
-    let baseProfile: Partial<UserProfile> = {};
-    if (!targetSnap.exists) {
-      // Best-effort enrichment from the separate Outreach production
-      // database — this used to be able to throw and abort the ENTIRE
-      // approval (custom claims already set, but the Firestore write below
-      // never ran), which looked like the approve button just hanging with
-      // zero feedback. A first-time volunteer with no Outreach match at all
-      // is a normal case (e.g. staff/referee-only accounts), not an error —
-      // fall back to the bare-stub profile rather than failing the review.
-      try {
-        const outreachSnap = await defaultDb.collection(DATA_SOURCES.registration.profilesCollection).doc(targetUid).get();
-        if (outreachSnap.exists) {
-          const playersSnap = await defaultDb
-            .collection(REGISTRATION_ROOT)
-            .doc(REGISTRATION_YEAR)
-            .collection(PLAYERS_REGISTERED)
-            .where("uid", "==", targetUid)
-            .get();
-          const players = playersSnap.docs.map((d) => ({ ...(d.data() as RegisteredPlayer), id: d.id }));
-          baseProfile = mapOutreachProfileToUserProfile(targetUid, outreachSnap.data() as OutreachProfile, players);
-        }
-      } catch (err) {
-        console.error(`reviewVolunteerApplication: Outreach profile lookup failed for ${targetUid}, continuing without enrichment:`, err);
-      }
-    }
+    // A first-time volunteer with no Outreach match at all is a normal case
+    // (e.g. staff/referee-only accounts) — buildBaseProfileFromOutreach falls
+    // back to {} rather than throwing and aborting the whole approval.
+    const baseProfile: Partial<UserProfile> = targetSnap.exists ? {} : await buildBaseProfileFromOutreach(targetUid);
 
     // Union of whatever roles the account already had, whatever Outreach
     // says it should have (e.g. "player", only known once baseProfile is

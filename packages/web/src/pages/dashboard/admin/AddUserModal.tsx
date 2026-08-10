@@ -14,21 +14,20 @@ export interface NewUserCandidate {
 
 type LookupResult =
   | { kind: "not_found" }
-  | { kind: "already_registered"; displayName: string; email: string }
-  | { kind: "addable"; candidate: NewUserCandidate };
+  | { kind: "found"; candidate: NewUserCandidate; hasOutreachProfile: boolean };
 
 /**
  * Email-only, deliberately — NOT a name search over registered players.
  * setUserRole writes straight into users/{uid}, and useResolvedProfile
  * treats any users doc as authoritative over the richer Outreach-derived
- * profile (see mapOutreachProfileToUserProfile) once one exists. Creating a
- * sparse users doc for someone who already has a registration profile at
- * (default)/profiles/{uid} would silently blow away their real
- * name/photo/family/team-membership data the next time they open the app —
- * so this checks for that BEFORE offering to pick the result, not just
- * before writing. (Found the hard way: an account that "hasn't opened the
- * app" by the umoja13-app users collection can still be a fully real,
- * actively-used registration profile — those live in a different database.)
+ * profile (see mapOutreachProfileToUserProfile) once one exists. That used
+ * to mean granting a role here for someone who already has a registration
+ * profile at (default)/profiles/{uid} was refused outright, to avoid
+ * silently blowing away their real name/photo/family/team-membership data.
+ * setUserRole now seeds the new users doc from that same Outreach data
+ * (see buildBaseProfileFromOutreach on the backend) instead of a bare
+ * {roles} stub, so granting a role here is safe either way — this just
+ * flags which case we're in so the confirmation copy is accurate.
  */
 export function AddUserModal({ onPick, onClose }: { onPick: (candidate: NewUserCandidate) => void; onClose: () => void }) {
   const [email, setEmail] = useState("");
@@ -56,9 +55,9 @@ export function AddUserModal({ onPick, onClose }: { onPick: (candidate: NewUserC
       if (outreachSnap.exists()) {
         const raw = outreachSnap.data() as { firstName?: string; lastName?: string };
         const name = [raw.firstName, raw.lastName].filter(Boolean).join(" ").trim() || found.displayName;
-        setResult({ kind: "already_registered", displayName: name, email: found.email });
+        setResult({ kind: "found", candidate: { uid: found.uid, displayName: name, email: found.email }, hasOutreachProfile: true });
       } else {
-        setResult({ kind: "addable", candidate: found });
+        setResult({ kind: "found", candidate: found, hasOutreachProfile: false });
       }
     } catch {
       if (requestId === requestIdRef.current) setResult({ kind: "not_found" });
@@ -88,21 +87,20 @@ export function AddUserModal({ onPick, onClose }: { onPick: (candidate: NewUserC
         </PrimaryButton>
       </div>
 
-      {status === "done" && result?.kind === "addable" && (
-        <div
-          onClick={() => onPick(result.candidate)}
-          style={{ padding: "9px 11px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, cursor: "pointer", fontSize: 13.5 }}
-        >
-          {result.candidate.displayName} <span style={{ color: theme.color.textMuted, fontSize: 12 }}>· {result.candidate.email}</span>
-        </div>
-      )}
-
-      {status === "done" && result?.kind === "already_registered" && (
-        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, fontWeight: 600 }}>
-          {result.displayName} already has a registration profile ({result.email}) — assigning a role from here isn't supported yet, since it
-          would replace their registration profile (name, photo, family, team memberships) with a blank one. Ask for this to be built properly if
-          you need to grant them a staff role.
-        </div>
+      {status === "done" && result?.kind === "found" && (
+        <>
+          <div
+            onClick={() => onPick(result.candidate)}
+            style={{ padding: "9px 11px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, cursor: "pointer", fontSize: 13.5 }}
+          >
+            {result.candidate.displayName} <span style={{ color: theme.color.textMuted, fontSize: 12 }}>· {result.candidate.email}</span>
+          </div>
+          {result.hasOutreachProfile && (
+            <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>
+              Already has a registration profile — granting a role keeps their existing name, photo, family, and team memberships intact.
+            </div>
+          )}
+        </>
       )}
 
       {status === "done" && result?.kind === "not_found" && (

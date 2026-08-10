@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, ROLES, type Role } from "@umoja/shared";
 import { auth, db } from "../util/admin.js";
 import { ensureInGeneralPod } from "../util/generalPod.js";
+import { buildBaseProfileFromOutreach } from "../util/outreachProfile.js";
 
 const POD_ELIGIBLE_ROLES: Role[] = ["admin", "commissioner", "referee", "volunteer"];
 
@@ -37,9 +38,19 @@ export const setUserRole = onCall<SetUserRoleRequest>(async (request) => {
     throw new HttpsError("invalid-argument", "primaryRole must be one of the assigned roles.");
   }
 
+  // Seed from their real Outreach registration data the FIRST time this doc
+  // is created — otherwise a bare {roles} stub becomes authoritative over
+  // their richer Outreach-derived profile the instant it exists (see
+  // useResolvedProfile), silently blanking their real name/photo/family/team
+  // memberships the next time they open the app. No-op ({}) for an account
+  // with no Outreach history (the normal case for a staff-only account) and
+  // for an account that already has a users doc (never overwrite in place).
+  const targetSnap = await db.collection(COLLECTIONS.users).doc(targetUid).get();
+  const baseProfile = targetSnap.exists ? {} : await buildBaseProfileFromOutreach(targetUid);
+
   await auth.setCustomUserClaims(targetUid, { roles });
   await db.collection(COLLECTIONS.users).doc(targetUid).set(
-    { roles, primaryRole, updatedAt: Date.now() },
+    { ...baseProfile, roles, primaryRole, updatedAt: Date.now() },
     { merge: true }
   );
 
