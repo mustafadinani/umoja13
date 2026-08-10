@@ -132,6 +132,16 @@ export const postAnnouncement = httpsCallable<
   { id: string; notifiedCount: number; pushCount: number }
 >(functions, "postAnnouncement");
 
+export const updateAnnouncement = httpsCallable<
+  { id: string; title: string; body: string },
+  { id: string }
+>(functions, "updateAnnouncement");
+
+export const deleteAnnouncement = httpsCallable<{ id: string }, { id: string }>(
+  functions,
+  "deleteAnnouncement"
+);
+
 export const sendTeamMessage = httpsCallable<
   { teamId: string; text: string },
   { message: TeamChannelMessage }
