@@ -99,8 +99,9 @@ export function PlayersAdminTab() {
   const { data: categories, loading: categoriesLoading } = useCategories();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [unassignedOnly, setUnassignedOnly] = useState(false);
-  const [invalidOnly, setInvalidOnly] = useState(false);
+  // Defaults to "with a team" — that's the group admins actually work
+  // through day to day; "all" buries them under everyone still mid-signup.
+  const [teamFilter, setTeamFilter] = useState<"all" | "withTeam" | "noTeam" | "invalidCategory">("withTeam");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -138,8 +139,13 @@ export function PlayersAdminTab() {
         return { player: p, teamId, teamName, hasTeam, checkedIn, categoryMatch };
       })
       .filter(({ player, hasTeam, categoryMatch }) => {
-        if (unassignedOnly && (hasTeam || categoryMatch.nonCompetitive)) return false;
-        if (invalidOnly && (categoryMatch.matched || categoryMatch.nonCompetitive)) return false;
+        // "No team assigned" and "with a team" are complements of the exact
+        // same predicate used below to compute unassignedCount — so the KPI
+        // tiles' numbers and what clicking them filters to always agree.
+        const unassigned = !hasTeam && !categoryMatch.nonCompetitive;
+        if (teamFilter === "noTeam" && !unassigned) return false;
+        if (teamFilter === "withTeam" && unassigned) return false;
+        if (teamFilter === "invalidCategory" && (categoryMatch.matched || categoryMatch.nonCompetitive)) return false;
         if (categoryFilter) {
           const label = categoryMatch.matched?.label ?? categoryMatch.rawDisplay;
           if (label !== categoryFilter) return false;
@@ -155,7 +161,7 @@ export function PlayersAdminTab() {
         const bn = `${b.player.lastName ?? ""} ${b.player.firstName ?? ""}`.toLowerCase();
         return an.localeCompare(bn);
       });
-  }, [players, teamNameById, checkIns, search, categoryFilter, unassignedOnly, invalidOnly, categories]);
+  }, [players, teamNameById, checkIns, search, categoryFilter, teamFilter, categories]);
 
   const unassignedCount = players.filter((p) => !p.teamId?.trim() && !matchPlayerCategory(p, categories).nonCompetitive).length;
   const invalidCategoryCount = players.filter((p) => {
@@ -207,13 +213,31 @@ export function PlayersAdminTab() {
   return (
     <div>
       <div className="grid-kpi-4" style={{ marginBottom: 20 }}>
-        <Kpi label="Registered players" value={loading ? "…" : String(players.length)} />
-        <Kpi label="With a team" value={loading ? "…" : String(players.length - unassignedCount)} />
-        <Kpi label="No team assigned" value={loading ? "…" : String(unassignedCount)} accent={unassignedCount > 0} />
+        <Kpi
+          label="Registered players"
+          value={loading ? "…" : String(players.length)}
+          active={teamFilter === "all"}
+          onClick={() => setTeamFilter("all")}
+        />
+        <Kpi
+          label="With a team"
+          value={loading ? "…" : String(players.length - unassignedCount)}
+          active={teamFilter === "withTeam"}
+          onClick={() => setTeamFilter("withTeam")}
+        />
+        <Kpi
+          label="No team assigned"
+          value={loading ? "…" : String(unassignedCount)}
+          accent={unassignedCount > 0}
+          active={teamFilter === "noTeam"}
+          onClick={() => setTeamFilter("noTeam")}
+        />
         <Kpi
           label="Invalid category"
           value={loading ? "…" : String(invalidCategoryCount)}
           accent={invalidCategoryCount > 0}
+          active={teamFilter === "invalidCategory"}
+          onClick={() => setTeamFilter("invalidCategory")}
         />
       </div>
 
@@ -231,24 +255,12 @@ export function PlayersAdminTab() {
         }}
       />
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         <Pill active={!categoryFilter} onClick={() => setCategoryFilter(null)}>All categories</Pill>
         {filterLabels.map((c) => (
           <Pill key={c} active={categoryFilter === c} onClick={() => setCategoryFilter(c)}>{c}</Pill>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!unassignedOnly && !invalidOnly} onClick={() => { setUnassignedOnly(false); setInvalidOnly(false); }}>
-          All players
-        </Pill>
-        <Pill active={unassignedOnly} onClick={() => { setUnassignedOnly(true); setInvalidOnly(false); }}>
-          No team assigned
-        </Pill>
-        <Pill active={invalidOnly} onClick={() => { setInvalidOnly(true); setUnassignedOnly(false); }}>
-          Invalid category
-        </Pill>
-      </div>
-
       {error && (
         <div style={{ color: theme.color.danger, fontSize: 13.5, marginBottom: 12 }}>
           Couldn't load registration players: {error}
@@ -394,9 +406,28 @@ export function PlayersAdminTab() {
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Kpi({
+  label,
+  value,
+  accent,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <Card style={{ padding: "14px 16px" }}>
+    <Card
+      onClick={onClick}
+      style={{
+        padding: "14px 16px",
+        border: `1.5px solid ${active ? theme.color.navy : theme.color.border}`,
+        background: active ? "#F1EFF5" : "#fff",
+      }}
+    >
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, color: theme.color.textMuted }}>{label.toUpperCase()}</div>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 28, marginTop: 4, color: accent ? theme.color.danger : theme.color.text }}>
         {value}
