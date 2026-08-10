@@ -3,6 +3,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut as firebaseSignOut,
   updateProfile,
   type User as FirebaseUser,
@@ -21,6 +22,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   }
 
+  async function resetPassword(email: string) {
+    await sendPasswordResetEmail(auth, email);
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -73,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        resetPassword,
       }}
     >
       {children}
@@ -92,6 +99,9 @@ const hmrFallback: AuthContextValue = {
     throw new Error("useAuth must be used within AuthProvider");
   },
   signOut: async () => {
+    throw new Error("useAuth must be used within AuthProvider");
+  },
+  resetPassword: async () => {
     throw new Error("useAuth must be used within AuthProvider");
   },
 };
