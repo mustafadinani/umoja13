@@ -26,7 +26,9 @@ import { PodMembersScreen } from "../screens/PodMembersScreen";
 import { HubInfoScreen, HubTravelScreen, HubLocalScreen, HubMuslimScreen } from "../screens/HubExperienceScreens";
 
 export type RootStackParamList = {
-  Login: undefined;
+  // Set when arriving from Signup's "email already in use" message — carries
+  // over the typed email and can jump straight into the reset-password form.
+  Login: { prefillEmail?: string; mode?: "signIn" | "forgotPassword" } | undefined;
   Signup: undefined;
   Tabs: undefined;
   Game: { gameId: string };

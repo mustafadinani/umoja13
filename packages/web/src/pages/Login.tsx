@@ -1,17 +1,27 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { AuthCard, AuthPasswordInput, authInputStyle, authButtonStyle, authErrorStyle } from "../components/AuthCard";
 
+interface LoginNavState {
+  email?: string;
+  mode?: "signIn" | "forgotPassword";
+}
+
 export function Login() {
   const { signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  // Arriving from Signup's "email already in use" message — carry over the
+  // email they already typed and jump straight to the reset form if that's
+  // where they came from, instead of making them retype everything.
+  const navState = (location.state ?? null) as LoginNavState | null;
+  const [email, setEmail] = useState(navState?.email ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"signIn" | "forgotPassword">("signIn");
+  const [mode, setMode] = useState<"signIn" | "forgotPassword">(navState?.mode ?? "signIn");
   const [resetSent, setResetSent] = useState(false);
 
   async function onSubmit(e: FormEvent) {

@@ -6,14 +6,17 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { PrimaryButton } from "../components/ui";
 
-export function Login({ navigation }: NativeStackScreenProps<RootStackParamList, "Login">) {
+export function Login({ navigation, route }: NativeStackScreenProps<RootStackParamList, "Login">) {
   const { signIn, resetPassword } = useAuth();
-  const [email, setEmail] = useState("");
+  // Arriving from Signup's "email already in use" message — carry over the
+  // email they already typed and jump straight to the reset form if that's
+  // where they came from, instead of making them retype everything.
+  const [email, setEmail] = useState(route.params?.prefillEmail ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"signIn" | "forgotPassword">("signIn");
+  const [mode, setMode] = useState<"signIn" | "forgotPassword">(route.params?.mode ?? "signIn");
   const [resetSent, setResetSent] = useState(false);
 
   async function submit() {

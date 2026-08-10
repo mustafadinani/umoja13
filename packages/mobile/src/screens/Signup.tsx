@@ -13,15 +13,27 @@ export function Signup({ navigation }: NativeStackScreenProps<RootStackParamList
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Umoja Outreach runs several other programs on this same Firebase
+  // project, so plenty of real people already have an account under their
+  // email from something else entirely — "email already in use" is common
+  // and not a sign anything's broken. Give them a way forward instead of a
+  // raw Firebase error string.
+  const [emailInUse, setEmailInUse] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setError(null);
+    setEmailInUse(false);
     setBusy(true);
     try {
       await signUp(email, password, name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't create your account.");
+      const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : null;
+      if (code === "auth/email-already-in-use") {
+        setEmailInUse(true);
+      } else {
+        setError(e instanceof Error ? e.message : "Couldn't create your account.");
+      }
     } finally {
       setBusy(false);
     }
@@ -51,7 +63,25 @@ export function Signup({ navigation }: NativeStackScreenProps<RootStackParamList
           <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
         </Pressable>
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {emailInUse ? (
+        <View style={styles.inUseBox}>
+          <Text style={styles.inUseText}>An account already exists for this email.</Text>
+          <Text
+            style={styles.inUseLink}
+            onPress={() => navigation.navigate("Login", { prefillEmail: email })}
+          >
+            Sign in instead
+          </Text>
+          <Text
+            style={styles.inUseLink}
+            onPress={() => navigation.navigate("Login", { prefillEmail: email, mode: "forgotPassword" })}
+          >
+            Reset your password
+          </Text>
+        </View>
+      ) : (
+        error && <Text style={styles.error}>{error}</Text>
+      )}
       <PrimaryButton onPress={submit} disabled={busy} style={{ width: "100%", marginTop: 8 }}>
         {busy ? "Creating account…" : "CREATE ACCOUNT"}
       </PrimaryButton>
@@ -79,4 +109,7 @@ const styles = StyleSheet.create({
   eyeText: { color: theme.color.blue, fontWeight: "600", fontSize: 13 },
   error: { color: theme.color.danger, fontSize: 13, marginBottom: 8 },
   link: { textAlign: "center", marginTop: 18, color: theme.color.blue, fontWeight: "600" },
+  inUseBox: { backgroundColor: theme.color.dangerBg, borderRadius: theme.radius.sm, padding: 12, marginBottom: 8 },
+  inUseText: { color: theme.color.danger, fontSize: 13, marginBottom: 6 },
+  inUseLink: { color: theme.color.danger, fontSize: 13, fontWeight: "700", textDecorationLine: "underline", marginTop: 2 },
 });
