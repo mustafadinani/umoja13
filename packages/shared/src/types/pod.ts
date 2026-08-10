@@ -36,6 +36,9 @@ export interface PodChannelMessage {
   authorUid: string;
   authorName: string;
   text: string;
+  /** Optional photo/video attachment, uploaded to Storage client-side before this message is sent. */
+  mediaUrl?: string;
+  mediaType?: "photo" | "video";
   createdAt: number;
 }
 

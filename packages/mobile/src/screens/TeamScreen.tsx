@@ -21,6 +21,9 @@ import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { ChannelAttachButton } from "../components/ChannelAttachButton";
+import { ChannelAttachmentThumb } from "../components/ChannelAttachmentThumb";
+import type { ChannelAttachment } from "../lib/uploadChannelAttachment";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
 
@@ -45,6 +48,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
   const [channelDraft, setChannelDraft] = useState("");
+  const [channelAttachment, setChannelAttachment] = useState<ChannelAttachment | null>(null);
   const [sending, setSending] = useState(false);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -69,11 +73,12 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const channelMessages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
   async function sendChannelMessage() {
-    if (!channelDraft.trim()) return;
+    if (!channelDraft.trim() && !channelAttachment) return;
     setSending(true);
     try {
-      await sendTeamMessage({ teamId: team!.id, text: channelDraft });
+      await sendTeamMessage({ teamId: team!.id, text: channelDraft, ...(channelAttachment ?? {}) });
       setChannelDraft("");
+      setChannelAttachment(null);
     } finally {
       setSending(false);
     }
@@ -248,7 +253,10 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: m.from === "admin" ? "#fff" : theme.color.textMuted }}>
                   {m.from === "admin" ? "Organizers" : m.authorName}
                 </Text>
-                <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text }}>{m.text}</Text>
+                {m.mediaUrl && m.mediaType && (
+                  <ChannelAttachmentThumb mediaUrl={m.mediaUrl} mediaType={m.mediaType} onPress={() => setLightbox({ uri: m.mediaUrl!, mediaType: m.mediaType! })} />
+                )}
+                {m.text ? <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text, marginTop: m.mediaUrl ? 6 : 0 }}>{m.text}</Text> : null}
               </View>
             ))}
             {channelMessages.length === 0 && (
@@ -259,14 +267,15 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           </View>
 
           {canPostToChannel ? (
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
+              <ChannelAttachButton value={channelAttachment} onChange={setChannelAttachment} disabled={sending} />
               <TextInput
                 value={channelDraft}
                 onChangeText={setChannelDraft}
                 placeholder={channelMessages.length === 0 ? "Message your organizers…" : "Send a message…"}
                 style={styles.channelInput}
               />
-              <PrimaryButton disabled={sending || !channelDraft.trim()} onPress={sendChannelMessage}>Send</PrimaryButton>
+              <PrimaryButton disabled={sending || (!channelDraft.trim() && !channelAttachment)} onPress={sendChannelMessage}>Send</PrimaryButton>
             </View>
           ) : (
             <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers and players on this team can post here.</Text>

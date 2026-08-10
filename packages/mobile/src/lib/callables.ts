@@ -116,17 +116,17 @@ export const registerPushToken = httpsCallable<{ token: string | null }, { ok: t
 );
 
 export const sendTeamMessage = httpsCallable<
-  { teamId: string; text: string },
+  { teamId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: TeamChannelMessage }
 >(functions, "sendTeamMessage");
 
 export const sendRoleMessage = httpsCallable<
-  { role: ChannelRole; text: string },
+  { role: ChannelRole; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: RoleChannelMessage }
 >(functions, "sendRoleMessage");
 
 export const sendUserMessage = httpsCallable<
-  { targetUid?: string; text: string },
+  { targetUid?: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: UserChannelMessage }
 >(functions, "sendUserMessage");
 
@@ -146,7 +146,7 @@ export const sendPodTaskMessage = httpsCallable<
 >(functions, "sendPodTaskMessage");
 
 export const sendPodMessage = httpsCallable<
-  { podId: string; text: string },
+  { podId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
 

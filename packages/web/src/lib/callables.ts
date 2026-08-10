@@ -143,17 +143,17 @@ export const deleteAnnouncement = httpsCallable<{ id: string }, { id: string }>(
 );
 
 export const sendTeamMessage = httpsCallable<
-  { teamId: string; text: string },
+  { teamId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: TeamChannelMessage }
 >(functions, "sendTeamMessage");
 
 export const sendRoleMessage = httpsCallable<
-  { role: ChannelRole; text: string },
+  { role: ChannelRole; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: RoleChannelMessage }
 >(functions, "sendRoleMessage");
 
 export const sendUserMessage = httpsCallable<
-  { targetUid?: string; text: string },
+  { targetUid?: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: UserChannelMessage }
 >(functions, "sendUserMessage");
 
@@ -197,7 +197,7 @@ export const deletePod = httpsCallable<{ podId: string }, { ok: true }>(function
 export const ensurePodsSeeded = httpsCallable<Record<string, never>, { ok: true }>(functions, "ensurePodsSeeded");
 
 export const sendPodMessage = httpsCallable<
-  { podId: string; text: string },
+  { podId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: PodChannelMessage }
 >(functions, "sendPodMessage");
 

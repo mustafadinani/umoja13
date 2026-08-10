@@ -4,6 +4,10 @@ import { useAuth } from "../auth/AuthProvider";
 import { useUserChannel } from "../hooks/useData";
 import { sendUserMessage, askUmojaChannel } from "../lib/callables";
 import { PrimaryButton } from "./ui";
+import { ChannelAttachButton } from "./ChannelAttachButton";
+import { ChannelAttachmentThumb } from "./ChannelAttachmentThumb";
+import { Lightbox } from "./Lightbox";
+import type { ChannelAttachment } from "../lib/uploadChannelAttachment";
 
 type Target = "ai" | "organizer";
 
@@ -24,9 +28,11 @@ export function UserChannelPanel({ uid }: { uid: string }) {
   const { profile } = useAuth();
   const { data: channel } = useUserChannel(uid);
   const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<ChannelAttachment | null>(null);
   const [escalated, setEscalated] = useState(false);
   const [pendingTarget, setPendingTarget] = useState<Target | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<ChannelAttachment | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +55,7 @@ export function UserChannelPanel({ uid }: { uid: string }) {
 
   async function send() {
     const text = draft.trim();
-    if (!text || pendingTarget === target) return;
+    if ((!text && !attachment) || pendingTarget === target) return;
     setDraft("");
     setError(null);
     setPendingTarget(target);
@@ -57,7 +63,8 @@ export function UserChannelPanel({ uid }: { uid: string }) {
       if (canUseAi && target === "ai") {
         await askUmojaChannel({ text });
       } else {
-        await sendUserMessage({ targetUid: uid, text });
+        await sendUserMessage({ targetUid: uid, text, ...(attachment ?? {}) });
+        setAttachment(null);
       }
     } catch {
       setError(target === "ai" ? "Ask Umoja didn't answer — try again, or click Talk to an organizer below." : "Couldn't send that — try again.");
@@ -100,7 +107,10 @@ export function UserChannelPanel({ uid }: { uid: string }) {
                   {m.from === "admin" ? "Organizers" : "🤖 Ask Umoja"}
                 </div>
               )}
-              {m.text}
+              {m.mediaUrl && m.mediaType && (
+                <ChannelAttachmentThumb mediaUrl={m.mediaUrl} mediaType={m.mediaType} onClick={() => setLightbox({ mediaUrl: m.mediaUrl!, mediaType: m.mediaType! })} />
+              )}
+              {m.text && <div style={{ marginTop: m.mediaUrl ? 6 : 0 }}>{m.text}</div>}
             </div>
           </div>
         ))}
@@ -136,7 +146,8 @@ export function UserChannelPanel({ uid }: { uid: string }) {
             )
           )}
           {error && <div style={{ color: theme.color.danger, fontSize: 12, marginBottom: 6 }}>{error}</div>}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            {target === "organizer" && <ChannelAttachButton value={attachment} onChange={setAttachment} disabled={pendingTarget === target} />}
             <input
               ref={inputRef}
               value={draft}
@@ -146,10 +157,10 @@ export function UserChannelPanel({ uid }: { uid: string }) {
               style={{ flex: 1, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
             />
             <PrimaryButton
-              disabled={!draft.trim() || pendingTarget === target}
+              disabled={(!draft.trim() && !attachment) || pendingTarget === target}
               onClick={send}
               style={{
-                background: !draft.trim() || pendingTarget === target ? "#C9C3D8" : target === "organizer" ? theme.color.navy : theme.color.purple,
+                background: (!draft.trim() && !attachment) || pendingTarget === target ? "#C9C3D8" : target === "organizer" ? theme.color.navy : theme.color.purple,
               }}
             >
               Send
@@ -159,6 +170,8 @@ export function UserChannelPanel({ uid }: { uid: string }) {
       ) : (
         <div style={{ color: theme.color.textMuted, fontSize: 12.5, flexShrink: 0 }}>Only this user and organizers can post here.</div>
       )}
+
+      {lightbox && <Lightbox src={lightbox.mediaUrl} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

@@ -6,22 +6,29 @@ import { useAuth } from "../auth/AuthProvider";
 import { usePodChannel } from "../hooks/useData";
 import { sendPodMessage } from "../lib/callables";
 import { Avatar, PrimaryButton } from "./ui";
+import { ChannelAttachButton } from "./ChannelAttachButton";
+import { ChannelAttachmentThumb } from "./ChannelAttachmentThumb";
+import { Lightbox } from "./Lightbox";
+import type { ChannelAttachment } from "../lib/uploadChannelAttachment";
 
 /** Flat peer group chat for a Pod — messages align by "is this me," not "is this staff," since admin/commissioner/referee/volunteer all post as equals here. */
 export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: boolean }) {
   const { profile } = useAuth();
   const { data: channel } = usePodChannel(podId);
   const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<ChannelAttachment | null>(null);
   const [sending, setSending] = useState(false);
+  const [lightbox, setLightbox] = useState<ChannelAttachment | null>(null);
 
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
   async function send() {
-    if (!draft.trim()) return;
+    if (!draft.trim() && !attachment) return;
     setSending(true);
     try {
-      await sendPodMessage({ podId, text: draft });
+      await sendPodMessage({ podId, text: draft, ...(attachment ?? {}) });
       setDraft("");
+      setAttachment(null);
     } finally {
       setSending(false);
     }
@@ -39,7 +46,10 @@ export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: bo
                 <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: isMe ? "#fff" : theme.color.textMuted }}>
                   {isMe ? "You" : m.authorName}
                 </Text>
-                <Text style={{ fontSize: 13.5, color: isMe ? "#fff" : theme.color.text }}>{m.text}</Text>
+                {m.mediaUrl && m.mediaType && (
+                  <ChannelAttachmentThumb mediaUrl={m.mediaUrl} mediaType={m.mediaType} onPress={() => setLightbox({ mediaUrl: m.mediaUrl!, mediaType: m.mediaType! })} />
+                )}
+                {m.text ? <Text style={{ fontSize: 13.5, color: isMe ? "#fff" : theme.color.text, marginTop: m.mediaUrl ? 6 : 0 }}>{m.text}</Text> : null}
               </View>
             </View>
           );
@@ -48,13 +58,16 @@ export function PodChannelPanel({ podId, canPost }: { podId: string; canPost: bo
       </View>
 
       {canPost ? (
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
+          <ChannelAttachButton value={attachment} onChange={setAttachment} disabled={sending} />
           <TextInput value={draft} onChangeText={setDraft} placeholder="Send a message…" style={styles.input} />
-          <PrimaryButton disabled={sending || !draft.trim()} onPress={send}>Send</PrimaryButton>
+          <PrimaryButton disabled={sending || (!draft.trim() && !attachment)} onPress={send}>Send</PrimaryButton>
         </View>
       ) : (
         <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only pod members can post here.</Text>
       )}
+
+      <Lightbox visible={!!lightbox} src={lightbox?.mediaUrl ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </View>
   );
 }

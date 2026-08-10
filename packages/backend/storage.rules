@@ -51,6 +51,20 @@ service firebase.storage {
         (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
     }
 
+    // Chat attachments (Pod/Team/Role/User channels): a message's mediaUrl is
+    // uploaded here by the sender BEFORE the send*Message callable ever runs,
+    // so this only gates the upload itself — the actual Firestore message
+    // doc stays gated by each channel's own read rule (staff + membership).
+    // Public read, like Moments/Hunt above: a getDownloadURL() link already
+    // carries its own access token and bypasses these rules on fetch either
+    // way, so a tighter read rule here wouldn't add real privacy.
+    match /channelAttachments/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.size < 50 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
     // Public reference assets (logo, sponsor logos) — admin-managed, world-readable.
     match /public/{fileName} {
       allow read: if true;

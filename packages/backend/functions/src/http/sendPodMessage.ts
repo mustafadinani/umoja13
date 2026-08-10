@@ -4,10 +4,13 @@ import { COLLECTIONS, type Pod, type PodChannelMessage, type UserProfile } from 
 import { db } from "../util/admin.js";
 import { resolveAuthorName } from "../util/authorName.js";
 import { notifyUsers } from "../util/notify.js";
+import { notificationBodyFor, validateMessageContent } from "../util/channelAttachment.js";
 
 interface SendPodMessageRequest {
   podId: string;
-  text: string;
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: "photo" | "video";
 }
 
 /**
@@ -21,9 +24,9 @@ export const sendPodMessage = onCall<SendPodMessageRequest>(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-  const { podId, text } = request.data;
+  const { podId, text, mediaUrl, mediaType } = request.data;
   if (!podId) throw new HttpsError("invalid-argument", "podId is required.");
-  if (!text?.trim()) throw new HttpsError("invalid-argument", "Message text is required.");
+  const content = validateMessageContent(text, { mediaUrl, mediaType });
 
   const [userSnap, podSnap] = await Promise.all([
     db.collection(COLLECTIONS.users).doc(uid).get(),
@@ -43,7 +46,7 @@ export const sendPodMessage = onCall<SendPodMessageRequest>(async (request) => {
     id: db.collection(COLLECTIONS.podChannels).doc().id,
     authorUid: uid,
     authorName: await resolveAuthorName(uid, profile?.displayName),
-    text: text.trim(),
+    ...content,
     createdAt: Date.now(),
   };
 
@@ -57,7 +60,7 @@ export const sendPodMessage = onCall<SendPodMessageRequest>(async (request) => {
   );
 
   const recipients = pod.memberUids.filter((u) => u !== uid);
-  await notifyUsers(recipients, `${pod.name} · ${message.authorName}`, message.text);
+  await notifyUsers(recipients, `${pod.name} · ${message.authorName}`, notificationBodyFor(message));
 
   return { message };
 });
