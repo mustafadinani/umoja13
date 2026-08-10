@@ -8,9 +8,11 @@ import {
   SPONSOR_TIER_LABELS,
   CATEGORIES,
   TODDLERS_CAMP_CATEGORY_LABELS,
+  TOURNAMENT_DAY_DATES,
   channelHasUnread,
   buildInbox,
   unreadCount,
+  compareGamesByKickoff,
   formatKickoffTime,
   type Sponsor,
   type PlayerMembership,
@@ -29,7 +31,7 @@ import {
   useMyVolunteerTasks,
   useMyVolunteerApplications,
 } from "../hooks/useData";
-import { Card, Modal, Pill, PrimaryButton } from "../components/ui";
+import { Card, Modal, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { AnnouncementDetailModal } from "../components/AnnouncementDetailModal";
 import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
 import { MomentDetailModal } from "../components/MomentDetailModal";
@@ -201,11 +203,25 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>MY GAMES</Text>
-            {myGames.map((g) => (
-              <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6 }}>
-                <Text style={{ fontWeight: "600" }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</Text>
-              </Card>
-            ))}
+            {[...myGames].sort(compareGamesByKickoff).map((g) => {
+              const decided = g.status !== "scheduled";
+              return (
+                <Card key={g.id} onPress={() => navigation.getParent()?.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{teamById.get(g.homeTeamId)?.name ?? "TBD"} vs {teamById.get(g.awayTeamId)?.name ?? "TBD"}</Text>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId} · {g.day.toUpperCase()}, {TOURNAMENT_DAY_DATES[g.day]} · {g.field} · {formatKickoffTime(g.kickoffTime)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      {decided && <Text style={{ fontWeight: "800", fontSize: 15 }}>{g.homeScore ?? 0}–{g.awayScore ?? 0}</Text>}
+                      <StatusBadge status={g.status} />
+                    </View>
+                  </View>
+                </Card>
+              );
+            })}
             {myGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
           </View>
 

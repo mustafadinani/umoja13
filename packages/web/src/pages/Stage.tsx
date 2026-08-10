@@ -34,18 +34,18 @@ const FLAME = "linear-gradient(135deg, #F2A23A, #E23E82)";
 // keeps filling the screen at any resolution) rather than the fixed small
 // px values a normal in-app page uses.
 const SIZE = {
-  logo: "clamp(72px, 9vw, 160px)",
-  categoryTag: "clamp(20px, 2.2vw, 34px)",
-  title: "clamp(48px, 6.5vw, 96px)",
-  subLabel: "clamp(18px, 2vw, 28px)",
-  nomineeName: "clamp(22px, 2.6vw, 38px)",
-  nomineeTeam: "clamp(16px, 1.8vw, 24px)",
-  winnerEyebrow: "clamp(20px, 2.4vw, 32px)",
-  winnerName: "clamp(56px, 8vw, 128px)",
-  winnerTeam: "clamp(24px, 3vw, 42px)",
-  winnerFooter: "clamp(18px, 2vw, 26px)",
-  score: "clamp(22px, 2.8vw, 40px)",
-  crestLabel: "clamp(18px, 2vw, 26px)",
+  logo: "clamp(60px, 7vw, 128px)",
+  categoryTag: "clamp(18px, 2vw, 30px)",
+  title: "clamp(42px, 5.6vw, 84px)",
+  subLabel: "clamp(16px, 1.8vw, 25px)",
+  nomineeName: "clamp(20px, 2.4vw, 34px)",
+  nomineeTeam: "clamp(15px, 1.6vw, 22px)",
+  winnerEyebrow: "clamp(18px, 2.1vw, 28px)",
+  winnerName: "clamp(48px, 6.5vw, 104px)",
+  winnerTeam: "clamp(22px, 2.6vw, 36px)",
+  winnerFooter: "clamp(16px, 1.8vw, 23px)",
+  score: "clamp(20px, 2.5vw, 36px)",
+  crestLabel: "clamp(16px, 1.8vw, 23px)",
 };
 
 export function Stage() {
@@ -88,7 +88,7 @@ export function Stage() {
         @media (prefers-reduced-motion: reduce) { .stage-slide { animation: none; } }
       `}</style>
 
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "min(5vh, 60px) min(5vw, 80px)", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "min(2.5vh, 32px) min(5vw, 80px)", minHeight: 0 }}>
         {slide.kind === "player" ? (
           <PlayerSlide
             key={index + String(revealed)}
@@ -125,7 +125,7 @@ export function Stage() {
 }
 
 function StageLogo() {
-  return <img src="/logo-icon.png" alt="Umoja13" style={{ height: SIZE.logo, width: "auto", marginBottom: "clamp(20px, 2.5vw, 40px)", opacity: 0.97 }} />;
+  return <img src="/logo-icon.png" alt="Umoja13" style={{ height: SIZE.logo, width: "auto", marginBottom: "clamp(12px, 1.6vw, 26px)", opacity: 0.97 }} />;
 }
 
 function PlayerSlide({
@@ -159,13 +159,13 @@ function PlayerSlide({
         <div style={{ position: "absolute", inset: "-40% -30%", background: "radial-gradient(circle at 50% 38%, rgba(242,162,58,0.26), rgba(226,62,130,0.10) 45%, transparent 65%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
           <StageLogo />
-          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(24px, 3vw, 48px)" }}>
+          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(14px, 1.8vw, 30px)" }}>
             ✦ Winner ✦
           </div>
-          <PhotoCircle name={winner.name} url={photoFor(winner.playerKey)} size="clamp(220px, 26vw, 460px)" ringGradient={FLAME} />
-          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(24px, 3vw, 44px)", marginBottom: "clamp(8px, 1vw, 16px)", lineHeight: 1.1 }}>{winner.name}</div>
+          <PhotoCircle name={winner.name} url={photoFor(winner.playerKey)} size="clamp(180px, 20vw, 360px)" ringGradient={FLAME} />
+          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(16px, 2vw, 30px)", marginBottom: "clamp(6px, 0.8vw, 12px)", lineHeight: 1.1 }}>{winner.name}</div>
           <div style={{ fontSize: SIZE.winnerTeam, color: "#C9C4E6", fontWeight: 600 }}>{winner.teamName}</div>
-          <div style={{ marginTop: "clamp(28px, 3.5vw, 52px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>
+          <div style={{ marginTop: "clamp(18px, 2.2vw, 34px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>
             {categoryLabel} · {PLAYER_AWARD_LABELS[type]}
           </div>
         </div>
@@ -177,13 +177,13 @@ function PlayerSlide({
     <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA", width: "100%" }}>
       <StageLogo />
       <div style={{ fontSize: SIZE.categoryTag, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: "clamp(14px, 1.6vw, 22px)" }}>{categoryLabel}</div>
-      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(10px, 1.2vw, 18px)" }}>{PLAYER_AWARD_ICONS[type]} {PLAYER_AWARD_LABELS[type]}</div>
-      <div style={{ fontSize: SIZE.subLabel, color: "#8B87A3", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: "clamp(40px, 5vw, 72px)" }}>Nominees</div>
-      <div style={{ display: "flex", gap: "clamp(32px, 4vw, 64px)", justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(8px, 1vw, 14px)" }}>{PLAYER_AWARD_ICONS[type]} {PLAYER_AWARD_LABELS[type]}</div>
+      <div style={{ fontSize: SIZE.subLabel, color: "#8B87A3", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: "clamp(26px, 3.2vw, 48px)" }}>Nominees</div>
+      <div style={{ display: "flex", gap: "clamp(28px, 3.5vw, 56px)", justifyContent: "center", flexWrap: "wrap" }}>
         {nominees.map((n) => (
-          <div key={n.playerKey} style={{ width: "clamp(160px, 16vw, 260px)" }}>
-            <PhotoCircle name={n.name} url={photoFor(n.playerKey)} size="clamp(120px, 13vw, 210px)" />
-            <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(16px, 1.8vw, 26px)", lineHeight: 1.15 }}>{n.name}</div>
+          <div key={n.playerKey} style={{ width: "clamp(140px, 14vw, 230px)" }}>
+            <PhotoCircle name={n.name} url={photoFor(n.playerKey)} size="clamp(105px, 11.5vw, 185px)" />
+            <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(12px, 1.4vw, 20px)", lineHeight: 1.15 }}>{n.name}</div>
             <div style={{ fontSize: SIZE.nomineeTeam, color: "#8B87A3", marginTop: "clamp(4px, 0.6vw, 8px)" }}>{n.teamName}</div>
           </div>
         ))}
@@ -230,12 +230,12 @@ function TeamSlide({
         <div style={{ position: "absolute", inset: "-40% -30%", background: "radial-gradient(circle at 50% 38%, rgba(242,162,58,0.26), rgba(226,62,130,0.10) 45%, transparent 65%)", pointerEvents: "none" }} />
         <div style={{ position: "relative" }}>
           <StageLogo />
-          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(24px, 3vw, 48px)" }}>
+          <div style={{ fontSize: SIZE.winnerEyebrow, fontWeight: 800, letterSpacing: "0.18em", textTransform: "uppercase", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", marginBottom: "clamp(14px, 1.8vw, 30px)" }}>
             {TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}
           </div>
-          <TeamCrest name={featuredName} size="clamp(190px, 22vw, 380px)" ringGradient={FLAME} />
-          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(24px, 3vw, 44px)", lineHeight: 1.1 }}>{featuredName}</div>
-          <div style={{ marginTop: "clamp(24px, 3vw, 44px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>{categoryLabel}</div>
+          <TeamCrest name={featuredName} size="clamp(155px, 17vw, 300px)" ringGradient={FLAME} />
+          <div style={{ fontSize: SIZE.winnerName, fontWeight: 800, marginTop: "clamp(16px, 2vw, 30px)", lineHeight: 1.1 }}>{featuredName}</div>
+          <div style={{ marginTop: "clamp(16px, 2vw, 30px)", fontSize: SIZE.winnerFooter, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8B87A3" }}>{categoryLabel}</div>
         </div>
       </div>
     );
@@ -245,19 +245,19 @@ function TeamSlide({
     <div className="stage-slide" style={{ textAlign: "center", color: "#F1EFFA", width: "100%" }}>
       <StageLogo />
       <div style={{ fontSize: SIZE.categoryTag, fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase", color: "#A487F5", marginBottom: "clamp(14px, 1.6vw, 22px)" }}>{categoryLabel}</div>
-      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(36px, 4.5vw, 64px)" }}>{TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: "clamp(36px, 4.5vw, 72px)", justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ fontSize: SIZE.title, fontWeight: 800, marginBottom: "clamp(24px, 3vw, 46px)" }}>{TEAM_AWARD_ICONS[type]} {TEAM_AWARD_LABELS[type]}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "clamp(28px, 3.5vw, 56px)", justifyContent: "center", flexWrap: "wrap" }}>
         <div>
-          <TeamCrest name={winnerName} size="clamp(110px, 11vw, 180px)" />
-          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(14px, 1.6vw, 22px)" }}>{winnerName}</div>
-          <div style={{ fontSize: SIZE.crestLabel, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "clamp(6px, 0.8vw, 10px)", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
+          <TeamCrest name={winnerName} size="clamp(96px, 9.5vw, 155px)" />
+          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(10px, 1.2vw, 18px)" }}>{winnerName}</div>
+          <div style={{ fontSize: SIZE.crestLabel, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: "clamp(5px, 0.6vw, 8px)", backgroundImage: FLAME, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}>
             Champion
           </div>
         </div>
         <div style={{ fontSize: SIZE.score, fontWeight: 700, color: "#8B87A3" }}>{finalGame.homeTeamId === winnerId ? `${finalGame.homeScore ?? 0} – ${finalGame.awayScore ?? 0}` : `${finalGame.awayScore ?? 0} – ${finalGame.homeScore ?? 0}`}</div>
         <div>
-          <TeamCrest name={loserName} size="clamp(110px, 11vw, 180px)" />
-          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(14px, 1.6vw, 22px)" }}>{loserName}</div>
+          <TeamCrest name={loserName} size="clamp(96px, 9.5vw, 155px)" />
+          <div style={{ fontSize: SIZE.nomineeName, fontWeight: 700, marginTop: "clamp(10px, 1.2vw, 18px)" }}>{loserName}</div>
           <div style={{ fontSize: SIZE.crestLabel, fontWeight: 700, color: "#8B87A3", marginTop: "clamp(6px, 0.8vw, 10px)" }}>Runner-Up</div>
         </div>
       </div>

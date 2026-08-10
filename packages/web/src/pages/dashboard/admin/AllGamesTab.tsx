@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, GAME_FIELDS, compareGamesByKickoff, formatKickoffTime } from "@umoja/shared";
+import { CATEGORIES, GAME_FIELDS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, formatKickoffTime, type Game } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { Card, FilterDropdown, PrimaryButton, StatusBadge } from "../../../components/ui";
@@ -7,12 +7,20 @@ import { AddGameModal } from "./AddGameModal";
 import { GameDetailModal } from "./GameDetailModal";
 
 const FIELD_OPTIONS = GAME_FIELDS.map((f) => ({ id: f, label: f }));
+const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ id: c.id, label: c.label }));
+const DAY_OPTIONS: { id: Game["day"]; label: string }[] = [
+  { id: "fri", label: `Fri, ${TOURNAMENT_DAY_DATES.fri}` },
+  { id: "sat", label: `Sat, ${TOURNAMENT_DAY_DATES.sat}` },
+  { id: "sun", label: `Sun, ${TOURNAMENT_DAY_DATES.sun}` },
+];
 
 export function AllGamesTab() {
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const [search, setSearch] = useState("");
+  const [day, setDay] = useState<Game["day"] | null>(null);
   const [field, setField] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   // Track just the id, not the Game object itself — a frozen object snapshot
   // from click-time never picked up any of GameDetailModal's own edits (or
@@ -28,12 +36,22 @@ export function AllGamesTab() {
 
   const filtered = games
     .filter((g) => {
+      if (day && g.day !== day) return false;
       if (field && g.field !== field) return false;
+      if (categoryId && g.categoryId !== categoryId) return false;
       if (search) {
         const home = teamById.get(g.homeTeamId)?.name ?? "";
         const away = teamById.get(g.awayTeamId)?.name ?? "";
+        const category = CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? "";
         const q = search.toLowerCase();
-        if (!home.toLowerCase().includes(q) && !away.toLowerCase().includes(q)) return false;
+        if (
+          !home.toLowerCase().includes(q) &&
+          !away.toLowerCase().includes(q) &&
+          !category.toLowerCase().includes(q) &&
+          !g.field.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
       }
       return true;
     })
@@ -43,11 +61,13 @@ export function AllGamesTab() {
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
-          placeholder="Search by team…"
+          placeholder="Search by team, category, or field…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ flex: "1 1 200px", minWidth: 160, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
         />
+        <FilterDropdown<Game["day"]> label="Day" value={day} options={DAY_OPTIONS} onChange={setDay} />
+        <FilterDropdown label="Category" value={categoryId} options={CATEGORY_OPTIONS} onChange={setCategoryId} />
         <FilterDropdown label="Field" value={field} options={FIELD_OPTIONS} onChange={setField} />
         <PrimaryButton onClick={() => setAddOpen(true)}>+ ADD GAME</PrimaryButton>
       </div>

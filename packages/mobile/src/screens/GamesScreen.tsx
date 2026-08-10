@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import {
   CATEGORIES,
-  COLLECTIONS,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TODDLERS_CAMP_CATEGORY_LABELS,
@@ -22,7 +20,7 @@ import {
   type Team,
   type ToddlerCampSession,
 } from "@umoja/shared";
-import { db } from "../lib/firebase";
+import { toggleFollowTeam } from "../lib/followTeam";
 import { useAuth } from "../auth/AuthProvider";
 
 /** "FRI, AUG 14" — a bare day abbreviation alone doesn't say which one. */
@@ -123,12 +121,19 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
   const { data: games } = useGames();
   const { data: allTeams } = useTeams();
   const followed = new Set(profile?.followedTeamIds ?? []);
+  const [followError, setFollowError] = useState<string | null>(null);
 
   async function toggleFollow(teamId: string) {
-    if (!user) return;
-    await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
-      followedTeamIds: followed.has(teamId) ? arrayRemove(teamId) : arrayUnion(teamId),
-    });
+    if (!user || !profile) return;
+    try {
+      await toggleFollowTeam(user.uid, profile, teamId);
+      setFollowError(null);
+    } catch (err) {
+      // Previously an uncaught updateDoc against a users/{uid} doc that
+      // often doesn't exist for a real Outreach-registered fan — threw
+      // NOT_FOUND silently, so the star looked like it did nothing.
+      setFollowError(err instanceof Error ? err.message : "Couldn't follow this team — check your connection and try again.");
+    }
   }
 
   // Standings always uses a concrete bucket (same as web). Schedule may use All.
@@ -224,6 +229,11 @@ export function GamesScreen({ navigation }: BottomTabScreenProps<any>) {
     <View style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
         <Text style={styles.title}>GAME DAY</Text>
+        {followError && (
+          <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 10, marginBottom: 8 }}>
+            <Text style={{ color: theme.color.danger, fontSize: 12.5, fontWeight: "700" }}>⚠ {followError}</Text>
+          </View>
+        )}
         <View style={styles.segRow}>
           <Pill active={seg === "schedule"} onPress={() => setSeg("schedule")}>SCHEDULE</Pill>
           <Pill active={seg === "standings"} onPress={() => setSeg("standings")}>STANDINGS</Pill>

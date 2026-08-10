@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, formatKickoffTime, type PlayerMembership } from "@umoja/shared";
+import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, formatKickoffTime, type Game, type PlayerMembership } from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
-import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { JoinTeamModal } from "../../../components/JoinTeamModal";
 import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
@@ -112,16 +112,8 @@ export function PlayerDashboard() {
 
           <SectionLabel>MY GAMES</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-            {myGames.map((g) => (
-              <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-                <span
-                  onClick={(e) => { e.stopPropagation(); navigate(`/schedule`); }}
-                  style={{ fontSize: 12.5, color: theme.color.blue, fontWeight: 700, cursor: "pointer" }}
-                >
-                  {CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}
-                </span>
-                <span style={{ fontSize: 13.5 }}>{g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}</span>
-              </Card>
+            {[...myGames].sort(compareGamesByKickoff).map((g) => (
+              <MyGameRow key={g.id} game={g} onOpen={() => navigate(`/game/${g.id}`)} />
             ))}
             {myGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
@@ -220,6 +212,33 @@ function TeamStandingRow({ teamId, onOpen }: { teamId: string; onOpen: () => voi
       <span style={{ fontSize: 13, color: theme.color.textMuted }}>
         #{team.stats.groupRank ?? "—"} · {team.stats.wins}-{team.stats.draws}-{team.stats.losses} · {team.stats.points} PTS
       </span>
+    </Card>
+  );
+}
+
+/**
+ * Richer than the old version — that one showed only day/field/time behind
+ * a category label that (by mistake) navigated to the generic /schedule
+ * page instead of this specific game. Now the whole tile is one target
+ * (matching Schedule.tsx's own GameRow: opponent names, real date, and a
+ * score once the game isn't still scheduled) and always goes to /game/:id.
+ */
+function MyGameRow({ game, onOpen }: { game: Game; onOpen: () => void }) {
+  const { data: home } = useTeam(game.homeTeamId);
+  const { data: away } = useTeam(game.awayTeamId);
+  const decided = game.status !== "scheduled";
+  return (
+    <Card onClick={onOpen} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+      <div style={{ minWidth: 150 }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} vs {away?.name ?? "TBD"}</div>
+        <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+          {CATEGORIES.find((c) => c.id === game.categoryId)?.label ?? game.categoryId} · {game.day.toUpperCase()}, {TOURNAMENT_DAY_DATES[game.day]} · {game.field} · {formatKickoffTime(game.kickoffTime)}
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {decided && <span style={{ fontWeight: 800, fontSize: 15 }}>{game.homeScore ?? 0}–{game.awayScore ?? 0}</span>}
+        <StatusBadge status={game.status} />
+      </div>
     </Card>
   );
 }

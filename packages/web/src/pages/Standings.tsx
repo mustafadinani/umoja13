@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import {
   CATEGORIES,
-  COLLECTIONS,
   FESTIVAL_CATEGORY_IDS,
   FORMAT_DESCRIPTIONS,
   TOURNAMENT_DAY_DATES,
@@ -15,7 +13,7 @@ import {
   type Team,
 } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { db } from "../lib/firebase";
+import { toggleFollowTeam } from "../lib/followTeam";
 import { useAuth } from "../auth/AuthProvider";
 import { useGames, useSponsors, useTeams } from "../hooks/useData";
 import { useRegistrationCategoryBuckets } from "../hooks/useRegistration";
@@ -41,17 +39,29 @@ const BRACKET_COLORS: Record<NonNullable<Game["bracket"]>, { fg: string; bg: str
 };
 const ELIMINATED_COLOR = { fg: theme.color.textMuted, bg: theme.color.bg };
 
-// A soft rule between the W-D-L results block and the Path to Sunday column
-// — without it the two groups read as one run-on row of text, since both
-// are just terse right-aligned fragments with no other visual break.
-const pathDividerStyle: React.CSSProperties = {
-  alignSelf: "stretch",
-  display: "flex",
-  alignItems: "center",
-  borderLeft: `1px solid ${theme.color.border}`,
-  paddingLeft: 16,
-  justifySelf: "start",
-};
+// Real <table> cells, not per-row CSS grids — a grid container only shares
+// column tracks with itself, so rendering each row as its own `display:grid`
+// div (the old approach) let every row auto-size its numeric columns off its
+// own content only. A team with "10-2-1" and a team with "2-0-0" would size
+// their W-D-L column differently, so headers and every row drifted out of
+// alignment with each other. A single <table> shares one set of column
+// tracks across the header and every row by construction.
+function th(align: "left" | "center" | "right"): React.CSSProperties {
+  return {
+    textAlign: align,
+    padding: "10px 12px",
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: theme.color.textMuted,
+    whiteSpace: "nowrap",
+  };
+}
+function td(align: "left" | "center" | "right", extra?: React.CSSProperties): React.CSSProperties {
+  return { textAlign: align, padding: "12px 12px", whiteSpace: "nowrap", ...extra };
+}
+// A soft rule between the results block and the Path to Sunday column —
+// without it the two groups read as one run-on row of text.
+const pathDivider: React.CSSProperties = { borderLeft: `1px solid ${theme.color.border}`, paddingLeft: 16, whiteSpace: "normal" };
 
 export function Standings() {
   const navigate = useNavigate();
@@ -59,12 +69,19 @@ export function Standings() {
   const { buckets, loading: bucketsLoading, error: bucketsError } = useRegistrationCategoryBuckets();
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const followed = new Set(profile?.followedTeamIds ?? []);
+  const [followError, setFollowError] = useState<string | null>(null);
 
   async function toggleFollow(teamId: string) {
-    if (!user) return;
-    await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
-      followedTeamIds: followed.has(teamId) ? arrayRemove(teamId) : arrayUnion(teamId),
-    });
+    if (!user || !profile) return;
+    try {
+      await toggleFollowTeam(user.uid, profile, teamId);
+      setFollowError(null);
+    } catch (err) {
+      // Previously an uncaught updateDoc against a users/{uid} doc that
+      // often doesn't exist for a real Outreach-registered fan — threw
+      // NOT_FOUND silently, so the star looked like it did nothing.
+      setFollowError(err instanceof Error ? err.message : "Couldn't follow this team — check your connection and try again.");
+    }
   }
 
   // Keep selection valid as buckets load / change — same default as Admin Teams (first pill).
@@ -132,6 +149,12 @@ export function Standings() {
           </Pill>
         ))}
       </div>
+
+      {followError && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, marginBottom: 16 }}>
+          ⚠ {followError}
+        </div>
+      )}
 
       {loadError && (
         <Card style={{ marginBottom: 16 }}>
@@ -203,107 +226,98 @@ export function Standings() {
           ) : null}
           {list.length > 0 && (() => {
             const showPath = !isFestival && !hasGroups && !!activeCategory;
-            const gridCols = isFestival ? "auto 1fr" : showPath ? "auto 1fr auto auto auto auto auto" : "auto 1fr auto auto auto auto";
             return (
               <div className="standings-scroll">
-                <div style={{ background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: gridCols,
-                      gap: 16,
-                      padding: "10px 14px",
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      color: theme.color.textMuted,
-                      borderBottom: `1px solid ${theme.color.border}`,
-                    }}
-                  >
-                    <span>#</span>
-                    <span>TEAM</span>
-                    {!isFestival && (
-                      <>
-                        <span style={{ textAlign: "right" }}>PTS</span>
-                        <span style={{ textAlign: "right" }}>GD</span>
-                        <span style={{ textAlign: "right" }}>GF</span>
-                        <span style={{ textAlign: "right" }}>W-D-L</span>
-                      </>
-                    )}
-                    {showPath && (
-                      <span style={pathDividerStyle}>PATH TO SUNDAY</span>
-                    )}
-                  </div>
-                  {list.map((t, i) => {
-                    const dest = showPath ? seedDestination(activeCategory!.bracketTemplate, t.stats.groupRank ?? i + 1) : null;
-                    // Only tint when the outcome is actually known — a fixed Cup/Shield/Classic
-                    // bracket, or genuine elimination. A seed still alive but headed to a Semi-
-                    // Final/Quarter-Final/Wild Card whose winner isn't decided yet stays
-                    // untinted rather than guessing at a color that isn't true yet.
-                    const pathColor = dest?.bracket ? BRACKET_COLORS[dest.bracket] : dest?.eliminated ? ELIMINATED_COLOR : undefined;
-                    return (
-                      <div
-                        key={t.id}
-                        onClick={() => navigate(`/team/${t.id}`)}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: gridCols,
-                          gap: 16,
-                          padding: "12px 14px",
-                          fontSize: 14,
-                          alignItems: "center",
-                          cursor: "pointer",
-                          borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined,
-                          background: pathColor?.bg,
-                        }}
-                      >
-                        <span style={{ fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</span>
-                        <span style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-                          {user && (
-                            <span
-                              onClick={(e) => { e.stopPropagation(); toggleFollow(t.id); }}
-                              title={followed.has(t.id) ? "Unfollow this team" : "Follow this team"}
-                              style={{ cursor: "pointer", fontSize: 15, color: followed.has(t.id) ? theme.color.gold : theme.color.textMuted, lineHeight: 1 }}
-                            >
-                              {followed.has(t.id) ? "★" : "☆"}
+                <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, overflow: "hidden", fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${theme.color.border}` }}>
+                      <th style={th("center")}>#</th>
+                      <th style={{ ...th("left"), width: "100%", whiteSpace: "normal" }}>TEAM</th>
+                      {!isFestival && (
+                        <>
+                          <th style={th("center")}>PL</th>
+                          <th style={th("center")}>W</th>
+                          <th style={th("center")}>D</th>
+                          <th style={th("center")}>L</th>
+                          <th style={th("right")}>GF</th>
+                          <th style={th("right")}>GA</th>
+                          <th style={th("right")}>GD</th>
+                          <th style={th("right")}>PTS</th>
+                        </>
+                      )}
+                      {showPath && <th style={{ ...th("left"), ...pathDivider }}>PATH TO SUNDAY</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {list.map((t, i) => {
+                      const dest = showPath ? seedDestination(activeCategory!.bracketTemplate, t.stats.groupRank ?? i + 1) : null;
+                      // Only tint when the outcome is actually known — a fixed Cup/Shield/Classic
+                      // bracket, or genuine elimination. A seed still alive but headed to a Semi-
+                      // Final/Quarter-Final/Wild Card whose winner isn't decided yet stays
+                      // untinted rather than guessing at a color that isn't true yet.
+                      const pathColor = dest?.bracket ? BRACKET_COLORS[dest.bracket] : dest?.eliminated ? ELIMINATED_COLOR : undefined;
+                      const played = t.stats.wins + t.stats.draws + t.stats.losses;
+                      return (
+                        <tr
+                          key={t.id}
+                          onClick={() => navigate(`/team/${t.id}`)}
+                          style={{ cursor: "pointer", borderBottom: i < list.length - 1 ? `1px solid #F4F2F8` : undefined, background: pathColor?.bg }}
+                        >
+                          <td style={{ ...td("center"), fontWeight: 700 }}>{t.stats.groupRank ?? i + 1}</td>
+                          <td style={{ ...td("left"), whiteSpace: "normal", fontWeight: 600 }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {user && (
+                                <span
+                                  onClick={(e) => { e.stopPropagation(); toggleFollow(t.id); }}
+                                  title={followed.has(t.id) ? "Unfollow this team" : "Follow this team"}
+                                  style={{ cursor: "pointer", fontSize: 15, color: followed.has(t.id) ? theme.color.gold : theme.color.textMuted, lineHeight: 1 }}
+                                >
+                                  {followed.has(t.id) ? "★" : "☆"}
+                                </span>
+                              )}
+                              {t.name}
                             </span>
+                          </td>
+                          {!isFestival && (
+                            <>
+                              <td style={td("center")}>{played}</td>
+                              <td style={td("center")}>{t.stats.wins}</td>
+                              <td style={td("center")}>{t.stats.draws}</td>
+                              <td style={td("center")}>{t.stats.losses}</td>
+                              <td style={td("right")}>{t.stats.goalsFor}</td>
+                              <td style={td("right")}>{t.stats.goalsAgainst}</td>
+                              <td style={td("right")}>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</td>
+                              <td style={{ ...td("right"), fontWeight: 800 }}>{t.stats.points}</td>
+                            </>
                           )}
-                          {t.name}
-                        </span>
-                        {!isFestival && (
-                          <>
-                            <span style={{ fontWeight: 800, textAlign: "right" }}>{t.stats.points}</span>
-                            <span style={{ textAlign: "right" }}>{t.stats.goalDiff >= 0 ? "+" : ""}{t.stats.goalDiff}</span>
-                            <span style={{ textAlign: "right" }}>{t.stats.goalsFor}</span>
-                            <span style={{ textAlign: "right" }}>{t.stats.wins}-{t.stats.draws}-{t.stats.losses}</span>
-                          </>
-                        )}
-                        {showPath && dest && (
-                          <span style={pathDividerStyle}>
-                            <span
-                              style={
-                                pathColor
-                                  ? {
-                                      fontSize: 11,
-                                      fontWeight: 800,
-                                      letterSpacing: 0.3,
-                                      textTransform: "uppercase",
-                                      color: pathColor.fg,
-                                      background: pathColor.bg,
-                                      padding: "4px 9px",
-                                      borderRadius: 999,
-                                      whiteSpace: "nowrap",
-                                    }
-                                  : { fontSize: 12.5, color: theme.color.textMuted }
-                              }
-                            >
-                              {dest.eliminated ? "Eliminated" : dest.label}
-                            </span>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          {showPath && dest && (
+                            <td style={{ ...td("left"), ...pathDivider }}>
+                              <span
+                                style={
+                                  pathColor
+                                    ? {
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        letterSpacing: 0.3,
+                                        textTransform: "uppercase",
+                                        color: pathColor.fg,
+                                        background: pathColor.bg,
+                                        padding: "4px 9px",
+                                        borderRadius: 999,
+                                        whiteSpace: "nowrap",
+                                      }
+                                    : { fontSize: 12.5, color: theme.color.textMuted }
+                                }
+                              >
+                                {dest.eliminated ? "Eliminated" : dest.label}
+                              </span>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             );
           })()}

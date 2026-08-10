@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS } from "@umoja/shared";
-import { db } from "../../../lib/firebase";
+import { CATEGORIES } from "@umoja/shared";
+import { toggleFollowTeam } from "../../../lib/followTeam";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme, hunterGradient } from "../../../lib/theme";
 import { useTeams } from "../../../hooks/useData";
@@ -14,18 +13,31 @@ export function FanDashboard() {
   const navigate = useNavigate();
   const { data: teams } = useTeams();
   const [joinOpen, setJoinOpen] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
   const followed = new Set(profile?.followedTeamIds ?? []);
 
   async function toggleFollow(teamId: string) {
-    if (!user) return;
-    await updateDoc(doc(db, COLLECTIONS.users, user.uid), {
-      followedTeamIds: followed.has(teamId) ? arrayRemove(teamId) : arrayUnion(teamId),
-    });
+    if (!user || !profile) return;
+    try {
+      await toggleFollowTeam(user.uid, profile, teamId);
+      setFollowError(null);
+    } catch (err) {
+      // Previously an uncaught updateDoc against a users/{uid} doc that
+      // often doesn't exist for a real Outreach-registered fan — threw
+      // NOT_FOUND silently, so the star looked like it did nothing.
+      setFollowError(err instanceof Error ? err.message : "Couldn't follow this team — check your connection and try again.");
+    }
   }
 
   return (
     <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>MY DASHBOARD</div>
+
+      {followError && (
+        <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 700, marginBottom: 16 }}>
+          ⚠ {followError}
+        </div>
+      )}
 
       <div style={{ background: hunterGradient, color: "#fff", borderRadius: theme.radius.lg, padding: 18, marginBottom: 16, cursor: "pointer" }} onClick={() => navigate("/hunt")}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>JOIN THE HUNT</div>
