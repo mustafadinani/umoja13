@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { CATEGORIES, GAME_FIELDS, compareGamesByKickoff, formatKickoffTime } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
-import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
+import { Card, FilterDropdown, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { AddGameModal } from "./AddGameModal";
 import { GameDetailModal } from "./GameDetailModal";
+
+const FIELD_OPTIONS = GAME_FIELDS.map((f) => ({ id: f, label: f }));
 
 export function AllGamesTab() {
   const { data: games } = useGames();
@@ -39,18 +41,15 @@ export function AllGamesTab() {
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input
           placeholder="Search by team…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 160, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+          style={{ flex: "1 1 200px", minWidth: 160, padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
         />
+        <FilterDropdown label="Field" value={field} options={FIELD_OPTIONS} onChange={setField} />
         <PrimaryButton onClick={() => setAddOpen(true)}>+ ADD GAME</PrimaryButton>
-      </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!field} onClick={() => setField(null)}>All fields</Pill>
-        {GAME_FIELDS.map((f) => <Pill key={f} active={field === f} onClick={() => setField(f)}>{f}</Pill>)}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
