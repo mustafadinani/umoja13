@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CATEGORIES, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -64,6 +64,7 @@ function ReviewQueue() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [openCheckInId, setOpenCheckInId] = useState<string | null>(null);
+  const [showEligibility, setShowEligibility] = useState(false);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   // Registration name (keyed by playerKey, per-child) must win over the
@@ -88,6 +89,17 @@ function ReviewQueue() {
 
   return (
     <div>
+      <button
+        onClick={() => setShowEligibility((s) => !s)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0,
+          color: theme.color.navy, fontWeight: 700, fontSize: 13, cursor: "pointer", marginBottom: showEligibility ? 10 : 12,
+        }}
+      >
+        {showEligibility ? "▾" : "▸"} Age eligibility requirements by category
+      </button>
+      {showEligibility && <EligibilityReferenceTable />}
+
       <input
         placeholder="Search by player name…"
         value={search}
@@ -170,6 +182,35 @@ function FieldPreferencesTable() {
     </div>
   );
 }
+
+/** Reference table for staff verifying a player's age against their ID during check-in review — same data CATEGORY_DOB_CUTOFF carries, laid out the way the official format guide presents it. */
+function EligibilityReferenceTable() {
+  return (
+    <Card style={{ padding: 0, marginBottom: 16, overflow: "hidden" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <thead>
+          <tr style={{ background: "#F7F6F3", borderBottom: `1px solid ${theme.color.border}` }}>
+            <th style={eligTh}>Tournament category</th>
+            <th style={eligTh}>Format</th>
+            <th style={eligTh}>Age restrictions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {CATEGORY_ELIGIBILITY_TABLE.map((row, i) => (
+            <tr key={row.label} style={{ borderBottom: i < CATEGORY_ELIGIBILITY_TABLE.length - 1 ? "1px solid #F4F2F8" : undefined }}>
+              <td style={{ ...eligTd, fontWeight: 700 }}>{row.label}</td>
+              <td style={eligTd}>{row.format}</td>
+              <td style={eligTd}>{row.ageRestriction}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+const eligTh: React.CSSProperties = { textAlign: "left", padding: "9px 14px", fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted };
+const eligTd: React.CSSProperties = { textAlign: "left", padding: "10px 14px" };
 
 function StatusChip({ status }: { status: CheckInStatus }) {
   const map: Record<CheckInStatus, { bg: string; fg: string }> = {

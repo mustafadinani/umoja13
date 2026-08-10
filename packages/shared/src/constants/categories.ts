@@ -49,6 +49,48 @@ export const OVER_AGE_CATEGORY_IDS = [
 /** Non-competitive: Umoja Soccer Camp (age 6 & under as of Jan 1 2026) — not a tournament category, no games/standings. */
 export const SOCCER_CAMP = { id: "soccer-camp", label: "Umoja Soccer Camp", dobCutoff: "2020-01-01" };
 
+/** The tournament's calendar year — "turning 40 in 2026"/"as of Jan 1, 2026" phrasing below is relative to this, not baked in as a literal string per category. */
+export const TOURNAMENT_YEAR = 2026;
+
+/**
+ * Human-readable version of a category's CATEGORY_DOB_CUTOFF, in the same
+ * phrasing staff actually use when checking a player's age against their ID
+ * during manual check-in review ("Born on or after Jan 1, 2012" / "Age 40+
+ * (or turning 40 in 2026)") rather than a bare ISO date.
+ */
+export function ageEligibilityLabel(categoryId: string): string {
+  const cutoff = CATEGORY_DOB_CUTOFF[categoryId];
+  if (!cutoff) return "No age restriction";
+  const cutoffYear = Number(cutoff.slice(0, 4));
+  if (OVER_AGE_CATEGORY_IDS.includes(categoryId)) {
+    const age = TOURNAMENT_YEAR - cutoffYear;
+    return `Age ${age}+ (or turning ${age} in ${TOURNAMENT_YEAR})`;
+  }
+  return `Born on or after Jan 1, ${cutoffYear}`;
+}
+
+/** "9-aside" -> "9v9" — the shorthand everyone (staff, players) actually recognizes over the internal `format` value. */
+export function formatVersusLabel(format: Category["format"]): string {
+  const n = format.split("-")[0];
+  return `${n}v${n}`;
+}
+
+/**
+ * Full eligibility reference — category, format, age restriction — for
+ * staff reviewing check-ins. Umoja Soccer Camp isn't a real CATEGORIES
+ * entry (see SOCCER_CAMP; no games/standings/roster) but belongs on the
+ * same reference table admins need it on, since it's a real check-in-able
+ * registration with its own age cutoff.
+ */
+export const CATEGORY_ELIGIBILITY_TABLE: { label: string; format: string; ageRestriction: string }[] = [
+  ...CATEGORIES.map((c) => ({ label: c.label, format: formatVersusLabel(c.format), ageRestriction: ageEligibilityLabel(c.id) })),
+  {
+    label: SOCCER_CAMP.label,
+    format: "Training camp",
+    ageRestriction: `Age ${TOURNAMENT_YEAR - Number(SOCCER_CAMP.dobCutoff.slice(0, 4))} & under (as of Jan 1, ${TOURNAMENT_YEAR})`,
+  },
+];
+
 /**
  * Real registration categoryIds for the Toddlers Camp age brackets — these
  * are the actual ids stamped on registration rows (distinct from the

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 import {
+  ageEligibilityLabel,
   categoryLabelFor,
   CHECKIN_NOTE_REASONS,
   COLLECTIONS,
   checkInStatusLabel,
+  isNonCompetitiveCategory,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   type CheckInNote,
   type CheckInNoteReason,
@@ -105,6 +107,12 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         {team?.name ?? "Team"} · {categoryLabel} · attempt {checkIn.attempt}
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
       </div>
+
+      {!isNonCompetitiveCategory(checkIn.categoryId) && (
+        <div style={{ color: theme.color.navy, fontWeight: 700, fontSize: 12.5, marginBottom: 12 }}>
+          Eligibility: {ageEligibilityLabel(checkIn.categoryId)}
+        </div>
+      )}
 
       {(rosterEntry?.jerseyNumber != null || checkIn.lineOfWork || checkIn.privateFieldPreference !== undefined) && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
