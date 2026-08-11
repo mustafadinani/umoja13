@@ -8,20 +8,20 @@ service firebase.storage {
     }
 
     function isStaff() {
-      // This app's own `users` collection lives in the named `umoja13-app`
-      // Firestore database, NOT the project's `(default)` database (that one
-      // is Umoja Outreach's separate registration system — see
-      // packages/backend/functions/src/util/admin.ts). Pointing this at
-      // `(default)` meant `firestore.get()` always missed, so isStaff()
-      // silently evaluated false for every admin/commissioner — breaking
-      // every staff-gated storage rule below (sponsor logo uploads, staff
-      // reads of check-in/volunteer photos, public-asset uploads) without
-      // ever surfacing an error, since most of those paths are read via a
-      // pre-resolved getDownloadURL() (which carries its own access token
-      // and bypasses rules) rather than a live SDK read — a write like the
-      // sponsor logo uploader has no such bypass, so it's the one that
-      // visibly failed.
-      return isSignedIn() && firestore.get(/databases/umoja13-app/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin', 'commissioner']);
+      // Storage rules' cross-service firestore.get() only ever reliably
+      // reaches the project's `(default)` Firestore database — this app's
+      // own `users` collection lives in the named `umoja13-app` database
+      // instead (see packages/backend/functions/src/util/admin.ts), and
+      // pointing the get() at `umoja13-app` explicitly still 403'd at
+      // runtime despite compiling fine, so a cross-database read here isn't
+      // usable at all. Use the `roles` custom claim instead — setUserRole
+      // already writes it via auth.setCustomUserClaims() specifically for
+      // "fast client-side gating" (its own doc comment), so no extra
+      // backend work is needed, just wiring storage.rules to actually read
+      // it. A signed-in user whose claims predate that write (or who's
+      // never had a role assigned) simply has no `roles` claim, which
+      // correctly denies rather than errors.
+      return isSignedIn() && request.auth.token.roles.hasAny(['admin', 'commissioner']);
     }
 
     // Selfies & government ID photos: only the owner can upload; only the

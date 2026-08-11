@@ -177,6 +177,8 @@ export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number
   "backfillTeamRosterAccess"
 );
 
+export const syncMyRoleClaims = httpsCallable<void, { roles: string[] }>(functions, "syncMyRoleClaims");
+
 export const sendVolunteerTaskMessage = httpsCallable<
   { taskId: string; text: string },
   { message: VolunteerTaskMessage }

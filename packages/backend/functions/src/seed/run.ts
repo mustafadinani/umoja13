@@ -45,6 +45,12 @@ async function seedDemoUsers() {
       updatedAt: now,
     };
     await db.collection(COLLECTIONS.users).doc(uid).set(profile, { merge: true });
+    // Mirrors what setUserRole writes for a real role assignment — without
+    // this, a seeded admin/commissioner has the right Firestore doc but no
+    // `roles` custom claim, which storage.rules' isStaff() depends on (see
+    // syncMyRoleClaims for why a cross-database firestore.get() isn't an
+    // option there).
+    await auth.setCustomUserClaims(uid, { roles: account.roles });
     console.log(`  demo user ${account.email} → ${uid}`);
   }
 }

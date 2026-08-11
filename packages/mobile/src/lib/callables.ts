@@ -187,3 +187,5 @@ export const setJerseyNumber = httpsCallable<
   { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }
 >(functions, "setJerseyNumber");
+
+export const syncMyRoleClaims = httpsCallable<void, { roles: string[] }>(functions, "syncMyRoleClaims");

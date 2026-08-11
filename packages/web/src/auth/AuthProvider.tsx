@@ -12,6 +12,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { COLLECTIONS, type ProfileSource, type UserProfile } from "@umoja/shared";
 import { auth, db } from "../lib/firebase";
 import { useResolvedProfile } from "../hooks/useResolvedProfile";
+import { syncMyRoleClaims } from "../lib/callables";
 
 interface AuthContextValue {
   user: FirebaseUser | null;
@@ -36,6 +37,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
+      if (u) {
+        // Not every account's roles were ever set through setUserRole (the
+        // only place that writes the `roles` custom claim) — the UAT/demo
+        // seed script, for one, writes Firestore roles directly. Storage
+        // rules' isStaff() reads that claim (a cross-database
+        // firestore.get() from Storage rules can't reach this app's own
+        // umoja13-app database), so without this, a perfectly real
+        // admin/commissioner account can still get storage permission
+        // errors that look inexplicable from the Firestore-permissions side.
+        // Best-effort, fire-and-forget — forcing a fresh ID token right
+        // after is what actually makes a corrected claim take effect for
+        // this session, not just the next login.
+        syncMyRoleClaims()
+          .then(() => u.getIdToken(true))
+          .catch(() => {});
+      }
     });
   }, []);
 
