@@ -131,7 +131,7 @@ export function Donate() {
             <div style={{ fontSize: 14, color: theme.color.textMuted, lineHeight: 1.5, maxWidth: 640 }}>{MARQUEE_PROGRAM.body}</div>
           </div>
         </Card>
-        <div className="grid-2" style={{ marginBottom: 48 }}>
+        <div className="grid-2-equal" style={{ marginBottom: 48 }}>
           {PROGRAMS.map((p) => (
             <Card key={p.title} style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ padding: 18 }}>
@@ -188,7 +188,7 @@ export function Donate() {
         </Card>
 
         <SectionLabel eyebrow="GET INVOLVED" title="Pick a package, or build your own" />
-        <div className="grid-2" style={{ marginBottom: 48 }}>
+        <div className="grid-2-equal" style={{ marginBottom: 48 }}>
           {SPONSORSHIP_TIERS.map((t) => (
             <Card key={t.id}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
