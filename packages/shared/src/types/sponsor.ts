@@ -18,11 +18,14 @@ export interface SponsorshipTierInfo {
   perks: string[];
 }
 
+/** Suggested starting point for the "Build Your Own" custom tier — donor can adjust it up or down. */
+export const CUSTOM_TIER_SUGGESTED_CENTS = 100_000;
+
 export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "legacy_builder",
     label: "Legacy Builder",
-    priceCents: 2_500_000,
+    priceCents: 1_000_000,
     tagline: "Own the spotlight",
     perks: [
       "Press & social media interviews",
@@ -35,7 +38,7 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "impact_partner",
     label: "Impact Partner",
-    priceCents: 1_000_000,
+    priceCents: 500_000,
     tagline: "Lead the conversation",
     perks: [
       "Social media interviews & event shoutout",
@@ -47,7 +50,7 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "community_supporter",
     label: "Community Supporter",
-    priceCents: 500_000,
+    priceCents: 250_000,
     tagline: "Capitalize the moment",
     perks: [
       "Social media interviews & event shoutout",

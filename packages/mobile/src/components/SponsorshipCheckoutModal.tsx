@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
+import { CUSTOM_TIER_SUGGESTED_CENTS, SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
@@ -21,16 +21,19 @@ function callableMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
-export function SponsorshipCheckoutModal({ onClose }: { onClose: () => void }) {
+export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: () => void; initialTierId?: SponsorTier }) {
   const { user, profile } = useAuth();
   const [showInquiry, setShowInquiry] = useState(false);
   const [step, setStep] = useState<"form" | "pay" | "done">("form");
-  const [tierId, setTierId] = useState<SponsorTier | null>(null);
+  const [tierId, setTierId] = useState<SponsorTier | null>(initialTierId ?? null);
   const [donorType, setDonorType] = useState<SponsorshipDonorType>("individual");
   const [donorName, setDonorName] = useState(profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  const [customAmount, setCustomAmount] = useState("");
+  // A blank field reads as "I don't know what to give" — a concrete
+  // starting point they can raise or lower gets people moving instead of
+  // staring at an empty box, and it's clearly editable (not a fixed price).
+  const [customAmount, setCustomAmount] = useState(String(CUSTOM_TIER_SUGGESTED_CENTS / 100));
   const [customNote, setCustomNote] = useState("");
   const [logoUri, setLogoUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
