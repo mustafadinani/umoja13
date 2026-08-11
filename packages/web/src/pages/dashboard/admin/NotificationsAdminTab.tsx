@@ -16,6 +16,7 @@ const ROLE_LABELS: Record<Role, string> = {
   fan: "Fans",
   player: "Players",
   captain: "Captains",
+  coach_manager: "Coaches/Managers",
   volunteer: "Volunteers",
   referee: "Referees",
   commissioner: "Commissioners",

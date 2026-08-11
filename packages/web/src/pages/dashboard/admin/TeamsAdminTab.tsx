@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import {
+  COLLECTIONS,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
@@ -10,13 +11,14 @@ import {
   type RegisteredTeam,
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useCategories } from "../../../hooks/useData";
+import { useAllUsers, useCategories } from "../../../hooks/useData";
 import {
   useRegisteredPlayers,
   useRegisteredTeamsRaw,
   useRegistrationCategoryBuckets,
 } from "../../../hooks/useRegistration";
-import { defaultDb } from "../../../lib/firebase";
+import { assignTeamManager, removeTeamManager } from "../../../lib/callables";
+import { db, defaultDb } from "../../../lib/firebase";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 
 function teamLogoUrl(team: RegisteredTeam): string | undefined {
@@ -283,6 +285,8 @@ export function TeamsAdminTab() {
           )}
         </Card>
 
+        <CoachManagerCard teamId={selectedTeam.id} />
+
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {selectedPlayers.map((player) => (
             <PlayerRow key={player.id} player={player} />
@@ -392,6 +396,105 @@ export function TeamsAdminTab() {
         {loading && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Loading teams…</div>}
       </div>
     </div>
+  );
+}
+
+/**
+ * Attaches an account to this team as a coach/manager — independent of
+ * registration data, since (unlike the real captain, resolved automatically
+ * from the registration record above) a coach/manager isn't necessarily a
+ * registered player themselves. Lives on the umoja13-app/teams/{id} overlay
+ * doc (Team.coachManagerUids), which this subscribes to directly since
+ * everything else in this tab reads the raw registration doc instead.
+ */
+function CoachManagerCard({ teamId }: { teamId: string }) {
+  const { data: users } = useAllUsers();
+  const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const [coachManagerUids, setCoachManagerUids] = useState<string[]>([]);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return onSnapshot(
+      doc(db, COLLECTIONS.teams, teamId),
+      (snap) => setCoachManagerUids(snap.exists() ? (snap.data().coachManagerUids ?? []) : []),
+      () => setCoachManagerUids([])
+    );
+  }, [teamId]);
+
+  async function add() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await assignTeamManager({ teamId, email: trimmed });
+      setEmail("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that coach/manager.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(uid: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await removeTeamManager({ teamId, uid });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't remove that coach/manager.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card style={{ marginBottom: 16, padding: 16 }}>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>Coach / Manager</div>
+      <div style={{ fontSize: 13, color: theme.color.textMuted, marginBottom: 12, lineHeight: 1.45 }}>
+        Same jersey-editing and complaint tools as this team's real captain, for someone who isn't necessarily a
+        registered player themselves. They need to have signed into the app at least once already.
+      </div>
+
+      {coachManagerUids.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {coachManagerUids.map((uid) => {
+            const u = userById.get(uid);
+            return (
+              <div key={uid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#F7F6F3", borderRadius: theme.radius.sm }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{u?.displayName ?? uid}</div>
+                  {u?.email && <div style={{ fontSize: 12, color: theme.color.textMuted }}>{u.email}</div>}
+                </div>
+                <button
+                  disabled={busy}
+                  onClick={() => remove(uid)}
+                  style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          placeholder="Email address…"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={busy}
+          style={{ flex: 1, minWidth: 200, padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+        />
+        <PrimaryButton onClick={add} disabled={busy || !email.trim()}>
+          {busy ? "Adding…" : "+ ADD"}
+        </PrimaryButton>
+      </div>
+      {error && <div style={{ color: theme.color.danger, fontSize: 13, marginTop: 8 }}>{error}</div>}
+    </Card>
   );
 }
 

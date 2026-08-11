@@ -64,7 +64,14 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const teamMoments = moments
     .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterPlayerKeys.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
-  const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
+  // Real registration captain OR an admin-designated coach/manager
+  // (Team.coachManagerUids — see assignTeamManager). A coach/manager isn't
+  // necessarily a registered player themselves, so this can't come from
+  // playerOf the way isCaptain does — team.coachManagerUids is already
+  // merged onto this exact team object.
+  const isCaptain =
+    (profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false) ||
+    (!!profile?.uid && !!team.coachManagerUids?.includes(profile.uid));
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
   // Account-level, not per-child — "am I on this roster at all" (posting to
   // the team channel) is a family-account question, distinct from the

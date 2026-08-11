@@ -4,6 +4,7 @@ import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, TOURNAMENT_DAY_DATES, compar
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
+import { useMyManagedTeamIds } from "../../../hooks/useRegistration";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
 import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
@@ -19,6 +20,7 @@ export function PlayerDashboard() {
   const navigate = useNavigate();
   const { data: games } = useGames();
   const { data: sponsors } = useSponsors();
+  const { data: myManagedTeamIds } = useMyManagedTeamIds(user?.uid);
   const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
@@ -43,6 +45,12 @@ export function PlayerDashboard() {
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
   const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
+  // Account-wide, not per-kid tab — a coach/manager isn't necessarily a
+  // registered player themselves, so this doesn't come from playerOf at
+  // all. Excludes any team already shown above under real captaincy, in
+  // case the same person happens to be both.
+  const captainTeamIds = new Set(captainMemberships.map((m) => m.teamId));
+  const managedTeamIds = myManagedTeamIds.filter((id) => !captainTeamIds.has(id));
 
   return (
     <div className="page-shell-sm">
@@ -120,6 +128,20 @@ export function PlayerDashboard() {
               {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} onComplaint={() => setComplaintTeam(m.teamId)} />)}
             </>
           )}
+        </>
+      )}
+
+      {/*
+        Deliberately outside the memberships.length > 0 gate above — a
+        coach/manager isn't necessarily a registered player themselves, so
+        they'd otherwise never see this section (or anything else on this
+        page) at all. Same tools as a real captain gets: jersey editing +
+        file a complaint, for whichever team(s) an admin attached them to.
+      */}
+      {managedTeamIds.length > 0 && (
+        <>
+          <SectionLabel>TEAM MANAGER TOOLS</SectionLabel>
+          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} onComplaint={() => setComplaintTeam(teamId)} />)}
         </>
       )}
 

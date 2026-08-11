@@ -39,6 +39,14 @@ export interface Team {
   group?: "A" | "B";
   sponsorId?: string;
   captainUserId?: string;
+  /**
+   * Account uids an admin has attached to this team as a coach/manager —
+   * independent of registration data, since a coach/manager isn't
+   * necessarily a registered player themselves (see assignTeamManager).
+   * Lives on the umoja13-app/teams/{id} overlay doc, same as group/color/
+   * sponsorId; merged onto the registration-derived Team the same way.
+   */
+  coachManagerUids?: string[];
   roster: RosterEntry[];
   // Plain uid list mirroring roster, kept in sync by a Cloud Function
   // trigger — lets Firestore rules check roster membership (e.g. for

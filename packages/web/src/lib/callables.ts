@@ -172,6 +172,16 @@ export const setJerseyNumber = httpsCallable<
   { ok: true }
 >(functions, "setJerseyNumber");
 
+export const assignTeamManager = httpsCallable<
+  { teamId: string; email: string },
+  { ok: true; uid: string }
+>(functions, "assignTeamManager");
+
+export const removeTeamManager = httpsCallable<{ teamId: string; uid: string }, { ok: true }>(
+  functions,
+  "removeTeamManager"
+);
+
 export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number }>(
   functions,
   "backfillTeamRosterAccess"

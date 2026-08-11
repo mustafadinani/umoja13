@@ -2,6 +2,7 @@ export const ROLES = [
   "fan",
   "player",
   "captain",
+  "coach_manager",
   "volunteer",
   "referee",
   "commissioner",
@@ -11,16 +12,27 @@ export const ROLES = [
 export type Role = (typeof ROLES)[number];
 
 /**
- * Captain is a superset of player (same dashboard + captain tools).
- * Commissioner and admin both see all games/categories; commissioner
- * additionally owns finalize/moderation workflows.
+ * Captain and coach/manager are both a superset of player (same dashboard +
+ * captain tools) — a coach/manager isn't necessarily a registered player
+ * themselves, but they get the same jersey-editing/complaint tools for
+ * whichever team(s) an admin has attached them to (Team.coachManagerUids;
+ * see setJerseyNumber and PlayerDashboard/HomeScreen's "managed teams"
+ * section). Commissioner and admin both see all games/categories;
+ * commissioner additionally owns finalize/moderation workflows.
  */
 export function roleIncludesPlayerDashboard(role: Role): boolean {
-  return role === "player" || role === "captain";
+  return role === "player" || role === "captain" || role === "coach_manager";
 }
 
 export function roleSeesAllGames(role: Role): boolean {
-  return role === "fan" || role === "commissioner" || role === "admin" || role === "player" || role === "captain";
+  return (
+    role === "fan" ||
+    role === "commissioner" ||
+    role === "admin" ||
+    role === "player" ||
+    role === "captain" ||
+    role === "coach_manager"
+  );
 }
 
 /**
@@ -34,7 +46,7 @@ export function roleSeesAllGames(role: Role): boolean {
  * reviewVolunteerApplication) — an explicit admin choice via setUserRole is
  * a deliberate override and bypasses this.
  */
-export const PRIMARY_ROLE_PRIORITY: Role[] = ["captain", "player", "fan", "commissioner", "referee", "admin", "volunteer"];
+export const PRIMARY_ROLE_PRIORITY: Role[] = ["captain", "coach_manager", "player", "fan", "commissioner", "referee", "admin", "volunteer"];
 
 /** Picks the highest-priority role present in `roles` per PRIMARY_ROLE_PRIORITY. */
 export function pickPrimaryRole(roles: Role[]): Role {

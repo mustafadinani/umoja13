@@ -3,9 +3,11 @@ import {
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
+  TEAMS_REGISTERED,
   mapOutreachProfileToUserProfile,
   type OutreachProfile,
   type RegisteredPlayer,
+  type RegisteredTeam,
   type UserProfile,
 } from "@umoja/shared";
 import { defaultDb } from "./admin.js";
@@ -35,7 +37,27 @@ export async function buildBaseProfileFromOutreach(targetUid: string): Promise<P
       .where("uid", "==", targetUid)
       .get();
     const players = playersSnap.docs.map((d) => ({ ...(d.data() as RegisteredPlayer), id: d.id }));
-    return mapOutreachProfileToUserProfile(targetUid, outreachSnap.data() as OutreachProfile, players);
+
+    // Same isCaptain fix as the client-side mapper (see
+    // mapOutreachProfileToUserProfile) — without this, an admin using
+    // setUserRole to grant a first-time role to a real registered captain
+    // would still get isCaptain: false baked into their new users/{uid} doc.
+    const teamIds = [...new Set(players.map((p) => p.teamId).filter((id): id is string => !!id))];
+    const teamCaptainByTeamId = new Map<string, string | undefined>();
+    await Promise.all(
+      teamIds.map(async (teamId) => {
+        const teamSnap = await defaultDb
+          .collection(REGISTRATION_ROOT)
+          .doc(REGISTRATION_YEAR)
+          .collection(TEAMS_REGISTERED)
+          .doc(teamId)
+          .get();
+        const team = teamSnap.data() as RegisteredTeam | undefined;
+        teamCaptainByTeamId.set(teamId, team?.captainProfileId ?? team?.uid);
+      })
+    );
+
+    return mapOutreachProfileToUserProfile(targetUid, outreachSnap.data() as OutreachProfile, players, teamCaptainByTeamId);
   } catch (err) {
     console.error(`buildBaseProfileFromOutreach: Outreach profile lookup failed for ${targetUid}, continuing without enrichment:`, err);
     return {};

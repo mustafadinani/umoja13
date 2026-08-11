@@ -25,13 +25,15 @@ interface SetJerseyNumberRequest {
 
 /**
  * Sets a player's jersey number on their rosterCheckIns overlay doc — either
- * the player setting their own (optional, offered during check-in) or their
- * team's captain/manager setting it on their behalf. Jersey numbers are
- * completely locked the moment the tournament starts (TOURNAMENT_START_AT)
- * — no sets, no changes, for anyone, whether or not one was ever entered.
- * The captain/manager is expected to input and lock in every number before
- * then; check-in itself stops offering the jersey-number question once
- * that date passes.
+ * the player setting their own (optional, offered during check-in), their
+ * team's real registration captain, or an admin-designated coach/manager
+ * (Team.coachManagerUids — see assignTeamManager; unlike the captain, they
+ * aren't necessarily a registered player on the team themselves). Jersey
+ * numbers are completely locked the moment the tournament starts
+ * (TOURNAMENT_START_AT) — no sets, no changes, for anyone, whether or not
+ * one was ever entered. The captain/manager is expected to input and lock
+ * in every number before then; check-in itself stops offering the
+ * jersey-number question once that date passes.
  */
 export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) => {
   const uid = request.auth?.uid;
@@ -50,12 +52,13 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
   const isStaffCaller = callerProfile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
 
   if (!isStaffCaller) {
-    // Not staff — either this team's captain/manager (acting on a
-    // teammate's behalf), or the account this specific playerKey belongs
-    // to. playerKey never equals the caller's own uid (it's the Outreach
-    // profileId of one specific child, shared-uid families included), so
-    // this can no longer be a simple `uid === playerKey` check — it has to
-    // actually look up whose registration row this is.
+    // Not staff — this team's real captain, an admin-designated
+    // coach/manager (acting on a teammate's behalf either way), or the
+    // account this specific playerKey belongs to. playerKey never equals
+    // the caller's own uid (it's the Outreach profileId of one specific
+    // child, shared-uid families included), so this can no longer be a
+    // simple `uid === playerKey` check — it has to actually look up whose
+    // registration row this is.
     const teamSnap = await defaultDb
       .collection(REGISTRATION_ROOT)
       .doc(REGISTRATION_YEAR)
@@ -65,7 +68,15 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     const team = teamSnap.data() as RegisteredTeam | undefined;
     const isCaptain = !!team && (team.captainProfileId === uid || team.uid === uid);
 
-    if (!isCaptain) {
+    let authorized = isCaptain;
+
+    if (!authorized) {
+      const appTeamSnap = await db.collection(COLLECTIONS.teams).doc(teamId).get();
+      const coachManagerUids: string[] = appTeamSnap.data()?.coachManagerUids ?? [];
+      authorized = coachManagerUids.includes(uid);
+    }
+
+    if (!authorized) {
       const playersSnap = await defaultDb
         .collection(REGISTRATION_ROOT)
         .doc(REGISTRATION_YEAR)
@@ -73,13 +84,14 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
         .where("teamId", "==", teamId)
         .where("uid", "==", uid)
         .get();
-      const ownsPlayerKey = playersSnap.docs.some((d) => {
+      authorized = playersSnap.docs.some((d) => {
         const p = d.data() as RegisteredPlayer;
         return (p.profileId?.trim() || d.id) === playerKey;
       });
-      if (!ownsPlayerKey) {
-        throw new HttpsError("permission-denied", "Only this player, their team's captain, or staff can set this.");
-      }
+    }
+
+    if (!authorized) {
+      throw new HttpsError("permission-denied", "Only this player, their team's captain/manager, or staff can set this.");
     }
   }
 

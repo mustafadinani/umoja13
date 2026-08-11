@@ -34,6 +34,7 @@ import {
   useMyVolunteerTasks,
   useMyVolunteerApplications,
 } from "../hooks/useData";
+import { useMyManagedTeamIds } from "../hooks/useRegistration";
 import { Card, Modal, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { AnnouncementDetailModal } from "../components/AnnouncementDetailModal";
 import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
@@ -68,6 +69,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const hasUnreadNotifications = unreadCount(buildInbox(notifications, announcements)) > 0;
   const { data: sponsors } = useSponsors();
   const { data: huntConfig } = useHuntConfig();
+  const { data: myManagedTeamIds } = useMyManagedTeamIds(user?.uid);
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
   const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
@@ -104,6 +106,11 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
   const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
+  // Account-wide, not per-kid tab — a coach/manager isn't necessarily a
+  // registered player themselves, so this doesn't come from playerOf at
+  // all. Excludes any team already shown above under real captaincy.
+  const captainTeamIds = new Set(captainMemberships.map((m) => m.teamId));
+  const managedTeamIds = myManagedTeamIds.filter((id) => !captainTeamIds.has(id));
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
@@ -242,6 +249,26 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             <VolunteerSection uid={user?.uid} activeKidName={selectedKid} onSignup={() => setVolunteerSignupOpen(true)} />
           </View>
         </>
+      )}
+
+      {/*
+        Deliberately outside the memberships.length > 0 gate above — a
+        coach/manager isn't necessarily a registered player themselves, so
+        they'd otherwise never see this section (or anything else on this
+        screen) at all. Same tools as a real captain gets: jersey editing
+        (via tapping into the Team screen below) + file a complaint, for
+        whichever team(s) an admin attached them to.
+      */}
+      {managedTeamIds.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>TEAM MANAGER TOOLS</Text>
+          {managedTeamIds.map((teamId) => (
+            <TeamRow key={teamId} teamId={teamId} onPress={() => navigation.getParent()?.navigate("Team", { teamId })} />
+          ))}
+          {managedTeamIds.map((teamId) => (
+            <CaptainComplaintRow key={`complaint-${teamId}`} teamId={teamId} onPress={() => setComplaintTeamId(teamId)} />
+          ))}
+        </View>
       )}
 
       <View style={styles.section}>

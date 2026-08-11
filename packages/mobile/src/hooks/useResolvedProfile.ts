@@ -13,6 +13,7 @@ import {
   type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../lib/firebase";
+import { useRegisteredTeamsRaw } from "./useRegistration";
 
 /**
  * Resolve the signed-in user's app profile from either:
@@ -31,6 +32,14 @@ export function useResolvedProfile(uid: string | undefined): {
   const [outreachReady, setOutreachReady] = useState(false);
   const [regPlayers, setRegPlayers] = useState<RegisteredPlayer[]>([]);
   const [playersReady, setPlayersReady] = useState(false);
+  // Needed to correctly compute isCaptain on Outreach-derived profiles — see
+  // mapOutreachProfileToUserProfile's teamCaptainByTeamId param.
+  const { data: registeredTeams } = useRegisteredTeamsRaw();
+  const teamCaptainByTeamId = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    for (const t of registeredTeams) map.set(t.id, t.captainProfileId ?? t.uid);
+    return map;
+  }, [registeredTeams]);
 
   useEffect(() => {
     if (!uid) {
@@ -108,11 +117,11 @@ export function useResolvedProfile(uid: string | undefined): {
     }
     if (outreachRaw) {
       return {
-        profile: mapOutreachProfileToUserProfile(uid, outreachRaw, regPlayers),
+        profile: mapOutreachProfileToUserProfile(uid, outreachRaw, regPlayers, teamCaptainByTeamId),
         profileSource: "default" as const,
         loading,
       };
     }
     return { profile: null, profileSource: null, loading };
-  }, [uid, appUser, outreachRaw, regPlayers, appReady, outreachReady, playersReady]);
+  }, [uid, appUser, outreachRaw, regPlayers, teamCaptainByTeamId, appReady, outreachReady, playersReady]);
 }

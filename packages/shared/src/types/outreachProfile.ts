@@ -37,7 +37,19 @@ function displayNameFromOutreach(raw: OutreachProfile, fallbackEmail?: string): 
 export function mapOutreachProfileToUserProfile(
   uid: string,
   raw: OutreachProfile,
-  players: RegisteredPlayer[] = []
+  players: RegisteredPlayer[] = [],
+  /**
+   * teamId -> that team's registered captain identity (captainProfileId,
+   * falling back to the team's own uid — same precedence mapRegistration.ts
+   * uses for Team.roster[].isCaptain). Without this, every Outreach-derived
+   * profile hardcoded isCaptain: false, so a real captain signing in through
+   * their normal registration account never saw "Captain Tools" at all —
+   * only an account an admin had separately role-granted "captain" through
+   * setUserRole (a different, unrelated mechanism) would. Callers build this
+   * from the same RegisteredTeam docs they already have on hand (see
+   * useResolvedProfile.ts / buildBaseProfileFromOutreach).
+   */
+  teamCaptainByTeamId: Map<string, string | undefined> = new Map()
 ): UserProfile {
   const now = Date.now();
   const playerOf: PlayerMembership[] = players
@@ -45,7 +57,12 @@ export function mapOutreachProfileToUserProfile(
     .map((p) => ({
       teamId: p.teamId,
       categoryId: resolvePlayerCategoryId(p),
-      isCaptain: false,
+      isCaptain: (() => {
+        const captainId = teamCaptainByTeamId.get(p.teamId);
+        if (!captainId) return false;
+        const playerUid = p.uid || p.id;
+        return playerUid === captainId;
+      })(),
       // Omit rather than set `undefined` when there's no registration photo —
       // every caller of this mapper eventually spreads its result straight
       // into a Firestore write, and both the Admin and client SDKs reject an

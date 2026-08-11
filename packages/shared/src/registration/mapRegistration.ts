@@ -180,8 +180,8 @@ export function buildTeamFromRegistration(
   players: RegisteredPlayer[],
   rosterCheckIns: RosterCheckIn[] = [],
   catalog: readonly Category[] = CATEGORIES,
-  /** Optional overlay from umoja13-app/teams/{id} (stats, group). */
-  appTeam?: Pick<Team, "stats" | "group" | "color" | "sponsorId"> | null
+  /** Optional overlay from umoja13-app/teams/{id} (stats, group, coachManagerUids). */
+  appTeam?: Pick<Team, "stats" | "group" | "color" | "sponsorId" | "coachManagerUids"> | null
 ): Team {
   const captainId = team.captainProfileId ?? team.uid;
   // Keyed by playerKey, not the shared account uid — RosterCheckIn.userId
@@ -210,6 +210,7 @@ export function buildTeamFromRegistration(
     group,
     sponsorId: appTeam?.sponsorId,
     captainUserId: captainId,
+    coachManagerUids: appTeam?.coachManagerUids ?? [],
     roster,
     rosterUids: roster.map((r) => r.userId),
     stats: appTeam?.stats ? { ...appTeam.stats } : { ...EMPTY_STATS },
@@ -222,7 +223,7 @@ export function buildTeamsFromRegistration(
   categoryId?: string,
   rosterCheckIns: RosterCheckIn[] = [],
   catalog: readonly Category[] = CATEGORIES,
-  appTeamsById: Map<string, Pick<Team, "stats" | "group" | "color" | "sponsorId">> = new Map()
+  appTeamsById: Map<string, Pick<Team, "stats" | "group" | "color" | "sponsorId" | "coachManagerUids">> = new Map()
 ): Team[] {
   const mapped = teams.map((t) =>
     buildTeamFromRegistration(t, players, rosterCheckIns, catalog, appTeamsById.get(t.id))

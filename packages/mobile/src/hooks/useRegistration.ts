@@ -100,7 +100,7 @@ export function useRegistrationTeams(categoryId?: string): { data: Team[]; loadi
     const appById = new Map(
       appTeams.data.map((t) => [
         t.id,
-        { stats: t.stats, group: t.group, color: t.color, sponsorId: t.sponsorId },
+        { stats: t.stats, group: t.group, color: t.color, sponsorId: t.sponsorId, coachManagerUids: t.coachManagerUids },
       ])
     );
     return buildTeamsFromRegistration(
@@ -132,7 +132,7 @@ export function useRegistrationTeam(teamId: string | undefined): { data: Team | 
     teamId ? [where("teamId", "==", teamId)] : []
   );
   const categories = useCollection<Category>(COLLECTIONS.categories);
-  const [appOverlay, setAppOverlay] = useState<Pick<Team, "stats" | "group" | "color" | "sponsorId"> | null>(null);
+  const [appOverlay, setAppOverlay] = useState<Pick<Team, "stats" | "group" | "color" | "sponsorId" | "coachManagerUids"> | null>(null);
 
   useEffect(() => {
     if (!teamId) {
@@ -147,7 +147,7 @@ export function useRegistrationTeam(teamId: string | undefined): { data: Team | 
           return;
         }
         const t = snap.data() as Team;
-        setAppOverlay({ stats: t.stats, group: t.group, color: t.color, sponsorId: t.sponsorId });
+        setAppOverlay({ stats: t.stats, group: t.group, color: t.color, sponsorId: t.sponsorId, coachManagerUids: t.coachManagerUids });
       },
       () => setAppOverlay(null)
     );
@@ -165,4 +165,40 @@ export function useRegistrationTeam(teamId: string | undefined): { data: Team | 
     loading: !teamId ? false : teams.loading || players.loading,
     error: teams.error || players.error,
   };
+}
+
+/**
+ * Team ids a given account is an admin-designated coach/manager for
+ * (Team.coachManagerUids — see assignTeamManager). Independent of
+ * registration/playerOf data, since a coach/manager isn't necessarily a
+ * registered player themselves — this is how Home finds which team(s) to
+ * show "managed team" tools for.
+ */
+export function useMyManagedTeamIds(uid: string | undefined): { data: string[]; loading: boolean } {
+  const [data, setData] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const q = query(collection(db, COLLECTIONS.teams), where("coachManagerUids", "array-contains", uid));
+    return onSnapshot(
+      q,
+      (snap) => {
+        setData(snap.docs.map((d) => d.id));
+        setLoading(false);
+      },
+      (err) => {
+        console.error("useMyManagedTeamIds snapshot error:", err);
+        setData([]);
+        setLoading(false);
+      }
+    );
+  }, [uid]);
+
+  return { data, loading };
 }
