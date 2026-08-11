@@ -5,12 +5,13 @@ import { theme } from "../lib/theme";
  * Pixel-position hotspots (as % of the 745×558 venue map image) for each
  * numbered field the tournament actually uses — read off the real Maryland
  * SoccerPlex complex map (Umoja13 Toddler Camp schedule PDF, page 3).
- * Fields not in this tournament's set (1-4, 6-8, 10-11, 18-24) are shown on
+ * Fields not in this tournament's set (1-6, 8, 10-11, 18-24) are shown on
  * the map for real-world orientation but have no hotspot — nothing is
- * scheduled there.
+ * scheduled there. Field 7's coordinates are the same spot field 5 used to
+ * occupy — the venue relabeled the tournament's field, not its location.
  */
 const MAP_HOTSPOTS: { cluster: string; label: string; xPct: number; yPct: number }[] = [
-  { cluster: "Field 5", label: "5", xPct: 47.9, yPct: 15.1 },
+  { cluster: "Field 7", label: "7", xPct: 47.9, yPct: 15.1 },
   { cluster: "Field 9", label: "9", xPct: 32.9, yPct: 20.8 },
   { cluster: "Field 12", label: "12", xPct: 28.3, yPct: 20.8 },
   { cluster: "Field 13", label: "13", xPct: 25.4, yPct: 16.3 },

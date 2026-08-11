@@ -8,7 +8,7 @@ import type { Category } from "../types/team.js";
  * "Umoja13 Schedule & Format Guide" PDF (Aug 2026) — see
  * constants/bracketTemplates.ts for what each bracketTemplate actually plays
  * out to. NOTE: that guide has Women's Open, Girls 14 & Under, and Girls 10 &
- * Under all playing 5v5 (field 5A/5B) — corrected here from a prior
+ * Under all playing 5v5 (field 7A/7B) — corrected here from a prior
  * `7-aside` that predates the format guide.
  */
 export const CATEGORIES: Category[] = [
@@ -183,7 +183,7 @@ export interface ToddlerCampSession {
  * list rather than folded into FIELDS/GAME_FIELDS, but still offered as real
  * choices anywhere a schedule's field filter is built.
  */
-export const TODDLER_CAMP_FIELDS = ["Field 12 Camp", "Indoor arena"] as const;
+export const TODDLER_CAMP_FIELDS = ["Field 7D", "Indoor arena"] as const;
 
 /**
  * Umoja Soccer Camp (Toddlers, ages 3-6) session schedule — from the real
@@ -195,11 +195,11 @@ export const TODDLER_CAMP_FIELDS = ["Field 12 Camp", "Indoor arena"] as const;
  */
 export const TODDLER_CAMP_SCHEDULE: ToddlerCampSession[] = [
   // Friday
-  { id: "camp-fri-1", day: "fri", start: "10:00", end: "10:50", location: "Field 12 Camp", group: "Ages 3 & 4", activity: "Soccer training" },
-  { id: "camp-fri-2", day: "fri", start: "11:00", end: "12:15", location: "Field 12 Camp", group: "Ages 5 & 6", activity: "Soccer training" },
-  { id: "camp-fri-3", day: "fri", start: "14:00", end: "14:50", location: "Field 12 Camp", group: "Ages 3 & 4", activity: "Soccer training" },
-  { id: "camp-fri-4", day: "fri", start: "15:00", end: "16:00", location: "Field 12 Camp", group: "Ages 5 & 6", activity: "Soccer training" },
-  { id: "camp-fri-5", day: "fri", start: "16:15", end: "17:15", location: "Field 12 Camp", group: "All ages", activity: "Fun activities" },
+  { id: "camp-fri-1", day: "fri", start: "10:00", end: "10:50", location: "Field 7D", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-2", day: "fri", start: "11:00", end: "12:15", location: "Field 7D", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-3", day: "fri", start: "14:00", end: "14:50", location: "Field 7D", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-4", day: "fri", start: "15:00", end: "16:00", location: "Field 7D", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-5", day: "fri", start: "16:15", end: "17:15", location: "Field 7D", group: "All ages", activity: "Fun activities" },
   // Saturday
   { id: "camp-sat-1", day: "sat", start: "10:00", end: "10:50", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
   { id: "camp-sat-2", day: "sat", start: "11:00", end: "12:15", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
@@ -217,21 +217,28 @@ export const TODDLER_CAMP_NOTE = "Coaches may make adjustments to groups and ses
 export const TODDLER_CAMP_HIGHLIGHT_NOTE = "Cameras ready! Families, please have your players at the field 15 minutes early.";
 
 // The venue's own field numbering — not a made-up 1-6 sequence. Umoja Games
-// actually plays on fields 5, 9, and 12-17 at Maryland SoccerPlex, plus the
+// actually plays on fields 7, 9, and 12-17 at Maryland SoccerPlex, plus the
 // Stadium Field for marquee matches. This is the coarse cluster-level list —
 // used by Pods/FieldMap, which organize by physical field, not by sub-pitch.
-export const FIELDS = ["Field 5", "Field 9", "Field 12", "Field 13", "Field 14", "Field 15", "Field 16", "Field 17", "Stadium Field"] as const;
+// NOTE: the venue reallocated the tournament from field 5 to field 7 (same
+// physical spot on the map — see MAP_HOTSPOTS in FieldMap.tsx, unchanged
+// coordinates, just relabeled) and added a 4th sub-pitch there, 7D, which
+// Umoja Soccer Camp now uses instead of its old "Field 12 Camp" slot (see
+// TODDLER_CAMP_FIELDS) — 7D is camp-only, not a real Game sub-pitch, so it's
+// deliberately left out of GAME_FIELDS/FIELD_CLUSTERS/MAP_HOTSPOTS below,
+// the same way "Field 12 Camp" and "Indoor arena" always were.
+export const FIELDS = ["Field 7", "Field 9", "Field 12", "Field 13", "Field 14", "Field 15", "Field 16", "Field 17", "Stadium Field"] as const;
 
 /**
  * Fine-grained sub-pitch codes actual Games are scheduled on, per the Aug
  * 2026 Schedule & Format Guide — each numbered field cluster above is split
- * into 2-3 concurrent mini-pitches (e.g. Field 5 hosts 5A/5B/5C at once, one
- * per format). 5A is the tournament's single "private" field (see
+ * into 2-3 concurrent mini-pitches (e.g. Field 7 hosts 7A/7B/7C at once, one
+ * per format). 7A is the tournament's single "private" field (see
  * PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS) — that's a property of the field, not
  * encoded into the code itself.
  */
 export const GAME_FIELDS = [
-  "5A", "5B", "5C",
+  "7A", "7B", "7C",
   "9A", "9B",
   "12A", "12B",
   "13A", "13B",
@@ -241,7 +248,7 @@ export const GAME_FIELDS = [
   "17A", "17B",
 ] as const;
 
-export const PRIVATE_GAME_FIELD = "5A";
+export const PRIVATE_GAME_FIELD = "7A";
 
 /** Maps a fine-grained Game field code (e.g. "12B") back to its cluster (e.g. "Field 12"), for Pod lookups that only know about clusters. Falls back to the input unchanged for anything that isn't a numbered sub-pitch (e.g. "Stadium Field"). */
 export function fieldCluster(field: string): string {
@@ -251,7 +258,7 @@ export function fieldCluster(field: string): string {
 
 /** The Field Map's actual grouping — each numbered field cluster alongside the sub-pitch codes Games are really scheduled on, in field-number order. */
 export const FIELD_CLUSTERS: { cluster: string; pitches: readonly string[] }[] = [
-  { cluster: "Field 5", pitches: ["5A", "5B", "5C"] },
+  { cluster: "Field 7", pitches: ["7A", "7B", "7C"] },
   { cluster: "Field 9", pitches: ["9A", "9B"] },
   { cluster: "Field 12", pitches: ["12A", "12B"] },
   { cluster: "Field 13", pitches: ["13A", "13B"] },
