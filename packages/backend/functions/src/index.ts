@@ -8,8 +8,6 @@ export { submitGameCard } from "./http/submitGameCard.js";
 export { fileIncident } from "./http/fileIncident.js";
 export { callItFinal } from "./http/callItFinal.js";
 export { askUmojaChannel } from "./ai/chatAssistant.js";
-export { createComplaintCheckout } from "./stripe/createComplaintCheckout.js";
-export { confirmIncidentPayment } from "./stripe/confirmIncidentPayment.js";
 export { createReportFeeIntent, filePaidReport } from "./stripe/createReportFeeIntent.js";
 export { createSponsorshipIntent, confirmSponsorshipPayment } from "./stripe/createSponsorshipIntent.js";
 export { stripeWebhook } from "./stripe/stripeWebhook.js";

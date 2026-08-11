@@ -41,7 +41,6 @@ import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal
 import { MomentDetailModal } from "../components/MomentDetailModal";
 import { LoadingImage } from "../components/LoadingImage";
 import { CheckInCard } from "../components/CheckInCard";
-import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { VolunteerTaskDetailModal } from "../components/VolunteerTaskDetailModal";
 
@@ -74,7 +73,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
   const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
   const [openMomentId, setOpenMomentId] = useState<string | null>(null);
-  const [complaintTeamId, setComplaintTeamId] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const openAnnouncement = announcements.find((a) => a.id === openAnnouncementId) ?? null;
@@ -241,15 +239,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
             {myGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
           </View>
 
-          {captainMemberships.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>CAPTAIN TOOLS</Text>
-              {captainMemberships.map((m) => (
-                <CaptainComplaintRow key={m.teamId} teamId={m.teamId} onPress={() => setComplaintTeamId(m.teamId)} />
-              ))}
-            </View>
-          )}
-
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>VOLUNTEER</Text>
             <VolunteerSection uid={user?.uid} activeKidName={selectedKid} onSignup={() => setVolunteerSignupOpen(true)} />
@@ -270,9 +259,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           <Text style={styles.sectionTitle}>TEAM MANAGER TOOLS</Text>
           {managedTeamIds.map((teamId) => (
             <TeamRow key={teamId} teamId={teamId} onPress={() => navigation.getParent()?.navigate("Team", { teamId })} />
-          ))}
-          {managedTeamIds.map((teamId) => (
-            <CaptainComplaintRow key={`complaint-${teamId}`} teamId={teamId} onPress={() => setComplaintTeamId(teamId)} />
           ))}
         </View>
       )}
@@ -397,7 +383,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       </Modal>
       {sponsorCheckoutOpen && <SponsorshipCheckoutModal onClose={() => setSponsorCheckoutOpen(false)} />}
       <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />
-      {complaintTeamId && <CaptainComplaintTeamWrapper teamId={complaintTeamId} onClose={() => setComplaintTeamId(null)} />}
       {volunteerSignupOpen && (
         <VolunteerSignupModal onClose={() => setVolunteerSignupOpen(false)} initialName={selectedKid ?? undefined} />
       )}
@@ -596,23 +581,6 @@ const sponsorSecondaryBtn = {
   alignItems: "center" as const,
 };
 const sponsorSecondaryBtnText = { fontWeight: "700" as const, fontSize: 13.5 };
-
-function CaptainComplaintRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
-  const { data: team } = useTeam(teamId);
-  if (!team) return null;
-  return (
-    <Card onPress={onPress} style={{ marginBottom: 6 }}>
-      <Text style={{ fontWeight: "600" }}>File a complaint — {team.name}</Text>
-      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>$35 review fee, refunded if upheld</Text>
-    </Card>
-  );
-}
-
-function CaptainComplaintTeamWrapper({ teamId, onClose }: { teamId: string; onClose: () => void }) {
-  const { data: team } = useTeam(teamId);
-  if (!team) return null;
-  return <CaptainComplaintModal teamName={team.name} onClose={onClose} />;
-}
 
 const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20 },

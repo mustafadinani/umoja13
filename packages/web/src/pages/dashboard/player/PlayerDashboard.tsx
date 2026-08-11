@@ -5,11 +5,10 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
 import { useMyManagedTeamIds } from "../../../hooks/useRegistration";
-import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
+import { Card, Pill, StatusBadge } from "../../../components/ui";
 import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
-import { ComplaintModal } from "./ComplaintModal";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
@@ -21,7 +20,6 @@ export function PlayerDashboard() {
   const { data: games } = useGames();
   const { data: sponsors } = useSponsors();
   const { data: myManagedTeamIds } = useMyManagedTeamIds(user?.uid);
-  const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
 
@@ -125,7 +123,7 @@ export function PlayerDashboard() {
           {captainMemberships.length > 0 && (
             <>
               <SectionLabel>CAPTAIN TOOLS</SectionLabel>
-              {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} onComplaint={() => setComplaintTeam(m.teamId)} />)}
+              {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} />)}
             </>
           )}
         </>
@@ -141,11 +139,9 @@ export function PlayerDashboard() {
       {managedTeamIds.length > 0 && (
         <>
           <SectionLabel>TEAM MANAGER TOOLS</SectionLabel>
-          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} onComplaint={() => setComplaintTeam(teamId)} />)}
+          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} />)}
         </>
       )}
-
-      {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}
 
       <div style={{ marginTop: 32 }}>
         {(() => {
@@ -270,19 +266,12 @@ function MyGameRow({ game, onOpen }: { game: Game; onOpen: () => void }) {
   );
 }
 
-function CaptainSection({ teamId, onComplaint }: { teamId: string; onComplaint: () => void }) {
+function CaptainSection({ teamId }: { teamId: string }) {
   const { data: team } = useTeam(teamId);
   if (!team) return null;
   return (
     <div style={{ marginBottom: 24 }}>
       <CaptainRoster team={team} />
-      <PrimaryButton style={{ marginTop: 12 }} onClick={onComplaint}>FILE A COMPLAINT</PrimaryButton>
     </div>
   );
-}
-
-function ComplaintTeamWrapper({ teamId, onClose }: { teamId: string; onClose: () => void }) {
-  const { data: team } = useTeam(teamId);
-  if (!team) return null;
-  return <ComplaintModal teamName={team.name} onClose={onClose} />;
 }

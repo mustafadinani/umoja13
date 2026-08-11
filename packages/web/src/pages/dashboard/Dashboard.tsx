@@ -10,7 +10,6 @@ import { RefereeDashboard } from "./referee/RefereeDashboard";
 import { CommissionerDashboard } from "./commissioner/CommissionerDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 import { VolunteerDashboard } from "./volunteer/VolunteerDashboard";
-import { ComplaintPaymentReturnBanner } from "./ComplaintPaymentReturnBanner";
 
 /** Lets someone holding more than one role pick which one is "active" — drives which dashboard Dashboard renders below. Renders nothing for a single-role account. */
 function RoleSwitcher({ roles, primaryRole }: { roles: string[]; primaryRole: string }) {
@@ -51,6 +50,7 @@ export function Dashboard() {
   switch (profile.primaryRole) {
     case "player":
     case "captain":
+    case "coach_manager":
       body = <PlayerDashboard />;
       break;
     case "volunteer":
@@ -71,7 +71,6 @@ export function Dashboard() {
 
   return (
     <>
-      <ComplaintPaymentReturnBanner />
       <RoleSwitcher roles={profile.roles} primaryRole={profile.primaryRole} />
       {body}
     </>

@@ -49,16 +49,6 @@ export const askUmojaChannel = httpsCallable<
   { reply: string; message: UserChannelMessage }
 >(functions, "askUmojaChannel");
 
-export const createComplaintCheckout = httpsCallable<
-  { incidentId: string; successUrl: string; cancelUrl: string },
-  { checkoutUrl: string | null; sessionId: string }
->(functions, "createComplaintCheckout");
-
-export const confirmIncidentPayment = httpsCallable<
-  { incidentId: string; sessionId: string },
-  { paid: boolean; stripeConfirmationId: string; alreadyRecorded: boolean }
->(functions, "confirmIncidentPayment");
-
 export const createReportFeeIntent = httpsCallable<
   Record<string, never>,
   { clientSecret: string; paymentIntentId: string; publishableKey: string; amountCents: number }
