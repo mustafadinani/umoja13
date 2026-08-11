@@ -5,14 +5,12 @@ import { toggleFollowTeam } from "../../../lib/followTeam";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme, hunterGradient } from "../../../lib/theme";
 import { useTeams } from "../../../hooks/useData";
-import { Card, Pill, PrimaryButton } from "../../../components/ui";
-import { JoinTeamModal } from "../../../components/JoinTeamModal";
+import { Card, Pill } from "../../../components/ui";
 
 export function FanDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: teams } = useTeams();
-  const [joinOpen, setJoinOpen] = useState(false);
   const [followError, setFollowError] = useState<string | null>(null);
   const followed = new Set(profile?.followedTeamIds ?? []);
 
@@ -43,14 +41,6 @@ export function FanDashboard() {
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>JOIN THE HUNT</div>
         <div style={{ fontSize: 13.5, opacity: 0.92, marginTop: 4 }}>Make a crew of up to 4 and start earning points →</div>
       </div>
-
-      <Card style={{ marginBottom: 24 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Playing in the tournament?</div>
-        <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 12 }}>
-          Join a team roster to unlock check-in, your schedule, and team standings.
-        </div>
-        <PrimaryButton onClick={() => setJoinOpen(true)}>JOIN A TEAM</PrimaryButton>
-      </Card>
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MY TEAMS</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -89,8 +79,6 @@ export function FanDashboard() {
           </div>
         </Card>
       )}
-
-      {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
 
       <Card style={{ marginTop: 24, cursor: "pointer" }} onClick={() => navigate("/dashboard/report-issue")}>
         <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>

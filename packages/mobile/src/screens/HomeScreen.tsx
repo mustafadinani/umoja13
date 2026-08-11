@@ -39,7 +39,6 @@ import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal
 import { MomentDetailModal } from "../components/MomentDetailModal";
 import { LoadingImage } from "../components/LoadingImage";
 import { CheckInCard } from "../components/CheckInCard";
-import { JoinTeamModal } from "../components/JoinTeamModal";
 import { CaptainComplaintModal } from "../components/CaptainComplaintModal";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
 import { VolunteerTaskDetailModal } from "../components/VolunteerTaskDetailModal";
@@ -72,7 +71,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const [sponsorCheckoutOpen, setSponsorCheckoutOpen] = useState(false);
   const [openSponsor, setOpenSponsor] = useState<Sponsor | null>(null);
   const [openMomentId, setOpenMomentId] = useState<string | null>(null);
-  const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeamId, setComplaintTeamId] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const [activeKid, setActiveKid] = useState<string | null>(null);
@@ -145,14 +143,15 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         </TouchableOpacity>
       )}
 
-      {memberships.length === 0 ? (
-        <View style={styles.section}>
-          <Card>
-            <Text style={{ fontWeight: "700", marginBottom: 6 }}>Not on a roster yet</Text>
-            <PrimaryButton onPress={() => setJoinOpen(true)}>JOIN A TEAM</PrimaryButton>
-          </Card>
-        </View>
-      ) : (
+      {/*
+        Registration (and getting placed on a team's roster) happens entirely
+        on our external registration site, never in this app — so there's no
+        self-service "join a team" entry point to offer someone who isn't on
+        a roster yet. Home just quietly skips this whole block and falls
+        through to Up Next / The Hunt / Moments / Announcements / Sponsors,
+        all of which are useful regardless of roster status.
+      */}
+      {memberships.length > 0 && (
         <>
           {tabNames.length > 1 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16, marginTop: 14, marginBottom: 6 }}>
@@ -369,7 +368,6 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       </Modal>
       {sponsorCheckoutOpen && <SponsorshipCheckoutModal onClose={() => setSponsorCheckoutOpen(false)} />}
       <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />
-      {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeamId && <CaptainComplaintTeamWrapper teamId={complaintTeamId} onClose={() => setComplaintTeamId(null)} />}
       {volunteerSignupOpen && (
         <VolunteerSignupModal onClose={() => setVolunteerSignupOpen(false)} initialName={selectedKid ?? undefined} />

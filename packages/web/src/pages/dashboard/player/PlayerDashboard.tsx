@@ -5,7 +5,6 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../../../components/ui";
-import { JoinTeamModal } from "../../../components/JoinTeamModal";
 import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
 import { CaptainRoster } from "./CaptainRoster";
@@ -20,7 +19,6 @@ export function PlayerDashboard() {
   const navigate = useNavigate();
   const { data: games } = useGames();
   const { data: sponsors } = useSponsors();
-  const [joinOpen, setJoinOpen] = useState(false);
   const [complaintTeam, setComplaintTeam] = useState<string | null>(null);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
@@ -50,14 +48,12 @@ export function PlayerDashboard() {
     <div className="page-shell-sm">
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>MY DASHBOARD</div>
 
-      {memberships.length === 0 && (
-        <Card style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>You're not on a roster yet</div>
-          <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 12 }}>Join a team to unlock check-in, your schedule, and team standings.</div>
-          <PrimaryButton onClick={() => setJoinOpen(true)}>JOIN A TEAM</PrimaryButton>
-        </Card>
-      )}
-
+      {/*
+        Registration (and getting placed on a team's roster) happens entirely
+        on our external registration site, never here — so there's no
+        self-service "join a team" fallback for someone with no memberships
+        yet. This block just renders nothing for them.
+      */}
       {memberships.length > 0 && (
         <>
           {kidNames.length > 1 && (
@@ -127,7 +123,6 @@ export function PlayerDashboard() {
         </>
       )}
 
-      {joinOpen && <JoinTeamModal onClose={() => setJoinOpen(false)} />}
       {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}
 
       <div style={{ marginTop: 32 }}>
