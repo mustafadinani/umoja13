@@ -231,7 +231,19 @@ function ReviewQueue() {
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/*
+        key={statusFilter} forces a full remount of this list on every tile
+        switch, rather than letting React reconcile the old children against
+        the new ones. Needed because "Not checked in" renders a completely
+        different item type (RegisteredPlayer) than every other tile
+        (CheckIn) under the same key scheme (profileId/id vs. check-in id) —
+        if a check-in id ever happens to collide with a registration id/
+        profileId string, React treats that as "the same element, just
+        update props" instead of unmount+remount, which can leave the row
+        showing the previous tile's content until something else (like a
+        page refresh) forces a clean render.
+      */}
+      <div key={statusFilter} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {statusFilter === "notCheckedIn"
           ? notCheckedIn.map((p) => {
               const teamName = p.teamId?.trim() ? teamById.get(p.teamId)?.name ?? p.teamName ?? p.teamId : "No team assigned";
