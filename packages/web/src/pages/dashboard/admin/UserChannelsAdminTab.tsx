@@ -1,12 +1,26 @@
 import { useMemo, useState } from "react";
 import { orderBy } from "firebase/firestore";
-import { COLLECTIONS, type UserChannel, type UserProfile } from "@umoja/shared";
+import {
+  COLLECTIONS,
+  SELF_REGISTERED_STATUS,
+  INCOMPLETE_REGISTRATION_STATUS,
+  categoryLabelFor,
+  pickPrimaryRole,
+  type RegisteredPlayer,
+  type UserChannel,
+  type UserProfile,
+} from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useCollection } from "../../../hooks/firestore";
 import { useAllUsers } from "../../../hooks/useData";
-import { useRegisteredTeamsRaw } from "../../../hooks/useRegistration";
+import { useRegisteredPlayers, useRegisteredTeamsRaw } from "../../../hooks/useRegistration";
+import { ROLE_LABELS } from "../../../lib/roleLabels";
 import { Card } from "../../../components/ui";
 import { UserChannelPanel } from "../../../components/UserChannelPanel";
+
+function isRealRegistration(p: RegisteredPlayer): boolean {
+  return p.status !== SELF_REGISTERED_STATUS && p.status !== INCOMPLETE_REGISTRATION_STATUS;
+}
 
 /**
  * A real inbox: conversations on the left, the selected thread (with reply
@@ -18,7 +32,9 @@ export function UserChannelsAdminTab() {
   const { data: channels } = useCollection<UserChannel>(COLLECTIONS.userChannels, [orderBy("updatedAt", "desc")]);
   const { data: users } = useAllUsers();
   const { data: registeredTeams } = useRegisteredTeamsRaw();
+  const { data: registeredPlayers } = useRegisteredPlayers();
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const teamNameById = useMemo(() => new Map(registeredTeams.map((t) => [t.id, t.teamName?.trim() || "Untitled team"])), [registeredTeams]);
   // Captain's own registered name, keyed by their account uid — safe to use
   // as a conversation name (it's the account holder, not a shared family
   // account's child). Lets an old conversation whose stored authorName is
@@ -32,6 +48,21 @@ export function UserChannelsAdminTab() {
     }
     return map;
   }, [registeredTeams]);
+  // Real registration rows (never self-registered/incomplete junk — see
+  // registration.ts), grouped by account uid. Feeds both the sidebar's
+  // one-word role (a registered uid with no staff/volunteer role otherwise
+  // is a "Player" — see roleLabelFor) and the open thread's "Registered:"
+  // line, which lists every one of them (an account can hold more than one
+  // registration — siblings sharing a family account, most commonly).
+  const registeredPlayersByUid = useMemo(() => {
+    const map = new Map<string, RegisteredPlayer[]>();
+    for (const p of registeredPlayers) {
+      if (!p.uid || !isRealRegistration(p)) continue;
+      if (!map.has(p.uid)) map.set(p.uid, []);
+      map.get(p.uid)!.push(p);
+    }
+    return map;
+  }, [registeredPlayers]);
   const [search, setSearch] = useState("");
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
@@ -79,6 +110,7 @@ export function UserChannelsAdminTab() {
                 channel={c}
                 profile={userById.get(c.id)}
                 captainName={captainNameByUid.get(c.id)}
+                roleLabel={roleLabelFor(userById.get(c.id), registeredPlayersByUid.has(c.id), captainNameByUid.has(c.id))}
                 active={c.id === selectedUid}
                 onSelect={() => setSelectedUid(c.id)}
               />
@@ -90,9 +122,19 @@ export function UserChannelsAdminTab() {
         <div style={{ minWidth: 0 }}>
           {selectedUid ? (
             <Card>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
-                {conversationName(selectedChannel, selectedUid, selected, captainNameByUid.get(selectedUid))}
-                {selected?.email && <span style={{ color: theme.color.textMuted, fontWeight: 400, fontSize: 12.5 }}> · {selected.email}</span>}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>
+                  {conversationName(selectedChannel, selectedUid, selected, captainNameByUid.get(selectedUid))}
+                  {selected?.email && <span style={{ color: theme.color.textMuted, fontWeight: 400, fontSize: 12.5 }}> · {selected.email}</span>}
+                </div>
+                {(() => {
+                  const summary = registrationSummary(registeredPlayersByUid.get(selectedUid), teamNameById);
+                  return summary ? (
+                    <div style={{ color: theme.color.purple, fontWeight: 600, fontSize: 12.5, marginTop: 3 }}>
+                      Registered: {summary}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <UserChannelPanel uid={selectedUid} />
             </Card>
@@ -105,6 +147,47 @@ export function UserChannelsAdminTab() {
       </div>
     </div>
   );
+}
+
+/**
+ * One-word role for the conversation list — Player, Referee, Volunteer,
+ * Fan, etc. — never the "who they've registered" detail (that only lives in
+ * the open thread; see registrationSummary). Prefers the account's own
+ * roles, topped up with "player" when real registration rows exist under
+ * this uid even if the stored `roles` haven't caught up yet (the same gap
+ * the useResolvedProfile fix closes for the account's own dashboard, just
+ * applied here so the admin list is never stuck showing a role a fresh
+ * signup started with before their family's registration was known).
+ */
+function roleLabelFor(profile: UserProfile | undefined, hasRegistration: boolean, isCaptain: boolean): string {
+  const roles = profile?.roles ?? [];
+  const effectiveRoles = hasRegistration && !roles.includes("player") ? [...roles, "player" as const] : roles;
+  if (effectiveRoles.length > 0) return ROLE_LABELS[pickPrimaryRole(effectiveRoles)];
+  if (isCaptain) return ROLE_LABELS.captain;
+  if (hasRegistration) return ROLE_LABELS.player;
+  return "—";
+}
+
+/**
+ * "Amir Martin (Coastal FC · Boy's 10 & Under), ..." — every real
+ * registration row under this uid, never assuming the account holder's
+ * relationship to them (parent, coach, whoever registered them — we don't
+ * actually know, so this never says "parent of").
+ */
+function registrationSummary(
+  players: RegisteredPlayer[] | undefined,
+  teamNameById: Map<string, string>
+): string | null {
+  if (!players || players.length === 0) return null;
+  return players
+    .map((p) => {
+      const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || "Unnamed player";
+      const team = p.teamId?.trim() ? teamNameById.get(p.teamId.trim()) ?? p.teamName?.trim() : undefined;
+      const category = p.categoryId ? categoryLabelFor(p.categoryId) : p.category?.trim();
+      const meta = [team, category].filter(Boolean).join(" · ");
+      return meta ? `${name} (${meta})` : name;
+    })
+    .join(", ");
 }
 
 /**
@@ -134,12 +217,14 @@ function ConversationRow({
   channel,
   profile,
   captainName,
+  roleLabel,
   active,
   onSelect,
 }: {
   channel: UserChannel;
   profile?: UserProfile;
   captainName?: string;
+  roleLabel: string;
   active: boolean;
   onSelect: () => void;
 }) {
@@ -175,6 +260,9 @@ function ConversationRow({
           )}
         </div>
         <div style={{ fontSize: 10.5, color: theme.color.textMuted, flexShrink: 0 }}>{new Date(channel.updatedAt).toLocaleDateString()}</div>
+      </div>
+      <div style={{ fontSize: 11, color: theme.color.textMuted, fontWeight: 600, letterSpacing: "0.02em", marginTop: 3 }}>
+        {roleLabel}
       </div>
       {last && (
         <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
