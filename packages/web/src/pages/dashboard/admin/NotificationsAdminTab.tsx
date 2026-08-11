@@ -28,7 +28,7 @@ export function NotificationsAdminTab() {
   const [role, setRole] = useState<Role>("player");
   const [gameId, setGameId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number } | null>(null);
+  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number; emailCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const upcomingGames = [...games]
@@ -126,7 +126,8 @@ export function NotificationsAdminTab() {
         {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
         {result && (
           <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
-            Sent to {result.notifiedCount} {result.notifiedCount === 1 ? "person" : "people"} ({result.pushCount} got a push).
+            Sent to {result.notifiedCount} {result.notifiedCount === 1 ? "person" : "people"} ({result.pushCount} got a push,{" "}
+            {result.emailCount} got an email).
           </div>
         )}
 

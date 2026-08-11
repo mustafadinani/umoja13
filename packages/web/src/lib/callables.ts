@@ -112,7 +112,7 @@ type NotificationTarget =
 
 export const sendNotification = httpsCallable<
   { title: string; body: string; target: NotificationTarget },
-  { notifiedCount: number; pushCount: number }
+  { notifiedCount: number; pushCount: number; emailCount: number }
 >(functions, "sendNotification");
 
 export const sendTeamMessage = httpsCallable<

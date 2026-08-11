@@ -1,8 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { COLLECTIONS, type CheckIn } from "@umoja/shared";
+import { COLLECTIONS, CATEGORIES, type CheckIn, type Team } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { nextPassId } from "../util/counters.js";
 import { syncRosterCheckInStatus } from "../util/roster.js";
+import { sendEmail, EMAIL_SECRETS } from "../services/emailjs.service.js";
+import { checkInDecisionEmail } from "../util/emailTemplates.js";
 
 interface AdminReviewCheckInRequest {
   checkInId: string;
@@ -15,7 +17,7 @@ interface AdminReviewCheckInRequest {
  * Routed through a function (not a direct client write) so pass-id assignment
  * stays behind the same atomic counter verifyCheckIn uses.
  */
-export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (request) => {
+export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>({ secrets: EMAIL_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -60,5 +62,33 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
     await syncRosterCheckInStatus(checkIn.teamId, checkIn.userId, "approved", checkIn.selfieUrl);
   }
 
+  await sendCheckInDecisionEmail(checkIn, decision === "approve" || decision === "restore");
+
   return { status: decision };
 });
+
+async function sendCheckInDecisionEmail(checkIn: CheckIn, approved: boolean): Promise<void> {
+  try {
+    const [userSnap, teamSnap] = await Promise.all([
+      db.collection(COLLECTIONS.users).doc(checkIn.userId).get(),
+      db.collection(COLLECTIONS.teams).doc(checkIn.teamId).get(),
+    ]);
+    const email: string | undefined = userSnap.data()?.email;
+    const name: string = userSnap.data()?.displayName ?? "there";
+    if (!email) return;
+
+    const team = teamSnap.data() as Team | undefined;
+    const categoryLabel = CATEGORIES.find((c) => c.id === checkIn.categoryId)?.label ?? checkIn.categoryId;
+
+    const { subject, html } = checkInDecisionEmail({
+      name,
+      categoryLabel,
+      teamName: team?.name,
+      approved,
+      rejectionReason: checkIn.aiVerification?.reasoning,
+    });
+    await sendEmail(email, subject, html);
+  } catch (err) {
+    console.error("adminReviewCheckIn: failed to send decision email:", err);
+  }
+}
