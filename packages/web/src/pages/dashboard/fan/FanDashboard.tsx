@@ -5,12 +5,14 @@ import { toggleFollowTeam } from "../../../lib/followTeam";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme, hunterGradient } from "../../../lib/theme";
 import { useTeams } from "../../../hooks/useData";
+import { useCanFileCommissionerReport } from "../../../hooks/useRegistration";
 import { Card, Pill } from "../../../components/ui";
 
 export function FanDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: teams } = useTeams();
+  const canFileReport = useCanFileCommissionerReport(user?.uid, profile);
   const [followError, setFollowError] = useState<string | null>(null);
   const followed = new Set(profile?.followedTeamIds ?? []);
 
@@ -80,9 +82,18 @@ export function FanDashboard() {
         </Card>
       )}
 
-      <Card style={{ marginTop: 24, cursor: "pointer" }} onClick={() => navigate("/dashboard/report-issue")}>
+      <Card
+        style={{
+          marginTop: 24,
+          cursor: canFileReport ? "pointer" : "default",
+          opacity: canFileReport ? 1 : 0.5,
+        }}
+        onClick={() => canFileReport && navigate("/dashboard/report-issue")}
+      >
         <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
-        <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test card payment)</div>
+        <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
+          {canFileReport ? "$35 review fee (test card payment)" : "Captains and coach/managers only"}
+        </div>
       </Card>
     </div>
   );

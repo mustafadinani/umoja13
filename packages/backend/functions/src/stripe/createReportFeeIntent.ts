@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { nextCaseNumber } from "../util/counters.js";
+import { isCaptainOrCoachManager } from "../util/teamRoles.js";
 import {
   getStripeLive,
   stripeSecretKeyLive,
@@ -13,12 +14,22 @@ import {
  * Creates a $35 PaymentIntent (Stripe **live**) for the in-app report / complaint fee.
  * Client confirms the Payment Element, then calls filePaidReport.
  * Used by web ReportIssuePage and mobile ComplaintScreen.
+ *
+ * Restricted to a team's real registration captain or an admin-designated
+ * coach/manager — same audience as the captain_complaint flow (fileIncident).
+ * This "report to the commissioner" flow and "file a complaint" are the same
+ * thing with a different entry point, so they share the same gate. Checked
+ * before creating the Stripe intent at all, so nobody outside that group can
+ * even start a payment for it.
  */
 export const createReportFeeIntent = onCall(
   { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    if (!(await isCaptainOrCoachManager(uid))) {
+      throw new HttpsError("permission-denied", "Only a team's captain or coach/manager can file this report.");
+    }
 
     try {
       const stripe = getStripeLive();
@@ -64,12 +75,18 @@ interface FilePaidReportRequest {
 
 /**
  * Verifies the live PaymentIntent succeeded, then creates the incident with fee marked paid.
+ * Re-checks captain/coach-manager status (see createReportFeeIntent) — the
+ * payment intent could technically survive a role change between the two
+ * calls, so this is defense in depth, not the only gate.
  */
 export const filePaidReport = onCall(
   { secrets: [stripeSecretKeyLive] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+    if (!(await isCaptainOrCoachManager(uid))) {
+      throw new HttpsError("permission-denied", "Only a team's captain or coach/manager can file this report.");
+    }
 
     const {
       text,

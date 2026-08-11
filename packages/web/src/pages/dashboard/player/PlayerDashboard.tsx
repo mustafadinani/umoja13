@@ -148,10 +148,20 @@ export function PlayerDashboard() {
       {complaintTeam && <ComplaintTeamWrapper teamId={complaintTeam} onClose={() => setComplaintTeam(null)} />}
 
       <div style={{ marginTop: 32 }}>
-        <Card onClick={() => navigate("/dashboard/report-issue")} style={{ cursor: "pointer" }}>
-          <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
-          <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>$35 review fee (test card payment)</div>
-        </Card>
+        {(() => {
+          const canFileReport = captainMemberships.length > 0 || managedTeamIds.length > 0;
+          return (
+            <Card
+              style={{ cursor: canFileReport ? "pointer" : "default", opacity: canFileReport ? 1 : 0.5 }}
+              onClick={() => canFileReport && navigate("/dashboard/report-issue")}
+            >
+              <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
+              <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
+                {canFileReport ? "$35 review fee (test card payment)" : "Captains and coach/managers only"}
+              </div>
+            </Card>
+          );
+        })()}
       </div>
 
       <div style={{ marginTop: 24 }}>

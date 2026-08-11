@@ -24,6 +24,7 @@ import {
   type RegistrationCategoryBucket,
   type RosterCheckIn,
   type Team,
+  type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../lib/firebase";
 import { useCollection } from "./firestore";
@@ -209,4 +210,19 @@ export function useMyManagedTeamIds(uid: string | undefined): { data: string[]; 
   }, [uid]);
 
   return { data, loading };
+}
+
+/**
+ * True if this account is a real registration captain of any team
+ * (profile.playerOf[].isCaptain) or an admin-designated coach/manager of any
+ * team (useMyManagedTeamIds). Gates the "Report an issue to the
+ * commissioner" flow — it's the same $35 complaint fileIncident's
+ * captain_complaint path files, just a different entry point, so it's
+ * restricted to the same audience (enforced server-side too, in
+ * createReportFeeIntent/filePaidReport — this is just for the UI).
+ */
+export function useCanFileCommissionerReport(uid: string | undefined, profile: UserProfile | null | undefined): boolean {
+  const { data: managedTeamIds } = useMyManagedTeamIds(uid);
+  const isCaptain = (profile?.playerOf ?? []).some((m) => m.isCaptain);
+  return isCaptain || managedTeamIds.length > 0;
 }

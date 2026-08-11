@@ -111,6 +111,12 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   // all. Excludes any team already shown above under real captaincy.
   const captainTeamIds = new Set(captainMemberships.map((m) => m.teamId));
   const managedTeamIds = myManagedTeamIds.filter((id) => !captainTeamIds.has(id));
+  // Account-wide (any kid, not just the selected tab) — gates the "Report an
+  // issue to the commissioner" footer link below, which is the same $35
+  // complaint fileIncident's captain_complaint path files, just a different
+  // entry point, so it's restricted to the same audience (enforced
+  // server-side too, in createReportFeeIntent/filePaidReport).
+  const canFileReport = memberships.some((m) => m.isCaptain) || myManagedTeamIds.length > 0;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
@@ -369,8 +375,13 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("Complaint")}>
-          <Text style={styles.footerLink}>Report an issue to the commissioner</Text>
+        <TouchableOpacity
+          disabled={!canFileReport}
+          onPress={() => canFileReport && navigation.getParent()?.navigate("Complaint")}
+        >
+          <Text style={[styles.footerLink, !canFileReport && { opacity: 0.4 }]}>
+            {canFileReport ? "Report an issue to the commissioner" : "Report an issue to the commissioner (captains/managers only)"}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => signOut()} style={{ marginTop: 12 }}>
           <Text style={styles.footerSignOut}>Sign out</Text>
