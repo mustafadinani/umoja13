@@ -1,4 +1,12 @@
-import { DATA_SOURCES, mapOutreachProfileToUserProfile, type OutreachProfile } from "@umoja/shared";
+import {
+  DATA_SOURCES,
+  mapOutreachProfileToUserProfile,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  TEAMS_REGISTERED,
+  type OutreachProfile,
+  type RegisteredTeam,
+} from "@umoja/shared";
 import { auth, defaultDb } from "./admin.js";
 
 /**
@@ -12,10 +20,18 @@ import { auth, defaultDb } from "./admin.js";
  * have no `users/{uid}` doc at all: without this fallback chain their
  * messages render with the author name "Someone" everywhere.
  *
- * Fallback order: umoja13-app profile -> Outreach registration profile ->
- * Firebase Auth's own displayName (populated automatically for Google
- * sign-in) -> the email's local part -> a generic label as an absolute last
- * resort.
+ * Fallback order: umoja13-app profile -> Outreach registration (family)
+ * profile -> the team's registered captain name, when this uid IS that
+ * captain -> Firebase Auth's own displayName (populated automatically for
+ * Google sign-in) -> the email's local part -> a generic label as an
+ * absolute last resort.
+ *
+ * Deliberately does NOT fall back to a `playersRegistered` row's
+ * firstName/lastName here — that's the CHILD's name, not this account's
+ * name (one shared family account can hold several kids), and using it
+ * would misattribute an adult's message to whichever kid's registration
+ * row happened to match, the same bug class the playerKey identity work
+ * elsewhere in this app exists to avoid.
  */
 export async function resolveAuthorName(uid: string, appDisplayName?: string): Promise<string> {
   if (appDisplayName?.trim()) return appDisplayName.trim();
@@ -26,6 +42,20 @@ export async function resolveAuthorName(uid: string, appDisplayName?: string): P
       const name = mapOutreachProfileToUserProfile(uid, outreachSnap.data() as OutreachProfile).displayName;
       if (name && name !== "Player") return name;
     }
+  } catch {
+    // Best-effort — fall through.
+  }
+
+  try {
+    const teamSnap = await defaultDb
+      .collection(REGISTRATION_ROOT)
+      .doc(REGISTRATION_YEAR)
+      .collection(TEAMS_REGISTERED)
+      .where("uid", "==", uid)
+      .limit(1)
+      .get();
+    const captainName = (teamSnap.docs[0]?.data() as RegisteredTeam | undefined)?.teamCaptainName?.trim();
+    if (captainName) return captainName;
   } catch {
     // Best-effort — fall through to Auth.
   }

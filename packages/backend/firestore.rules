@@ -290,9 +290,13 @@ service cloud.firestore {
     // Written only by the sendTeamMessage Cloud Function (Admin SDK, bypasses
     // rules), which derives `from` server-side from the caller's role/roster
     // membership rather than trusting a client-set field. Private to staff
-    // and that team's own roster — teams.rosterUids (kept in sync by
-    // onTeamWrite) is what makes a cheap membership check possible here,
-    // since roster itself is an array of objects rules can't filter by field.
+    // and that team's own roster — teams.rosterUids is what makes a cheap
+    // membership check possible here, since a rule can't run the real
+    // registration-data roster query itself. Kept in sync with the real,
+    // current roster by the onPlayerRegisteredWrite trigger (NOT derived
+    // from teams.roster, this app's own pre-Outreach-import teams
+    // collection — nothing has written that field since the Outreach import
+    // replaced it, so it no longer reflects who's actually on a team).
     match /teamChannels/{teamId} {
       allow read: if isStaff() ||
         (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.rosterUids);

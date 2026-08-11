@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { COLLECTIONS, type CheckInStatus } from "@umoja/shared";
-import { db } from "./admin.js";
+import { COLLECTIONS, PLAYERS_REGISTERED, REGISTRATION_ROOT, REGISTRATION_YEAR, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
+import { db, defaultDb } from "./admin.js";
 
 /**
  * Mirrors a check-in's status (and selfie, once approved) into the
@@ -46,4 +46,40 @@ export async function syncRosterCheckInStatus(
     },
     { merge: true }
   );
+}
+
+/**
+ * The real, current set of account uids on a team's roster, straight from
+ * the `(default)` registration import — the same source buildTeamFromRegistration
+ * uses on the client, and the same query postDeclineToTeamChannel already
+ * used to compute who to notify. This is the ONLY correct source of "who's
+ * actually on this team right now"; `teams/{teamId}.roster` (this app's own,
+ * pre-Outreach-import teams collection) is dead data nothing has written
+ * since the Outreach import replaced it, so it must never be trusted for an
+ * access check again — see syncTeamRosterUidsFromRegistration below for why
+ * that matters.
+ */
+export async function getCurrentTeamRosterUids(teamId: string): Promise<string[]> {
+  if (!teamId) return [];
+  const playersSnap = await defaultDb
+    .collection(REGISTRATION_ROOT)
+    .doc(REGISTRATION_YEAR)
+    .collection(PLAYERS_REGISTERED)
+    .where("teamId", "==", teamId)
+    .get();
+  return [...new Set(playersSnap.docs.map((d) => (d.data() as RegisteredPlayer).uid).filter((v): v is string => !!v))];
+}
+
+/**
+ * Firestore security rules can't run the query above at read time, so
+ * `teamChannels/{teamId}`'s read rule instead checks a precomputed
+ * `teams/{teamId}.rosterUids` field — this keeps that field mirroring the
+ * real roster above. Call this whenever a player's team assignment could
+ * have changed (see onPlayerRegisteredWrite) so the channel's access list
+ * never drifts from who's actually on the team.
+ */
+export async function syncTeamRosterUidsFromRegistration(teamId: string): Promise<void> {
+  if (!teamId) return;
+  const rosterUids = (await getCurrentTeamRosterUids(teamId)).sort();
+  await db.collection(COLLECTIONS.teams).doc(teamId).set({ rosterUids }, { merge: true });
 }

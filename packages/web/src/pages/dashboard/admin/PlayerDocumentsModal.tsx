@@ -21,7 +21,7 @@ import { useTeam } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
-export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; onClose: () => void }) {
+export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, reviewerName, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; reviewerName?: string; onClose: () => void }) {
   const { profile } = useAuth();
   const { data: team } = useTeam(checkIn.teamId);
   const [busy, setBusy] = useState(false);
@@ -46,9 +46,12 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   const rosterEntry = team?.roster.find((p) => (p.playerKey ?? p.userId) === playerKey);
   const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
   // Mirrors registeredPlayerToRosterEntry's default precedence when no
-  // explicit override is set — an approved selfie wins, else registration.
+  // explicit override is set — the check-in selfie wins as soon as it
+  // exists (a current photo of the actual kid), regardless of review
+  // status; only falls back to the registration photo when there's no
+  // selfie at all.
   const effectiveCardPhoto: "selfie" | "registration" =
-    checkIn.cardPhotoOverride ?? (checkIn.status === "approved" && checkIn.selfieUrl ? "selfie" : "registration");
+    checkIn.cardPhotoOverride ?? (checkIn.selfieUrl ? "selfie" : "registration");
 
   function buildNote(): CheckInNote | null {
     if (!profile || !noteText.trim()) return null;
@@ -179,7 +182,7 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
 
       {checkIn.reviewedBy && (
         <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 16 }}>
-          Decided by {checkIn.reviewedBy} at {checkIn.reviewedAt ? new Date(checkIn.reviewedAt).toLocaleString() : ""}
+          Decided by {reviewerName ?? checkIn.reviewedBy} at {checkIn.reviewedAt ? new Date(checkIn.reviewedAt).toLocaleString() : ""}
         </div>
       )}
 

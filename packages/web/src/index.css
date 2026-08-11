@@ -67,6 +67,12 @@ input, textarea, select { font-family: inherit; }
   gap: 10px;
 }
 
+.grid-kpi-5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
 .grid-2-equal {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -108,6 +114,7 @@ input, textarea, select { font-family: inherit; }
   .grid-4,
   .grid-kpi-3,
   .grid-kpi-4,
+  .grid-kpi-5,
   .grid-2-equal,
   .pods-layout {
     grid-template-columns: 1fr;
@@ -143,7 +150,8 @@ input, textarea, select { font-family: inherit; }
 @media (min-width: 640px) and (max-width: 767px) {
   .grid-3,
   .grid-kpi-3,
-  .grid-kpi-4 {
+  .grid-kpi-4,
+  .grid-kpi-5 {
     grid-template-columns: repeat(2, 1fr);
   }
 }

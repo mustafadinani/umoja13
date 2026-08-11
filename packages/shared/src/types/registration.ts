@@ -9,6 +9,17 @@ export const REGISTRATION_ROOT = "uGames";
 export const TEAMS_REGISTERED = "teamsRegistered";
 export const PLAYERS_REGISTERED = "playersRegistered";
 
+/**
+ * The exact `status` string the now-removed self-serve "Join a Team" flow
+ * (JoinTeamModal, mobile + web) wrote on every playersRegistered doc it
+ * created. Nothing else in the app has ever written a new playersRegistered
+ * doc with this literal status — the real Outreach import pipeline is a
+ * separate, external process — so it's a reliable marker for "this player
+ * was self-registered in-app, not vetted through Outreach," useful for
+ * admins to find and clean up entries created before the flow was removed.
+ */
+export const SELF_REGISTERED_STATUS = "Registered. Pending Manager Review";
+
 export interface RegisteredTeam {
   id: string;
   teamName: string;

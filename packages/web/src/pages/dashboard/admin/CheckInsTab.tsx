@@ -166,6 +166,7 @@ function ReviewQueue() {
           user={userById.get(openCheckIn.userId)}
           fallbackName={registeredPlayerByKey.get(openCheckIn.playerKey ?? openCheckIn.userId)?.name}
           fallbackPhotoUrl={registeredPlayerByKey.get(openCheckIn.playerKey ?? openCheckIn.userId)?.photoUrl}
+          reviewerName={openCheckIn.reviewedBy ? userById.get(openCheckIn.reviewedBy)?.displayName : undefined}
           onClose={() => setOpenCheckInId(null)}
         />
       )}

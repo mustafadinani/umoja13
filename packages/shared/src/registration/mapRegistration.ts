@@ -1,5 +1,5 @@
 import { CATEGORIES } from "../constants/categories.js";
-import type { RegisteredPlayer, RegisteredTeam } from "../types/registration.js";
+import { SELF_REGISTERED_STATUS, type RegisteredPlayer, type RegisteredTeam } from "../types/registration.js";
 import type { Category, RosterEntry, Team, TeamStats } from "../types/team.js";
 import type { RosterCheckIn } from "../types/checkin.js";
 
@@ -120,19 +120,20 @@ function parseGroup(value: unknown): Team["group"] | undefined {
 }
 
 /**
- * Default photo precedence (only an approved selfie replaces the signup
- * photo — an unreviewed or declined selfie hasn't been verified against the
- * player's ID yet) unless an admin has explicitly overridden it from the
- * check-in review screen, in which case that choice always wins regardless
- * of approval status.
+ * Default photo precedence: whatever selfie the player submitted at
+ * check-in wins over the old signup/registration photo as soon as it
+ * exists, regardless of review status — it's a current photo of the
+ * actual kid, where the registration photo can be months old or (for
+ * some rows) a parent's photo. An admin can still explicitly override
+ * this from the check-in review screen, in which case that choice always
+ * wins.
  */
 function resolveCardPhotoUrl(
-  realCheckIn: Pick<RosterCheckIn, "status" | "selfieUrl" | "cardPhotoOverride"> | undefined,
+  realCheckIn: Pick<RosterCheckIn, "selfieUrl" | "cardPhotoOverride"> | undefined,
   registrationPhotoUrl: string | undefined
 ): string | undefined {
   if (realCheckIn?.cardPhotoOverride === "registration") return registrationPhotoUrl ?? undefined;
-  if (realCheckIn?.cardPhotoOverride === "selfie") return realCheckIn.selfieUrl ?? registrationPhotoUrl ?? undefined;
-  return (realCheckIn?.status === "approved" ? realCheckIn.selfieUrl : undefined) ?? registrationPhotoUrl ?? undefined;
+  return realCheckIn?.selfieUrl ?? registrationPhotoUrl ?? undefined;
 }
 
 export function registeredPlayerToRosterEntry(
@@ -159,11 +160,19 @@ export function registeredPlayerToRosterEntry(
 }
 
 function playersForTeam(team: RegisteredTeam, players: RegisteredPlayer[]): RegisteredPlayer[] {
-  const byId = players.filter((p) => p.teamId === team.id);
+  // Self-registered rows (the now-removed in-app "Join a Team" flow) were
+  // never vetted through the real Outreach import — they're not real
+  // registrations, so they must never surface on a real roster, in a
+  // captain's player count, in Moments tagging, or anywhere else a team's
+  // roster gets built from this. They still show up (and can be deleted) in
+  // the admin Players tab, which reads the raw registration rows directly
+  // rather than going through this function.
+  const real = players.filter((p) => p.status !== SELF_REGISTERED_STATUS);
+  const byId = real.filter((p) => p.teamId === team.id);
   if (byId.length > 0) return byId;
   const teamName = normalizeCategoryLabel(team.teamName ?? "");
   if (!teamName) return [];
-  return players.filter((p) => normalizeCategoryLabel(p.teamName ?? "") === teamName);
+  return real.filter((p) => normalizeCategoryLabel(p.teamName ?? "") === teamName);
 }
 
 export function buildTeamFromRegistration(

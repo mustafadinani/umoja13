@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { COLLECTIONS, type ChannelRole, type Pod, type Team, type UserProfile } from "@umoja/shared";
+import { COLLECTIONS, type ChannelRole, type Pod, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
+import { getCurrentTeamRosterUids } from "../util/roster.js";
 
 type ChannelKind = "user" | "team" | "role" | "pod";
 
@@ -40,9 +41,10 @@ export const markChannelRead = onCall<MarkChannelReadRequest>(async (request) =>
     }
     case "team": {
       if (!isStaffCaller) {
-        const teamSnap = await db.collection(COLLECTIONS.teams).doc(id).get();
-        const team = teamSnap.data() as Team | undefined;
-        if (!team?.roster.some((p) => p.userId === uid)) {
+        // The real, current roster from registration data — not
+        // `teams/{teamId}.roster` (see util/roster.ts).
+        const rosterUids = await getCurrentTeamRosterUids(id);
+        if (!rosterUids.includes(uid)) {
           throw new HttpsError("permission-denied", "Only staff or a player on this team can do this.");
         }
       }

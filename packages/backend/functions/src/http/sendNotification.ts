@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, ROLES, type Role } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { notifyUsers } from "../util/notify.js";
+import { getCurrentTeamRosterUids } from "../util/roster.js";
 
 type NotificationTarget =
   | { type: "all" }
@@ -31,15 +32,14 @@ async function resolveRecipientUids(target: NotificationTarget): Promise<string[
     const gameSnap = await db.collection(COLLECTIONS.games).doc(target.gameId).get();
     if (!gameSnap.exists) throw new HttpsError("not-found", "Game not found.");
     const game = gameSnap.data()!;
-    const [homeSnap, awaySnap] = await Promise.all([
-      db.collection(COLLECTIONS.teams).doc(game.homeTeamId).get(),
-      db.collection(COLLECTIONS.teams).doc(game.awayTeamId).get(),
+    // The real, current roster from registration data — not
+    // `teams/{teamId}.roster`, which is dead data from this app's own
+    // pre-Outreach-import teams collection (see util/roster.ts).
+    const [homeUids, awayUids] = await Promise.all([
+      getCurrentTeamRosterUids(game.homeTeamId),
+      getCurrentTeamRosterUids(game.awayTeamId),
     ]);
-    const uids = new Set<string>();
-    for (const teamSnap of [homeSnap, awaySnap]) {
-      const roster: { userId: string }[] = teamSnap.data()?.roster ?? [];
-      roster.forEach((p) => p.userId && uids.add(p.userId));
-    }
+    const uids = new Set<string>([...homeUids, ...awayUids]);
     for (const refUid of game.refereeUids ?? []) uids.add(refUid);
     return [...uids];
   }

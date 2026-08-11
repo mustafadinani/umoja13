@@ -15,7 +15,7 @@ export { createSponsorshipIntent, confirmSponsorshipPayment } from "./stripe/cre
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { stripePayment } from "./http/stripePayment.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
-export { onTeamWrite } from "./triggers/onTeamWrite.js";
+export { onPlayerRegisteredWrite } from "./triggers/onPlayerRegisteredWrite.js";
 export { onCheckInWrite } from "./triggers/onCheckInWrite.js";
 export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
@@ -41,3 +41,4 @@ export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
 export { markChannelRead } from "./http/markChannelRead.js";
 export { setJerseyNumber } from "./http/setJerseyNumber.js";
 export { setHuntStarted } from "./http/huntConfig.js";
+export { backfillTeamRosterAccess } from "./http/backfillTeamRosterAccess.js";

@@ -4,6 +4,7 @@ import { COLLECTIONS, type UserChannel, type UserProfile } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useCollection } from "../../../hooks/firestore";
 import { useAllUsers } from "../../../hooks/useData";
+import { useRegisteredTeamsRaw } from "../../../hooks/useRegistration";
 import { Card } from "../../../components/ui";
 import { UserChannelPanel } from "../../../components/UserChannelPanel";
 
@@ -16,7 +17,21 @@ import { UserChannelPanel } from "../../../components/UserChannelPanel";
 export function UserChannelsAdminTab() {
   const { data: channels } = useCollection<UserChannel>(COLLECTIONS.userChannels, [orderBy("updatedAt", "desc")]);
   const { data: users } = useAllUsers();
+  const { data: registeredTeams } = useRegisteredTeamsRaw();
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  // Captain's own registered name, keyed by their account uid — safe to use
+  // as a conversation name (it's the account holder, not a shared family
+  // account's child). Lets an old conversation whose stored authorName is
+  // just an email-local-part fallback (e.g. someone signed up before
+  // resolveAuthorName learned this fallback) still show a real name without
+  // needing every historical message rewritten.
+  const captainNameByUid = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of registeredTeams) {
+      if (t.uid && t.teamCaptainName?.trim()) map.set(t.uid, t.teamCaptainName.trim());
+    }
+    return map;
+  }, [registeredTeams]);
   const [search, setSearch] = useState("");
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
@@ -63,6 +78,7 @@ export function UserChannelsAdminTab() {
                 key={c.id}
                 channel={c}
                 profile={userById.get(c.id)}
+                captainName={captainNameByUid.get(c.id)}
                 active={c.id === selectedUid}
                 onSelect={() => setSelectedUid(c.id)}
               />
@@ -75,7 +91,7 @@ export function UserChannelsAdminTab() {
           {selectedUid ? (
             <Card>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>
-                {conversationName(selectedChannel, selectedUid, selected)}
+                {conversationName(selectedChannel, selectedUid, selected, captainNameByUid.get(selectedUid))}
                 {selected?.email && <span style={{ color: theme.color.textMuted, fontWeight: 400, fontSize: 12.5 }}> · {selected.email}</span>}
               </div>
               <UserChannelPanel uid={selectedUid} />
@@ -95,12 +111,20 @@ export function UserChannelsAdminTab() {
  * The `users/{uid}` profile doc is missing for anyone who registered through
  * Outreach but never went through the app's own sign-up flow — falling back
  * straight to the raw doc id there used to surface things like "_wy5wdabb8"
- * in the inbox. Every message already carries a properly resolved
- * `authorName` (Outreach profile -> Auth displayName -> email), so prefer the
- * most recent one of those before ever showing the bare id.
+ * in the inbox. `captainName` (this uid's registered team-captain name, when
+ * it is one) is checked next, ahead of the stored `authorName` — that field
+ * is baked in at send time, so an old conversation sent before
+ * resolveAuthorName learned to check the captain registration would
+ * otherwise be stuck showing whatever it fell back to then (often the
+ * email's local part, e.g. "sakinahkarim.nba"), even after the account gets
+ * a real captain record. Every message already carries a properly resolved
+ * `authorName` (Outreach profile -> team captain -> Auth displayName ->
+ * email) for anyone NOT a captain, so that's the last resort before the raw
+ * uid.
  */
-function conversationName(channel: UserChannel | undefined, uid: string, profile?: UserProfile): string {
+function conversationName(channel: UserChannel | undefined, uid: string, profile?: UserProfile, captainName?: string): string {
   if (profile?.displayName?.trim()) return profile.displayName.trim();
+  if (captainName?.trim()) return captainName.trim();
   const lastUserMessage = [...(channel?.messages ?? [])].reverse().find((m) => m.from === "user");
   if (lastUserMessage?.authorName?.trim() && lastUserMessage.authorName !== "Someone") return lastUserMessage.authorName.trim();
   return uid;
@@ -109,11 +133,13 @@ function conversationName(channel: UserChannel | undefined, uid: string, profile
 function ConversationRow({
   channel,
   profile,
+  captainName,
   active,
   onSelect,
 }: {
   channel: UserChannel;
   profile?: UserProfile;
+  captainName?: string;
   active: boolean;
   onSelect: () => void;
 }) {
@@ -140,7 +166,7 @@ function ConversationRow({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {conversationName(channel, channel.id, profile)}
+            {conversationName(channel, channel.id, profile, captainName)}
           </div>
           {awaitingOrganizer && (
             <span style={{ fontSize: 10, fontWeight: 800, color: theme.color.pink, background: "#FBE3EA", borderRadius: 999, padding: "2px 7px", flexShrink: 0 }}>

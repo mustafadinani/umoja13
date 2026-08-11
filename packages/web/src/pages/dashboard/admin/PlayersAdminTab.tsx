@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   COLLECTIONS,
+  SELF_REGISTERED_STATUS,
   TODDLERS_CAMP_CATEGORY_LABELS,
   type Category,
   type CheckIn,
@@ -101,7 +102,7 @@ export function PlayersAdminTab() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // Defaults to "with a team" — that's the group admins actually work
   // through day to day; "all" buries them under everyone still mid-signup.
-  const [teamFilter, setTeamFilter] = useState<"all" | "withTeam" | "noTeam" | "invalidCategory">("withTeam");
+  const [teamFilter, setTeamFilter] = useState<"all" | "withTeam" | "noTeam" | "invalidCategory" | "selfRegistered">("withTeam");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -139,6 +140,11 @@ export function PlayersAdminTab() {
         return { player: p, teamId, teamName, hasTeam, checkedIn, categoryMatch };
       })
       .filter(({ player, hasTeam, categoryMatch }) => {
+        // Self-registered is its own view, independent of team/category
+        // status — these came in through the removed "Join a Team" flow
+        // rather than the real Outreach import, so they need to be found
+        // regardless of whether they happen to have a team assigned.
+        if (teamFilter === "selfRegistered" && player.status !== SELF_REGISTERED_STATUS) return false;
         // "No team assigned" and "with a team" are complements of the exact
         // same predicate used below to compute unassignedCount — so the KPI
         // tiles' numbers and what clicking them filters to always agree.
@@ -168,6 +174,7 @@ export function PlayersAdminTab() {
     const m = matchPlayerCategory(p, categories);
     return !m.matched && !m.nonCompetitive;
   }).length;
+  const selfRegisteredCount = players.filter((p) => p.status === SELF_REGISTERED_STATUS).length;
   const loading = playersLoading || teamsLoading || checkInsLoading || categoriesLoading;
   const error = playersError || teamsError;
 
@@ -210,9 +217,52 @@ export function PlayersAdminTab() {
     }
   }
 
+  /**
+   * Deletes a self-registered "Join a Team" entry — these were created by
+   * the now-removed in-app self-serve flow, never vetted through the real
+   * Outreach registration/import pipeline, so they're not real registered
+   * players. Also strips the matching membership off the submitter's own
+   * account (matched by profileId, which the self-serve flow always set to
+   * this exact playersRegistered doc's id) so the account doesn't keep
+   * showing a roster spot for a registration that no longer exists.
+   */
+  async function rejectSelfRegisteredPlayer(player: RegisteredPlayer) {
+    const name = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "this player";
+    if (!window.confirm(`Remove ${name}'s self-registration? This permanently deletes the registration record and can't be undone.`)) {
+      return;
+    }
+    setSavingId(player.id);
+    setSaveError(null);
+    try {
+      await deleteDoc(doc(defaultDb, REGISTRATION_ROOT, REGISTRATION_YEAR, PLAYERS_REGISTERED, player.id));
+
+      const uid = player.uid?.trim();
+      if (uid) {
+        try {
+          const userRef = doc(db, COLLECTIONS.users, uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const profile = snap.data() as UserProfile;
+            const memberships = profile.playerOf ?? [];
+            const nextMemberships = memberships.filter((m) => m.profileId !== player.id);
+            if (nextMemberships.length !== memberships.length) {
+              await updateDoc(userRef, { playerOf: nextMemberships, updatedAt: Date.now() });
+            }
+          }
+        } catch {
+          // Registration doc is already gone; profile cleanup is best-effort.
+        }
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Couldn't remove this registration.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <div>
-      <div className="grid-kpi-4" style={{ marginBottom: 20 }}>
+      <div className="grid-kpi-5" style={{ marginBottom: 20 }}>
         <Kpi
           label="Registered players"
           value={loading ? "…" : String(players.length)}
@@ -238,6 +288,13 @@ export function PlayersAdminTab() {
           accent={invalidCategoryCount > 0}
           active={teamFilter === "invalidCategory"}
           onClick={() => setTeamFilter("invalidCategory")}
+        />
+        <Kpi
+          label="Self-registered (not real)"
+          value={loading ? "…" : String(selfRegisteredCount)}
+          accent={selfRegisteredCount > 0}
+          active={teamFilter === "selfRegistered"}
+          onClick={() => setTeamFilter("selfRegistered")}
         />
       </div>
 
@@ -274,6 +331,7 @@ export function PlayersAdminTab() {
         {rows.map(({ player, teamName, hasTeam, checkedIn, categoryMatch }) => {
           const displayName = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
           const invalid = !categoryMatch.matched && !categoryMatch.nonCompetitive;
+          const selfRegistered = player.status === SELF_REGISTERED_STATUS;
           return (
             <Card
               key={player.id}
@@ -283,7 +341,7 @@ export function PlayersAdminTab() {
                 justifyContent: "space-between",
                 alignItems: "flex-start",
                 gap: 12,
-                borderColor: invalid ? theme.color.danger : undefined,
+                borderColor: invalid || selfRegistered ? theme.color.danger : undefined,
               }}
             >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0, flex: 1 }}>
@@ -323,6 +381,44 @@ export function PlayersAdminTab() {
                       .filter(Boolean)
                       .join(" · ")}
                   </div>
+
+                  {selfRegistered && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "10px 12px",
+                        borderRadius: theme.radius.sm,
+                        background: theme.color.dangerBg,
+                        color: theme.color.danger,
+                        fontSize: 12.5,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠ Self-registered — not a real registration</div>
+                      <div>
+                        Created through the in-app "Join a Team" flow (now removed), not the real Outreach
+                        registration/import. Never reviewed by an admin.
+                      </div>
+                      <button
+                        disabled={savingId === player.id}
+                        onClick={() => void rejectSelfRegisteredPlayer(player)}
+                        style={{
+                          marginTop: 10,
+                          padding: "8px 12px",
+                          borderRadius: theme.radius.sm,
+                          border: `1px solid ${theme.color.danger}`,
+                          background: "#fff",
+                          color: theme.color.danger,
+                          fontWeight: 700,
+                          fontSize: 12.5,
+                          cursor: savingId === player.id ? "default" : "pointer",
+                          opacity: savingId === player.id ? 0.6 : 1,
+                        }}
+                      >
+                        {savingId === player.id ? "Removing…" : "Remove — not a real registration"}
+                      </button>
+                    </div>
+                  )}
 
                   {invalid && (
                     <div

@@ -172,6 +172,11 @@ export const setJerseyNumber = httpsCallable<
   { ok: true }
 >(functions, "setJerseyNumber");
 
+export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number }>(
+  functions,
+  "backfillTeamRosterAccess"
+);
+
 export const sendVolunteerTaskMessage = httpsCallable<
   { taskId: string; text: string },
   { message: VolunteerTaskMessage }
