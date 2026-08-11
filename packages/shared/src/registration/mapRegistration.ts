@@ -1,5 +1,5 @@
 import { CATEGORIES } from "../constants/categories.js";
-import { SELF_REGISTERED_STATUS, type RegisteredPlayer, type RegisteredTeam } from "../types/registration.js";
+import { INCOMPLETE_REGISTRATION_STATUS, SELF_REGISTERED_STATUS, type RegisteredPlayer, type RegisteredTeam } from "../types/registration.js";
 import type { Category, RosterEntry, Team, TeamStats } from "../types/team.js";
 import type { RosterCheckIn } from "../types/checkin.js";
 
@@ -164,14 +164,16 @@ function playersForTeam(
   players: RegisteredPlayer[],
   catalog: readonly Category[] = CATEGORIES
 ): RegisteredPlayer[] {
-  // Self-registered rows (the now-removed in-app "Join a Team" flow) were
-  // never vetted through the real Outreach import — they're not real
-  // registrations, so they must never surface on a real roster, in a
-  // captain's player count, in Moments tagging, or anywhere else a team's
-  // roster gets built from this. They still show up (and can be deleted) in
-  // the admin Players tab, which reads the raw registration rows directly
+  // Two kinds of rows aren't real registrations and must never surface on a
+  // roster, in a captain's player count, in Moments tagging, or anywhere
+  // else a team gets built from this: self-registered rows (the now-removed
+  // in-app "Join a Team" flow, never vetted through the real Outreach
+  // import) and rows Outreach itself marks "Registration In Progress" — a
+  // family that started signing up but never finished (no team, no
+  // category). Both still show up (and can be reviewed/deleted) in the
+  // admin Players tab, which reads the raw registration rows directly
   // rather than going through this function.
-  const real = players.filter((p) => p.status !== SELF_REGISTERED_STATUS);
+  const real = players.filter((p) => p.status !== SELF_REGISTERED_STATUS && p.status !== INCOMPLETE_REGISTRATION_STATUS);
   const byId = real.filter((p) => p.teamId === team.id);
   if (byId.length > 0) return byId;
   const teamName = normalizeCategoryLabel(team.teamName ?? "");

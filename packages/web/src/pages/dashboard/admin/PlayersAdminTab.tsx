@@ -6,6 +6,7 @@ import {
   REGISTRATION_YEAR,
   COLLECTIONS,
   SELF_REGISTERED_STATUS,
+  INCOMPLETE_REGISTRATION_STATUS,
   TODDLERS_CAMP_CATEGORY_LABELS,
   type Category,
   type CheckIn,
@@ -102,7 +103,7 @@ export function PlayersAdminTab() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // Defaults to "with a team" — that's the group admins actually work
   // through day to day; "all" buries them under everyone still mid-signup.
-  const [teamFilter, setTeamFilter] = useState<"all" | "withTeam" | "noTeam" | "invalidCategory" | "selfRegistered">("withTeam");
+  const [teamFilter, setTeamFilter] = useState<"all" | "withTeam" | "noTeam" | "invalidCategory" | "selfRegistered" | "incompleteRegistration">("withTeam");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -144,11 +145,27 @@ export function PlayersAdminTab() {
         return { player: p, teamId, teamName, hasTeam, checkedIn, categoryMatch };
       })
       .filter(({ player, hasTeam, categoryMatch }) => {
-        // Self-registered is its own view, independent of team/category
-        // status — these came in through the removed "Join a Team" flow
-        // rather than the real Outreach import, so they need to be found
-        // regardless of whether they happen to have a team assigned.
+        // Self-registered and incomplete-registration are each their own
+        // dedicated view, independent of team/category status — self-
+        // registered rows came in through the removed "Join a Team" flow
+        // rather than the real Outreach import, and incomplete rows are
+        // Outreach's own "Registration In Progress" status (a family that
+        // started signing up but never finished) — so both need to be
+        // findable regardless of whether they happen to have a team.
         if (teamFilter === "selfRegistered" && player.status !== SELF_REGISTERED_STATUS) return false;
+        if (teamFilter === "incompleteRegistration" && player.status !== INCOMPLETE_REGISTRATION_STATUS) return false;
+        // Every other view (All/With a team/No team/Invalid category) only
+        // makes sense over real, completed registrations — an abandoned
+        // Outreach signup or a self-registered dupe isn't a real player
+        // "missing a team," they just never became a real registration at
+        // all, so they'd otherwise double-count under "No team assigned."
+        if (
+          teamFilter !== "selfRegistered" &&
+          teamFilter !== "incompleteRegistration" &&
+          (player.status === SELF_REGISTERED_STATUS || player.status === INCOMPLETE_REGISTRATION_STATUS)
+        ) {
+          return false;
+        }
         // "No team assigned" and "with a team" are complements of the exact
         // same predicate used below to compute unassignedCount — so the KPI
         // tiles' numbers and what clicking them filters to always agree.
@@ -173,12 +190,21 @@ export function PlayersAdminTab() {
       });
   }, [players, teamNameById, checkIns, search, categoryFilter, teamFilter, categories]);
 
-  const unassignedCount = players.filter((p) => !p.teamId?.trim() && !matchPlayerCategory(p, categories).nonCompetitive).length;
-  const invalidCategoryCount = players.filter((p) => {
+  // Self-registered and incomplete-registration rows aren't real
+  // registrations at all (see the identical exclusion in the `rows` filter
+  // above) — excluded here too so "Registered players" and every KPI
+  // derived from it always match exactly what clicking into that tile shows.
+  const realPlayers = useMemo(
+    () => players.filter((p) => p.status !== SELF_REGISTERED_STATUS && p.status !== INCOMPLETE_REGISTRATION_STATUS),
+    [players]
+  );
+  const unassignedCount = realPlayers.filter((p) => !p.teamId?.trim() && !matchPlayerCategory(p, categories).nonCompetitive).length;
+  const invalidCategoryCount = realPlayers.filter((p) => {
     const m = matchPlayerCategory(p, categories);
     return !m.matched && !m.nonCompetitive;
   }).length;
   const selfRegisteredCount = players.filter((p) => p.status === SELF_REGISTERED_STATUS).length;
+  const incompleteRegistrationCount = players.filter((p) => p.status === INCOMPLETE_REGISTRATION_STATUS).length;
   // Deduped, lowercase-normalized emails for whatever's currently on
   // screen — respects every active filter (team/category/search) so
   // "copy emails" always matches exactly the rows visible, e.g. everyone
@@ -287,16 +313,16 @@ export function PlayersAdminTab() {
 
   return (
     <div>
-      <div className="grid-kpi-5" style={{ marginBottom: 20 }}>
+      <div className="grid-kpi-6" style={{ marginBottom: 20 }}>
         <Kpi
           label="Registered players"
-          value={loading ? "…" : String(players.length)}
+          value={loading ? "…" : String(realPlayers.length)}
           active={teamFilter === "all"}
           onClick={() => setTeamFilter("all")}
         />
         <Kpi
           label="With a team"
-          value={loading ? "…" : String(players.length - unassignedCount)}
+          value={loading ? "…" : String(realPlayers.length - unassignedCount)}
           active={teamFilter === "withTeam"}
           onClick={() => setTeamFilter("withTeam")}
         />
@@ -320,6 +346,13 @@ export function PlayersAdminTab() {
           accent={selfRegisteredCount > 0}
           active={teamFilter === "selfRegistered"}
           onClick={() => setTeamFilter("selfRegistered")}
+        />
+        <Kpi
+          label="Registration in progress"
+          value={loading ? "…" : String(incompleteRegistrationCount)}
+          accent={incompleteRegistrationCount > 0}
+          active={teamFilter === "incompleteRegistration"}
+          onClick={() => setTeamFilter("incompleteRegistration")}
         />
       </div>
 
@@ -375,6 +408,7 @@ export function PlayersAdminTab() {
           const displayName = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
           const invalid = !categoryMatch.matched && !categoryMatch.nonCompetitive;
           const selfRegistered = player.status === SELF_REGISTERED_STATUS;
+          const incompleteRegistration = player.status === INCOMPLETE_REGISTRATION_STATUS;
           return (
             <Card
               key={player.id}
@@ -384,7 +418,7 @@ export function PlayersAdminTab() {
                 justifyContent: "space-between",
                 alignItems: "flex-start",
                 gap: 12,
-                borderColor: invalid || selfRegistered ? theme.color.danger : undefined,
+                borderColor: invalid || selfRegistered ? theme.color.danger : incompleteRegistration ? theme.color.warning : undefined,
               }}
             >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12, minWidth: 0, flex: 1 }}>
@@ -460,6 +494,27 @@ export function PlayersAdminTab() {
                       >
                         {savingId === player.id ? "Removing…" : "Remove — not a real registration"}
                       </button>
+                    </div>
+                  )}
+
+                  {incompleteRegistration && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "10px 12px",
+                        borderRadius: theme.radius.sm,
+                        background: theme.color.warningBg,
+                        color: theme.color.warning,
+                        fontSize: 12.5,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>⏳ Registration in progress — not finished</div>
+                      <div>
+                        This family started registering on our registration site but never finished (no team, no
+                        category on file). Not something to check in or place on a team — no action needed here
+                        unless you want to follow up with them directly at {player.email || "the email on file"}.
+                      </div>
                     </div>
                   )}
 

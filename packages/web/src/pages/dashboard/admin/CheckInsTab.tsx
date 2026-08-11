@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, SELF_REGISTERED_STATUS, checkInStatusLabel, type CheckIn, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
+import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, SELF_REGISTERED_STATUS, INCOMPLETE_REGISTRATION_STATUS, checkInStatusLabel, type CheckIn, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -128,14 +128,19 @@ function ReviewQueue() {
   const notCheckedIn = useMemo(
     () =>
       registeredPlayers.filter((p) => {
-        // Self-registered rows (the removed in-app "Join a Team" flow) were
-        // never vetted through the real Outreach import — they're not real
-        // registrations, so they must never surface here, same as every
-        // other roster/roster-adjacent view already excludes them (see
-        // playersForTeam in mapRegistration.ts). Without this, a real kid
-        // and their own leftover self-registered duplicate both show up as
-        // two separate "not checked in" rows for the same name.
-        if (p.status === SELF_REGISTERED_STATUS) return false;
+        // Two kinds of rows aren't real, actionable registrations, and must
+        // never surface here — same exclusion playersForTeam in
+        // mapRegistration.ts already applies to real rosters: self-registered
+        // rows (the removed in-app "Join a Team" flow, never vetted through
+        // Outreach), and rows Outreach itself marks "Registration In
+        // Progress" — a family that started signing up but abandoned it
+        // before picking a team. The latter is the far more common case in
+        // practice (348 of 1230 registration rows in production carry this
+        // status) — without excluding it, a real kid who registered
+        // correctly after an earlier abandoned attempt shows up twice: once
+        // correctly, and once as a confusing "No team assigned" ghost row
+        // for the same name.
+        if (p.status === SELF_REGISTERED_STATUS || p.status === INCOMPLETE_REGISTRATION_STATUS) return false;
         const key = p.profileId?.trim() || p.id;
         if (!key || checkedInKeys.has(key)) return false;
         if (categoryId && p.categoryId !== categoryId) return false;

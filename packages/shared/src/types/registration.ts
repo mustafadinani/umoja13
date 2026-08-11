@@ -20,6 +20,22 @@ export const PLAYERS_REGISTERED = "playersRegistered";
  */
 export const SELF_REGISTERED_STATUS = "Registered. Pending Manager Review";
 
+/**
+ * The exact `status` string Outreach's own registration flow writes on a
+ * playersRegistered doc for a family that started signing up but never
+ * finished — no team, no category, nothing beyond name/email/phone. This is
+ * a completely different situation from SELF_REGISTERED_STATUS (that's a
+ * finished-but-unvetted in-app signup); this is simply an unfinished one.
+ * Confirmed against production data (Aug 2026): 348 of 1230 playersRegistered
+ * rows carry this status — 162 of them share a profileId with a real
+ * completed registration for the same kid (they registered again properly
+ * after abandoning the first attempt), and 186 have no completed counterpart
+ * at all (they just never came back). Either way there's no real player here
+ * to check in or place on a team, so these must be excluded the same places
+ * SELF_REGISTERED_STATUS already is.
+ */
+export const INCOMPLETE_REGISTRATION_STATUS = "Registration In Progress";
+
 export interface RegisteredTeam {
   id: string;
   teamName: string;
