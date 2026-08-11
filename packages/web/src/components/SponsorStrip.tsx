@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { SPONSOR_TIER_LABELS, SPONSOR_TIER_ORDER, type Sponsor, type SponsorTier } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
-import { SponsorshipCheckoutModal } from "./SponsorshipCheckoutModal";
 
 // One accent per tier, reused for the tier pill, tagline, and primary button
 // in the popup — gives "tier" a visual identity beyond the label text, using
@@ -23,7 +23,6 @@ const TIER_EMOJI: Record<SponsorTier, string> = {
 
 export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
   const [open, setOpen] = useState<Sponsor | null>(null);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const visible = sponsors.filter((s) => s.visible ?? true);
   const byTier = SPONSOR_TIER_ORDER.map((tier) => ({
@@ -37,9 +36,9 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, color: theme.color.textMuted }}>
           PROUDLY SUPPORTED BY
         </div>
-        <div onClick={() => setCheckoutOpen(true)} style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.blue, cursor: "pointer" }}>
+        <Link to="/donate" style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.blue }}>
           Become a Sponsor →
-        </div>
+        </Link>
       </div>
 
       {byTier.length === 0 ? (
@@ -81,7 +80,6 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
       )}
 
       {open && <SponsorModal sponsor={open} onClose={() => setOpen(null)} />}
-      {checkoutOpen && <SponsorshipCheckoutModal onClose={() => setCheckoutOpen(false)} />}
     </div>
   );
 }
