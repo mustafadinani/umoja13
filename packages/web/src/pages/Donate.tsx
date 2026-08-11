@@ -33,25 +33,34 @@ const PILLARS = [
   },
 ];
 
+// Umoja Games is the flagship/marquee program — it renders full-width above
+// the other two so it reads as the anchor, not one of three equal tiles.
+const MARQUEE_PROGRAM = {
+  tag: "FLAGSHIP · GLOBAL",
+  tagColor: theme.color.pink,
+  title: "Umoja Games",
+  body: "Our flagship annual tournament brings together Muslims of all ages from around the world for competition, connection, and celebration at premier soccer venues.",
+};
+
 const PROGRAMS = [
-  {
-    tag: "GLOBAL",
-    tagColor: theme.color.blue,
-    title: "Umoja Games",
-    body: "Our flagship annual tournament brings together Muslims of all ages from around the world for competition, connection, and celebration at premier soccer venues.",
-  },
   {
     tag: "LOCAL",
     tagColor: theme.color.teal,
     title: "Umoja Academy Training",
     body: "A weekly soccer training program active in many US and Canadian cities that offers top coaches, uses a proven development curriculum, and builds lasting connections for Muslim families and youth.",
   },
+  {
+    tag: "CAREERS",
+    tagColor: theme.color.orange,
+    title: "Internships & Jobs",
+    body: "Real internship and employment pathways for youth and young professionals — turning involvement in Umoja Games and the Academy into hands-on career experience and mentorship.",
+  },
 ];
 
 const IMPACT_STATS = [
   { value: "100+", label: "Muslim communities represented" },
   { value: "10,000+", label: "Muslim youth united" },
-  { value: "3,000+", label: "Underserved girls reached" },
+  { value: "3,000+", label: "Underserved members reached" },
 ];
 
 const BENEFITS = [
@@ -113,6 +122,15 @@ export function Donate() {
         </div>
 
         <SectionLabel eyebrow="OUR PROGRAMS" title="Creating real and lasting impact" />
+        <Card style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: 20 }}>
+            <span style={{ display: "inline-block", fontSize: 10.5, fontWeight: 800, letterSpacing: 1, color: "#fff", background: MARQUEE_PROGRAM.tagColor, borderRadius: 999, padding: "3px 10px", marginBottom: 10 }}>
+              {MARQUEE_PROGRAM.tag}
+            </span>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 6 }}>{MARQUEE_PROGRAM.title}</div>
+            <div style={{ fontSize: 14, color: theme.color.textMuted, lineHeight: 1.5, maxWidth: 640 }}>{MARQUEE_PROGRAM.body}</div>
+          </div>
+        </Card>
         <div className="grid-2" style={{ marginBottom: 48 }}>
           {PROGRAMS.map((p) => (
             <Card key={p.title} style={{ padding: 0, overflow: "hidden" }}>
