@@ -1,8 +1,25 @@
 import { useState } from "react";
-import { SPONSOR_TIER_LABELS, SPONSOR_TIER_ORDER, type Sponsor } from "@umoja/shared";
+import { SPONSOR_TIER_LABELS, SPONSOR_TIER_ORDER, type Sponsor, type SponsorTier } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
 import { SponsorshipCheckoutModal } from "./SponsorshipCheckoutModal";
+
+// One accent per tier, reused for the tier pill, tagline, and primary button
+// in the popup — gives "tier" a visual identity beyond the label text, using
+// colors already in the app's palette rather than introducing new ones.
+const TIER_ACCENT: Record<SponsorTier, string> = {
+  legacy_builder: theme.color.purple,
+  impact_partner: theme.color.blue,
+  community_supporter: theme.color.teal,
+  custom: theme.color.gold,
+};
+
+const TIER_EMOJI: Record<SponsorTier, string> = {
+  legacy_builder: "👑",
+  impact_partner: "⚡",
+  community_supporter: "🤝",
+  custom: "💜",
+};
 
 export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
   const [open, setOpen] = useState<Sponsor | null>(null);
@@ -63,36 +80,124 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
         </div>
       )}
 
-      {open && (
-        <Modal onClose={() => setOpen(null)}>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>{open.name}</div>
-          <div style={{ fontSize: 13, color: theme.color.textMuted, margin: "4px 0 14px" }}>{open.tagline}</div>
-          <div style={{ fontSize: 15, lineHeight: 1.6, marginBottom: 12 }}>{open.story}</div>
-          {open.description && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: theme.color.textMuted, marginBottom: 16 }}>{open.description}</div>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {open.websiteUrl && (
-              <PrimaryButton onClick={() => window.open(open.websiteUrl, "_blank")} style={{ width: "100%" }}>VISIT WEBSITE</PrimaryButton>
-            )}
-            {open.instagramUrl && (
-              <button
-                onClick={() => window.open(open.instagramUrl!.startsWith("http") ? open.instagramUrl : `https://instagram.com/${open.instagramUrl!.replace(/^@/, "")}`, "_blank")}
-                style={{ width: "100%", background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "10px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-              >
-                📷 INSTAGRAM
-              </button>
-            )}
-            {open.socialUrl && (
-              <button
-                onClick={() => window.open(open.socialUrl, "_blank")}
-                style={{ width: "100%", background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "10px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}
-              >
-                🔗 MORE SOCIAL LINKS
-              </button>
-            )}
-          </div>
-        </Modal>
-      )}
+      {open && <SponsorModal sponsor={open} onClose={() => setOpen(null)} />}
       {checkoutOpen && <SponsorshipCheckoutModal onClose={() => setCheckoutOpen(false)} />}
     </div>
   );
 }
+
+/**
+ * Plain white popup — no colored hero band. The tier still gets a visual
+ * identity (pill + logo-badge ring + button color), it just doesn't come
+ * from a full-bleed gradient anymore. A sponsor with only a name/logo (the
+ * common case, since the admin form has no `story` field) still gets a
+ * complete-feeling card via the default thank-you line, instead of trailing
+ * off into empty space below the name.
+ */
+function SponsorModal({ sponsor, onClose }: { sponsor: Sponsor; onClose: () => void }) {
+  const tier = sponsor.tier ?? "community_supporter";
+  const accent = TIER_ACCENT[tier];
+
+  function openInstagram() {
+    const handle = sponsor.instagramUrl!;
+    window.open(handle.startsWith("http") ? handle : `https://instagram.com/${handle.replace(/^@/, "")}`, "_blank");
+  }
+
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ textAlign: "center" }}>
+        {sponsor.logoUrl ? (
+          <img
+            src={sponsor.logoUrl}
+            alt={sponsor.name}
+            style={{ maxHeight: 64, maxWidth: "70%", objectFit: "contain", margin: "0 auto 14px" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: theme.radius.md,
+              background: `${accent}1A`,
+              border: `1.5px solid ${accent}`,
+              color: accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+              fontFamily: theme.font.display,
+              fontWeight: 800,
+              fontSize: 22,
+            }}
+          >
+            {sponsor.name.trim().slice(0, 2).toUpperCase() || "?"}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+            color: accent,
+            background: `${accent}1A`,
+            padding: "4px 12px",
+            borderRadius: theme.radius.pill,
+            marginBottom: 10,
+          }}
+        >
+          {TIER_EMOJI[tier]} {SPONSOR_TIER_LABELS[tier]}
+        </div>
+
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>{sponsor.name}</div>
+        {sponsor.tagline && (
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: accent, margin: "4px 0 0" }}>{sponsor.tagline}</div>
+        )}
+      </div>
+
+      {sponsor.story ? (
+        <div style={{ fontSize: 14.5, lineHeight: 1.6, textAlign: "left", margin: "18px 0 0" }}>{sponsor.story}</div>
+      ) : (
+        <div style={{ fontSize: 14, lineHeight: 1.6, textAlign: "center", color: theme.color.textMuted, margin: "18px 0 0" }}>
+          Proudly supporting Umoja Games and every kid on the field this season.
+        </div>
+      )}
+      {sponsor.description && (
+        <div style={{ fontSize: 13.5, lineHeight: 1.6, color: theme.color.textMuted, textAlign: "left", margin: "10px 0 0" }}>
+          {sponsor.description}
+        </div>
+      )}
+
+      {(sponsor.websiteUrl || sponsor.instagramUrl || sponsor.socialUrl) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18 }}>
+          {sponsor.websiteUrl && (
+            <PrimaryButton
+              onClick={() => window.open(sponsor.websiteUrl, "_blank")}
+              style={{ width: "100%", background: accent }}
+            >
+              🌐 VISIT WEBSITE
+            </PrimaryButton>
+          )}
+          {sponsor.instagramUrl && (
+            <button onClick={openInstagram} style={secondaryBtnStyle}>📷 INSTAGRAM</button>
+          )}
+          {sponsor.socialUrl && (
+            <button onClick={() => window.open(sponsor.socialUrl, "_blank")} style={secondaryBtnStyle}>🔗 MORE SOCIAL LINKS</button>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+const secondaryBtnStyle: React.CSSProperties = {
+  width: "100%",
+  background: "none",
+  border: `1px solid ${theme.color.border}`,
+  borderRadius: theme.radius.sm,
+  padding: "10px",
+  fontWeight: 700,
+  fontSize: 13.5,
+  cursor: "pointer",
+};

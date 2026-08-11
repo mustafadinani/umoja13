@@ -16,6 +16,7 @@ import {
   formatKickoffTime,
   HUNT_LAUNCH_LABEL,
   type Sponsor,
+  type SponsorTier,
   type PlayerMembership,
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
@@ -354,17 +355,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
 
       <AnnouncementDetailModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />
       <Modal visible={!!openSponsor} onClose={() => setOpenSponsor(null)}>
-        {openSponsor && (
-          <View>
-            {openSponsor.logoUrl && <Image source={{ uri: openSponsor.logoUrl }} style={{ width: "100%", height: 70, marginBottom: 12 }} resizeMode="contain" />}
-            <Text style={{ fontWeight: "800", fontSize: 20 }}>{openSponsor.name}</Text>
-            {openSponsor.tagline && <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, marginBottom: 12 }}>{openSponsor.tagline}</Text>}
-            {openSponsor.story && <Text style={{ fontSize: 14.5, lineHeight: 21, marginBottom: openSponsor.websiteUrl ? 16 : 0 }}>{openSponsor.story}</Text>}
-            {openSponsor.websiteUrl && (
-              <PrimaryButton style={{ width: "100%" }} onPress={() => Linking.openURL(openSponsor.websiteUrl!)}>VISIT WEBSITE</PrimaryButton>
-            )}
-          </View>
-        )}
+        {openSponsor && <SponsorModalContent sponsor={openSponsor} />}
       </Modal>
       {sponsorCheckoutOpen && <SponsorshipCheckoutModal onClose={() => setSponsorCheckoutOpen(false)} />}
       <MomentDetailModal moment={openMoment} onClose={() => setOpenMomentId(null)} />
@@ -458,6 +449,115 @@ function TeamRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
     </Card>
   );
 }
+
+// Same tier accents as web's SponsorStrip.tsx — one color per tier reused for
+// the tier pill, tagline, and logo-badge ring, without a full colored band.
+const TIER_ACCENT: Record<SponsorTier, string> = {
+  legacy_builder: theme.color.purple,
+  impact_partner: theme.color.blue,
+  community_supporter: theme.color.teal,
+  custom: theme.color.gold,
+};
+const TIER_EMOJI: Record<SponsorTier, string> = {
+  legacy_builder: "👑",
+  impact_partner: "⚡",
+  community_supporter: "🤝",
+  custom: "💜",
+};
+
+/**
+ * Plain white popup, matching web's redesign — no colored hero band. A
+ * sponsor with only a name/logo still gets a complete-feeling card via the
+ * default thank-you line, and instagram/social links (which this modal used
+ * to drop entirely) now render like web's does.
+ */
+function SponsorModalContent({ sponsor }: { sponsor: Sponsor }) {
+  const tier = sponsor.tier ?? "community_supporter";
+  const accent = TIER_ACCENT[tier];
+
+  function openInstagram() {
+    const handle = sponsor.instagramUrl!;
+    Linking.openURL(handle.startsWith("http") ? handle : `https://instagram.com/${handle.replace(/^@/, "")}`).catch(() => {});
+  }
+
+  return (
+    <View>
+      <View style={{ alignItems: "center" }}>
+        {sponsor.logoUrl ? (
+          <Image source={{ uri: sponsor.logoUrl }} style={{ width: "100%", height: 64, marginBottom: 14 }} resizeMode="contain" />
+        ) : (
+          <View
+            style={{
+              width: 64, height: 64, borderRadius: theme.radius.md,
+              backgroundColor: `${accent}1A`, borderWidth: 1.5, borderColor: accent,
+              alignItems: "center", justifyContent: "center", marginBottom: 14,
+            }}
+          >
+            <Text style={{ fontFamily: theme.font.display, fontWeight: "800", fontSize: 22, color: accent }}>
+              {sponsor.name.trim().slice(0, 2).toUpperCase() || "?"}
+            </Text>
+          </View>
+        )}
+
+        <View
+          style={{
+            flexDirection: "row", alignItems: "center", gap: 5,
+            backgroundColor: `${accent}1A`, paddingHorizontal: 12, paddingVertical: 4,
+            borderRadius: theme.radius.pill, marginBottom: 10,
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 0.4, color: accent }}>
+            {TIER_EMOJI[tier]} {SPONSOR_TIER_LABELS[tier].toUpperCase()}
+          </Text>
+        </View>
+
+        <Text style={{ fontWeight: "800", fontSize: 20 }}>{sponsor.name}</Text>
+        {sponsor.tagline && <Text style={{ color: accent, fontWeight: "600", fontSize: 13, marginTop: 4 }}>{sponsor.tagline}</Text>}
+      </View>
+
+      {sponsor.story ? (
+        <Text style={{ fontSize: 14.5, lineHeight: 21, marginTop: 16 }}>{sponsor.story}</Text>
+      ) : (
+        <Text style={{ fontSize: 13.5, lineHeight: 20, color: theme.color.textMuted, textAlign: "center", marginTop: 16 }}>
+          Proudly supporting Umoja Games and every kid on the field this season.
+        </Text>
+      )}
+      {sponsor.description && (
+        <Text style={{ fontSize: 13, lineHeight: 19, color: theme.color.textMuted, marginTop: 8 }}>{sponsor.description}</Text>
+      )}
+
+      {(sponsor.websiteUrl || sponsor.instagramUrl || sponsor.socialUrl) && (
+        <View style={{ gap: 8, marginTop: 16 }}>
+          {sponsor.websiteUrl && (
+            <PrimaryButton style={{ width: "100%", backgroundColor: accent }} onPress={() => Linking.openURL(sponsor.websiteUrl!)}>
+              🌐 VISIT WEBSITE
+            </PrimaryButton>
+          )}
+          {sponsor.instagramUrl && (
+            <TouchableOpacity onPress={openInstagram} style={sponsorSecondaryBtn}>
+              <Text style={sponsorSecondaryBtnText}>📷 INSTAGRAM</Text>
+            </TouchableOpacity>
+          )}
+          {sponsor.socialUrl && (
+            <TouchableOpacity onPress={() => Linking.openURL(sponsor.socialUrl!)} style={sponsorSecondaryBtn}>
+              <Text style={sponsorSecondaryBtnText}>🔗 MORE SOCIAL LINKS</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const sponsorSecondaryBtn = {
+  width: "100%" as const,
+  borderWidth: 1,
+  borderColor: theme.color.border,
+  borderRadius: theme.radius.sm,
+  paddingVertical: 10,
+  alignItems: "center" as const,
+};
+const sponsorSecondaryBtnText = { fontWeight: "700" as const, fontSize: 13.5 };
 
 function CaptainComplaintRow({ teamId, onPress }: { teamId: string; onPress: () => void }) {
   const { data: team } = useTeam(teamId);
