@@ -1,4 +1,4 @@
-import type { Role } from "./roles.js";
+import { pickPrimaryRole, type Role } from "./roles.js";
 import type { PlayerMembership, UserProfile } from "./user.js";
 import type { RegisteredPlayer } from "./registration.js";
 import { resolvePlayerCategoryId } from "../registration/mapRegistration.js";
@@ -109,7 +109,11 @@ export function mapOutreachProfileToUserProfile(
     displayName: displayNameFromOutreach(raw, raw.email),
     ...(photoUrl ? { photoUrl } : {}),
     roles,
-    primaryRole: raw.primaryRole && roles.includes(raw.primaryRole) ? raw.primaryRole : roles[0],
+    // roles[0] used to be the fallback here — order-dependent and exactly
+    // how a plain "fan" ended up outranking "player" for real registered
+    // families (see PRIMARY_ROLE_PRIORITY's comment). pickPrimaryRole is
+    // the same auto-derivation logic every other automatic role change uses.
+    primaryRole: raw.primaryRole && roles.includes(raw.primaryRole) ? raw.primaryRole : pickPrimaryRole(roles),
     ...(playerOf.length > 0 ? { playerOf } : {}),
     followedTeamIds: [],
     createdAt: now,

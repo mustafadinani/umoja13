@@ -39,14 +39,17 @@ export function roleSeesAllGames(role: Role): boolean {
  * Canonical priority for auto-picking someone's primaryRole when they hold
  * more than one — highest first. Playing comes first (a parent/player who
  * also signs up to volunteer should still land on their player dashboard by
- * default), then plain fan, then tournament staff, with volunteer last
- * since it's routinely layered on top of any of the others and should
- * never silently bump someone out of the dashboard they actually want.
- * Used wherever a role change is computed automatically (see
- * reviewVolunteerApplication) — an explicit admin choice via setUserRole is
- * a deliberate override and bypasses this.
+ * default), then tournament staff, then volunteer, with fan dead last —
+ * "fan" is the default everyone starts with (see AuthProvider.signUp), so
+ * holding ANY other role should always trump it; someone with roles
+ * ["fan", "admin"] should land on the Admin dashboard, not Fan. Used
+ * wherever a role change is computed automatically (see
+ * reviewVolunteerApplication, mapOutreachProfileToUserProfile) — an
+ * explicit admin choice via setUserRole, or someone using the "VIEWING AS"
+ * switcher to deliberately pick Fan, is a deliberate override and bypasses
+ * this (those write primaryRole directly, they don't call this function).
  */
-export const PRIMARY_ROLE_PRIORITY: Role[] = ["captain", "coach_manager", "player", "fan", "commissioner", "referee", "admin", "volunteer"];
+export const PRIMARY_ROLE_PRIORITY: Role[] = ["captain", "coach_manager", "player", "commissioner", "referee", "admin", "volunteer", "fan"];
 
 /** Picks the highest-priority role present in `roles` per PRIMARY_ROLE_PRIORITY. */
 export function pickPrimaryRole(roles: Role[]): Role {
