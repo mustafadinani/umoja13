@@ -1,8 +1,8 @@
-name: Deploy Firebase (functions + Firestore rules)
+name: Deploy Firebase (functions + Firestore rules + hosting)
 
 # Manual trigger only — this deploys to the live umoja-app Firebase project,
 # so it doesn't run automatically on push. Trigger it from the Actions tab
-# once you're ready to ship what's on the chosen branch.
+# (or via the API) once you're ready to ship what's on the chosen branch.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +15,8 @@ on:
           - "functions,firestore:rules"
           - "functions"
           - "firestore:rules"
+          - "hosting"
+          - "functions,firestore:rules,hosting"
 
 jobs:
   deploy:
@@ -28,6 +30,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # Only needed when hosting is part of the target — firebase.json points
+      # hosting at packages/web/dist, which only exists after this build.
+      # packages/shared is already built by the root postinstall hook that
+      # `npm ci` just ran, so web's own build can consume it directly.
+      - name: Build web app
+        if: contains(inputs.target, 'hosting')
+        run: npm run build --workspace packages/web
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
