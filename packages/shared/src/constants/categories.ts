@@ -56,7 +56,8 @@ export const TOURNAMENT_YEAR = 2026;
  * Human-readable version of a category's CATEGORY_DOB_CUTOFF, in the same
  * phrasing staff actually use when checking a player's age against their ID
  * during manual check-in review ("Born on or after Jan 1, 2012" / "Age 40+
- * (or turning 40 in 2026)") rather than a bare ISO date.
+ * (born in 1986 or earlier i.e. turning 40 in 2026)") rather than a bare ISO
+ * date.
  */
 export function ageEligibilityLabel(categoryId: string): string {
   const cutoff = CATEGORY_DOB_CUTOFF[categoryId];
@@ -64,7 +65,7 @@ export function ageEligibilityLabel(categoryId: string): string {
   const cutoffYear = Number(cutoff.slice(0, 4));
   if (OVER_AGE_CATEGORY_IDS.includes(categoryId)) {
     const age = TOURNAMENT_YEAR - cutoffYear;
-    return `Age ${age}+ (or turning ${age} in ${TOURNAMENT_YEAR})`;
+    return `Age ${age}+ (born in ${cutoffYear} or earlier i.e. turning ${age} in ${TOURNAMENT_YEAR})`;
   }
   return `Born on or after Jan 1, ${cutoffYear}`;
 }
