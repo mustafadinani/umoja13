@@ -7,6 +7,11 @@ build/
 .env.local
 .env.production
 .env.*.local
+# The web app's production Firebase config is a client-side web API key —
+# Firebase's own security model makes these safe to expose publicly
+# (real security is Firestore/Storage rules, not hiding this file), and the
+# GitHub Actions build needs it checked in to build a working bundle at all.
+!/packages/web/.env.production
 *.local
 firebase-debug.log
 firebase-debug.*.log
