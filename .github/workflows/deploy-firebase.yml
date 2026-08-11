@@ -45,4 +45,7 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_DEPLOY_SERVICE_ACCOUNT }}
 
       - name: Deploy
-        run: npx firebase-tools deploy --only "${{ inputs.target }}" --project umoja-app --non-interactive
+        # --force: non-interactive mode has no one to confirm deleting a
+        # function that's gone from source (e.g. renamed/replaced) — without
+        # it, deploy aborts entirely rather than risk an unattended delete.
+        run: npx firebase-tools deploy --only "${{ inputs.target }}" --project umoja-app --non-interactive --force
