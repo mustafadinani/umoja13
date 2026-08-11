@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus } from "@umoja/shared";
+import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -24,8 +24,7 @@ type View = "queue" | "fieldPrefs";
  * so the review queue could show one kid's name/photo for another kid's
  * check-in.
  */
-function useRegisteredPlayerByKey() {
-  const { data: registeredPlayers } = useRegisteredPlayers();
+function useRegisteredPlayerByKey(registeredPlayers: RegisteredPlayer[]) {
   return useMemo(() => {
     const map = new Map<string, { name: string; photoUrl?: string; email?: string }>();
     for (const p of registeredPlayers) {
@@ -55,7 +54,8 @@ function ReviewQueue() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const { data: teams } = useTeams(undefined);
-  const registeredPlayerByKey = useRegisteredPlayerByKey();
+  const { data: registeredPlayers } = useRegisteredPlayers();
+  const registeredPlayerByKey = useRegisteredPlayerByKey(registeredPlayers);
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -118,17 +118,46 @@ function ReviewQueue() {
     rejected: scoped.filter((c) => c.status === "rejected").length,
   };
 
-  const filtered = scoped.filter((c) => {
-    if (statusFilter === "needs_review" && c.status !== "pending_review" && c.status !== "admin_review") return false;
-    if (statusFilter === "approved" && c.status !== "approved") return false;
-    if (statusFilter === "rejected" && c.status !== "rejected") return false;
-    return true;
-  });
+  // Registered players with no check-in doc at all — not "declined" or
+  // "not started" (those have a doc and already surface under Declined /
+  // the raw check-in count), but never even opened check-in. Same
+  // category/team/search filters as everything else on this screen, keyed
+  // the same way check-ins are (playerKey, falling back to id) so a player
+  // counted here and one shown in the queue below never disagree.
+  const checkedInKeys = useMemo(() => new Set(checkIns.map((c) => c.playerKey ?? c.userId)), [checkIns]);
+  const notCheckedIn = useMemo(
+    () =>
+      registeredPlayers.filter((p) => {
+        const key = p.profileId?.trim() || p.id;
+        if (!key || checkedInKeys.has(key)) return false;
+        if (categoryId && p.categoryId !== categoryId) return false;
+        if (teamId && p.teamId !== teamId) return false;
+        if (search) {
+          const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.toLowerCase();
+          if (!name.includes(search.toLowerCase())) return false;
+        }
+        return true;
+      }),
+    [registeredPlayers, checkedInKeys, categoryId, teamId, search]
+  );
+
+  const filtered = statusFilter === "notCheckedIn"
+    ? []
+    : scoped.filter((c) => {
+        if (statusFilter === "needs_review" && c.status !== "pending_review" && c.status !== "admin_review") return false;
+        if (statusFilter === "approved" && c.status !== "approved") return false;
+        if (statusFilter === "rejected" && c.status !== "rejected") return false;
+        return true;
+      });
 
   // Deduped, lowercase-normalized — matches whatever's currently on
   // screen (category/team/search/status filters all applied), so "copy
-  // emails" always lines up with exactly the rows visible below.
-  const visibleEmails = [...new Set(filtered.map((c) => emailFor(c)?.toLowerCase()).filter((v): v is string => !!v))].sort();
+  // emails" always lines up with exactly the rows visible below. The
+  // "Not checked in" cohort has no CheckIn doc to read an email off of, so
+  // it reads straight from the registration record instead.
+  const visibleEmails = statusFilter === "notCheckedIn"
+    ? [...new Set(notCheckedIn.map((p) => p.email?.trim().toLowerCase()).filter((v): v is string => !!v))].sort()
+    : [...new Set(filtered.map((c) => emailFor(c)?.toLowerCase()).filter((v): v is string => !!v))].sort();
 
   async function copyVisibleEmails() {
     try {
@@ -163,11 +192,12 @@ function ReviewQueue() {
         <FilterDropdown label="Team" value={teamId} options={teamOptions} onChange={setTeamId} />
       </div>
 
-      <div className="grid-kpi-4" style={{ marginBottom: 16 }}>
+      <div className="grid-kpi-5" style={{ marginBottom: 16 }}>
         <Kpi label="Check-ins" value={String(stats.total)} active={statusFilter === "all"} onClick={() => setStatusFilter("all")} />
         <Kpi label="Pending review" value={String(stats.pending)} active={statusFilter === "needs_review"} onClick={() => setStatusFilter("needs_review")} />
         <Kpi label="Verified" value={String(stats.approved)} active={statusFilter === "approved"} onClick={() => setStatusFilter("approved")} />
         <Kpi label="Declined" value={String(stats.rejected)} active={statusFilter === "rejected"} onClick={() => setStatusFilter("rejected")} />
+        <Kpi label="Not checked in" value={String(notCheckedIn.length)} active={statusFilter === "notCheckedIn"} onClick={() => setStatusFilter("notCheckedIn")} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
@@ -189,18 +219,35 @@ function ReviewQueue() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {filtered.map((c) => (
-          <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
-              <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-                {teamById.get(c.teamId)?.name ?? c.teamId} · {categoryLabelFor(c.categoryId)}
-              </div>
-            </div>
-            <StatusChip status={c.status} />
-          </Card>
-        ))}
-        {filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No check-ins match.</div>}
+        {statusFilter === "notCheckedIn"
+          ? notCheckedIn.map((p) => {
+              const teamName = p.teamId?.trim() ? teamById.get(p.teamId)?.name ?? p.teamName ?? p.teamId : "No team assigned";
+              return (
+                <Card key={p.profileId?.trim() || p.id} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div style={{ minWidth: 120 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{`${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || p.id}</div>
+                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                      {teamName} · {p.categoryId ? categoryLabelFor(p.categoryId) : p.category ?? "—"}
+                    </div>
+                  </div>
+                  <Pill bg="#F1EFF5" fg={theme.color.textMuted}>Not checked in</Pill>
+                </Card>
+              );
+            })
+          : filtered.map((c) => (
+              <Card key={c.id} onClick={() => setOpenCheckInId(c.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <div style={{ minWidth: 120 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5 }}>{nameFor(c)}</div>
+                  <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                    {teamById.get(c.teamId)?.name ?? c.teamId} · {categoryLabelFor(c.categoryId)}
+                  </div>
+                </div>
+                <StatusChip status={c.status} />
+              </Card>
+            ))}
+        {statusFilter === "notCheckedIn"
+          ? notCheckedIn.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Everyone in this view has checked in.</div>
+          : filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No check-ins match.</div>}
       </div>
 
       {openCheckIn && (
@@ -222,7 +269,8 @@ function FieldPreferencesTable() {
   const { data: checkIns } = useAllCheckIns();
   const { data: users } = useAllUsers();
   const { data: teams } = useTeams();
-  const registeredPlayerByKey = useRegisteredPlayerByKey();
+  const { data: registeredPlayers } = useRegisteredPlayers();
+  const registeredPlayerByKey = useRegisteredPlayerByKey(registeredPlayers);
 
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
