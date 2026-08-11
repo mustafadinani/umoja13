@@ -159,7 +159,11 @@ export function registeredPlayerToRosterEntry(
   };
 }
 
-function playersForTeam(team: RegisteredTeam, players: RegisteredPlayer[]): RegisteredPlayer[] {
+function playersForTeam(
+  team: RegisteredTeam,
+  players: RegisteredPlayer[],
+  catalog: readonly Category[] = CATEGORIES
+): RegisteredPlayer[] {
   // Self-registered rows (the now-removed in-app "Join a Team" flow) were
   // never vetted through the real Outreach import — they're not real
   // registrations, so they must never surface on a real roster, in a
@@ -172,7 +176,19 @@ function playersForTeam(team: RegisteredTeam, players: RegisteredPlayer[]): Regi
   if (byId.length > 0) return byId;
   const teamName = normalizeCategoryLabel(team.teamName ?? "");
   if (!teamName) return [];
-  return real.filter((p) => normalizeCategoryLabel(p.teamName ?? "") === teamName);
+  // Name-only fallback for rows whose own teamId is blank/stale — but the
+  // exact same team name can legitimately exist in two different categories
+  // (e.g. a "Warriors" team fielded in both Boys U10 and Boys U14). Without
+  // also requiring the category to match, a player from one age group's
+  // "Warriors" could get pulled onto the OTHER age group's "Warriors"
+  // roster — wrong team, wrong category, and a captain/coach-manager
+  // assigned to the real team would be managing (and setting jersey numbers
+  // for) players who aren't actually theirs.
+  const teamCategoryId = resolveTeamCategoryId(team, catalog);
+  return real.filter((p) => {
+    if (normalizeCategoryLabel(p.teamName ?? "") !== teamName) return false;
+    return resolvePlayerCategoryId(p, catalog) === teamCategoryId;
+  });
 }
 
 export function buildTeamFromRegistration(
@@ -190,7 +206,7 @@ export function buildTeamFromRegistration(
   const checkInByUserId = new Map(
     rosterCheckIns.filter((r) => r.teamId === team.id).map((r) => [r.userId, r])
   );
-  const roster = playersForTeam(team, players).map((p) =>
+  const roster = playersForTeam(team, players, catalog).map((p) =>
     registeredPlayerToRosterEntry(p, captainId, checkInByUserId.get(p.profileId?.trim() || p.id))
   );
 
