@@ -27,12 +27,12 @@ type View = "queue" | "fieldPrefs";
 function useRegisteredPlayerByKey() {
   const { data: registeredPlayers } = useRegisteredPlayers();
   return useMemo(() => {
-    const map = new Map<string, { name: string; photoUrl?: string }>();
+    const map = new Map<string, { name: string; photoUrl?: string; email?: string }>();
     for (const p of registeredPlayers) {
       const key = p.profileId?.trim() || p.id;
       if (!key) continue;
       const name = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
-      if (name || p.profilePicture) map.set(key, { name, photoUrl: p.profilePicture });
+      if (name || p.profilePicture || p.email) map.set(key, { name, photoUrl: p.profilePicture, email: p.email });
     }
     return map;
   }, [registeredPlayers]);
@@ -88,7 +88,14 @@ function ReviewQueue() {
   // (ambiguous, best-effort) behavior exactly.
   const nameFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
     registeredPlayerByKey.get(c.playerKey ?? c.userId)?.name || userById.get(c.userId)?.displayName || c.userId;
+  // Registration email (the address actually on file for this specific
+  // child's signup) wins over the shared account's own email — same
+  // precedence reasoning as nameFor, since one family account's email is
+  // shared across every sibling on it.
+  const emailFor = (c: Pick<CheckIn, "userId" | "playerKey">) =>
+    registeredPlayerByKey.get(c.playerKey ?? c.userId)?.email?.trim() || userById.get(c.userId)?.email?.trim();
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   // Category/team/search filters only — status is excluded here so the
   // stats row below can show the status breakdown for whatever
@@ -113,6 +120,20 @@ function ReviewQueue() {
     if (statusFilter === "rejected" && c.status !== "rejected") return false;
     return true;
   });
+
+  // Deduped, lowercase-normalized — matches whatever's currently on
+  // screen (category/team/search/status filters all applied), so "copy
+  // emails" always lines up with exactly the rows visible below.
+  const visibleEmails = [...new Set(filtered.map((c) => emailFor(c)?.toLowerCase()).filter((v): v is string => !!v))].sort();
+
+  async function copyVisibleEmails() {
+    try {
+      await navigator.clipboard.writeText(visibleEmails.join("\n"));
+      setCopyStatus(`Copied ${visibleEmails.length} email${visibleEmails.length === 1 ? "" : "s"}.`);
+    } catch {
+      setCopyStatus("Couldn't copy — your browser blocked clipboard access.");
+    }
+  }
 
   return (
     <div>
@@ -143,6 +164,22 @@ function ReviewQueue() {
         <Kpi label="Pending review" value={String(stats.pending)} active={statusFilter === "needs_review"} onClick={() => setStatusFilter("needs_review")} />
         <Kpi label="Verified" value={String(stats.approved)} active={statusFilter === "approved"} onClick={() => setStatusFilter("approved")} />
         <Kpi label="Declined" value={String(stats.rejected)} active={statusFilter === "rejected"} onClick={() => setStatusFilter("rejected")} />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <button
+          onClick={copyVisibleEmails}
+          disabled={visibleEmails.length === 0}
+          style={{
+            background: theme.color.navy, color: "#fff", border: "none", borderRadius: theme.radius.sm,
+            padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
+            cursor: visibleEmails.length === 0 ? "default" : "pointer",
+            opacity: visibleEmails.length === 0 ? 0.6 : 1,
+          }}
+        >
+          Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
+        </button>
+        {copyStatus && <span style={{ fontSize: 12.5, color: theme.color.textMuted }}>{copyStatus}</span>}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

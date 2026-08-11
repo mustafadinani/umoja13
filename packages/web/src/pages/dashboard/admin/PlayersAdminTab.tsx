@@ -176,23 +176,23 @@ export function PlayersAdminTab() {
     return !m.matched && !m.nonCompetitive;
   }).length;
   const selfRegisteredCount = players.filter((p) => p.status === SELF_REGISTERED_STATUS).length;
-  // Deduped, lowercase-normalized — the same submitter can show up more
-  // than once here (one row per self-registered kid on a shared family
-  // account), but for an email export that's one address, not N.
-  const selfRegisteredEmails = useMemo(() => {
+  // Deduped, lowercase-normalized emails for whatever's currently on
+  // screen — respects every active filter (team/category/search) so
+  // "copy emails" always matches exactly the rows visible, e.g. everyone
+  // with no team assigned, or everyone in one category with a team.
+  const visibleEmails = useMemo(() => {
     const seen = new Set<string>();
-    for (const p of players) {
-      if (p.status !== SELF_REGISTERED_STATUS) continue;
-      const email = p.email?.trim().toLowerCase();
+    for (const { player } of rows) {
+      const email = player.email?.trim().toLowerCase();
       if (email) seen.add(email);
     }
     return [...seen].sort();
-  }, [players]);
+  }, [rows]);
 
-  async function copySelfRegisteredEmails() {
+  async function copyVisibleEmails() {
     try {
-      await navigator.clipboard.writeText(selfRegisteredEmails.join("\n"));
-      setCopyStatus(`Copied ${selfRegisteredEmails.length} email${selfRegisteredEmails.length === 1 ? "" : "s"}.`);
+      await navigator.clipboard.writeText(visibleEmails.join("\n"));
+      setCopyStatus(`Copied ${visibleEmails.length} email${visibleEmails.length === 1 ? "" : "s"}.`);
     } catch {
       setCopyStatus("Couldn't copy — your browser blocked clipboard access.");
     }
@@ -341,23 +341,21 @@ export function PlayersAdminTab() {
         ))}
       </div>
 
-      {teamFilter === "selfRegistered" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-          <button
-            onClick={copySelfRegisteredEmails}
-            disabled={selfRegisteredEmails.length === 0}
-            style={{
-              background: theme.color.navy, color: "#fff", border: "none", borderRadius: theme.radius.sm,
-              padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
-              cursor: selfRegisteredEmails.length === 0 ? "default" : "pointer",
-              opacity: selfRegisteredEmails.length === 0 ? 0.6 : 1,
-            }}
-          >
-            Copy {selfRegisteredEmails.length} email{selfRegisteredEmails.length === 1 ? "" : "s"} (deduped)
-          </button>
-          {copyStatus && <span style={{ fontSize: 12.5, color: theme.color.textMuted }}>{copyStatus}</span>}
-        </div>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <button
+          onClick={copyVisibleEmails}
+          disabled={visibleEmails.length === 0}
+          style={{
+            background: theme.color.navy, color: "#fff", border: "none", borderRadius: theme.radius.sm,
+            padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
+            cursor: visibleEmails.length === 0 ? "default" : "pointer",
+            opacity: visibleEmails.length === 0 ? 0.6 : 1,
+          }}
+        >
+          Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
+        </button>
+        {copyStatus && <span style={{ fontSize: 12.5, color: theme.color.textMuted }}>{copyStatus}</span>}
+      </div>
       {error && (
         <div style={{ color: theme.color.danger, fontSize: 13.5, marginBottom: 12 }}>
           Couldn't load registration players: {error}
