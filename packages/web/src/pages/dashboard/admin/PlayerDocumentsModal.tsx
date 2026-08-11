@@ -114,7 +114,16 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   return (
     <Modal onClose={onClose} width={680}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? user?.displayName ?? fallbackName ?? "Player"}</div>
+        {/*
+          Same precedence as CheckInsTab's nameFor: the per-child name
+          (membership.playerName, then fallbackName from the registration
+          roster keyed by playerKey) must win over `user?.displayName` —
+          that's the shared family account's own name, which is the same
+          for every sibling on it. A membership-lookup miss used to fall
+          straight to the account name here, showing the parent/profile
+          owner instead of the actual child being reviewed.
+        */}
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>{membership?.playerName ?? fallbackName ?? user?.displayName ?? "Player"}</div>
         <StatusPill status={checkIn.status} />
       </div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 4 }}>
