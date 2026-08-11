@@ -74,8 +74,10 @@ function VenueMapImage({
 
 /**
  * A clickable grid of the tournament's actual sub-pitches — mirrors web's
- * FieldMap. Each numbered field (5, 9, 12-17) is really 2-3 concurrent
- * mini-pitches sharing that field, one per game format, so this shows the
+ * FieldMap. Each numbered field (7, 9, 12-17) is really 2-3 concurrent
+ * mini-pitches sharing that field, one per game format (Field 7 has a 4th,
+ * 7D, but that one's Umoja Soccer Camp's location, not a game format — see
+ * FIELD_CLUSTERS), so this shows the
  * fine-grained code (e.g. "12B") rather than just the field number — an
  * earlier version keyed only to the coarse cluster and could no longer
  * match any real game's `field` once games moved to sub-pitch codes. The

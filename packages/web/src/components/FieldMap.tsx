@@ -78,8 +78,10 @@ function VenueMapImage({
 
 /**
  * A clickable grid of the tournament's actual sub-pitches — each numbered
- * field (5, 9, 12-17) is really 2-3 concurrent mini-pitches sharing that
- * field, one per game format, so a real field visit needs the sub-pitch
+ * field (7, 9, 12-17) is really 2-3 concurrent mini-pitches sharing that
+ * field, one per game format (Field 7 has a 4th, 7D, but that one's Umoja
+ * Soccer Camp's location, not a game format — see FIELD_CLUSTERS), so a
+ * real field visit needs the sub-pitch
  * code (e.g. "12B"), not just "Field 12". Clicking a chip sets/clears the
  * caller's field filter. Rebuilt from an earlier SVG schematic (keyed only
  * to the coarse cluster) once real games started being scheduled on the

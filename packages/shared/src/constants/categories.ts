@@ -256,9 +256,17 @@ export function fieldCluster(field: string): string {
   return m ? `Field ${m[1]}` : field;
 }
 
-/** The Field Map's actual grouping — each numbered field cluster alongside the sub-pitch codes Games are really scheduled on, in field-number order. */
+/**
+ * The Field Map's actual grouping — each numbered field cluster alongside
+ * the sub-pitch codes Games are really scheduled on, in field-number order.
+ * "7D" is the one exception: it's Umoja Soccer Camp's location (see
+ * TODDLER_CAMP_FIELDS), not a real Game sub-pitch, but it's listed here
+ * anyway so it shows up as a clickable pitch on the Field Map at Field 7 —
+ * unlike "Field 12 Camp"/"Indoor arena" before it, camp asked to be
+ * findable on the map this time.
+ */
 export const FIELD_CLUSTERS: { cluster: string; pitches: readonly string[] }[] = [
-  { cluster: "Field 7", pitches: ["7A", "7B", "7C"] },
+  { cluster: "Field 7", pitches: ["7A", "7B", "7C", "7D"] },
   { cluster: "Field 9", pitches: ["9A", "9B"] },
   { cluster: "Field 12", pitches: ["12A", "12B"] },
   { cluster: "Field 13", pitches: ["13A", "13B"] },
