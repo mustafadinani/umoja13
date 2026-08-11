@@ -33,11 +33,20 @@ function displayNameFromOutreach(raw: OutreachProfile, fallbackEmail?: string): 
   return fallbackEmail?.split("@")[0] || "Player";
 }
 
-/** Map an Outreach `(default)/profiles/{uid}` doc into the app's UserProfile. */
-export function mapOutreachProfileToUserProfile(
+/**
+ * Build the `playerOf` memberships for `uid` from their registration rows —
+ * the piece of mapOutreachProfileToUserProfile that's also needed on its
+ * own: useResolvedProfile calls this directly to enrich an existing
+ * `users/{uid}` doc that already has real registrations under this uid but
+ * was created without them (e.g. a parent who used the app's own Sign Up
+ * form with the same uid Outreach later — or already — matched their
+ * playersRegistered rows to). Without this, that account's own bare
+ * `{roles, primaryRole}` doc permanently wins over the richer registration
+ * data the instant it exists, so their kids/teams never show up anywhere.
+ */
+export function playerMembershipsFromRegisteredPlayers(
   uid: string,
-  raw: OutreachProfile,
-  players: RegisteredPlayer[] = [],
+  players: RegisteredPlayer[],
   /**
    * teamId -> that team's registered captain identity (captainProfileId,
    * falling back to the team's own uid — same precedence mapRegistration.ts
@@ -50,9 +59,8 @@ export function mapOutreachProfileToUserProfile(
    * useResolvedProfile.ts / buildBaseProfileFromOutreach).
    */
   teamCaptainByTeamId: Map<string, string | undefined> = new Map()
-): UserProfile {
-  const now = Date.now();
-  const playerOf: PlayerMembership[] = players
+): PlayerMembership[] {
+  return players
     .filter((p) => p.uid === uid || p.id === uid)
     .map((p) => ({
       teamId: p.teamId,
@@ -74,6 +82,17 @@ export function mapOutreachProfileToUserProfile(
       // Prefer explicit profileId; otherwise the playersRegistered doc id is often the profile id.
       profileId: p.profileId?.trim() || p.id,
     }));
+}
+
+/** Map an Outreach `(default)/profiles/{uid}` doc into the app's UserProfile. */
+export function mapOutreachProfileToUserProfile(
+  uid: string,
+  raw: OutreachProfile,
+  players: RegisteredPlayer[] = [],
+  teamCaptainByTeamId: Map<string, string | undefined> = new Map()
+): UserProfile {
+  const now = Date.now();
+  const playerOf = playerMembershipsFromRegisteredPlayers(uid, players, teamCaptainByTeamId);
 
   const roles: Role[] =
     raw.roles && raw.roles.length > 0

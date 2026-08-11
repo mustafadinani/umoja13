@@ -7,6 +7,7 @@ import {
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   mapOutreachProfileToUserProfile,
+  playerMembershipsFromRegisteredPlayers,
   type OutreachProfile,
   type ProfileSource,
   type RegisteredPlayer,
@@ -112,6 +113,19 @@ export function useResolvedProfile(uid: string | undefined): {
     if (!uid) return { profile: null, profileSource: null, loading: false };
     const loading = !appReady || !outreachReady || !playersReady;
     if (appUser) {
+      // appUser normally wins outright — but a `users/{uid}` doc created
+      // without ever seeing this uid's real registrations (e.g. a parent who
+      // used the app's own Sign Up form) permanently masks those
+      // registrations otherwise, even though regPlayers (matched by uid,
+      // independent of appUser) found them just fine. Only fills in when
+      // appUser's own playerOf is empty — never overwrites a populated one,
+      // so an intentionally-crafted seed/test profile is untouched.
+      if (!appUser.playerOf?.length && regPlayers.length > 0) {
+        const playerOf = playerMembershipsFromRegisteredPlayers(uid, regPlayers, teamCaptainByTeamId);
+        if (playerOf.length > 0) {
+          return { profile: { ...appUser, playerOf }, profileSource: "umoja13" as const, loading };
+        }
+      }
       return { profile: appUser, profileSource: "umoja13" as const, loading };
     }
     if (outreachRaw) {
