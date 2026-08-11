@@ -96,6 +96,10 @@ function ReviewQueue() {
     registeredPlayerByKey.get(c.playerKey ?? c.userId)?.email?.trim() || userById.get(c.userId)?.email?.trim();
   const openCheckIn = checkIns.find((c) => c.id === openCheckInId) ?? null;
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  // Otherwise a stale "Copied N emails" from before a filter change keeps
+  // showing next to a button that now says a completely different N —
+  // easy to misread as "I just copied the current list."
+  useEffect(() => setCopyStatus(null), [categoryId, teamId, statusFilter, search]);
 
   // Category/team/search filters only — status is excluded here so the
   // stats row below can show the status breakdown for whatever
@@ -179,7 +183,9 @@ function ReviewQueue() {
         >
           Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
         </button>
-        {copyStatus && <span style={{ fontSize: 12.5, color: theme.color.textMuted }}>{copyStatus}</span>}
+        {copyStatus && (
+          <span style={{ fontSize: 13, fontWeight: 800, color: theme.color.success }}>✓ {copyStatus}</span>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

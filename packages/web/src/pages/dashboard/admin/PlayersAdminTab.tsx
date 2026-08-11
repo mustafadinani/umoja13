@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   PLAYERS_REGISTERED,
@@ -106,6 +106,9 @@ export function PlayersAdminTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  // Otherwise a stale "Copied N emails" from before a filter change keeps
+  // showing next to a button that now says a completely different N.
+  useEffect(() => setCopyStatus(null), [teamFilter, categoryFilter, search]);
 
   const teamNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -354,7 +357,9 @@ export function PlayersAdminTab() {
         >
           Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
         </button>
-        {copyStatus && <span style={{ fontSize: 12.5, color: theme.color.textMuted }}>{copyStatus}</span>}
+        {copyStatus && (
+          <span style={{ fontSize: 13, fontWeight: 800, color: theme.color.success }}>✓ {copyStatus}</span>
+        )}
       </div>
       {error && (
         <div style={{ color: theme.color.danger, fontSize: 13.5, marginBottom: 12 }}>
