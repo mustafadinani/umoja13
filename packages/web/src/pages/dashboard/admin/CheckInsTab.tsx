@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, checkInStatusLabel, type CheckIn, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
+import { CATEGORIES, CATEGORY_ELIGIBILITY_TABLE, categoryLabelFor, PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS, SELF_REGISTERED_STATUS, checkInStatusLabel, type CheckIn, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
@@ -128,6 +128,14 @@ function ReviewQueue() {
   const notCheckedIn = useMemo(
     () =>
       registeredPlayers.filter((p) => {
+        // Self-registered rows (the removed in-app "Join a Team" flow) were
+        // never vetted through the real Outreach import — they're not real
+        // registrations, so they must never surface here, same as every
+        // other roster/roster-adjacent view already excludes them (see
+        // playersForTeam in mapRegistration.ts). Without this, a real kid
+        // and their own leftover self-registered duplicate both show up as
+        // two separate "not checked in" rows for the same name.
+        if (p.status === SELF_REGISTERED_STATUS) return false;
         const key = p.profileId?.trim() || p.id;
         if (!key || checkedInKeys.has(key)) return false;
         if (categoryId && p.categoryId !== categoryId) return false;
