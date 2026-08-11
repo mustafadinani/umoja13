@@ -166,8 +166,17 @@ service cloud.firestore {
       allow read: if true;
       // Staff may also create a moment on a submitter's behalf — used when an
       // approved Hunt mission/challenge photo/video submission is mirrored
-      // into the Moments wall so the whole community can see it.
-      allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff());
+      // into the Moments wall so the whole community can see it. An "embed"
+      // moment (a pasted YouTube/Vimeo link, not an uploaded file) is
+      // staff-only on top of that, and mediaUrl must already be one of the
+      // two canonical player URLs parseMomentEmbedUrl produces
+      // (packages/shared/src/types/moments.ts) — never an arbitrary page.
+      // Without this, the app's own iframe/WebView renderer would become an
+      // open embed of anything a client sends.
+      allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff()) &&
+        (request.resource.data.mediaType != 'embed' || (isStaff() &&
+          (request.resource.data.mediaUrl.matches('^https://www[.]youtube[.]com/embed/[A-Za-z0-9_-]+$') ||
+           request.resource.data.mediaUrl.matches('^https://player[.]vimeo[.]com/video/[0-9]+$'))));
       allow update: if isStaff() ||
         (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeUids']));
       allow delete: if isStaff() || (isSignedIn() && resource.data.postedBy == request.auth.uid);

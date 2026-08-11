@@ -57,7 +57,15 @@ export function Moments() {
           return (
             <Card key={m.id} style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ position: "relative", height: 150, background: "#211A33" }}>
-                {m.mediaType === "video" ? (
+                {m.mediaType === "embed" ? (
+                  <iframe
+                    src={m.mediaUrl}
+                    style={{ width: "100%", height: "100%", border: "none" }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={m.caption}
+                  />
+                ) : m.mediaType === "video" ? (
                   <>
                     <video src={m.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls />
                     <button

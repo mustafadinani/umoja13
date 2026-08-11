@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { LoadingImage } from "../components/LoadingImage";
-import { COLLECTIONS, type Moment } from "@umoja/shared";
+import { COLLECTIONS, parseMomentEmbedUrl, youtubeThumbnailUrl, type Moment } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useMoments, useMyMoments } from "../hooks/useData";
@@ -47,15 +47,21 @@ export function MomentsScreen() {
         renderItem={({ item: m }) => {
           const isOwn = user?.uid === m.postedBy;
           const showStatus = isOwn && m.moderationStatus !== "approved";
+          // Embeds get a free thumbnail from YouTube's predictable image URL
+          // (no API call) — Vimeo has no equivalent, so it falls back to the
+          // same navy placeholder a video-with-no-thumbnail already uses.
+          const embedInfo = m.mediaType === "embed" ? parseMomentEmbedUrl(m.mediaUrl) : null;
+          const embedThumb = embedInfo?.platform === "youtube" ? youtubeThumbnailUrl(embedInfo.videoId) : null;
+          const imageSrc = embedThumb ?? (m.mediaType === "photo" ? m.mediaUrl : null);
           return (
             <TouchableOpacity style={styles.tile} onPress={() => setOpenMomentId(m.id)} activeOpacity={0.85}>
-              {m.mediaUrl && m.mediaType !== "video" ? (
-                <LoadingImage source={{ uri: m.mediaUrl }} style={styles.tileImage} />
+              {imageSrc ? (
+                <LoadingImage source={{ uri: imageSrc }} style={styles.tileImage} />
               ) : (
                 <View style={[styles.tileImage, { backgroundColor: theme.color.navy }]} />
               )}
-              {m.mediaUrl && m.mediaType === "video" && (
-                <Text style={styles.playIcon}>▶</Text>
+              {m.mediaUrl && (m.mediaType === "video" || m.mediaType === "embed") && (
+                <Text style={styles.playIcon}>{m.mediaType === "embed" ? "🔗" : "▶"}</Text>
               )}
               <Text style={styles.badge}>{SOURCE_BADGE[m.source] ?? "•"}</Text>
               {showStatus ? (

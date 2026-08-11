@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal as RNModal } from "react-native";
 import { useVideoPlayer } from "expo-video";
+import { WebView } from "react-native-webview";
 import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
@@ -23,6 +24,7 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
   const [busy, setBusy] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const isVideo = moment?.mediaType === "video" && !!moment.mediaUrl;
+  const isEmbed = moment?.mediaType === "embed" && !!moment.mediaUrl;
   const player = useVideoPlayer(isVideo ? moment!.mediaUrl! : null);
 
   useEffect(() => {
@@ -67,6 +69,8 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
               {moment.mediaUrl ? (
                 isVideo ? (
                   <LoadingVideo player={player} style={styles.videoMedia} nativeControls contentFit="contain" />
+                ) : isEmbed ? (
+                  <WebView source={{ uri: moment.mediaUrl }} style={styles.videoMedia} allowsInlineMediaPlayback allowsFullscreenVideo />
                 ) : (
                   <TouchableOpacity activeOpacity={0.9} onPress={() => setLightboxOpen(true)}>
                     <LoadingImage source={{ uri: moment.mediaUrl }} style={styles.media} resizeMode="cover" />

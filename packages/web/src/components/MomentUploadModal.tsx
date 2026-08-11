@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
-import { COLLECTIONS, MOMENT_TAGS, type MomentSource } from "@umoja/shared";
+import { COLLECTIONS, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -25,8 +25,10 @@ export function MomentUploadModal({
   const { user, profile } = useAuth();
   const { data: teams } = useTeams();
   const { data: categories } = useCategories();
+  const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [teamTagIds, setTeamTagIds] = useState<string[]>(initialTeamTagIds);
@@ -46,7 +48,20 @@ export function MomentUploadModal({
   function onPick(f: File | null) {
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : null);
+    if (f) setLinkUrl(""); // a moment is either an upload or a link, never both
   }
+
+  function onLinkChange(v: string) {
+    setLinkUrl(v);
+    if (v.trim()) {
+      setFile(null);
+      setPreview(null);
+    }
+  }
+
+  const trimmedLink = linkUrl.trim();
+  const parsedEmbed = trimmedLink ? parseMomentEmbedUrl(trimmedLink) : null;
+  const linkInvalid = trimmedLink.length > 0 && !parsedEmbed;
 
   function removeTeam(id: string) {
     setTeamTagIds((prev) => prev.filter((x) => x !== id));
@@ -58,17 +73,25 @@ export function MomentUploadModal({
   }
 
   async function submit() {
-    if (!file || !tag || !user || !profile) return;
+    if (!tag || !user || !profile || (!file && !parsedEmbed)) return;
     setPosting(true);
     try {
-      const isVideo = file.type.startsWith("video");
-      const path = `moments/${user.uid}/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const mediaUrl = await getDownloadURL(storageRef);
+      let mediaType: "photo" | "video" | "embed";
+      let mediaUrl: string;
+      if (parsedEmbed) {
+        mediaType = "embed";
+        mediaUrl = parsedEmbed.embedUrl;
+      } else {
+        const isVideo = file!.type.startsWith("video");
+        const path = `moments/${user.uid}/${Date.now()}-${file!.name}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, file!);
+        mediaUrl = await getDownloadURL(storageRef);
+        mediaType = isVideo ? "video" : "photo";
+      }
 
       await addDoc(collection(db, COLLECTIONS.moments), {
-        mediaType: isVideo ? "video" : "photo",
+        mediaType,
         mediaUrl,
         caption: tag,
         ...(comment.trim() ? { comment: comment.trim() } : {}),
@@ -108,10 +131,22 @@ export function MomentUploadModal({
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Share a moment</div>
       <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>Take a photo/video or choose one from your library.</div>
 
-      <label style={{ display: "block", border: `2px dashed ${theme.color.border}`, borderRadius: theme.radius.md, padding: 20, textAlign: "center", cursor: "pointer", marginBottom: 16 }}>
+      <label
+        style={{
+          display: "block",
+          border: `2px dashed ${theme.color.border}`,
+          borderRadius: theme.radius.md,
+          padding: 20,
+          textAlign: "center",
+          cursor: trimmedLink ? "not-allowed" : "pointer",
+          marginBottom: 16,
+          opacity: trimmedLink ? 0.5 : 1,
+        }}
+      >
         <input
           type="file"
           accept="image/*,video/*"
+          disabled={!!trimmedLink}
           style={{ display: "none" }}
           onChange={(e) => onPick(e.target.files?.[0] ?? null)}
         />
@@ -125,6 +160,56 @@ export function MomentUploadModal({
           <div style={{ color: theme.color.textMuted, fontSize: 14 }}>📷 Take a photo/video or choose from your library</div>
         )}
       </label>
+
+      {isStaff && (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px" }}>
+            <div style={{ flex: 1, height: 1, background: theme.color.border }} />
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, color: theme.color.textMuted }}>OR</div>
+            <div style={{ flex: 1, height: 1, background: theme.color.border }} />
+          </div>
+
+          <div
+            style={{
+              border: `1.5px solid ${theme.color.purpleLight}`,
+              background: "#F7F0FF",
+              borderRadius: theme.radius.md,
+              padding: 12,
+              marginBottom: 16,
+              opacity: file ? 0.5 : 1,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700 }}>🔗 Paste a video link</div>
+              <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 0.6, color: "#fff", background: theme.color.navy, borderRadius: 999, padding: "3px 8px" }}>
+                STAFF ONLY
+              </div>
+            </div>
+            <input
+              type="text"
+              value={linkUrl}
+              onChange={(e) => onLinkChange(e.target.value)}
+              disabled={!!file}
+              placeholder="youtube.com/watch?v=... or vimeo.com/..."
+              style={{ width: "100%", boxSizing: "border-box", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "9px 10px", fontSize: 12.5, fontFamily: "inherit" }}
+            />
+            <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 7, lineHeight: 1.4 }}>
+              Works with YouTube and Vimeo — full matches, the documentary series, highlight reels.
+            </div>
+            {linkInvalid && (
+              <div style={{ fontSize: 11.5, color: theme.color.danger, marginTop: 6, fontWeight: 600 }}>
+                Only YouTube and Vimeo links are supported.
+              </div>
+            )}
+            {parsedEmbed && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, padding: "7px 8px", background: "#fff", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm }}>
+                <div style={{ width: 20, height: 20, borderRadius: "50%", background: theme.color.success, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600 }}>{parsedEmbed.platform === "youtube" ? "YouTube" : "Vimeo"} link recognized</div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>What kind of moment?</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -177,7 +262,7 @@ export function MomentUploadModal({
         </div>
       )}
 
-      <PrimaryButton disabled={!file || !tag || posting} onClick={submit} style={{ width: "100%" }}>
+      <PrimaryButton disabled={(!file && !parsedEmbed) || !tag || posting} onClick={submit} style={{ width: "100%" }}>
         {posting ? "Posting…" : "POST MOMENT"}
       </PrimaryButton>
 

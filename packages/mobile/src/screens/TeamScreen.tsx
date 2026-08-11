@@ -229,10 +229,15 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </TouchableOpacity>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {teamMoments.map((m) => (
-                  <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
-                    {m.mediaType === "video" ? (
+                  <TouchableOpacity
+                    key={m.id}
+                    disabled={m.mediaType === "embed"}
+                    onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType as "photo" | "video" })}
+                    activeOpacity={0.85}
+                  >
+                    {m.mediaType === "video" || m.mediaType === "embed" ? (
                       <View style={[styles.momentTile, styles.momentTileVideo]}>
-                        <Text style={{ fontSize: 20 }}>▶</Text>
+                        <Text style={{ fontSize: 20 }}>{m.mediaType === "embed" ? "🔗" : "▶"}</Text>
                       </View>
                     ) : (
                       <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />

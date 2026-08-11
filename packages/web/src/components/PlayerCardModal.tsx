@@ -107,10 +107,18 @@ export function PlayerCardModal({
               {playerMoments.map((m) => (
                 <div
                   key={m.id}
-                  onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
-                  style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", border: `1px solid ${theme.color.border}` }}
+                  onClick={() => m.mediaType !== "embed" && setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
+                  style={{ borderRadius: 8, overflow: "hidden", cursor: m.mediaType === "embed" ? "default" : "pointer", border: `1px solid ${theme.color.border}` }}
                 >
-                  {m.mediaType === "video" ? (
+                  {m.mediaType === "embed" ? (
+                    <iframe
+                      src={m.mediaUrl}
+                      style={{ width: "100%", height: 90, border: "none" }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={m.caption}
+                    />
+                  ) : m.mediaType === "video" ? (
                     <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
                   ) : (
                     <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />

@@ -3,7 +3,7 @@ import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Keyboard } 
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
-import { COLLECTIONS, MOMENT_TAGS, type MomentSource } from "@umoja/shared";
+import { COLLECTIONS, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -24,10 +24,12 @@ export function MomentUploadModal({
   initialTeamTagIds?: string[];
   initialPlayerTagUids?: string[];
 }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: teams } = useTeams();
   const { data: categories } = useCategories();
+  const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const [uri, setUri] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [teamTagIds, setTeamTagIds] = useState<string[]>(initialTeamTagIds);
@@ -51,8 +53,20 @@ export function MomentUploadModal({
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images", "videos"], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images", "videos"], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) setUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      setUri(result.assets[0].uri);
+      setLinkUrl(""); // a moment is either an upload or a link, never both
+    }
   }
+
+  function onLinkChange(v: string) {
+    setLinkUrl(v);
+    if (v.trim()) setUri(null);
+  }
+
+  const trimmedLink = linkUrl.trim();
+  const parsedEmbed = trimmedLink ? parseMomentEmbedUrl(trimmedLink) : null;
+  const linkInvalid = trimmedLink.length > 0 && !parsedEmbed;
 
   function removeTeam(id: string) {
     const remaining = teamTagIds.filter((x) => x !== id);
@@ -63,19 +77,27 @@ export function MomentUploadModal({
   }
 
   async function post() {
-    if (!uri || !tag || !user) return;
+    if (!tag || !user || (!uri && !parsedEmbed)) return;
     setPosting(true);
     setError(null);
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const isVideo = uri.endsWith(".mov") || uri.endsWith(".mp4");
-      const path = `moments/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
-      const mediaUrl = await getDownloadURL(storageRef);
+      let mediaType: "photo" | "video" | "embed";
+      let mediaUrl: string;
+      if (parsedEmbed) {
+        mediaType = "embed";
+        mediaUrl = parsedEmbed.embedUrl;
+      } else {
+        const response = await fetch(uri!);
+        const blob = await response.blob();
+        const isVideo = uri!.endsWith(".mov") || uri!.endsWith(".mp4");
+        const path = `moments/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+        const storageRef = ref(storage, path);
+        await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+        mediaUrl = await getDownloadURL(storageRef);
+        mediaType = isVideo ? "video" : "photo";
+      }
       await addDoc(collection(db, COLLECTIONS.moments), {
-        mediaType: isVideo ? "video" : "photo",
+        mediaType,
         mediaUrl,
         caption: tag,
         ...(comment.trim() ? { comment: comment.trim() } : {}),
@@ -118,11 +140,57 @@ export function MomentUploadModal({
       {uri ? (
         <Image source={{ uri }} style={{ width: "100%", height: 180, borderRadius: 8, marginBottom: 12 }} />
       ) : (
-        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-          <PrimaryButton onPress={() => pickImage(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
-          <PrimaryButton onPress={() => pickImage(false)} style={{ flex: 1 }}>🖼 Library</PrimaryButton>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, opacity: trimmedLink ? 0.5 : 1 }}>
+          <PrimaryButton onPress={() => pickImage(true)} disabled={!!trimmedLink} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
+          <PrimaryButton onPress={() => pickImage(false)} disabled={!!trimmedLink} style={{ flex: 1 }}>🖼 Library</PrimaryButton>
         </View>
       )}
+
+      {isStaff && (
+        <>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+            <Text style={{ fontSize: 10.5, fontWeight: "700", letterSpacing: 0.6, color: theme.color.textMuted }}>OR</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: theme.color.border }} />
+          </View>
+          <View style={[styles.linkBlock, uri ? { opacity: 0.5 } : null]}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <Text style={{ fontSize: 12.5, fontWeight: "700" }}>🔗 Paste a video link</Text>
+              <View style={styles.staffChip}>
+                <Text style={{ fontSize: 9.5, fontWeight: "800", letterSpacing: 0.6, color: "#fff" }}>STAFF ONLY</Text>
+              </View>
+            </View>
+            <TextInput
+              value={linkUrl}
+              onChangeText={onLinkChange}
+              editable={!uri}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="youtube.com/watch?v=... or vimeo.com/..."
+              style={styles.linkInput}
+            />
+            <Text style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 7, lineHeight: 15 }}>
+              Works with YouTube and Vimeo — full matches, the documentary series, highlight reels.
+            </Text>
+            {linkInvalid && (
+              <Text style={{ fontSize: 11.5, color: theme.color.danger, marginTop: 6, fontWeight: "600" }}>
+                Only YouTube and Vimeo links are supported.
+              </Text>
+            )}
+            {parsedEmbed && (
+              <View style={styles.linkPreview}>
+                <View style={styles.linkPreviewCheck}>
+                  <Text style={{ color: "#fff", fontSize: 11 }}>✓</Text>
+                </View>
+                <Text style={{ fontSize: 11.5, fontWeight: "600" }}>
+                  {parsedEmbed.platform === "youtube" ? "YouTube" : "Vimeo"} link recognized
+                </Text>
+              </View>
+            )}
+          </View>
+        </>
+      )}
+
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
         {MOMENT_TAGS.map((t) => <Pill key={t} active={tag === t} onPress={() => setTag(t)}>{t}</Pill>)}
       </View>
@@ -173,7 +241,7 @@ export function MomentUploadModal({
       )}
 
       {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
-      <PrimaryButton disabled={!uri || !tag || posting} onPress={post} style={{ width: "100%" }}>
+      <PrimaryButton disabled={(!uri && !parsedEmbed) || !tag || posting} onPress={post} style={{ width: "100%" }}>
         {posting ? "Posting…" : "POST MOMENT"}
       </PrimaryButton>
 
@@ -204,4 +272,9 @@ const styles = StyleSheet.create({
   commentInput: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13, minHeight: 50, textAlignVertical: "top", marginBottom: 14 },
   chip: { flexDirection: "row", alignItems: "center", backgroundColor: "#F1EFF5", borderRadius: 999, paddingVertical: 5, paddingHorizontal: 10 },
   tagButton: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm, paddingVertical: 11, alignItems: "center", backgroundColor: "#fff" },
+  linkBlock: { borderWidth: 1.5, borderColor: theme.color.purpleLight, backgroundColor: "#F7F0FF", borderRadius: theme.radius.md, padding: 12, marginBottom: 16 },
+  staffChip: { backgroundColor: theme.color.navy, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 8 },
+  linkInput: { borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, backgroundColor: "#fff" },
+  linkPreview: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 9, padding: 8, backgroundColor: "#fff", borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm },
+  linkPreviewCheck: { width: 20, height: 20, borderRadius: 10, backgroundColor: theme.color.success, alignItems: "center", justifyContent: "center" },
 });
