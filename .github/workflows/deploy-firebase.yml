@@ -15,8 +15,10 @@ on:
           - "functions,firestore:rules"
           - "functions"
           - "firestore:rules"
+          - "storage"
           - "hosting"
           - "functions,firestore:rules,hosting"
+          - "functions,firestore:rules,storage,hosting"
 
 jobs:
   deploy:

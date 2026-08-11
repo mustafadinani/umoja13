@@ -8,7 +8,20 @@ service firebase.storage {
     }
 
     function isStaff() {
-      return isSignedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin', 'commissioner']);
+      // This app's own `users` collection lives in the named `umoja13-app`
+      // Firestore database, NOT the project's `(default)` database (that one
+      // is Umoja Outreach's separate registration system — see
+      // packages/backend/functions/src/util/admin.ts). Pointing this at
+      // `(default)` meant `firestore.get()` always missed, so isStaff()
+      // silently evaluated false for every admin/commissioner — breaking
+      // every staff-gated storage rule below (sponsor logo uploads, staff
+      // reads of check-in/volunteer photos, public-asset uploads) without
+      // ever surfacing an error, since most of those paths are read via a
+      // pre-resolved getDownloadURL() (which carries its own access token
+      // and bypasses rules) rather than a live SDK read — a write like the
+      // sponsor logo uploader has no such bypass, so it's the one that
+      // visibly failed.
+      return isSignedIn() && firestore.get(/databases/umoja13-app/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin', 'commissioner']);
     }
 
     // Selfies & government ID photos: only the owner can upload; only the

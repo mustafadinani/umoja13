@@ -124,6 +124,7 @@ function SponsorshipOrdersSection({ sponsors }: { sponsors: Sponsor[] }) {
 export function SponsorsAdminTab() {
   const { data: sponsors } = useSponsors();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   async function addSponsor(tier: SponsorTier) {
     const inTier = sponsors.filter((s) => (s.tier ?? "community_supporter") === tier);
@@ -155,11 +156,17 @@ export function SponsorsAdminTab() {
 
   async function uploadLogo(s: Sponsor, file: File) {
     setBusyId(s.id);
+    setLogoError(null);
     try {
       const storageRef = ref(storage, `sponsorLogos/${s.id}-${Date.now()}-${file.name}`);
       await uploadBytes(storageRef, file, { contentType: file.type });
       const logoUrl = await getDownloadURL(storageRef);
       await updateDoc(doc(db, COLLECTIONS.sponsors, s.id), { logoUrl });
+    } catch (e) {
+      // Without this, a failed upload (permission, size limit, network)
+      // silently reverted the logo box back to its empty placeholder with
+      // no explanation — looking exactly like the button did nothing.
+      setLogoError(e instanceof Error ? `Couldn't upload logo: ${e.message}` : "Couldn't upload logo.");
     } finally {
       setBusyId(null);
     }
@@ -183,6 +190,10 @@ export function SponsorsAdminTab() {
       <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 24 }}>
         Manage the supporter band shown across the site. Upload a logo onto a sponsor, or leave it blank to show the name as a wordmark.
       </div>
+
+      {logoError && (
+        <div style={{ color: theme.color.danger, fontSize: 13.5, marginBottom: 16 }}>{logoError}</div>
+      )}
 
       <SponsorshipOrdersSection sponsors={sponsors} />
 
