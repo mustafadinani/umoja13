@@ -1,4 +1,4 @@
-import { checkInStatusLabel, type RosterEntry, type Category } from "@umoja/shared";
+import { checkInStatusLabel, suspensionReasonLabel, type PlayerSuspensionStatus, type RosterEntry, type Category } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
@@ -7,6 +7,7 @@ export function PlayerIdModal({
   teamName,
   category,
   cleared,
+  suspension,
   onToggleClear,
   onClose,
 }: {
@@ -14,6 +15,7 @@ export function PlayerIdModal({
   teamName: string;
   category?: Category;
   cleared: boolean;
+  suspension?: PlayerSuspensionStatus;
   onToggleClear: () => void;
   onClose: () => void;
 }) {
@@ -39,6 +41,12 @@ export function PlayerIdModal({
         <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
           {teamName} · {category?.label ?? ""}
         </div>
+
+        {suspension?.suspended && (
+          <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "10px 12px", fontSize: 13, fontWeight: 700, marginTop: 14 }}>
+            🚫 Flagged suspended for this game{suspension.reason ? ` — ${suspensionReasonLabel(suspension.reason)}` : ""}. Referee's call whether to clear them anyway.
+          </div>
+        )}
 
         {approved ? (
           <>

@@ -5,6 +5,7 @@ import {
   CATEGORIES,
   type Category,
   type Game,
+  type GameScorers,
   type Moment,
   type Announcement,
   type Sponsor,
@@ -86,6 +87,9 @@ export const useMyPodTasks = (uid: string | undefined) =>
 
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
+
+/** Staff (or this game's assigned referee) only — see GameScorers' doc comment for why this is a separate collection from `games`. */
+export const useGameScorers = (gameId: string | undefined) => useDocument<GameScorers>(COLLECTIONS.gameScorers, gameId);
 
 export const useMoments = (approvedOnly = true) =>
   useCollection<Moment>(

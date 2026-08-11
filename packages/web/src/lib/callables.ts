@@ -223,6 +223,11 @@ export const listOpenPods = httpsCallable<
 
 export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
 
+export const setCheckInPhotoOverride = httpsCallable<
+  { checkInId: string; override: "selfie" | "registration" | null },
+  { ok: true }
+>(functions, "setCheckInPhotoOverride");
+
 export const lookupUserByEmail = httpsCallable<
   { email: string },
   { user: { uid: string; email: string; displayName: string } | null }

@@ -16,7 +16,7 @@ import {
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { adminReviewCheckIn } from "../../../lib/callables";
+import { adminReviewCheckIn, setCheckInPhotoOverride } from "../../../lib/callables";
 import { useTeam } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
@@ -25,6 +25,7 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   const { profile } = useAuth();
   const { data: team } = useTeam(checkIn.teamId);
   const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [noteReason, setNoteReason] = useState<CheckInNoteReason>(CHECKIN_NOTE_REASONS[0]);
   const [noteReasonOther, setNoteReasonOther] = useState("");
@@ -44,6 +45,10 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   // entry, so this is the same jersey number captains/referees see.
   const rosterEntry = team?.roster.find((p) => (p.playerKey ?? p.userId) === playerKey);
   const notes = [...(checkIn.internalNotes ?? [])].sort((a, b) => b.createdAt - a.createdAt);
+  // Mirrors registeredPlayerToRosterEntry's default precedence when no
+  // explicit override is set — an approved selfie wins, else registration.
+  const effectiveCardPhoto: "selfie" | "registration" =
+    checkIn.cardPhotoOverride ?? (checkIn.status === "approved" && checkIn.selfieUrl ? "selfie" : "registration");
 
   function buildNote(): CheckInNote | null {
     if (!profile || !noteText.trim()) return null;
@@ -81,6 +86,15 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
       onClose();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function choosePhoto(choice: "selfie" | "registration") {
+    setPhotoBusy(true);
+    try {
+      await setCheckInPhotoOverride({ checkInId: checkIn.id, override: choice });
+    } finally {
+      setPhotoBusy(false);
     }
   }
 
@@ -124,10 +138,26 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         </div>
       )}
 
-      <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>Click any photo to zoom in.</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>
+        Click any photo to zoom in. "Use this photo" picks which one shows on this player's card everywhere in the app.
+      </div>
       <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <Photo label="Registration photo" url={membership?.registrationPhotoUrl ?? fallbackPhotoUrl} onExpand={setLightboxUrl} height={160} />
-        <Photo label="Check-in selfie" url={checkIn.selfieUrl} onExpand={setLightboxUrl} height={160} />
+        <PhotoChoice
+          label="Registration photo"
+          url={membership?.registrationPhotoUrl ?? fallbackPhotoUrl}
+          onExpand={setLightboxUrl}
+          active={effectiveCardPhoto === "registration"}
+          disabled={photoBusy || !(membership?.registrationPhotoUrl ?? fallbackPhotoUrl)}
+          onUse={() => choosePhoto("registration")}
+        />
+        <PhotoChoice
+          label="Check-in selfie"
+          url={checkIn.selfieUrl}
+          onExpand={setLightboxUrl}
+          active={effectiveCardPhoto === "selfie"}
+          disabled={photoBusy || !checkIn.selfieUrl}
+          onUse={() => choosePhoto("selfie")}
+        />
       </div>
       <Photo label="Government ID" url={checkIn.govIdUrl} onExpand={setLightboxUrl} height={220} wide />
 
@@ -249,6 +279,42 @@ function Photo({
         }}
       />
       <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{label}</div>
+    </div>
+  );
+}
+
+/** Same photo tile as Photo, plus a "Use this photo" action and an "In use" badge showing which of the two currently drives the player card. */
+function PhotoChoice({
+  label, url, onExpand, active, disabled, onUse,
+}: { label: string; url?: string; onExpand: (url: string) => void; active: boolean; disabled: boolean; onUse: () => void }) {
+  return (
+    <div style={{ flex: 1, textAlign: "center" }}>
+      <div
+        onClick={() => url && onExpand(url)}
+        style={{
+          height: 160, borderRadius: 8, background: "#F1EFF5",
+          backgroundImage: url ? `url(${url})` : undefined,
+          backgroundPosition: "center", backgroundSize: "contain", backgroundRepeat: "no-repeat",
+          cursor: url ? "zoom-in" : undefined,
+          border: active ? `2px solid ${theme.color.success}` : "2px solid transparent",
+        }}
+      />
+      <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 4 }}>{label}</div>
+      {active ? (
+        <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: theme.color.success }}>✓ In use on player card</div>
+      ) : (
+        <button
+          disabled={disabled}
+          onClick={onUse}
+          style={{
+            marginTop: 6, background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm,
+            padding: "5px 10px", fontSize: 11, fontWeight: 700, color: theme.color.navy, cursor: disabled ? "default" : "pointer",
+            opacity: disabled ? 0.5 : 1,
+          }}
+        >
+          Use this photo
+        </button>
+      )}
     </div>
   );
 }

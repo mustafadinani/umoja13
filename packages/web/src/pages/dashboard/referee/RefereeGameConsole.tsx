@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, formatKickoffTime, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
+import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { CATEGORIES, COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game, type GameEvent, type GameEventType, type GoalScorerEvent, type RosterEntry } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useGame, useTeam } from "../../../hooks/useData";
+import { useGame, useGameScorers, useGames, useTeam } from "../../../hooks/useData";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { PlayerIdModal } from "./PlayerIdModal";
 import { ForfeitModal } from "./ForfeitModal";
@@ -24,11 +24,15 @@ export function RefereeGameConsole() {
   const { data: game, loading: gameLoading } = useGame(gameId);
   const { data: home, loading: homeLoading } = useTeam(game?.homeTeamId);
   const { data: away, loading: awayLoading } = useTeam(game?.awayTeamId);
+  const { data: gameScorers } = useGameScorers(gameId);
+  const { data: allGames } = useGames();
   const [idModalPlayer, setIdModalPlayer] = useState<{ player: RosterEntry; side: "home" | "away" } | null>(null);
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [eventPicker, setEventPicker] = useState<{ type: GameEventType; side: "home" | "away" } | null>(null);
+  const [scorerPicker, setScorerPicker] = useState<"home" | "away" | null>(null);
+  const [motmSide, setMotmSide] = useState<"home" | "away">("home");
 
   const category = CATEGORIES.find((c) => c.id === game?.categoryId);
   const minPerSide = category?.minPlayersToStart ?? 4;
@@ -63,7 +67,6 @@ export function RefereeGameConsole() {
   const gateComplete = !!game.gateCheck?.completedAt;
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
-  const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
   async function toggleClear(side: "home" | "away", playerKey: string) {
@@ -115,6 +118,37 @@ export function RefereeGameConsole() {
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { events: remaining });
   }
 
+  // Separate from the score +/- above (and separate from card events) by
+  // design: staying decoupled means marking the score never requires a
+  // player picker in the way — this is a fully optional, staff-only add-on
+  // a referee can tap whenever, not a gate the score has to pass through.
+  async function logScorer(player: RosterEntry, side: "home" | "away") {
+    if (!gameId || !user) return;
+    const teamId = side === "home" ? g.homeTeamId : g.awayTeamId;
+    const playerKey = player.playerKey ?? player.userId;
+    const scorer: GoalScorerEvent = {
+      id: `${Date.now()}-${playerKey}`,
+      teamId,
+      playerId: playerKey,
+      playerNumber: player.jerseyNumber ?? 0,
+      minute: Math.min(90, 4 + (gameScorers?.scorers.length ?? 0) * 9),
+      createdAt: Date.now(),
+      createdBy: user.uid,
+    };
+    await setDoc(
+      doc(db, COLLECTIONS.gameScorers, gameId),
+      { gameId, scorers: arrayUnion(scorer), updatedAt: Date.now() },
+      { merge: true }
+    );
+    setScorerPicker(null);
+  }
+
+  async function undoScorer(scorerId: string) {
+    if (!gameId || !gameScorers) return;
+    const remaining = gameScorers.scorers.filter((s) => s.id !== scorerId);
+    await updateDoc(doc(db, COLLECTIONS.gameScorers, gameId), { scorers: remaining });
+  }
+
   async function pickMotm(userId: string) {
     if (!gameId) return;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { motmUserId: userId });
@@ -146,8 +180,8 @@ export function RefereeGameConsole() {
           <div>
             <StepLabel n={1} title="GATE CHECK" done={gateComplete} />
             <div className="grid-2-equal">
-              <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
-              <RosterColumn teamName={away.name} roster={away.roster} cleared={awayCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "away" })} />
+              <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} games={allGames} teamId={g.homeTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
+              <RosterColumn teamName={away.name} roster={away.roster} cleared={awayCleared} games={allGames} teamId={g.awayTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "away" })} />
             </div>
             {!gateComplete ? (
               <PrimaryButton
@@ -188,25 +222,48 @@ export function RefereeGameConsole() {
                       {et.icon} {et.label}
                     </button>
                   ))}
+                  <button
+                    onClick={() => setScorerPicker(side)}
+                    style={{ padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, background: "#fff", fontSize: 13, fontWeight: 600 }}
+                  >
+                    ⚽ Log scorer
+                  </button>
                 </div>
               ))}
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>CARD LOG</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 14 }}>
               {game.events.map((e) => (
                 <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 10px", background: "#fff", borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
                   <span>{e.minute}' {e.type.replace("_", " ")} #{e.playerNumber}</span>
                   <button onClick={() => undoEvent(e.id)} style={{ background: "none", border: "none", color: theme.color.danger, fontSize: 12 }}>Undo</button>
                 </div>
               ))}
+              {game.events.length === 0 && <div style={{ fontSize: 12, color: theme.color.textMuted }}>No cards yet.</div>}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>
+              GOALS <span style={{ fontWeight: 500, textTransform: "none" }}>· visible to organizers only, never the public</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {(gameScorers?.scorers ?? []).map((s) => (
+                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 10px", background: "#fff", borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
+                  <span>{s.minute}' ⚽ #{s.playerNumber}</span>
+                  <button onClick={() => undoScorer(s.id)} style={{ background: "none", border: "none", color: theme.color.danger, fontSize: 12 }}>Undo</button>
+                </div>
+              ))}
+              {(gameScorers?.scorers.length ?? 0) === 0 && <div style={{ fontSize: 12, color: theme.color.textMuted }}>No scorers logged yet — optional.</div>}
             </div>
           </div>
 
           {/* Step 3: Player of the Game */}
           <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
             <StepLabel n={3} title="PLAYER OF THE GAME" />
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <Pill active={motmSide === "home"} onClick={() => setMotmSide("home")}>{home.name}</Pill>
+              <Pill active={motmSide === "away"} onClick={() => setMotmSide("away")}>{away.name}</Pill>
+            </div>
             <div data-testid="motm-section" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {roster.map((p) => {
+              {(motmSide === "home" ? home.roster : away.roster).map((p) => {
                 const playerKey = p.playerKey ?? p.userId;
                 return (
                   <Pill key={playerKey} active={game.motmUserId === playerKey} onClick={() => pickMotm(playerKey)}>
@@ -214,6 +271,9 @@ export function RefereeGameConsole() {
                   </Pill>
                 );
               })}
+              {(motmSide === "home" ? home.roster : away.roster).length === 0 && (
+                <div style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</div>
+              )}
             </div>
           </div>
 
@@ -249,6 +309,11 @@ export function RefereeGameConsole() {
           teamName={idModalPlayer.side === "home" ? home.name : away.name}
           category={category}
           cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.playerKey ?? idModalPlayer.player.userId)}
+          suspension={computePlayerSuspension(
+            allGames,
+            idModalPlayer.side === "home" ? g.homeTeamId : g.awayTeamId,
+            idModalPlayer.player.playerKey ?? idModalPlayer.player.userId
+          )}
           onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.playerKey ?? idModalPlayer.player.userId); setIdModalPlayer(null); }}
           onClose={() => setIdModalPlayer(null)}
         />
@@ -262,6 +327,14 @@ export function RefereeGameConsole() {
           redCardedUids={redCardedUids}
           onPick={(p) => logEvent(p, eventPicker.side)}
           onClose={() => setEventPicker(null)}
+        />
+      )}
+      {scorerPicker && (
+        <EventPlayerPicker
+          roster={scorerPicker === "home" ? home.roster : away.roster}
+          redCardedUids={redCardedUids}
+          onPick={(p) => logScorer(p, scorerPicker)}
+          onClose={() => setScorerPicker(null)}
         />
       )}
     </div>
@@ -303,8 +376,18 @@ function StepLabel({ n, title, done }: { n: number; title: string; done?: boolea
   );
 }
 
-/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Cleared by Ref) in a single glance. */
-function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg: string; bg: string } {
+/**
+ * One combined tag per player — never two stacked badges — reflecting the
+ * most important fact for the referee in a single glance. `suspended` (a
+ * disciplinary flag from computePlayerSuspension) outranks identity
+ * verification: it's the one fact most likely to change the referee's
+ * decision, and it's advisory only — this never blocks the clear/unclear
+ * toggle itself, it's still the referee's call.
+ */
+function gateStatusTag(p: RosterEntry, isCleared: boolean, suspended: boolean): { label: string; fg: string; bg: string } {
+  if (suspended) {
+    return { label: "🚫 SUSPENDED THIS GAME", fg: "#fff", bg: theme.color.danger };
+  }
   if (p.checkInStatus !== "approved") {
     return { label: "NOT VERIFIED", fg: "#fff", bg: theme.color.danger };
   }
@@ -314,15 +397,16 @@ function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg:
 }
 
 function RosterColumn({
-  teamName, roster, cleared, onPick,
-}: { teamName: string; roster: RosterEntry[]; cleared: string[]; onPick: (p: RosterEntry) => void }) {
+  teamName, roster, cleared, games, teamId, onPick,
+}: { teamName: string; roster: RosterEntry[]; cleared: string[]; games: Game[]; teamId: string; onPick: (p: RosterEntry) => void }) {
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {roster.map((p) => {
           const playerKey = p.playerKey ?? p.userId;
-          const tag = gateStatusTag(p, cleared.includes(playerKey));
+          const suspension = computePlayerSuspension(games, teamId, playerKey);
+          const tag = gateStatusTag(p, cleared.includes(playerKey), suspension.suspended);
           return (
             <Card key={playerKey} onClick={() => onPick(p)} data-testid="gate-check-row" style={{ padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
               <span style={{ fontSize: 13 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</span>

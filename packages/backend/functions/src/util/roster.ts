@@ -1,3 +1,4 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS, type CheckInStatus } from "@umoja/shared";
 import { db } from "./admin.js";
 
@@ -25,7 +26,9 @@ export async function syncRosterCheckInStatus(
   status: CheckInStatus,
   selfieUrl?: string,
   lineOfWork?: string,
-  currentEmployer?: string
+  currentEmployer?: string,
+  /** `undefined` (the default): leave whatever's already on the doc untouched. `null`: explicitly clear it. A value: set it. */
+  cardPhotoOverride?: "selfie" | "registration" | null
 ): Promise<void> {
   const id = `${teamId}_${playerKey}_${categoryId}`;
   await db.collection(COLLECTIONS.rosterCheckIns).doc(id).set(
@@ -38,6 +41,7 @@ export async function syncRosterCheckInStatus(
       ...(selfieUrl ? { selfieUrl } : {}),
       ...(lineOfWork ? { lineOfWork } : {}),
       ...(currentEmployer ? { currentEmployer } : {}),
+      ...(cardPhotoOverride !== undefined ? { cardPhotoOverride: cardPhotoOverride ?? FieldValue.delete() } : {}),
       updatedAt: Date.now(),
     },
     { merge: true }

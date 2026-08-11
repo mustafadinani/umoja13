@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
-import { checkInStatusLabel, type RosterEntry, type Category } from "@umoja/shared";
+import { checkInStatusLabel, suspensionReasonLabel, type PlayerSuspensionStatus, type RosterEntry, type Category } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
 import { Lightbox } from "./Lightbox";
@@ -10,6 +10,7 @@ export function PlayerIdModal({
   teamName,
   category,
   cleared,
+  suspension,
   onToggleClear,
   onClose,
 }: {
@@ -17,6 +18,7 @@ export function PlayerIdModal({
   teamName: string;
   category?: Category;
   cleared: boolean;
+  suspension?: PlayerSuspensionStatus;
   onToggleClear: () => void;
   onClose: () => void;
 }) {
@@ -47,6 +49,14 @@ export function PlayerIdModal({
         <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, textAlign: "center" }}>
           {teamName} · {category?.label ?? ""}
         </Text>
+
+        {suspension?.suspended && (
+          <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginTop: 14, width: "100%" }}>
+            <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 13, textAlign: "center" }}>
+              🚫 Flagged suspended for this game{suspension.reason ? ` — ${suspensionReasonLabel(suspension.reason)}` : ""}. Referee's call whether to clear them anyway.
+            </Text>
+          </View>
+        )}
 
         {approved ? (
           <>

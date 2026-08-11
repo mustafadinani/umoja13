@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { computePlayerGameStats, type RosterEntry } from "@umoja/shared";
+import { computePlayerGameStats, computePlayerSuspension, suspensionReasonLabel, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useGames, useMoments } from "../hooks/useData";
 import { CheckInStatusPill, Drawer, Pill, PrimaryButton, VerifiedBadge } from "./ui";
@@ -26,6 +26,7 @@ export function PlayerCardModal({
   const playerKey = player.playerKey ?? player.userId;
   const playerMoments = moments.filter((m) => m.playerTagUids?.includes(playerKey)).sort((a, b) => b.createdAt - a.createdAt);
   const stats = computePlayerGameStats(games, teamId, playerKey);
+  const suspension = computePlayerSuspension(games, teamId, playerKey);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
 
@@ -54,6 +55,11 @@ export function PlayerCardModal({
           {player.checkInStatus === "approved" && rosterChecked !== undefined && (
             <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
               {rosterChecked ? "Cleared to play" : "Ref check pending"}
+            </Pill>
+          )}
+          {suspension.suspended && (
+            <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>
+              🚫 Suspended next game{suspension.reason ? ` · ${suspensionReasonLabel(suspension.reason)}` : ""}
             </Pill>
           )}
         </div>

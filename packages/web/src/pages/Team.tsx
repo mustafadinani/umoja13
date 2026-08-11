@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   channelHasUnread,
+  computePlayerSuspension,
   formatKickoffTime,
   provisionalSideLabel,
   TOURNAMENT_DAY_DATES,
@@ -94,7 +95,12 @@ export function Team() {
         {tab === "roster" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {team.roster.map((p) => (
-              <RosterTile key={p.playerKey ?? p.userId} player={p} onClick={() => setOpenPlayer(p)} />
+              <RosterTile
+                key={p.playerKey ?? p.userId}
+                player={p}
+                onClick={() => setOpenPlayer(p)}
+                suspended={computePlayerSuspension(games, team.id, p.playerKey ?? p.userId).suspended}
+              />
             ))}
             {team.roster.length === 0 && (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>

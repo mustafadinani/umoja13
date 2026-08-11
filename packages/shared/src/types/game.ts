@@ -14,6 +14,33 @@ export interface GameEvent {
   createdBy: string; // referee uid
 }
 
+export interface GoalScorerEvent {
+  id: string;
+  teamId: string;
+  /** RosterEntry.playerKey — never the bare account uid, which every sibling on one family account shares. */
+  playerId: string;
+  playerNumber: number;
+  minute: number;
+  createdAt: number;
+  createdBy: string; // referee uid
+}
+
+/**
+ * Who scored each goal — lives in its OWN collection (gameScorers/{gameId}),
+ * never as a field on the Game doc itself. games has `allow read: if true`
+ * (needed so anyone can see live scores without an account), and Firestore
+ * security rules are enforced per-document, not per-field — so anything
+ * stored inside a Game doc is downloadable by anyone regardless of what the
+ * app's UI chooses to show. This collection gets its own, tighter read rule
+ * (staff + the assigned referee only) instead.
+ */
+export interface GameScorers {
+  id: string; // == gameId
+  gameId: string;
+  scorers: GoalScorerEvent[];
+  updatedAt: number;
+}
+
 export type ForfeitOutcome = "home_win" | "away_win" | "double_no_show";
 
 export interface ForfeitRecord {
@@ -196,4 +223,68 @@ export function computePlayerGameStats(games: Game[], teamId: string, playerKey:
     if (g.motmUserId === playerKey) stats.motmCount++;
   }
   return stats;
+}
+
+export type SuspensionReason = "red_card" | "two_yellows_one_game" | "accumulated_yellows";
+
+export interface PlayerSuspensionStatus {
+  suspended: boolean;
+  reason?: SuspensionReason;
+}
+
+/** Human label for a SuspensionReason — the one copy shown wherever a suspension flag appears. */
+export function suspensionReasonLabel(reason: SuspensionReason): string {
+  switch (reason) {
+    case "red_card":
+      return "Red card";
+    case "two_yellows_one_game":
+      return "2 yellow cards in one game";
+    case "accumulated_yellows":
+      return "3 accumulated yellow cards";
+  }
+}
+
+/**
+ * Whether a player should be flagged suspended for their NEXT game, per
+ * TOURNAMENT_RULES.cardsAndDiscipline (constants/rules.ts): a red card, or
+ * 2+ yellows in one game, means an immediate one-game suspension; separately,
+ * crossing every 3rd cumulative yellow card (no reset — cards keep
+ * accumulating for the whole tournament in this category) also triggers one.
+ *
+ * Same "recompute, don't incrementally patch" philosophy as
+ * computePlayerGameStats above — a pure function over whatever `games` list
+ * the caller already has loaded, no stored suspension ledger anywhere. Scoped
+ * by teamId (not a separate categoryId param) since a team belongs to
+ * exactly one category — a player who plays up in a second category is on a
+ * different team there, so this naturally never conflates the two.
+ *
+ * Deliberately advisory only: this flags a player, it never blocks a
+ * referee/commissioner from clearing them anyway — the organizers want a
+ * human to keep the final call (committee overrides, disputed calls, etc).
+ */
+export function computePlayerSuspension(games: Game[], teamId: string, playerKey: string): PlayerSuspensionStatus {
+  const relevant = games
+    // Only games that have actually happened — a future "scheduled" game on
+    // the calendar has no card events yet, and folding it into this scan
+    // would wrongly reset a live suspension back to `false` (the loop below
+    // sets `latest` from every game it sees, so an empty upcoming game must
+    // never be treated as "cleared it, no new violation").
+    .filter((g) => (g.homeTeamId === teamId || g.awayTeamId === teamId) && g.status !== "scheduled")
+    .sort(compareGamesByKickoff);
+
+  let cumulativeYellows = 0;
+  let latest: PlayerSuspensionStatus = { suspended: false };
+  for (const g of relevant) {
+    const playerEvents = g.events.filter((e) => e.playerId === playerKey);
+    const yellowsThisGame = playerEvents.filter((e) => e.type === "yellow_card").length;
+    const hadRed = playerEvents.some((e) => e.type === "red_card");
+    const priorCumulative = cumulativeYellows;
+    cumulativeYellows += yellowsThisGame;
+
+    if (hadRed) latest = { suspended: true, reason: "red_card" };
+    else if (yellowsThisGame >= 2) latest = { suspended: true, reason: "two_yellows_one_game" };
+    else if (Math.floor(cumulativeYellows / 3) > Math.floor(priorCumulative / 3)) latest = { suspended: true, reason: "accumulated_yellows" };
+    else latest = { suspended: false };
+  }
+  return latest;
 }

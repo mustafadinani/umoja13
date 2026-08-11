@@ -51,7 +51,10 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
 
   if (decision === "approve") {
     const passId = await nextPassId();
-    await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
+    // Clear any reason left over from a prior reject-then-resubmit cycle on
+    // this same doc — otherwise an approved check-in could still carry a
+    // stale decline reason from before.
+    await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now, rejectionReason: FieldValue.delete() }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({
       checkInId: checkIn.id,
       // userId stays the real account uid — TournamentPass's read rule
@@ -67,12 +70,26 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
     });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "approved", checkIn.selfieUrl);
   } else if (decision === "reject") {
-    await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
-    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
-    // Rejecting silently left the player with no way to know their check-in
-    // needed fixing — notify them (in-app + push) with whatever reason the
-    // admin gave, so they know what to correct before resubmitting.
+    // The reason used to only reach the player via the one-time notification
+    // below, then vanish — the persisted CheckIn doc never recorded it, so
+    // the player's dashboard always showed a bare "Declined" with nothing to
+    // go on once that notification was dismissed or missed. Persist it here
+    // too (FieldValue.delete() when blank, so a reasonless decline doesn't
+    // leave a stale reason from a PRIOR rejected attempt on the same doc).
     const trimmedReason = reason?.trim();
+    await ref.set(
+      {
+        status: "rejected",
+        reviewedBy: uid,
+        reviewedAt: now,
+        updatedAt: now,
+        rejectionReason: trimmedReason || FieldValue.delete(),
+      },
+      { merge: true }
+    );
+    await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
+    // Also notify (in-app + push) with the same reason, so a player who's
+    // actively watching gets an immediate nudge, not just a dashboard update.
     await notifyUsers(
       [checkIn.userId],
       "Check-in declined",
@@ -82,11 +99,23 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
     );
     await postDeclineToTeamChannel(checkIn.teamId, playerKey, uid, callerSnap.data()?.displayName);
   } else if (decision === "nullify") {
-    await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
+    // Not a decline the player did anything wrong to earn — a spot re-check
+    // an admin triggered — so it gets its own fixed, non-blaming reason
+    // rather than reusing "reject"'s free-text prompt.
+    await ref.set(
+      {
+        status: "rejected",
+        reviewedBy: uid,
+        reviewedAt: now,
+        updatedAt: now,
+        rejectionReason: "Flagged for a routine re-check by an admin. Please check in again.",
+      },
+      { merge: true }
+    );
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
   } else if (decision === "restore") {
-    await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now }, { merge: true });
+    await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now, rejectionReason: FieldValue.delete() }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "approved" }, { merge: true });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "approved", checkIn.selfieUrl);
   }

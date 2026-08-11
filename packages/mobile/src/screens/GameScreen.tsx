@@ -2,9 +2,9 @@ import { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { CATEGORIES, formatKickoffTime, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
+import { CATEGORIES, computePlayerSuspension, formatKickoffTime, type Game as GameDoc, type RosterEntry, type Team } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useGame, useMoments, useTeam } from "../hooks/useData";
+import { useGame, useGames, useMoments, useTeam } from "../hooks/useData";
 import { StatusBadge, Card } from "../components/ui";
 import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
@@ -16,6 +16,7 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const { data: game } = useGame(gameId);
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
+  const { data: allGames } = useGames();
   const { data: moments } = useMoments();
   const [openPlayer, setOpenPlayer] = useState<OpenPlayer | null>(null);
 
@@ -55,8 +56,8 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ROSTER</Text>
           <View style={{ flexDirection: "row", gap: 12 }}>
-            <RosterColumn team={home} game={game} onSelectPlayer={setOpenPlayer} />
-            <RosterColumn team={away} game={game} onSelectPlayer={setOpenPlayer} />
+            <RosterColumn team={home} game={game} games={allGames} onSelectPlayer={setOpenPlayer} />
+            <RosterColumn team={away} game={game} games={allGames} onSelectPlayer={setOpenPlayer} />
           </View>
         </View>
       )}
@@ -83,28 +84,30 @@ export function GameScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
 type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string; rosterChecked?: boolean };
 
-function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
+function RosterColumn({ team, game, games, onSelectPlayer }: { team: Team; game: GameDoc; games: GameDoc[]; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={styles.rosterTeamHeader}>{team.name.toUpperCase()}</Text>
       {team.roster.map((p) => (
-        <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onSelect={onSelectPlayer} />
+        <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} games={games} onSelect={onSelectPlayer} />
       ))}
     </View>
   );
 }
 
-function RosterRow({ player, team, game, onSelect }: { player: RosterEntry; team: Team; game: GameDoc; onSelect: (p: OpenPlayer) => void }) {
+function RosterRow({ player, team, game, games, onSelect }: { player: RosterEntry; team: Team; game: GameDoc; games: GameDoc[]; onSelect: (p: OpenPlayer) => void }) {
   const playerKey = player.playerKey ?? player.userId;
   const cardEvents = game.events.filter((e) => e.playerId === playerKey);
   const isMotm = game.motmUserId === playerKey;
   const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
   const rosterChecked = clearedUids.includes(playerKey);
+  const suspended = computePlayerSuspension(games, team.id, playerKey).suspended;
   return (
     <RosterTile
       player={player}
       onPress={() => onSelect({ player, teamId: team.id, teamName: team.name, rosterChecked })}
       rosterChecked={rosterChecked}
+      suspended={suspended}
       trailing={
         <>
           {isMotm && <Text style={{ fontSize: 11, fontWeight: "700", color: theme.color.warning }}>★ Player of the Game</Text>}

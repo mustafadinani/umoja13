@@ -6,6 +6,7 @@ import {
   CATEGORIES,
   TOURNAMENT_START_AT,
   TOURNAMENT_DAY_DATES,
+  computePlayerSuspension,
   formatKickoffTime,
   provisionalSideLabel,
   type Game,
@@ -151,6 +152,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 key={playerKey}
                 player={p}
                 onPress={() => setOpenPlayer(p)}
+                suspended={computePlayerSuspension(games, team.id, playerKey).suspended}
                 onJerseyPress={isCaptain ? () => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); } : undefined}
                 jerseyLocked={locked}
               />

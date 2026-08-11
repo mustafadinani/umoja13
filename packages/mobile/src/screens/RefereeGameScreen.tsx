@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, formatKickoffTime, type GameEvent, type GameEventType, type RosterEntry } from "@umoja/shared";
+import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { CATEGORIES, COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game, type GameEvent, type GameEventType, type GoalScorerEvent, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGame, useTeam } from "../hooks/useData";
+import { useGame, useGameScorers, useGames, useTeam } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
 import { PlayerIdModal } from "../components/PlayerIdModal";
 import { ForfeitModal } from "../components/ForfeitModal";
@@ -25,11 +25,15 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const { data: game } = useGame(gameId);
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
+  const { data: gameScorers } = useGameScorers(gameId);
+  const { data: allGames } = useGames();
   const [idModalPlayer, setIdModalPlayer] = useState<{ player: RosterEntry; side: "home" | "away" } | null>(null);
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [eventPicker, setEventPicker] = useState<{ type: GameEventType; side: "home" | "away" } | null>(null);
+  const [scorerPicker, setScorerPicker] = useState<"home" | "away" | null>(null);
+  const [motmSide, setMotmSide] = useState<"home" | "away">("home");
 
   const category = CATEGORIES.find((c) => c.id === game?.categoryId);
   const minPerSide = category?.minPlayersToStart ?? 4;
@@ -54,7 +58,6 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const gateComplete = !!game.gateCheck?.completedAt;
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
-  const roster = [...home.roster, ...away.roster];
   const cardStatus = game.gameCard?.status ?? "not_submitted";
 
   async function toggleClear(side: "home" | "away", playerKey: string) {
@@ -103,6 +106,37 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { events: remaining });
   }
 
+  // Separate from the score +/- above (and separate from card events) by
+  // design: staying decoupled means marking the score never requires a
+  // player picker in the way — this is a fully optional, staff-only add-on
+  // a referee can tap whenever, not a gate the score has to pass through.
+  async function logScorer(player: RosterEntry, side: "home" | "away") {
+    if (!user) return;
+    const teamId = side === "home" ? g.homeTeamId : g.awayTeamId;
+    const playerKey = player.playerKey ?? player.userId;
+    const scorer: GoalScorerEvent = {
+      id: `${Date.now()}-${playerKey}`,
+      teamId,
+      playerId: playerKey,
+      playerNumber: player.jerseyNumber ?? 0,
+      minute: Math.min(90, 4 + (gameScorers?.scorers.length ?? 0) * 9),
+      createdAt: Date.now(),
+      createdBy: user.uid,
+    };
+    await setDoc(
+      doc(db, COLLECTIONS.gameScorers, gameId),
+      { gameId, scorers: arrayUnion(scorer), updatedAt: Date.now() },
+      { merge: true }
+    );
+    setScorerPicker(null);
+  }
+
+  async function undoScorer(scorerId: string) {
+    if (!gameScorers) return;
+    const remaining = gameScorers.scorers.filter((s) => s.id !== scorerId);
+    await updateDoc(doc(db, COLLECTIONS.gameScorers, gameId), { scorers: remaining });
+  }
+
   async function pickMotm(userId: string) {
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { motmUserId: userId });
   }
@@ -132,8 +166,8 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           <View>
             <StepLabel n={1} title="GATE CHECK" done={gateComplete} />
             <View style={{ flexDirection: "row", gap: 12 }}>
-              <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
-              <RosterColumn teamName={away.name} roster={away.roster} cleared={awayCleared} onPick={(p) => setIdModalPlayer({ player: p, side: "away" })} />
+              <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} games={allGames} teamId={g.homeTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
+              <RosterColumn teamName={away.name} roster={away.roster} cleared={awayCleared} games={allGames} teamId={g.awayTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "away" })} />
             </View>
             {!gateComplete ? (
               <PrimaryButton
@@ -170,11 +204,14 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
                       <Text style={{ fontSize: 13, fontWeight: "600" }}>{et.icon} {et.label}</Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity onPress={() => setScorerPicker(side)} style={styles.eventBtn}>
+                    <Text style={{ fontSize: 13, fontWeight: "600" }}>⚽ Log scorer</Text>
+                  </TouchableOpacity>
                 </View>
               ))}
             </View>
             <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>CARD LOG</Text>
-            <View style={{ gap: 4 }}>
+            <View style={{ gap: 4, marginBottom: 14 }}>
               {game.events.map((e) => (
                 <View key={e.id} style={styles.logRow}>
                   <Text style={{ fontSize: 13 }}>{e.minute}' {e.type.replace("_", " ")} #{e.playerNumber}</Text>
@@ -183,14 +220,33 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
                   </TouchableOpacity>
                 </View>
               ))}
+              {game.events.length === 0 && <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No cards yet.</Text>}
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>
+              GOALS · visible to organizers only, never the public
+            </Text>
+            <View style={{ gap: 4 }}>
+              {(gameScorers?.scorers ?? []).map((s) => (
+                <View key={s.id} style={styles.logRow}>
+                  <Text style={{ fontSize: 13 }}>{s.minute}' ⚽ #{s.playerNumber}</Text>
+                  <TouchableOpacity onPress={() => undoScorer(s.id)}>
+                    <Text style={{ color: theme.color.danger, fontSize: 12 }}>Undo</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {(gameScorers?.scorers.length ?? 0) === 0 && <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No scorers logged yet — optional.</Text>}
             </View>
           </View>
 
           {/* Step 3: Player of the Game */}
           <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
             <StepLabel n={3} title="PLAYER OF THE GAME" />
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+              <Pill active={motmSide === "home"} onPress={() => setMotmSide("home")}>{home.name}</Pill>
+              <Pill active={motmSide === "away"} onPress={() => setMotmSide("away")}>{away.name}</Pill>
+            </View>
             <View style={{ gap: 6 }}>
-              {roster.map((p) => {
+              {(motmSide === "home" ? home.roster : away.roster).map((p) => {
                 const playerKey = p.playerKey ?? p.userId;
                 return (
                   <Pill key={playerKey} active={game.motmUserId === playerKey} onPress={() => pickMotm(playerKey)}>
@@ -198,6 +254,9 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
                   </Pill>
                 );
               })}
+              {(motmSide === "home" ? home.roster : away.roster).length === 0 && (
+                <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</Text>
+              )}
             </View>
           </View>
 
@@ -233,6 +292,11 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
           teamName={idModalPlayer.side === "home" ? home.name : away.name}
           category={category}
           cleared={(idModalPlayer.side === "home" ? homeCleared : awayCleared).includes(idModalPlayer.player.playerKey ?? idModalPlayer.player.userId)}
+          suspension={computePlayerSuspension(
+            allGames,
+            idModalPlayer.side === "home" ? g.homeTeamId : g.awayTeamId,
+            idModalPlayer.player.playerKey ?? idModalPlayer.player.userId
+          )}
           onToggleClear={() => { toggleClear(idModalPlayer.side, idModalPlayer.player.playerKey ?? idModalPlayer.player.userId); setIdModalPlayer(null); }}
           onClose={() => setIdModalPlayer(null)}
         />
@@ -248,6 +312,20 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
               .filter((p) => !redCardedUids.has(p.playerKey ?? p.userId))
               .map((p) => (
                 <TouchableOpacity key={p.playerKey ?? p.userId} onPress={() => logEvent(p, eventPicker.side)} style={styles.pickerRow}>
+                  <Text style={{ fontSize: 13.5 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
+                </TouchableOpacity>
+              ))}
+          </View>
+        </Modal>
+      )}
+      {scorerPicker && (
+        <Modal visible onClose={() => setScorerPicker(null)}>
+          <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Which player?</Text>
+          <View style={{ gap: 6 }}>
+            {(scorerPicker === "home" ? home.roster : away.roster)
+              .filter((p) => !redCardedUids.has(p.playerKey ?? p.userId))
+              .map((p) => (
+                <TouchableOpacity key={p.playerKey ?? p.userId} onPress={() => logScorer(p, scorerPicker)} style={styles.pickerRow}>
                   <Text style={{ fontSize: 13.5 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>
                 </TouchableOpacity>
               ))}
@@ -286,8 +364,18 @@ function StepLabel({ n, title, done }: { n: number; title: string; done?: boolea
   );
 }
 
-/** One combined tag per player — never two stacked badges — reflecting both facts (tournament-wide Verified, this-game Cleared by Ref) in a single glance. */
-function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg: string; bg: string } {
+/**
+ * One combined tag per player — never two stacked badges — reflecting the
+ * most important fact for the referee in a single glance. `suspended` (a
+ * disciplinary flag from computePlayerSuspension) outranks identity
+ * verification: it's the one fact most likely to change the referee's
+ * decision, and it's advisory only — this never blocks the clear/unclear
+ * toggle itself, it's still the referee's call.
+ */
+function gateStatusTag(p: RosterEntry, isCleared: boolean, suspended: boolean): { label: string; fg: string; bg: string } {
+  if (suspended) {
+    return { label: "🚫 SUSPENDED THIS GAME", fg: "#fff", bg: theme.color.danger };
+  }
   if (p.checkInStatus !== "approved") {
     return { label: "NOT VERIFIED", fg: "#fff", bg: theme.color.danger };
   }
@@ -297,15 +385,16 @@ function gateStatusTag(p: RosterEntry, isCleared: boolean): { label: string; fg:
 }
 
 function RosterColumn({
-  teamName, roster, cleared, onPick,
-}: { teamName: string; roster: RosterEntry[]; cleared: string[]; onPick: (p: RosterEntry) => void }) {
+  teamName, roster, cleared, games, teamId, onPick,
+}: { teamName: string; roster: RosterEntry[]; cleared: string[]; games: Game[]; teamId: string; onPick: (p: RosterEntry) => void }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={{ fontSize: 12, fontWeight: "700", color: theme.color.textMuted, marginBottom: 6 }}>{teamName}</Text>
       <View style={{ gap: 4 }}>
         {roster.map((p) => {
           const playerKey = p.playerKey ?? p.userId;
-          const tag = gateStatusTag(p, cleared.includes(playerKey));
+          const suspension = computePlayerSuspension(games, teamId, playerKey);
+          const tag = gateStatusTag(p, cleared.includes(playerKey), suspension.suspended);
           return (
             <TouchableOpacity key={playerKey} onPress={() => onPick(p)} style={styles.rosterRow}>
               <Text style={{ fontSize: 13, flex: 1 }}>#{p.jerseyNumber ?? "—"} {p.displayName}</Text>

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, formatKickoffTime, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
+import { COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useCategories, useGame, useMoments, useSponsors, useTeam } from "../hooks/useData";
+import { useCategories, useGame, useGames, useMoments, useSponsors, useTeam } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { RosterTile } from "../components/RosterTile";
 import { MomentUploadModal } from "../components/MomentUploadModal";
@@ -24,6 +24,7 @@ export function Game() {
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
   const { data: categories } = useCategories();
+  const { data: allGames } = useGames();
   const { data: allMoments } = useMoments();
   const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -72,7 +73,7 @@ export function Game() {
         <PrimaryButton style={{ width: "100%" }} onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>
 
         {(home?.roster.length || away?.roster.length) ? (
-          <RosterSection home={home} away={away} game={game} onSelectPlayer={setOpenPlayer} />
+          <RosterSection home={home} away={away} game={game} games={allGames} onSelectPlayer={setOpenPlayer} />
         ) : null}
 
         {gameMoments.length > 0 && (
@@ -124,20 +125,20 @@ function TeamAvatar({ name, color, onClick }: { name?: string; color?: string; o
 }
 
 function RosterSection({
-  home, away, game, onSelectPlayer,
-}: { home?: Team | null; away?: Team | null; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
+  home, away, game, games, onSelectPlayer,
+}: { home?: Team | null; away?: Team | null; game: GameDoc; games: GameDoc[]; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <div>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-        {home && <RosterColumn team={home} game={game} onSelectPlayer={onSelectPlayer} />}
-        {away && <RosterColumn team={away} game={game} onSelectPlayer={onSelectPlayer} />}
+        {home && <RosterColumn team={home} game={game} games={games} onSelectPlayer={onSelectPlayer} />}
+        {away && <RosterColumn team={away} game={game} games={games} onSelectPlayer={onSelectPlayer} />}
       </div>
     </div>
   );
 }
 
-function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDoc; onSelectPlayer: (p: OpenPlayer) => void }) {
+function RosterColumn({ team, game, games, onSelectPlayer }: { team: Team; game: GameDoc; games: GameDoc[]; onSelectPlayer: (p: OpenPlayer) => void }) {
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 800, color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 }}>
@@ -145,24 +146,26 @@ function RosterColumn({ team, game, onSelectPlayer }: { team: Team; game: GameDo
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {team.roster.map((p) => (
-          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} onClick={(rosterChecked) => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name, rosterChecked })} />
+          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} games={games} onClick={(rosterChecked) => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name, rosterChecked })} />
         ))}
       </div>
     </div>
   );
 }
 
-function RosterRow({ player, team, game, onClick }: { player: RosterEntry; team: Team; game: GameDoc; onClick: (rosterChecked: boolean) => void }) {
+function RosterRow({ player, team, game, games, onClick }: { player: RosterEntry; team: Team; game: GameDoc; games: GameDoc[]; onClick: (rosterChecked: boolean) => void }) {
   const playerKey = player.playerKey ?? player.userId;
   const cardEvents = game.events.filter((e) => e.playerId === playerKey);
   const isMotm = game.motmUserId === playerKey;
   const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
   const rosterChecked = clearedUids.includes(playerKey);
+  const suspended = computePlayerSuspension(games, team.id, playerKey).suspended;
   return (
     <RosterTile
       player={player}
       onClick={() => onClick(rosterChecked)}
       rosterChecked={rosterChecked}
+      suspended={suspended}
       trailing={
         <>
           {isMotm && <span style={{ fontSize: 11, fontWeight: 700, color: theme.color.warning }}>★ Player of the Game</span>}

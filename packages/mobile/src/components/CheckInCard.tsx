@@ -48,9 +48,12 @@ export function CheckInCard({
         )}
       </View>
       {status === "rejected" && (
-        <PrimaryButton onPress={onCheckIn} style={{ marginTop: 10, width: "100%" }}>
-          RETRY CHECK-IN
-        </PrimaryButton>
+        <>
+          {checkIn?.rejectionReason && <Text style={styles.declineReason}>{checkIn.rejectionReason}</Text>}
+          <PrimaryButton onPress={onCheckIn} style={{ marginTop: 10, width: "100%" }}>
+            RETRY CHECK-IN
+          </PrimaryButton>
+        </>
       )}
 
       <Modal visible={passOpen} onClose={() => setPassOpen(false)}>
@@ -80,6 +83,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   status: { color: theme.color.textMuted, fontSize: 12, marginTop: 2 },
   pending: { color: theme.color.warning, fontSize: 12.5, fontWeight: "700" },
+  declineReason: { backgroundColor: theme.color.dangerBg, color: theme.color.danger, borderRadius: 10, padding: 9, fontSize: 12.5, marginTop: 10 },
   passTitle: { fontWeight: "800", fontSize: 18, textAlign: "center" },
   photoBox: {
     width: 180,

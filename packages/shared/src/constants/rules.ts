@@ -88,8 +88,7 @@ export const TOURNAMENT_RULES = {
   freeKicks: "The ball must be stationary before a free kick; intentional defensive encroachment can draw a yellow card. The referee decides direct vs. indirect.",
   cardsAndDiscipline: [
     "A red card, or two yellows in one game, means an immediate send-off — the team plays down a player for the rest of that match, and the player is suspended for their division's next game, even across rounds (e.g. into the knockout stage).",
-    "Two yellow cards across two different games during the round-robin stage also triggers a one-game suspension; this applies in the knockout stages too.",
-    "Single yellow cards clear after the round-robin stage ends.",
+    "Three yellow cards accumulated across any games in a player's division — group stage and knockout stage combined, with no reset in between — also triggers a one-game suspension.",
     "Suspensions don't automatically carry over into a player's other categories, but serious incidents can extend across divisions at the organizers' discretion.",
     "Referees can refer an incident to the Independent Review Committee, who can extend a suspension or disqualify a player outright.",
     "Flagrant abuse, foul language, or a physical altercation can lead to a ban from future Umoja Games entirely.",

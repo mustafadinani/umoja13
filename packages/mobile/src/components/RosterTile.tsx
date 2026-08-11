@@ -22,6 +22,7 @@ export function RosterTile({
   player,
   onPress,
   rosterChecked,
+  suspended,
   trailing,
   jerseyLabel = `#${player.jerseyNumber ?? "—"}`,
   onJerseyPress,
@@ -30,6 +31,8 @@ export function RosterTile({
   player: RosterEntry;
   onPress: () => void;
   rosterChecked?: boolean;
+  /** From computePlayerSuspension — advisory only, highest-priority visual flag (outranks verified/cleared background), never blocks the tile's own onPress. */
+  suspended?: boolean;
   /** Small trailing badges appended to the status line (MOTM star, card emoji, etc). */
   trailing?: ReactNode;
   jerseyLabel?: string;
@@ -39,7 +42,7 @@ export function RosterTile({
 }) {
   const verified = player.checkInStatus === "approved";
   const showRosterCheck = verified && rosterChecked !== undefined;
-  const tileStyle = !verified ? styles.tileDanger : showRosterCheck && !rosterChecked ? styles.tileWarning : styles.tileOk;
+  const tileStyle = suspended ? styles.tileDanger : !verified ? styles.tileDanger : showRosterCheck && !rosterChecked ? styles.tileWarning : styles.tileOk;
   const jerseyText = (
     <Text style={[styles.jersey, onJerseyPress && !jerseyLocked && styles.jerseyEditable]}>
       {jerseyLabel}{jerseyLocked ? " 🔒" : ""}
@@ -70,6 +73,12 @@ export function RosterTile({
           )}
         </View>
         <View style={styles.statusRow}>
+          {suspended && (
+            <>
+              <StatusDot tone="danger" label="🚫 Suspended" />
+              <Text style={styles.sep}>·</Text>
+            </>
+          )}
           {verified ? (
             <>
               <StatusDot tone="ok" label="Verified" />

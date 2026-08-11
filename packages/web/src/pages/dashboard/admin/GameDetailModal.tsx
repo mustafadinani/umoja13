@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { arrayUnion, deleteDoc, deleteField, doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, GAME_FIELDS, formatKickoffTime, type Game, type GameEvent, type GameStatus, type RosterEntry } from "@umoja/shared";
+import { arrayUnion, deleteDoc, deleteField, doc, setDoc, updateDoc } from "firebase/firestore";
+import { CATEGORIES, COLLECTIONS, GAME_FIELDS, formatKickoffTime, type Game, type GameEvent, type GameStatus, type GoalScorerEvent, type RosterEntry } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { useAuth } from "../../../auth/AuthProvider";
-import { useReferees, useTeam, useTeams } from "../../../hooks/useData";
+import { useGameScorers, useReferees, useTeam, useTeams } from "../../../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "../../../components/ui";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
 
@@ -20,11 +20,13 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
   const { data: away } = useTeam(game.awayTeamId);
   const { data: referees } = useReferees();
   const { data: categoryTeams } = useTeams(game.categoryId);
+  const { data: gameScorers } = useGameScorers(game.id);
   const [cardPhotoOpen, setCardPhotoOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [eventPicker, setEventPicker] = useState<GameEvent["type"] | null>(null);
+  const [scorerPickerOpen, setScorerPickerOpen] = useState(false);
   const category = CATEGORIES.find((c) => c.id === game.categoryId);
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
@@ -121,6 +123,36 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
   async function undoEvent(eventId: string) {
     const next = game.events.filter((e) => e.id !== eventId);
     await updateDoc(doc(db, COLLECTIONS.games, game.id), { events: next, updatedAt: Date.now() });
+  }
+
+  // Own collection, own write — see GameScorers' doc comment in
+  // packages/shared/src/types/game.ts for why this never lives on the Game
+  // doc itself (games has public read; this doesn't).
+  async function logScorer(player: RosterEntry, side: "home" | "away") {
+    if (!user) return;
+    const teamId = side === "home" ? game.homeTeamId : game.awayTeamId;
+    const playerKey = player.playerKey ?? player.userId;
+    const scorer: GoalScorerEvent = {
+      id: `${Date.now()}-${playerKey}`,
+      teamId,
+      playerId: playerKey,
+      playerNumber: player.jerseyNumber ?? 0,
+      minute: Math.min(90, 4 + (gameScorers?.scorers.length ?? 0) * 9),
+      createdAt: Date.now(),
+      createdBy: user.uid,
+    };
+    await setDoc(
+      doc(db, COLLECTIONS.gameScorers, game.id),
+      { gameId: game.id, scorers: arrayUnion(scorer), updatedAt: Date.now() },
+      { merge: true }
+    );
+    setScorerPickerOpen(false);
+  }
+
+  async function undoScorer(scorerId: string) {
+    if (!gameScorers) return;
+    const remaining = gameScorers.scorers.filter((s) => s.id !== scorerId);
+    await updateDoc(doc(db, COLLECTIONS.gameScorers, game.id), { scorers: remaining });
   }
 
   async function pickMotm(playerKey: string) {
@@ -226,6 +258,30 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
         })}
       </div>
 
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 13 }}>Goal scorers</div>
+        <button onClick={() => setScorerPickerOpen(true)} style={cardBtnStyle}>⚽ Add scorer</button>
+      </div>
+      <div style={{ color: theme.color.textMuted, fontSize: 11.5, marginBottom: 8 }}>Visible to organizers only — never shown to the public, players, or fans.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+        {(gameScorers?.scorers.length ?? 0) === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No scorers logged — optional.</div>}
+        {gameScorers?.scorers.map((s) => {
+          const player = playerByKey.get(s.playerId);
+          return (
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, padding: "7px 10px", background: theme.color.bg, borderRadius: 6, border: `1px solid ${theme.color.border}`, flexWrap: "wrap", gap: 6 }}>
+              <span>⚽ {s.minute}' #{s.playerNumber} {player?.displayName ?? ""}</span>
+              <button
+                onClick={() => undoScorer(s.id)}
+                title="Remove this scorer"
+                style={{ width: 18, height: 18, borderRadius: "50%", background: theme.color.border, color: theme.color.textMuted, fontSize: 10, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Player of the Game</div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         {roster.map((p) => {
@@ -276,7 +332,7 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
       {cardPhotoOpen && game.gameCard?.photoUrl && <GameCardPhotoModal url={game.gameCard.photoUrl} onClose={() => setCardPhotoOpen(false)} />}
       {eventPicker && (
         <EventPlayerPicker
-          type={eventPicker}
+          title={eventPicker === "red_card" ? "🟥 Red card — pick a player" : "🟨 Yellow card — pick a player"}
           homeName={home?.name ?? "Home"}
           awayName={away?.name ?? "Away"}
           homeRoster={homeRoster}
@@ -284,6 +340,18 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
           redCardedUids={redCardedUids}
           onPick={logEvent}
           onClose={() => setEventPicker(null)}
+        />
+      )}
+      {scorerPickerOpen && (
+        <EventPlayerPicker
+          title="⚽ Goal scorer — pick a player"
+          homeName={home?.name ?? "Home"}
+          awayName={away?.name ?? "Away"}
+          homeRoster={homeRoster}
+          awayRoster={awayRoster}
+          redCardedUids={redCardedUids}
+          onPick={logScorer}
+          onClose={() => setScorerPickerOpen(false)}
         />
       )}
     </Modal>
@@ -300,9 +368,9 @@ const cardBtnStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-/** Same combined-roster picker shape as the referee console's own card flow, so admin/commissioner get an identical add-card UX. */
+/** Same combined-roster picker shape as the referee console's own card flow, so admin/commissioner get an identical add-card (and add-scorer) UX. */
 function EventPlayerPicker({
-  type,
+  title,
   homeName,
   awayName,
   homeRoster,
@@ -311,7 +379,7 @@ function EventPlayerPicker({
   onPick,
   onClose,
 }: {
-  type: GameEvent["type"];
+  title: string;
   homeName: string;
   awayName: string;
   homeRoster: RosterEntry[];
@@ -323,7 +391,7 @@ function EventPlayerPicker({
   return (
     <Modal onClose={onClose} width={440}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 12 }}>
-        {type === "red_card" ? "🟥 Red card" : "🟨 Yellow card"} — pick a player
+        {title}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {([["home", homeName, homeRoster], ["away", awayName, awayRoster]] as const).map(([side, name, list]) => (

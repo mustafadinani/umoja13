@@ -119,10 +119,26 @@ function parseGroup(value: unknown): Team["group"] | undefined {
   return undefined;
 }
 
+/**
+ * Default photo precedence (only an approved selfie replaces the signup
+ * photo — an unreviewed or declined selfie hasn't been verified against the
+ * player's ID yet) unless an admin has explicitly overridden it from the
+ * check-in review screen, in which case that choice always wins regardless
+ * of approval status.
+ */
+function resolveCardPhotoUrl(
+  realCheckIn: Pick<RosterCheckIn, "status" | "selfieUrl" | "cardPhotoOverride"> | undefined,
+  registrationPhotoUrl: string | undefined
+): string | undefined {
+  if (realCheckIn?.cardPhotoOverride === "registration") return registrationPhotoUrl ?? undefined;
+  if (realCheckIn?.cardPhotoOverride === "selfie") return realCheckIn.selfieUrl ?? registrationPhotoUrl ?? undefined;
+  return (realCheckIn?.status === "approved" ? realCheckIn.selfieUrl : undefined) ?? registrationPhotoUrl ?? undefined;
+}
+
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
   captainProfileId?: string,
-  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber" | "lineOfWork" | "currentEmployer">
+  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber" | "lineOfWork" | "currentEmployer" | "cardPhotoOverride">
 ): RosterEntry {
   const userId = player.uid || player.id;
   return {
@@ -136,11 +152,7 @@ export function registeredPlayerToRosterEntry(
     jerseyNumber: realCheckIn?.jerseyNumber,
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
     checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(player.status),
-    // Only an approved check-in selfie replaces the signup photo — an
-    // unreviewed or declined selfie hasn't been verified against the
-    // player's ID yet, so the player card etc. keep showing the
-    // registration photo until admin approval swaps it over.
-    selfieUrl: (realCheckIn?.status === "approved" ? realCheckIn.selfieUrl : undefined) ?? player.profilePicture ?? undefined,
+    selfieUrl: resolveCardPhotoUrl(realCheckIn, player.profilePicture ?? undefined),
     lineOfWork: realCheckIn?.lineOfWork,
     currentEmployer: realCheckIn?.currentEmployer,
   };

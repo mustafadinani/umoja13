@@ -53,6 +53,13 @@ export interface CheckIn {
   reviewedBy?: string; // admin uid, once escalated or manually approved/rejected
   reviewedAt?: number;
   rejectionReason?: string;
+  /**
+   * Admin override of the default photo precedence (an approved selfie wins
+   * over the registration photo, else the registration photo shows) — set
+   * from the check-in review screen when the registration photo is clearer
+   * than the selfie or vice versa. Undefined uses the default precedence.
+   */
+  cardPhotoOverride?: "selfie" | "registration";
   /** Running, internal-only record of admin notes on this check-in — never rendered to the player-facing CheckInCard. */
   internalNotes?: CheckInNote[];
   /** Recorded before any selfie/ID capture. */
@@ -113,6 +120,8 @@ export interface RosterCheckIn {
   categoryId: string;
   status: CheckInStatus;
   selfieUrl?: string;
+  /** Mirrors CheckIn.cardPhotoOverride — see there for what it means. */
+  cardPhotoOverride?: "selfie" | "registration";
   /**
    * Set by the player at check-in (optional) or by their captain/manager
    * any time before TOURNAMENT_START_AT — locked (can only be set once,

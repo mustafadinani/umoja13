@@ -117,6 +117,17 @@ service cloud.firestore {
       allow delete: if isStaff();
     }
 
+    // Who scored each goal — deliberately its OWN collection, never a field
+    // on the public `games` doc above (see GameScorers' doc comment in
+    // packages/shared/src/types/game.ts for why: rules are per-document, so
+    // anything inside a publicly-readable Game doc is downloadable by
+    // anyone regardless of what the UI shows). Only staff and this specific
+    // game's assigned referee(s) can read or write it.
+    match /gameScorers/{gameId} {
+      allow read, write: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.get('refereeUids', []));
+    }
+
     // ---- check-ins & tournament passes: sensitive PII (selfie, gov ID, DOB) ----
     // Only the player themselves, or admin/commissioner, may read/write these.
     // Captains/referees/fans see only the derived status via rosterCheckIns, never these docs.

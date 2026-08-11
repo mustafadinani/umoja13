@@ -45,7 +45,14 @@ export function CheckInCard({ uid, membership }: { uid: string; membership: Play
         )}
       </div>
       {status === "rejected" && (
-        <PrimaryButton style={{ marginTop: 10, width: "100%" }} onClick={() => setOpen(true)}>RETRY CHECK-IN</PrimaryButton>
+        <>
+          {checkIn?.rejectionReason && (
+            <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: "8px 10px", fontSize: 12.5, marginTop: 10 }}>
+              {checkIn.rejectionReason}
+            </div>
+          )}
+          <PrimaryButton style={{ marginTop: 10, width: "100%" }} onClick={() => setOpen(true)}>RETRY CHECK-IN</PrimaryButton>
+        </>
       )}
 
       {open && (

@@ -7,6 +7,7 @@ export const COLLECTIONS = {
   categories: "categories",
   teams: "teams",
   games: "games",
+  gameScorers: "gameScorers",
   /** One doc per category, id == categoryId — the Live Draw's persisted draw-position order (see types/draw.ts). Session-resumable, unlike the old CSV-shell tool. */
   draws: "draws",
   checkIns: "checkIns",
