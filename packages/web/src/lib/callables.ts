@@ -172,6 +172,16 @@ export const removeTeamManager = httpsCallable<{ teamId: string; uid: string }, 
   "removeTeamManager"
 );
 
+export const assignTeamCaptain = httpsCallable<
+  { teamId: string; categoryId: string; playerKey: string; targetUid: string },
+  { ok: true }
+>(functions, "assignTeamCaptain");
+
+export const removeTeamCaptain = httpsCallable<
+  { teamId: string; categoryId: string; playerKey: string },
+  { ok: true }
+>(functions, "removeTeamCaptain");
+
 export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number }>(
   functions,
   "backfillTeamRosterAccess"

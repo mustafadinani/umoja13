@@ -139,7 +139,7 @@ function resolveCardPhotoUrl(
 export function registeredPlayerToRosterEntry(
   player: RegisteredPlayer,
   captainProfileId?: string,
-  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber" | "lineOfWork" | "currentEmployer" | "cardPhotoOverride">
+  realCheckIn?: Pick<RosterCheckIn, "status" | "selfieUrl" | "jerseyNumber" | "lineOfWork" | "currentEmployer" | "cardPhotoOverride" | "appointedCaptain">
 ): RosterEntry {
   const userId = player.uid || player.id;
   return {
@@ -151,7 +151,9 @@ export function registeredPlayerToRosterEntry(
     playerKey: player.profileId?.trim() || player.id,
     displayName: `${player.firstName} ${player.lastName}`.trim() || "Player",
     jerseyNumber: realCheckIn?.jerseyNumber,
-    isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)),
+    // Real registration captain OR a coach/manager's appointment (see
+    // RosterCheckIn.appointedCaptain) — additive, so a team can have both.
+    isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)) || !!realCheckIn?.appointedCaptain,
     checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(player.status),
     selfieUrl: resolveCardPhotoUrl(realCheckIn, player.profilePicture ?? undefined),
     lineOfWork: realCheckIn?.lineOfWork,

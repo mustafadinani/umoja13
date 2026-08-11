@@ -139,7 +139,7 @@ export function PlayerDashboard() {
       {managedTeamIds.length > 0 && (
         <>
           <SectionLabel>TEAM MANAGER TOOLS</SectionLabel>
-          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} />)}
+          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} canAppointCaptain />)}
         </>
       )}
 
@@ -266,12 +266,12 @@ function MyGameRow({ game, onOpen }: { game: Game; onOpen: () => void }) {
   );
 }
 
-function CaptainSection({ teamId }: { teamId: string }) {
+function CaptainSection({ teamId, canAppointCaptain }: { teamId: string; canAppointCaptain?: boolean }) {
   const { data: team } = useTeam(teamId);
   if (!team) return null;
   return (
     <div style={{ marginBottom: 24 }}>
-      <CaptainRoster team={team} />
+      <CaptainRoster team={team} canAppointCaptain={canAppointCaptain} />
     </div>
   );
 }

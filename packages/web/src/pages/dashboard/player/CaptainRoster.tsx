@@ -1,16 +1,24 @@
 import { useState } from "react";
 import { checkInStatusLabel, checkInStatusTone, TOURNAMENT_START_AT, type Team } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { setJerseyNumber } from "../../../lib/callables";
+import { assignTeamCaptain, removeTeamCaptain, setJerseyNumber } from "../../../lib/callables";
 import { Card } from "../../../components/ui";
 
 const tournamentStarted = Date.now() >= TOURNAMENT_START_AT;
 
-export function CaptainRoster({ team }: { team: Team }) {
+/**
+ * `canAppointCaptain` is true only when this render is a coach/manager's own
+ * "TEAM MANAGER TOOLS" view of a team they don't play on themselves (see
+ * PlayerDashboard.tsx) — a real captain viewing their own roster never gets
+ * this action, matching the literal ask ("the coach should also be able to
+ * mark someone as captain").
+ */
+export function CaptainRoster({ team, canAppointCaptain }: { team: Team; canAppointCaptain?: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captainBusyKey, setCaptainBusyKey] = useState<string | null>(null);
   const clearedCount = team.roster.filter((p) => p.checkInStatus === "approved").length;
 
   async function saveNumber(playerKey: string) {
@@ -25,6 +33,22 @@ export function CaptainRoster({ team }: { team: Team }) {
       setError(e instanceof Error ? e.message : "Couldn't save that number.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function toggleCaptain(playerKey: string, targetUid: string, makeCaptain: boolean) {
+    setCaptainBusyKey(playerKey);
+    setError(null);
+    try {
+      if (makeCaptain) {
+        await assignTeamCaptain({ teamId: team.id, categoryId: team.categoryId, playerKey, targetUid });
+      } else {
+        await removeTeamCaptain({ teamId: team.id, categoryId: team.categoryId, playerKey });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't update captain status.");
+    } finally {
+      setCaptainBusyKey(null);
     }
   }
 
@@ -81,7 +105,9 @@ export function CaptainRoster({ team }: { team: Team }) {
                   #{p.jerseyNumber ?? "—"}{locked && " 🔒"}
                 </span>
               )}
-              <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
+              <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>
+                {p.displayName}{p.isCaptain ? " (C)" : ""}
+              </span>
               <span
                 style={{
                   fontSize: 12,
@@ -91,6 +117,23 @@ export function CaptainRoster({ team }: { team: Team }) {
               >
                 {checkInStatusLabel(p.checkInStatus)}
               </span>
+              {canAppointCaptain && (
+                <button
+                  disabled={captainBusyKey === playerKey}
+                  onClick={() => toggleCaptain(playerKey, p.userId, !p.isCaptain)}
+                  style={{
+                    background: p.isCaptain ? "none" : theme.color.purple,
+                    color: p.isCaptain ? theme.color.textMuted : "#fff",
+                    border: p.isCaptain ? `1px solid ${theme.color.border}` : "none",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {captainBusyKey === playerKey ? "…" : p.isCaptain ? "Remove Captain" : "Make Captain"}
+                </button>
+              )}
             </Card>
           );
         })}

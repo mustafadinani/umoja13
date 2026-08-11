@@ -11,6 +11,7 @@ import {
   type OutreachProfile,
   type ProfileSource,
   type RegisteredPlayer,
+  type RosterCheckIn,
   type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../lib/firebase";
@@ -109,6 +110,43 @@ export function useResolvedProfile(uid: string | undefined): {
     );
   }, [uid]);
 
+  // This account's own per-child playerKeys (see RosterEntry.playerKey) —
+  // used below to find any rosterCheckIns overlay docs a coach/manager has
+  // appointed one of them captain on. Small (a handful of kids at most), so
+  // a single Firestore "in" query (30-value limit) is always enough.
+  const myPlayerKeys = useMemo(
+    () => Array.from(new Set(regPlayers.map((p) => p.profileId?.trim() || p.id))),
+    [regPlayers]
+  );
+  const [appointedCaptainDocs, setAppointedCaptainDocs] = useState<RosterCheckIn[]>([]);
+  useEffect(() => {
+    if (myPlayerKeys.length === 0) {
+      setAppointedCaptainDocs([]);
+      return;
+    }
+    const q = query(
+      collection(db, COLLECTIONS.rosterCheckIns),
+      where("userId", "in", myPlayerKeys),
+      where("appointedCaptain", "==", true)
+    );
+    return onSnapshot(
+      q,
+      (snap) => setAppointedCaptainDocs(snap.docs.map((d) => d.data() as RosterCheckIn)),
+      (err) => {
+        console.error("rosterCheckIns appointedCaptain snapshot error:", err);
+        setAppointedCaptainDocs([]);
+      }
+    );
+  }, [myPlayerKeys]);
+  const appointedCaptainKeysByTeamId = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const c of appointedCaptainDocs) {
+      if (!map.has(c.teamId)) map.set(c.teamId, new Set());
+      map.get(c.teamId)!.add(c.userId);
+    }
+    return map;
+  }, [appointedCaptainDocs]);
+
   return useMemo(() => {
     if (!uid) return { profile: null, profileSource: null, loading: false };
     const loading = !appReady || !outreachReady || !playersReady;
@@ -121,7 +159,12 @@ export function useResolvedProfile(uid: string | undefined): {
       // appUser's own playerOf is empty — never overwrites a populated one,
       // so an intentionally-crafted seed/test profile is untouched.
       if (!appUser.playerOf?.length && regPlayers.length > 0) {
-        const playerOf = playerMembershipsFromRegisteredPlayers(uid, regPlayers, teamCaptainByTeamId);
+        const playerOf = playerMembershipsFromRegisteredPlayers(
+          uid,
+          regPlayers,
+          teamCaptainByTeamId,
+          appointedCaptainKeysByTeamId
+        );
         if (playerOf.length > 0) {
           return { profile: { ...appUser, playerOf }, profileSource: "umoja13" as const, loading };
         }
@@ -130,11 +173,27 @@ export function useResolvedProfile(uid: string | undefined): {
     }
     if (outreachRaw) {
       return {
-        profile: mapOutreachProfileToUserProfile(uid, outreachRaw, regPlayers, teamCaptainByTeamId),
+        profile: mapOutreachProfileToUserProfile(
+          uid,
+          outreachRaw,
+          regPlayers,
+          teamCaptainByTeamId,
+          appointedCaptainKeysByTeamId
+        ),
         profileSource: "default" as const,
         loading,
       };
     }
     return { profile: null, profileSource: null, loading };
-  }, [uid, appUser, outreachRaw, regPlayers, teamCaptainByTeamId, appReady, outreachReady, playersReady]);
+  }, [
+    uid,
+    appUser,
+    outreachRaw,
+    regPlayers,
+    teamCaptainByTeamId,
+    appointedCaptainKeysByTeamId,
+    appReady,
+    outreachReady,
+    playersReady,
+  ]);
 }

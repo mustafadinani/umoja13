@@ -179,3 +179,13 @@ export const setJerseyNumber = httpsCallable<
 >(functions, "setJerseyNumber");
 
 export const syncMyRoleClaims = httpsCallable<void, { roles: string[] }>(functions, "syncMyRoleClaims");
+
+export const assignTeamCaptain = httpsCallable<
+  { teamId: string; categoryId: string; playerKey: string; targetUid: string },
+  { ok: true }
+>(functions, "assignTeamCaptain");
+
+export const removeTeamCaptain = httpsCallable<
+  { teamId: string; categoryId: string; playerKey: string },
+  { ok: true }
+>(functions, "removeTeamCaptain");

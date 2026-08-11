@@ -58,7 +58,16 @@ export function playerMembershipsFromRegisteredPlayers(
    * from the same RegisteredTeam docs they already have on hand (see
    * useResolvedProfile.ts / buildBaseProfileFromOutreach).
    */
-  teamCaptainByTeamId: Map<string, string | undefined> = new Map()
+  teamCaptainByTeamId: Map<string, string | undefined> = new Map(),
+  /**
+   * teamId -> the set of playerKeys a coach/manager (or staff) has appointed
+   * as captain on that team (see RosterCheckIn.appointedCaptain /
+   * assignTeamCaptain) — additive to teamCaptainByTeamId's real registration
+   * captain, and keyed by playerKey (not uid) since two siblings sharing one
+   * account need to be distinguishable here the same way RosterEntry.isCaptain
+   * already is in registeredPlayerToRosterEntry.
+   */
+  appointedCaptainKeysByTeamId: Map<string, Set<string>> = new Map()
 ): PlayerMembership[] {
   return players
     .filter((p) => p.uid === uid || p.id === uid)
@@ -67,9 +76,10 @@ export function playerMembershipsFromRegisteredPlayers(
       categoryId: resolvePlayerCategoryId(p),
       isCaptain: (() => {
         const captainId = teamCaptainByTeamId.get(p.teamId);
-        if (!captainId) return false;
         const playerUid = p.uid || p.id;
-        return playerUid === captainId;
+        if (captainId && playerUid === captainId) return true;
+        const playerKey = p.profileId?.trim() || p.id;
+        return !!appointedCaptainKeysByTeamId.get(p.teamId)?.has(playerKey);
       })(),
       // Omit rather than set `undefined` when there's no registration photo —
       // every caller of this mapper eventually spreads its result straight
@@ -89,10 +99,11 @@ export function mapOutreachProfileToUserProfile(
   uid: string,
   raw: OutreachProfile,
   players: RegisteredPlayer[] = [],
-  teamCaptainByTeamId: Map<string, string | undefined> = new Map()
+  teamCaptainByTeamId: Map<string, string | undefined> = new Map(),
+  appointedCaptainKeysByTeamId: Map<string, Set<string>> = new Map()
 ): UserProfile {
   const now = Date.now();
-  const playerOf = playerMembershipsFromRegisteredPlayers(uid, players, teamCaptainByTeamId);
+  const playerOf = playerMembershipsFromRegisteredPlayers(uid, players, teamCaptainByTeamId, appointedCaptainKeysByTeamId);
 
   const roles: Role[] =
     raw.roles && raw.roles.length > 0

@@ -131,6 +131,14 @@ export interface RosterCheckIn {
   /** Mirrored from the checkIn doc if the player chose to share them — optional, never required. */
   lineOfWork?: string;
   currentEmployer?: string;
+  /**
+   * Set by a coach/manager (or staff) via assignTeamCaptain — independent of
+   * the team's real registration captain (captainProfileId). Both feed
+   * RosterEntry.isCaptain (see registeredPlayerToRosterEntry); this one is
+   * additive, so a team can have the real captain plus one or more
+   * coach-appointed co-captains at once.
+   */
+  appointedCaptain?: boolean;
   updatedAt: number;
 }
 

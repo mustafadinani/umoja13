@@ -15,7 +15,7 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames, useMoments, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
-import { sendTeamMessage, setJerseyNumber } from "../lib/callables";
+import { assignTeamCaptain, removeTeamCaptain, sendTeamMessage, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { RosterTile } from "../components/RosterTile";
@@ -45,6 +45,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [captainBusyKey, setCaptainBusyKey] = useState<string | null>(null);
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
@@ -73,6 +74,11 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     (profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false) ||
     (!!profile?.uid && !!team.coachManagerUids?.includes(profile.uid));
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
+  // Narrower than isCaptain above (which also covers a real captain editing
+  // their own jersey numbers) — only a coach/manager or staff can appoint a
+  // captain, matching the literal ask ("the coach should also be able to
+  // mark someone as captain on their roster").
+  const canAppointCaptain = isStaff || (!!profile?.uid && !!team.coachManagerUids?.includes(profile.uid));
   // Account-level, not per-child — "am I on this roster at all" (posting to
   // the team channel) is a family-account question, distinct from the
   // per-child playerKey set used for moments above.
@@ -101,6 +107,22 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
       setEditingUserId(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save that number.");
+    }
+  }
+
+  async function toggleCaptain(playerKey: string, targetUid: string, makeCaptain: boolean) {
+    setCaptainBusyKey(playerKey);
+    setError(null);
+    try {
+      if (makeCaptain) {
+        await assignTeamCaptain({ teamId: team!.id, categoryId: team!.categoryId, playerKey, targetUid });
+      } else {
+        await removeTeamCaptain({ teamId: team!.id, categoryId: team!.categoryId, playerKey });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't update captain status.");
+    } finally {
+      setCaptainBusyKey(null);
     }
   }
 
@@ -155,14 +177,26 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               );
             }
             return (
-              <RosterTile
-                key={playerKey}
-                player={p}
-                onPress={() => setOpenPlayer(p)}
-                suspended={computePlayerSuspension(games, team.id, playerKey).suspended}
-                onJerseyPress={isCaptain ? () => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); } : undefined}
-                jerseyLocked={locked}
-              />
+              <View key={playerKey}>
+                <RosterTile
+                  player={p}
+                  onPress={() => setOpenPlayer(p)}
+                  suspended={computePlayerSuspension(games, team.id, playerKey).suspended}
+                  onJerseyPress={isCaptain ? () => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); } : undefined}
+                  jerseyLocked={locked}
+                />
+                {canAppointCaptain && (
+                  <TouchableOpacity
+                    disabled={captainBusyKey === playerKey}
+                    onPress={() => toggleCaptain(playerKey, p.userId, !p.isCaptain)}
+                    style={[styles.captainBtn, p.isCaptain ? styles.captainBtnRemove : styles.captainBtnMake]}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: p.isCaptain ? theme.color.textMuted : "#fff" }}>
+                      {captainBusyKey === playerKey ? "…" : p.isCaptain ? "Remove Captain" : "Make Captain"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             );
           })}
           {team.roster.length === 0 && (
@@ -312,6 +346,9 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   jerseyInput: { width: 46, borderWidth: 1, borderColor: theme.color.border, borderRadius: 6, padding: 6, textAlign: "center" },
   saveBtn: { backgroundColor: theme.color.navy, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
+  captainBtn: { alignSelf: "flex-end", borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10, marginTop: -3, marginBottom: 8 },
+  captainBtnMake: { backgroundColor: theme.color.purple },
+  captainBtnRemove: { borderWidth: 1, borderColor: theme.color.border },
   avatarWrap: { width: 36, height: 36 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },

@@ -39,6 +39,7 @@ export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
 export { markChannelRead } from "./http/markChannelRead.js";
 export { setJerseyNumber } from "./http/setJerseyNumber.js";
 export { assignTeamManager, removeTeamManager } from "./http/assignTeamManager.js";
+export { assignTeamCaptain, removeTeamCaptain } from "./http/assignTeamCaptain.js";
 export { setHuntStarted } from "./http/huntConfig.js";
 export { backfillTeamRosterAccess } from "./http/backfillTeamRosterAccess.js";
 export { syncMyRoleClaims } from "./http/syncMyRoleClaims.js";
