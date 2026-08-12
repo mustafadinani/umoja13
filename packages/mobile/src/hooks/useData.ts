@@ -29,6 +29,7 @@ import {
   type PodTask,
   type HuntConfig,
   HUNT_CONFIG_DOC_ID,
+  type Incident,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -50,6 +51,13 @@ export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.hunt
 
 /** The single admin-controlled switch that reveals The Hunt to everyone — see types/huntConfig.ts. */
 export const useHuntConfig = () => useDocument<HuntConfig>(COLLECTIONS.config, HUNT_CONFIG_DOC_ID);
+
+export const useIncidents = (constraints: QueryConstraint[] = []) =>
+  useCollection<Incident>(COLLECTIONS.incidents, [orderBy("createdAt", "desc"), ...constraints]);
+
+/** A filer's own cases — "My Reports" under Report an Issue — scoped so the query matches the incidents rule's per-doc filedByUid check. */
+export const useMyIncidents = (uid: string | undefined) =>
+  useIncidents(uid ? [where("filedByUid", "==", uid)] : []);
 
 export const useTeams = (categoryId?: string) => useRegistrationTeams(categoryId);
 

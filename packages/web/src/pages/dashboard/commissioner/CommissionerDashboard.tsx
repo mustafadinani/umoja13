@@ -4,7 +4,7 @@ import { CATEGORIES } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useIncidents, useTeam } from "../../../hooks/useData";
 import { callItFinal } from "../../../lib/callables";
-import { Card, PrimaryButton, StatusBadge } from "../../../components/ui";
+import { Card, IncidentStatusPill, PrimaryButton } from "../../../components/ui";
 import { IncidentReplyModal } from "../../../components/IncidentReplyModal";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
@@ -67,7 +67,7 @@ export function CommissionerDashboard() {
               </div>
               <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>#{i.caseNumber} · {i.text.slice(0, 80)}</div>
             </div>
-            <StatusBadge status={i.status === "submitted" ? "scheduled" : i.status === "resolved" ? "final" : i.status === "denied" ? "forfeited" : "live"} />
+            <IncidentStatusPill status={i.status} />
           </Card>
         ))}
         {incidents.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Nothing here.</div>}

@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, type ViewStyle } from "react-native";
-import { checkInStatusLabel, checkInStatusTone, type CheckInStatus } from "@umoja/shared";
+import {
+  checkInStatusLabel,
+  checkInStatusTone,
+  incidentStatusLabel,
+  incidentStatusTone,
+  type CheckInStatus,
+  type IncidentStatus,
+} from "@umoja/shared";
 import { theme } from "../lib/theme";
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -129,7 +136,8 @@ export function StatusBadge({ status }: { status: string }) {
   return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
 }
 
-const CHECKIN_TONE_COLORS: Record<"success" | "warning" | "muted" | "danger", { fg: string; bg: string }> = {
+/** Shared bg/fg pair per semantic tone — backs both CheckInStatusPill and IncidentStatusPill so the same tone always reads the same color anywhere in the app. */
+const TONE_COLORS: Record<"success" | "warning" | "muted" | "danger", { fg: string; bg: string }> = {
   success: { fg: theme.color.success, bg: theme.color.successBg },
   warning: { fg: theme.color.warning, bg: theme.color.warningBg },
   muted: { fg: theme.color.textMuted, bg: theme.color.bg },
@@ -165,10 +173,20 @@ export function VerifiedBadge({ size = 16 }: { size?: number }) {
 
 /** The one check-in status pill — same label vocabulary and colors (green/amber/muted) wherever a status needs to read as a chip rather than plain text. */
 export function CheckInStatusPill({ status }: { status: CheckInStatus | undefined }) {
-  const { fg, bg } = CHECKIN_TONE_COLORS[checkInStatusTone(status)];
+  const { fg, bg } = TONE_COLORS[checkInStatusTone(status)];
   return (
     <Pill bg={bg} fg={fg}>
       {checkInStatusLabel(status)}
+    </Pill>
+  );
+}
+
+/** The one incident/case status pill — same tone vocabulary as CheckInStatusPill (Pending/Under review/Resolved/Denied). */
+export function IncidentStatusPill({ status }: { status: IncidentStatus }) {
+  const { fg, bg } = TONE_COLORS[incidentStatusTone(status)];
+  return (
+    <Pill bg={bg} fg={fg}>
+      {incidentStatusLabel(status)}
     </Pill>
   );
 }

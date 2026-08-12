@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { COLLECTIONS } from "@umoja/shared";
+import { COLLECTIONS, type ComplaintType } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { nextCaseNumber } from "../util/counters.js";
 import { isCaptainOrCoachManager } from "../util/teamRoles.js";
@@ -70,7 +70,12 @@ interface FilePaidReportRequest {
   filedByRole: string;
   paymentIntentId: string;
   source?: "fan_message" | "captain_complaint";
-  complaintType?: string;
+  complaintType?: ComplaintType;
+  gameId?: string;
+  playerKey?: string;
+  playerName?: string;
+  playerTeamId?: string;
+  playerCategoryId?: string;
 }
 
 /**
@@ -95,6 +100,11 @@ export const filePaidReport = onCall(
       paymentIntentId,
       source = "fan_message",
       complaintType,
+      gameId,
+      playerKey,
+      playerName,
+      playerTeamId,
+      playerCategoryId,
     } = request.data as FilePaidReportRequest;
 
     if (!text || text.trim().length < 3) {
@@ -102,6 +112,18 @@ export const filePaidReport = onCall(
     }
     if (!paymentIntentId) {
       throw new HttpsError("invalid-argument", "paymentIntentId is required.");
+    }
+    if (!complaintType) {
+      throw new HttpsError("invalid-argument", "Please choose an issue type.");
+    }
+    // Same type-specific requirements as fileIncident (see its
+    // assertComplaintTypeFields) — kept inline here since this callable
+    // lives in a different file and the check is only two branches.
+    if (complaintType === "ineligible_player" && (!playerKey || !playerName)) {
+      throw new HttpsError("invalid-argument", "Please search for and select the player you're reporting.");
+    }
+    if (complaintType === "game_related" && !gameId) {
+      throw new HttpsError("invalid-argument", "Please select the game you're referring to.");
     }
 
     const stripe = getStripeLive();
@@ -129,7 +151,14 @@ export const filePaidReport = onCall(
       filedByName,
       filedByRole,
       complaintType: complaintType ?? null,
-      gameId: null,
+      // Previously always null here regardless of what the filer selected —
+      // a game-related report lost its game reference the moment it was
+      // paid for. Now stored whenever the filer actually picked one.
+      gameId: complaintType === "game_related" ? gameId : null,
+      playerKey: complaintType === "ineligible_player" ? playerKey : null,
+      playerName: complaintType === "ineligible_player" ? playerName : null,
+      playerTeamId: complaintType === "ineligible_player" ? (playerTeamId ?? null) : null,
+      playerCategoryId: complaintType === "ineligible_player" ? (playerCategoryId ?? null) : null,
       text: text.trim(),
       status: "submitted",
       thread: [],

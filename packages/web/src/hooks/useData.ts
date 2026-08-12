@@ -117,6 +117,10 @@ export const useHuntConfig = () => useDocument<HuntConfig>(COLLECTIONS.config, H
 export const useIncidents = (constraints: QueryConstraint[] = []) =>
   useCollection<Incident>(COLLECTIONS.incidents, [orderBy("createdAt", "desc"), ...constraints]);
 
+/** A filer's own cases — "My Reports" under Report an Issue — scoped so the query matches the incidents rule's per-doc filedByUid check. */
+export const useMyIncidents = (uid: string | undefined) =>
+  useIncidents(uid ? [where("filedByUid", "==", uid)] : []);
+
 export const useMyNotifications = (uid: string | undefined) =>
   useCollection<Notification>(
     COLLECTIONS.notifications,

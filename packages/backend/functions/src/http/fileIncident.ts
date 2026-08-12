@@ -10,7 +10,29 @@ interface FileIncidentRequest {
   filedByRole: string;
   complaintType?: ComplaintType;
   gameId?: string;
+  playerKey?: string;
+  playerName?: string;
+  playerTeamId?: string;
+  playerCategoryId?: string;
   text: string;
+}
+
+/**
+ * Validates the type-specific fields a filer must provide, mirroring the
+ * three-way choice ("Player eligibility" / "Game incident" / "Other") the
+ * filing UI presents before it ever gets here. Shared between fileIncident
+ * and filePaidReport so the two entry points can't drift.
+ */
+function assertComplaintTypeFields(
+  complaintType: ComplaintType | undefined,
+  fields: { gameId?: string; playerKey?: string; playerName?: string }
+) {
+  if (complaintType === "ineligible_player" && (!fields.playerKey || !fields.playerName)) {
+    throw new HttpsError("invalid-argument", "Please search for and select the player you're reporting.");
+  }
+  if (complaintType === "game_related" && !fields.gameId) {
+    throw new HttpsError("invalid-argument", "Please select the game you're referring to.");
+  }
 }
 
 /**
@@ -22,7 +44,8 @@ export const fileIncident = onCall<FileIncidentRequest>(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-  const { source, filedByName, filedByRole, complaintType, gameId, text } = request.data;
+  const { source, filedByName, filedByRole, complaintType, gameId, playerKey, playerName, playerTeamId, playerCategoryId, text } =
+    request.data;
   if (!text || text.trim().length < 3) {
     throw new HttpsError("invalid-argument", "Please describe what happened (at least 3 characters).");
   }
@@ -34,6 +57,10 @@ export const fileIncident = onCall<FileIncidentRequest>(async (request) => {
   if (source === "captain_complaint" && !(await isCaptainOrCoachManager(uid))) {
     throw new HttpsError("permission-denied", "Only a team's captain or coach/manager can file this complaint.");
   }
+  if (source === "captain_complaint" && !complaintType) {
+    throw new HttpsError("invalid-argument", "Please choose an issue type.");
+  }
+  assertComplaintTypeFields(complaintType, { gameId, playerKey, playerName });
 
   const prefix = source === "fan_message" ? "UQ" : "UG";
   const caseNumber = await nextCaseNumber(prefix);
@@ -53,7 +80,11 @@ export const fileIncident = onCall<FileIncidentRequest>(async (request) => {
     filedByName,
     filedByRole,
     complaintType: complaintType ?? null,
-    gameId: gameId ?? null,
+    gameId: complaintType === "game_related" ? gameId : null,
+    playerKey: complaintType === "ineligible_player" ? playerKey : null,
+    playerName: complaintType === "ineligible_player" ? playerName : null,
+    playerTeamId: complaintType === "ineligible_player" ? (playerTeamId ?? null) : null,
+    playerCategoryId: complaintType === "ineligible_player" ? (playerCategoryId ?? null) : null,
     text,
     status: "submitted",
     thread: [],

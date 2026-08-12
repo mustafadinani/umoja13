@@ -39,6 +39,10 @@ export const fileIncident = httpsCallable<
     filedByRole: string;
     complaintType?: ComplaintType;
     gameId?: string;
+    playerKey?: string;
+    playerName?: string;
+    playerTeamId?: string;
+    playerCategoryId?: string;
     text: string;
   },
   { id: string; caseNumber: string }
@@ -66,7 +70,12 @@ export const filePaidReport = httpsCallable<
     filedByRole: string;
     paymentIntentId: string;
     source?: "fan_message" | "captain_complaint";
-    complaintType?: string;
+    complaintType?: ComplaintType;
+    gameId?: string;
+    playerKey?: string;
+    playerName?: string;
+    playerTeamId?: string;
+    playerCategoryId?: string;
   },
   { id: string; caseNumber: string; stripeConfirmationId: string }
 >(functions, "filePaidReport");
