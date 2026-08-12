@@ -46,7 +46,29 @@ export const setUserRole = onCall<SetUserRoleRequest>(async (request) => {
   // with no Outreach history (the normal case for a staff-only account) and
   // for an account that already has a users doc (never overwrite in place).
   const targetSnap = await db.collection(COLLECTIONS.users).doc(targetUid).get();
-  const baseProfile = targetSnap.exists ? {} : await buildBaseProfileFromOutreach(targetUid);
+  let baseProfile: Partial<{ email: string; displayName: string }> = targetSnap.exists
+    ? {}
+    : await buildBaseProfileFromOutreach(targetUid);
+
+  // A staff-only account (no Outreach history) gets `{}` above, which used to
+  // mean the new users/{uid} doc had NO email/displayName at all — every
+  // client screen that lists users (UsersAdminTab, UserChannelsAdminTab,
+  // usePodMemberSearch) assumes those fields are always strings and calls
+  // .toLowerCase() on them, so a doc created this way crashed the entire
+  // Users admin tab for every admin, not just the one who granted the role.
+  // Fall back to the Firebase Auth record (always has an email; displayName
+  // is optional there too) so a freshly-created doc is never missing either.
+  if (!targetSnap.exists && (!baseProfile.email || !baseProfile.displayName)) {
+    try {
+      const authUser = await auth.getUser(targetUid);
+      baseProfile = {
+        email: baseProfile.email ?? authUser.email ?? "",
+        displayName: baseProfile.displayName ?? authUser.displayName ?? authUser.email ?? "Unnamed user",
+      };
+    } catch (err) {
+      console.error(`setUserRole: could not load Auth record for ${targetUid}, continuing without email/displayName fallback:`, err);
+    }
+  }
 
   await auth.setCustomUserClaims(targetUid, { roles });
   await db.collection(COLLECTIONS.users).doc(targetUid).set(

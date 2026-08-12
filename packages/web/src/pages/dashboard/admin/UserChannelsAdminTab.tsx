@@ -66,8 +66,11 @@ export function UserChannelsAdminTab() {
   const [search, setSearch] = useState("");
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
+  // Guard against the rare users/{uid} doc missing displayName (see
+  // setUserRole.ts) — an unguarded .toLowerCase() here used to throw and
+  // take down this whole tab for every admin.
   const searchResults = search.trim()
-    ? users.filter((u) => u.displayName.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 8)
+    ? users.filter((u) => (u.displayName ?? "").toLowerCase().includes(search.trim().toLowerCase())).slice(0, 8)
     : [];
 
   const selected = selectedUid ? userById.get(selectedUid) : undefined;

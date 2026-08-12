@@ -46,7 +46,7 @@ export function usePodMemberSearch(memberUids: string[]) {
 
   const nameByUid = useMemo(() => {
     const map = new Map<string, string>();
-    for (const u of users) map.set(u.uid, u.displayName);
+    for (const u of users) map.set(u.uid, u.displayName || "Unnamed user");
     for (const p of registeredPlayers) {
       if (p.uid && !map.has(p.uid)) map.set(p.uid, `${p.firstName} ${p.lastName}`.trim());
     }
@@ -64,8 +64,12 @@ export function usePodMemberSearch(memberUids: string[]) {
     return map;
   }, [users, registeredPlayers]);
 
+  // Guard against the rare users/{uid} doc missing displayName (see
+  // setUserRole.ts) — this runs unconditionally on every users update, so an
+  // unguarded .toLowerCase() here used to crash every "add someone to a pod"
+  // surface the moment such a doc existed, not just on a search keystroke.
   const searchableUsers = useMemo(
-    () => users.map((u) => ({ uid: u.uid, displayName: u.displayName, sublabel: u.primaryRole, needle: u.displayName.toLowerCase() })),
+    () => users.map((u) => ({ uid: u.uid, displayName: u.displayName ?? "", sublabel: u.primaryRole, needle: (u.displayName ?? "").toLowerCase() })),
     [users]
   );
   const searchablePlayers = useMemo(

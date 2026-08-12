@@ -27,9 +27,13 @@ export function UsersAdminTab() {
   const [newUser, setNewUser] = useState<NewUserCandidate | null>(null);
 
   const term = search.trim().toLowerCase();
+  // A handful of older users/{uid} docs (staff accounts granted a role before
+  // they'd ever signed in) were created without displayName/email — guard
+  // against that here instead of trusting the type, since one bad doc used
+  // to throw inside this filter and take down the whole tab for every admin.
   const visible = users
-    .filter((u) => u.displayName.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    .filter((u) => (u.displayName ?? "").toLowerCase().includes(term) || (u.email ?? "").toLowerCase().includes(term))
+    .sort((a, b) => (a.displayName ?? "").localeCompare(b.displayName ?? ""));
   const openUser = users.find((u) => u.uid === openUid) ?? null;
 
   function podsFor(uid: string) {
@@ -55,8 +59,8 @@ export function UsersAdminTab() {
             <Card key={u.uid} onClick={() => setOpenUid(u.uid)} style={{ padding: "12px 16px", cursor: "pointer" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{u.displayName}</div>
-                  <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{u.email}</div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{u.displayName || "Unnamed user"}</div>
+                  <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{u.email || "No email on file"}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 280 }}>
