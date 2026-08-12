@@ -4,22 +4,29 @@ import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, TOURNAMENT_DAY_DATES, compar
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
-import { useMyManagedTeamIds } from "../../../hooks/useRegistration";
 import { Card, Pill, StatusBadge } from "../../../components/ui";
 import { SponsorStrip } from "../../../components/SponsorStrip";
 import { CheckInCard } from "./CheckInCard";
-import { CaptainRoster } from "./CaptainRoster";
 
 function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || name;
 }
 
+/**
+ * Personal player content only — team-officiating tools (captain/coach
+ * manager) live entirely on TeamOfficialDashboard now, rendered instead of
+ * this whenever primaryRole is "captain" or "coach_manager" (see
+ * Dashboard.tsx). They used to be stacked at the bottom of this same page,
+ * which meant viewing "as" Coach/Manager still showed your own kids' check-in
+ * passes and games — content that has nothing to do with officiating a team.
+ * Someone who's both a player and an official switches between the two full
+ * views with the "VIEWING AS" pill instead.
+ */
 export function PlayerDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: games } = useGames();
   const { data: sponsors } = useSponsors();
-  const { data: myManagedTeamIds } = useMyManagedTeamIds(user?.uid);
   const [activeKid, setActiveKid] = useState<string | null>(null);
   const memberships = profile?.playerOf ?? [];
 
@@ -42,13 +49,6 @@ export function PlayerDashboard() {
 
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
-  const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
-  // Account-wide, not per-kid tab — a coach/manager isn't necessarily a
-  // registered player themselves, so this doesn't come from playerOf at
-  // all. Excludes any team already shown above under real captaincy, in
-  // case the same person happens to be both.
-  const captainTeamIds = new Set(captainMemberships.map((m) => m.teamId));
-  const managedTeamIds = myManagedTeamIds.filter((id) => !captainTeamIds.has(id));
 
   return (
     <div className="page-shell-sm">
@@ -119,46 +119,8 @@ export function PlayerDashboard() {
             ))}
             {myGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
-
         </>
       )}
-
-      {/*
-        One merged section covering both ways someone ends up with team-
-        official tools — either is enough to show it (an OR, not an AND):
-        a real/appointed captain of a team they play on (captainMemberships,
-        from playerOf), or an admin-attached coach/manager of a team they
-        aren't necessarily on the roster of at all (managedTeamIds). That's
-        also why this whole block sits outside the memberships.length > 0
-        gate above — a coach/manager with zero memberships still needs to
-        see it. managedTeamIds already excludes any team counted under
-        captainMemberships, so there's no double-render for someone who
-        happens to be both on the same team.
-      */}
-      {(captainMemberships.length > 0 || managedTeamIds.length > 0) && (
-        <>
-          <SectionLabel>TEAM OFFICIAL TOOLS</SectionLabel>
-          {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} />)}
-          {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} canAppointCaptain />)}
-        </>
-      )}
-
-      <div style={{ marginTop: 32 }}>
-        {(() => {
-          const canFileReport = captainMemberships.length > 0 || managedTeamIds.length > 0;
-          return (
-            <Card
-              style={{ cursor: canFileReport ? "pointer" : "default", opacity: canFileReport ? 1 : 0.5 }}
-              onClick={() => canFileReport && navigate("/dashboard/report-issue")}
-            >
-              <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
-              <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
-                {canFileReport ? "$35 review fee (test card payment)" : "Team officials only"}
-              </div>
-            </Card>
-          );
-        })()}
-      </div>
 
       <div style={{ marginTop: 24 }}>
         <SponsorStrip sponsors={sponsors} />
@@ -263,15 +225,5 @@ function MyGameRow({ game, onOpen }: { game: Game; onOpen: () => void }) {
         <StatusBadge status={game.status} />
       </div>
     </Card>
-  );
-}
-
-function CaptainSection({ teamId, canAppointCaptain }: { teamId: string; canAppointCaptain?: boolean }) {
-  const { data: team } = useTeam(teamId);
-  if (!team) return null;
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <CaptainRoster team={team} canAppointCaptain={canAppointCaptain} />
-    </div>
   );
 }

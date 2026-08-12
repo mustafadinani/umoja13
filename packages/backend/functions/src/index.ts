@@ -38,7 +38,7 @@ export { sendPodMessage } from "./http/sendPodMessage.js";
 export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
 export { markChannelRead } from "./http/markChannelRead.js";
 export { setJerseyNumber } from "./http/setJerseyNumber.js";
-export { assignTeamOfficial, removeTeamOfficial } from "./http/assignTeamOfficial.js";
+export { assignTeamOfficial, removeTeamOfficial, getTeamOfficialNames } from "./http/assignTeamOfficial.js";
 export { setHuntStarted } from "./http/huntConfig.js";
 export { backfillTeamRosterAccess } from "./http/backfillTeamRosterAccess.js";
 export { syncMyRoleClaims } from "./http/syncMyRoleClaims.js";

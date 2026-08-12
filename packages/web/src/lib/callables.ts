@@ -174,6 +174,11 @@ export const removeTeamOfficial = httpsCallable<
   { ok: true }
 >(functions, "removeTeamOfficial");
 
+export const getTeamOfficialNames = httpsCallable<
+  { teamId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getTeamOfficialNames");
+
 export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number }>(
   functions,
   "backfillTeamRosterAccess"

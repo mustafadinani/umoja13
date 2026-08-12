@@ -191,3 +191,8 @@ export const removeTeamOfficial = httpsCallable<
   | { teamId: string; kind: "manager_coach"; uid: string },
   { ok: true }
 >(functions, "removeTeamOfficial");
+
+export const getTeamOfficialNames = httpsCallable<
+  { teamId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getTeamOfficialNames");

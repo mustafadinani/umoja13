@@ -5,6 +5,7 @@ import { setActiveRole } from "../../lib/callables";
 import { ROLE_LABELS } from "../../lib/roleLabels";
 import { Pill } from "../../components/ui";
 import { PlayerDashboard } from "./player/PlayerDashboard";
+import { TeamOfficialDashboard } from "./player/TeamOfficialDashboard";
 import { FanDashboard } from "./fan/FanDashboard";
 import { RefereeDashboard } from "./referee/RefereeDashboard";
 import { CommissionerDashboard } from "./commissioner/CommissionerDashboard";
@@ -77,9 +78,13 @@ export function Dashboard() {
   let body;
   switch (profile.primaryRole) {
     case "player":
+      body = <PlayerDashboard />;
+      break;
+    // Own tabbed view, scoped entirely to teams officiated — never mixed
+    // with personal player content (see TeamOfficialDashboard's top comment).
     case "captain":
     case "coach_manager":
-      body = <PlayerDashboard />;
+      body = <TeamOfficialDashboard />;
       break;
     case "volunteer":
       body = <VolunteerDashboard />;

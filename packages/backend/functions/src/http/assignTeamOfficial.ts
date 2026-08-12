@@ -36,7 +36,7 @@ import { buildBaseProfileFromOutreach } from "../util/outreachProfile.js";
  * MAX_TEAM_OFFICIALS's comment); there's no code path to remove or reassign it.
  */
 
-async function isTeamOfficialOrStaff(callerUid: string, teamId: string): Promise<boolean> {
+export async function isTeamOfficialOrStaff(callerUid: string, teamId: string): Promise<boolean> {
   const callerDoc = await db.collection(COLLECTIONS.users).doc(callerUid).get();
   const callerRoles: Role[] = callerDoc.data()?.roles ?? [];
   if (callerRoles.includes("admin") || callerRoles.includes("commissioner")) return true;
@@ -229,4 +229,42 @@ export const removeTeamOfficial = onCall<RemoveTeamOfficialRequest>(async (reque
     { merge: true }
   );
   return { ok: true };
+});
+
+interface GetTeamOfficialNamesRequest {
+  teamId: string;
+}
+
+/**
+ * Resolves this team's coachManagerUids to display names, for the self-serve
+ * Team Officials list (CaptainRoster.tsx's AddTeamOfficialPanel / its
+ * successor) to show who's currently a manager/coach with something to
+ * remove. Needed because users/{uid} reads are staff-or-self only
+ * (firestore.rules) — a captain has no direct read access to a
+ * coach/manager's account doc, only staff does (see TeamsAdminTab.tsx's
+ * useAllUsers, which is exactly that staff-only path). Deliberately returns
+ * only displayName, not email — unlike the staff admin view, a peer official
+ * doesn't need another official's contact info to manage the roster.
+ */
+export const getTeamOfficialNames = onCall<GetTeamOfficialNamesRequest>(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const { teamId } = request.data;
+  if (!teamId) throw new HttpsError("invalid-argument", "teamId is required.");
+
+  if (!(await isTeamOfficialOrStaff(callerUid, teamId))) {
+    throw new HttpsError("permission-denied", "Only this team's officials or staff can view this.");
+  }
+
+  const teamSnap = await db.collection(COLLECTIONS.teams).doc(teamId).get();
+  const coachManagerUids: string[] = teamSnap.data()?.coachManagerUids ?? [];
+  if (coachManagerUids.length === 0) return { members: [] };
+
+  const docs = await Promise.all(coachManagerUids.map((uid) => db.collection(COLLECTIONS.users).doc(uid).get()));
+  const members = docs.map((snap, i) => ({
+    uid: coachManagerUids[i],
+    displayName: (snap.data()?.displayName as string | undefined) ?? "Unknown",
+  }));
+  return { members };
 });
