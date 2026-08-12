@@ -15,8 +15,12 @@ type RoleSubject = Pick<UserProfile, "uid" | "email" | "displayName" | "roles" |
  * it via merge, same as editing an existing one.
  */
 export function UserRoleModal({ user, pods, onClose }: { user: RoleSubject; pods: Pod[]; onClose: () => void }) {
-  const [roles, setRoles] = useState<Role[]>(user.roles);
-  const [primaryRole, setPrimaryRole] = useState<Role>(user.primaryRole);
+  // A doc created by a feature that only writes one field (e.g. web push
+  // registration on a brand-new account, before any role was ever granted)
+  // has no roles/primaryRole yet — same case the "+ Add user" stub already
+  // handles, just arrived at from a different path.
+  const [roles, setRoles] = useState<Role[]>(user.roles ?? []);
+  const [primaryRole, setPrimaryRole] = useState<Role>(user.primaryRole ?? "fan");
   const [podIds, setPodIds] = useState<Set<string>>(
     new Set(pods.filter((p) => p.memberUids.includes(user.uid)).map((p) => p.id))
   );
@@ -67,7 +71,7 @@ export function UserRoleModal({ user, pods, onClose }: { user: RoleSubject; pods
     <Modal onClose={onClose} width={440}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 4 }}>{user.displayName}</div>
       <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 20 }}>{user.email || "No email on file"}</div>
-      {user.roles.length === 0 && (
+      {(user.roles ?? []).length === 0 && (
         <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, fontWeight: 600, marginBottom: 16 }}>
           This person hasn't opened the tournament app yet — saving here sets up their roles now, so they're already in place when they do.
         </div>

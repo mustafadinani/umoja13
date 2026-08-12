@@ -21,21 +21,31 @@ export const registerWebPushSubscription = onCall<RegisterWebPushSubscriptionReq
 
   // A real Firebase Auth account that had never opened the app before (e.g.
   // an Outreach-only fan browsing the public site) has no users/{uid} doc
-  // yet — a bare {webPushSubscription} merge would create one with no
-  // displayName/email, which crashes every admin screen that lists users
-  // and calls .toLowerCase() on those fields (see UsersAdminTab.tsx). Seed
-  // them from the Auth record the same way setUserRole.ts does, but only
-  // when the doc doesn't already exist — never clobber a real profile.
+  // yet — a bare {webPushSubscription} merge would create one with only that
+  // one field, missing every other UserProfile field the rest of the app
+  // assumes is always present (displayName/email/roles/primaryRole/...),
+  // which crashes any admin screen that lists users (see UsersAdminTab.tsx,
+  // UserRoleModal.tsx). Seed a full minimal profile — same shape
+  // AuthProvider.signUp writes for a brand-new signup — but only when the
+  // doc doesn't already exist; never clobber a real profile.
   const targetSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
-  const seed: Partial<{ email: string; displayName: string }> = {};
+  const now = Date.now();
+  let seed: Record<string, unknown> = {};
   if (!targetSnap.exists) {
     const authUser = await auth.getUser(uid);
-    seed.email = authUser.email ?? "";
-    seed.displayName = authUser.displayName ?? authUser.email ?? "Unnamed user";
+    seed = {
+      uid,
+      email: authUser.email ?? "",
+      displayName: authUser.displayName ?? authUser.email ?? "Unnamed user",
+      roles: ["fan"],
+      primaryRole: "fan",
+      followedTeamIds: [],
+      createdAt: now,
+    };
   }
 
   await db.collection(COLLECTIONS.users).doc(uid).set(
-    { ...seed, webPushSubscription: subscription ?? null, updatedAt: Date.now() },
+    { ...seed, webPushSubscription: subscription ?? null, updatedAt: now },
     { merge: true }
   );
 

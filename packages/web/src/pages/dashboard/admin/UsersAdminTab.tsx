@@ -64,7 +64,10 @@ export function UsersAdminTab() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 280 }}>
-                    {u.roles.map((r: Role) => (
+                    {/* Same guard as displayName/email above — a doc created by a
+                        feature that only writes one field (e.g. web push
+                        registration on a brand-new account) has no roles yet. */}
+                    {(u.roles ?? []).map((r: Role) => (
                       <span
                         key={r}
                         style={{
