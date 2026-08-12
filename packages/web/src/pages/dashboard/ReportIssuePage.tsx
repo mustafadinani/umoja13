@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   CATEGORIES,
   COMPLAINT_TYPE_LABELS,
+  compareGamesByKickoff,
   formatKickoffTime,
+  GAME_FIELDS,
+  TOURNAMENT_DAY_DATES,
   type ComplaintType,
   type Game,
 } from "@umoja/shared";
@@ -11,8 +14,14 @@ import { theme } from "../../lib/theme";
 import { createReportFeeIntent, filePaidReport } from "../../lib/callables";
 import { useAuth } from "../../auth/AuthProvider";
 import { useGames, useMyIncidents, useTeams } from "../../hooks/useData";
-import { Card, IncidentStatusPill, PrimaryButton } from "../../components/ui";
+import { Card, FilterDropdown, IncidentStatusPill, PrimaryButton } from "../../components/ui";
 import { StripePaymentForm } from "../../components/StripePaymentForm";
+
+const DAYS: { id: Game["day"]; label: string }[] = [
+  { id: "fri", label: `Fri, ${TOURNAMENT_DAY_DATES.fri}` },
+  { id: "sat", label: `Sat, ${TOURNAMENT_DAY_DATES.sat}` },
+  { id: "sun", label: `Sun, ${TOURNAMENT_DAY_DATES.sun}` },
+];
 
 function callableMessage(err: unknown, fallback: string) {
   if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
@@ -330,18 +339,36 @@ function GameSearchPicker({
   onSelect: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
+  const [day, setDay] = useState<Game["day"] | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [field, setField] = useState<string | null>(null);
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? "TBD";
+
+  const categoryOptions = useMemo(() => CATEGORIES.map((c) => ({ id: c.id, label: c.label })), []);
+  const fieldOptions = useMemo(() => GAME_FIELDS.map((f) => ({ id: f, label: f })), []);
+
+  // Same chronological order as Game Day's Schedule tab — the raw Firestore
+  // read has no inherent order, so without this the list reads as shuffled.
+  const sortedGames = useMemo(() => [...games].sort(compareGamesByKickoff), [games]);
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const pool = q
-      ? games.filter((g) => `${teamName(g.homeTeamId)} ${teamName(g.awayTeamId)} ${g.field}`.toLowerCase().includes(q))
-      : games;
-    return pool.slice(0, 30);
+    return sortedGames.filter((g) => {
+      if (day && g.day !== day) return false;
+      if (categoryId && g.categoryId !== categoryId) return false;
+      if (field && g.field !== field) return false;
+      if (q) {
+        const category = CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? "";
+        const haystack = `${teamName(g.homeTeamId)} ${teamName(g.awayTeamId)} ${g.field} ${category}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [games, search, teams]);
+  }, [sortedGames, search, day, categoryId, field, teams]);
 
   const selected = games.find((g) => g.id === selectedGameId) ?? null;
+  const hasFilters = !!(day || categoryId || field);
 
   if (selected) {
     return (
@@ -369,10 +396,24 @@ function GameSearchPicker({
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by team name or field…"
-        style={searchInputStyle}
+        placeholder="Search by team, category, or field…"
+        style={{ ...searchInputStyle, marginBottom: 8 }}
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8, maxHeight: 220, overflowY: "auto" }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: hasFilters ? 6 : 8 }}>
+        <FilterDropdown<Game["day"]> label="Day" value={day} options={DAYS} onChange={setDay} />
+        <FilterDropdown label="Category" value={categoryId} options={categoryOptions} onChange={setCategoryId} />
+        <FilterDropdown label="Field" value={field} options={fieldOptions} onChange={setField} />
+      </div>
+      {hasFilters && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {day && <FilterChip label={DAYS.find((d) => d.id === day)?.label ?? day} onRemove={() => setDay(null)} />}
+          {categoryId && (
+            <FilterChip label={CATEGORIES.find((c) => c.id === categoryId)?.label ?? categoryId} onRemove={() => setCategoryId(null)} />
+          )}
+          {field && <FilterChip label={field} onRemove={() => setField(null)} />}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
         {results.map((g) => (
           <button key={g.id} type="button" onClick={() => onSelect(g.id)} style={resultRowStyle}>
             <span style={{ fontWeight: 600 }}>
@@ -380,12 +421,36 @@ function GameSearchPicker({
             </span>
             <span style={{ color: theme.color.textMuted, fontSize: 12 }}>
               {" "}
-              — {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
+              — {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
             </span>
           </button>
         ))}
         {results.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 12.5 }}>No games found.</div>}
       </div>
+    </div>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div
+      onClick={onRemove}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#F1EFF5",
+        color: theme.color.purple,
+        padding: "5px 6px 5px 12px",
+        borderRadius: theme.radius.pill,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+      <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(139,47,209,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>✕</span>
     </div>
   );
 }

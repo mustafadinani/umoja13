@@ -5,7 +5,9 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import {
   CATEGORIES,
   COMPLAINT_TYPE_LABELS,
+  compareGamesByKickoff,
   formatKickoffTime,
+  TOURNAMENT_DAY_DATES,
   type ComplaintType,
   type Game,
 } from "@umoja/shared";
@@ -13,8 +15,14 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createReportFeeIntent, filePaidReport } from "../lib/callables";
 import { useGames, useMyIncidents, useTeams } from "../hooks/useData";
-import { Card, IncidentStatusPill, PrimaryButton } from "../components/ui";
+import { Card, IncidentStatusPill, Pill, PrimaryButton } from "../components/ui";
 import { StripePaymentForm } from "../components/StripePaymentForm";
+
+const DAYS: { id: Game["day"]; label: string }[] = [
+  { id: "fri", label: `Fri ${TOURNAMENT_DAY_DATES.fri}` },
+  { id: "sat", label: `Sat ${TOURNAMENT_DAY_DATES.sat}` },
+  { id: "sun", label: `Sun ${TOURNAMENT_DAY_DATES.sun}` },
+];
 
 function callableMessage(err: unknown, fallback: string) {
   if (err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string") {
@@ -313,16 +321,28 @@ function GameSearchPicker({
   onSelect: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
+  const [day, setDay] = useState<Game["day"] | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? "TBD";
+
+  // Same chronological order as the Schedule tab — the raw Firestore read
+  // has no inherent order, so without this the list reads as shuffled.
+  const sortedGames = useMemo(() => [...games].sort(compareGamesByKickoff), [games]);
 
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const pool = q
-      ? games.filter((g) => `${teamName(g.homeTeamId)} ${teamName(g.awayTeamId)} ${g.field}`.toLowerCase().includes(q))
-      : games;
-    return pool.slice(0, 30);
+    return sortedGames.filter((g) => {
+      if (day && g.day !== day) return false;
+      if (categoryId && g.categoryId !== categoryId) return false;
+      if (q) {
+        const category = CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? "";
+        const haystack = `${teamName(g.homeTeamId)} ${teamName(g.awayTeamId)} ${g.field} ${category}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [games, search, teams]);
+  }, [sortedGames, search, day, categoryId, teams]);
 
   const selected = games.find((g) => g.id === selectedGameId) ?? null;
 
@@ -349,13 +369,34 @@ function GameSearchPicker({
 
   return (
     <View style={{ marginBottom: 14 }}>
-      <TextInput value={search} onChangeText={setSearch} placeholder="Search by team name or field…" style={styles.searchInput} />
+      <TextInput
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Search by team, category, or field…"
+        style={styles.searchInput}
+      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }}>
+        <Pill active={!day} onPress={() => setDay(null)}>All days</Pill>
+        {DAYS.map((d) => (
+          <Pill key={d.id} active={day === d.id} onPress={() => setDay(day === d.id ? null : d.id)}>
+            {d.label}
+          </Pill>
+        ))}
+      </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 8 }}>
+        <Pill active={!categoryId} onPress={() => setCategoryId(null)}>All categories</Pill>
+        {CATEGORIES.map((c) => (
+          <Pill key={c.id} active={categoryId === c.id} onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}>
+            {c.label}
+          </Pill>
+        ))}
+      </ScrollView>
       {results.map((g) => (
         <TouchableOpacity key={g.id} onPress={() => onSelect(g.id)} style={styles.resultRow}>
           <Text style={{ fontWeight: "600" }}>
             {teamName(g.homeTeamId)} vs {teamName(g.awayTeamId)}{" "}
             <Text style={{ color: theme.color.textMuted, fontWeight: "400" }}>
-              — {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
+              — {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
             </Text>
           </Text>
         </TouchableOpacity>
