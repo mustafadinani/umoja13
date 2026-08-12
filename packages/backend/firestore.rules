@@ -109,8 +109,20 @@ service cloud.firestore {
     match /games/{gameId} {
       allow read: if true;
       allow create: if isStaff();
+      // A referee's own fields (gate check, cards, score, MOTM, forfeit) are
+      // only writable while the game card is still "not_submitted" (or never
+      // submitted at all) — gameCard itself is never in this affectedKeys
+      // list, so referees can never touch it directly; the ONLY way it moves
+      // back from "awaiting_commissioner" is the reopenGameCard callable
+      // (Admin SDK), which is the one deliberate, visible "make changes"
+      // action. Without this gate, a referee could quietly undo goals/cards/
+      // MOTM/gate-check clearances after submitting the card, with no
+      // warning and no record — and once the commissioner has called it
+      // final, reopenGameCard itself refuses, so nothing here can move at
+      // all past that point either.
       allow update: if isStaff() ||
         (isSignedIn() && request.auth.uid in resource.data.get('refereeUids', []) &&
+         resource.data.get('gameCard', {}).get('status', 'not_submitted') == 'not_submitted' &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['gateCheck', 'events', 'motmUserId', 'homeScore', 'awayScore', 'forfeit', 'status', 'updatedAt']) &&
          (request.resource.data.status == resource.data.status || request.resource.data.status == 'forfeited'));
@@ -124,8 +136,13 @@ service cloud.firestore {
     // anyone regardless of what the UI shows). Only staff and this specific
     // game's assigned referee(s) can read or write it.
     match /gameScorers/{gameId} {
-      allow read, write: if isStaff() ||
+      allow read: if isStaff() ||
         (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.get('refereeUids', []));
+      // Same post-submission lock as the games rule above — a referee can log/
+      // undo scorers only while that game's card is still "not_submitted".
+      allow write: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.get('refereeUids', []) &&
+         get(/databases/$(database)/documents/games/$(gameId)).data.get('gameCard', {}).get('status', 'not_submitted') == 'not_submitted');
     }
 
     // ---- check-ins & tournament passes: sensitive PII (selfie, gov ID, DOB) ----
@@ -176,7 +193,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff()) &&
         (request.resource.data.mediaType != 'embed' || (isStaff() &&
           (request.resource.data.mediaUrl.matches('^https://www[.]youtube[.]com/embed/[A-Za-z0-9_-]+$') ||
-           request.resource.data.mediaUrl.matches('^https://player[.]vimeo[.]com/video/[0-9]+$'))));
+           request.resource.data.mediaUrl.matches('^https://player[.]vimeo[.]com/video/[0-9]+$')))) &&
+        // Keep in sync with MOMENT_COMMENT_MAX_LENGTH (packages/shared/src/constants/moments.ts) —
+        // an unbounded comment here has broken feed rendering before; rules can't import the shared
+        // constant, so this is the enforced copy.
+        (!('comment' in request.resource.data) || request.resource.data.comment.size() <= 280);
       allow update: if isStaff() ||
         (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeUids']));
       allow delete: if isStaff() || (isSignedIn() && resource.data.postedBy == request.auth.uid);

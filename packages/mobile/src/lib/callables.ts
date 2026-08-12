@@ -27,6 +27,11 @@ export const submitGameCard = httpsCallable<
   { status: "awaiting_commissioner" }
 >(functions, "submitGameCard");
 
+export const reopenGameCard = httpsCallable<
+  { gameId: string },
+  { status: "not_submitted" }
+>(functions, "reopenGameCard");
+
 export const fileIncident = httpsCallable<
   {
     source: IncidentSource;

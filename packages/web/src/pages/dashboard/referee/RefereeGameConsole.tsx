@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, setDoc, updateDoc, arrayUnion, arrayRemove, deleteField } from "firebase/firestore";
 import { CATEGORIES, COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game, type GameEvent, type GameEventType, type GoalScorerEvent, type RosterEntry } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGame, useGameScorers, useGames, useTeam } from "../../../hooks/useData";
+import { reopenGameCard } from "../../../lib/callables";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 import { PlayerIdModal } from "./PlayerIdModal";
 import { ForfeitModal } from "./ForfeitModal";
@@ -33,6 +34,8 @@ export function RefereeGameConsole() {
   const [eventPicker, setEventPicker] = useState<{ type: GameEventType; side: "home" | "away" } | null>(null);
   const [scorerPicker, setScorerPicker] = useState<"home" | "away" | null>(null);
   const [motmSide, setMotmSide] = useState<"home" | "away">("home");
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState<string | null>(null);
 
   const category = CATEGORIES.find((c) => c.id === game?.categoryId);
   const minPerSide = category?.minPlayersToStart ?? 4;
@@ -68,14 +71,52 @@ export function RefereeGameConsole() {
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
   const cardStatus = game.gameCard?.status ?? "not_submitted";
+  // Once a card's been submitted, firestore.rules itself blocks every field
+  // below from being written by the referee (see games rule's gameCard.status
+  // gate) — this mirrors that in the UI so the console reads as locked
+  // instead of silently failing writes. "Make changes" (below) is the one
+  // deliberate way back into "not_submitted".
+  const locked = cardStatus !== "not_submitted";
+
+  // A verified-and-cleared roster is the pool every downstream action (cards,
+  // scorers, MOTM) is restricted to — a player who isn't checked-in-approved
+  // or hasn't been gate-check-cleared for this specific game has no business
+  // being credited with a goal, a card, or Player of the Game.
+  function eligibleRoster(side: "home" | "away"): RosterEntry[] {
+    // Non-null: the `!home || !away` guard above already returned before this
+    // point, but TS doesn't carry that narrowing into a nested function decl.
+    const roster = side === "home" ? home!.roster : away!.roster;
+    const cleared = side === "home" ? homeCleared : awayCleared;
+    return roster.filter((p) => p.checkInStatus === "approved" && cleared.includes(p.playerKey ?? p.userId));
+  }
 
   async function toggleClear(side: "home" | "away", playerKey: string) {
+    if (!gameId) return;
     const field = side === "home" ? "gateCheck.homeClearedUids" : "gateCheck.awayClearedUids";
     const list = side === "home" ? homeCleared : awayCleared;
-    if (!gameId) return;
+    const clearing = list.includes(playerKey);
     await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [field]: list.includes(playerKey) ? arrayRemove(playerKey) : arrayUnion(playerKey),
+      [field]: clearing ? arrayRemove(playerKey) : arrayUnion(playerKey),
+      // Un-clearing a player after gate check was already marked complete
+      // must revert it to pending — otherwise the "Gate check complete ✓"
+      // banner keeps showing (and Step 2/3 stay unlocked) even though one of
+      // the 3-per-side minimum is no longer actually cleared.
+      ...(clearing && gateComplete ? { "gateCheck.completedAt": deleteField(), "gateCheck.completedBy": deleteField() } : {}),
     });
+  }
+
+  async function reopen() {
+    if (!gameId) return;
+    if (!window.confirm("This sends the game back for commissioner review and unlocks it for changes. Continue?")) return;
+    setReopening(true);
+    setReopenError(null);
+    try {
+      await reopenGameCard({ gameId });
+    } catch (e) {
+      setReopenError(e instanceof Error ? e.message : "Couldn't reopen the game card.");
+    } finally {
+      setReopening(false);
+    }
   }
 
   async function completeGateCheck() {
@@ -176,8 +217,10 @@ export function RefereeGameConsole() {
             🚩 Declare Forfeit / No-Show
           </button>
 
-          {/* Step 1: Gate check */}
-          <div>
+          {/* Step 1: Gate check — locked once the card's been submitted, since
+              re-clearing/un-clearing players after the fact would silently
+              fail against firestore.rules anyway. */}
+          <div style={{ opacity: locked ? 0.5 : 1, pointerEvents: locked ? "none" : "auto" }}>
             <StepLabel n={1} title="GATE CHECK" done={gateComplete} />
             <div className="grid-2-equal">
               <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} games={allGames} teamId={g.homeTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
@@ -198,8 +241,9 @@ export function RefereeGameConsole() {
             )}
           </div>
 
-          {/* Step 2: Match console (locked) */}
-          <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
+          {/* Step 2: Match console (locked until gate check is complete, and
+              again once the card's been submitted — see `locked` above) */}
+          <div style={{ opacity: gateComplete && !locked ? 1 : 0.4, pointerEvents: gateComplete && !locked ? "auto" : "none" }}>
             <StepLabel n={2} title="MATCH CONSOLE" />
             <div style={{ background: theme.color.navy, color: "#fff", borderRadius: theme.radius.md, padding: 20, marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}>
@@ -255,15 +299,17 @@ export function RefereeGameConsole() {
             </div>
           </div>
 
-          {/* Step 3: Player of the Game */}
-          <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
+          {/* Step 3: Player of the Game — restricted to players who are both
+              check-in-approved and gate-check-cleared for this game, never
+              the full roster (see eligibleRoster above). */}
+          <div style={{ opacity: gateComplete && !locked ? 1 : 0.4, pointerEvents: gateComplete && !locked ? "auto" : "none" }}>
             <StepLabel n={3} title="PLAYER OF THE GAME" />
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               <Pill active={motmSide === "home"} onClick={() => setMotmSide("home")}>{home.name}</Pill>
               <Pill active={motmSide === "away"} onClick={() => setMotmSide("away")}>{away.name}</Pill>
             </div>
             <div data-testid="motm-section" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {(motmSide === "home" ? home.roster : away.roster).map((p) => {
+              {eligibleRoster(motmSide).map((p) => {
                 const playerKey = p.playerKey ?? p.userId;
                 return (
                   <Pill key={playerKey} active={game.motmUserId === playerKey} onClick={() => pickMotm(playerKey)}>
@@ -271,13 +317,17 @@ export function RefereeGameConsole() {
                   </Pill>
                 );
               })}
-              {(motmSide === "home" ? home.roster : away.roster).length === 0 && (
-                <div style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</div>
+              {eligibleRoster(motmSide).length === 0 && (
+                <div style={{ fontSize: 12, color: theme.color.textMuted }}>No cleared, verified players yet.</div>
               )}
             </div>
           </div>
 
-          {/* Step 4: Submit card */}
+          {/* Step 4: Submit card — gated on gate check only, not on `locked`:
+              once a card's been submitted this step is exactly where the
+              submitted/final status and the "make changes" escape hatch
+              live, so it must stay fully interactive rather than dimming
+              itself out along with the now-locked steps above. */}
           <div style={{ opacity: gateComplete ? 1 : 0.4, pointerEvents: gateComplete ? "auto" : "none" }}>
             <StepLabel n={4} title="SUBMIT GAME CARD" />
             {cardStatus === "not_submitted" && (
@@ -286,13 +336,23 @@ export function RefereeGameConsole() {
               </PrimaryButton>
             )}
             {cardStatus === "awaiting_commissioner" && (
-              <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>
-                Awaiting commissioner ⏳
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>
+                  Awaiting commissioner ⏳
+                </div>
+                <button
+                  onClick={reopen}
+                  disabled={reopening}
+                  style={{ background: "none", border: `1px solid ${theme.color.border}`, color: theme.color.textMuted, borderRadius: theme.radius.sm, padding: "10px 14px", fontWeight: 700, fontSize: 12.5, opacity: reopening ? 0.6 : 1 }}
+                >
+                  {reopening ? "Reopening…" : "✏️ Make changes (sends back for commissioner review)"}
+                </button>
+                {reopenError && <div style={{ color: theme.color.danger, fontSize: 12.5 }}>{reopenError}</div>}
               </div>
             )}
             {cardStatus === "final" && (
               <div style={{ background: theme.color.successBg, color: theme.color.success, borderRadius: theme.radius.sm, padding: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>
-                Final ✓ · called by commissioner
+                Final ✓ · called by commissioner — no further changes can be made
               </div>
             )}
           </div>
@@ -323,7 +383,7 @@ export function RefereeGameConsole() {
       {cardOpen && gameId && <SubmitGameCardModal gameId={gameId} onClose={() => setCardOpen(false)} onSubmitted={() => {}} />}
       {eventPicker && (
         <EventPlayerPicker
-          roster={eventPicker.side === "home" ? home.roster : away.roster}
+          roster={eligibleRoster(eventPicker.side)}
           redCardedUids={redCardedUids}
           onPick={(p) => logEvent(p, eventPicker.side)}
           onClose={() => setEventPicker(null)}
@@ -331,7 +391,7 @@ export function RefereeGameConsole() {
       )}
       {scorerPicker && (
         <EventPlayerPicker
-          roster={scorerPicker === "home" ? home.roster : away.roster}
+          roster={eligibleRoster(scorerPicker)}
           redCardedUids={redCardedUids}
           onPick={(p) => logScorer(p, scorerPicker)}
           onClose={() => setScorerPicker(null)}

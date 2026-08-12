@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
-import { COLLECTIONS, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
+import { COLLECTIONS, MOMENT_COMMENT_MAX_LENGTH, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
 import { storage, db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -218,12 +218,18 @@ export function MomentUploadModal({
         ))}
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8 }}>Add a comment (optional)</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>Add a comment (optional)</div>
+        <div style={{ fontSize: 11.5, color: comment.length >= MOMENT_COMMENT_MAX_LENGTH ? theme.color.danger : theme.color.textMuted }}>
+          {comment.length}/{MOMENT_COMMENT_MAX_LENGTH}
+        </div>
+      </div>
       <textarea
         value={comment}
-        onChange={(e) => setComment(e.target.value)}
+        onChange={(e) => setComment(e.target.value.slice(0, MOMENT_COMMENT_MAX_LENGTH))}
         placeholder="Say something about this moment…"
         rows={2}
+        maxLength={MOMENT_COMMENT_MAX_LENGTH}
         style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
       />
 

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { compareTaskTimes, type VolunteerApplication } from "@umoja/shared";
+import { compareTaskTimes, type VolunteerApplication, type VolunteerTask } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { colorForSeed } from "../../../lib/podColors";
 import { useVolunteers, useVolunteerApplications, useVolunteerTasks } from "../../../hooks/useData";
 import { Avatar, Card, Pill, PrimaryButton } from "../../../components/ui";
+import { VolunteerTaskDetailModal } from "../../../components/VolunteerTaskDetailModal";
 import { VolunteerApplicationModal } from "./VolunteerApplicationModal";
 import { AddVolunteerTaskModal } from "./AddVolunteerTaskModal";
 
@@ -12,6 +13,7 @@ export function VolunteersTab() {
   const { data: applications } = useVolunteerApplications();
   const { data: tasks } = useVolunteerTasks();
   const [openApplication, setOpenApplication] = useState<VolunteerApplication | null>(null);
+  const [openTask, setOpenTask] = useState<VolunteerTask | null>(null);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [showAllVolunteers, setShowAllVolunteers] = useState(false);
 
@@ -98,7 +100,7 @@ export function VolunteersTab() {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {sortedTasks.map((t) => (
-          <Card key={t.id} style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+          <Card key={t.id} onClick={() => setOpenTask(t)} style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
             <Avatar name={t.assigneeName ?? "?"} color={t.assigneeUid ? colorForSeed(t.assigneeUid) : theme.color.textMuted} />
             <div style={{ flex: 1, minWidth: 120 }}>
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{t.title}</div>
@@ -114,6 +116,7 @@ export function VolunteersTab() {
 
       {openApplication && <VolunteerApplicationModal application={openApplication} onClose={() => setOpenApplication(null)} />}
       {addTaskOpen && <AddVolunteerTaskModal onClose={() => setAddTaskOpen(false)} />}
+      {openTask && <VolunteerTaskDetailModal task={openTask} onClose={() => setOpenTask(null)} />}
     </div>
   );
 }

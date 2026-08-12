@@ -3,7 +3,7 @@ import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Keyboard } 
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
-import { COLLECTIONS, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
+import { COLLECTIONS, MOMENT_COMMENT_MAX_LENGTH, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
@@ -202,12 +202,16 @@ export function MomentUploadModal({
       </View>
       <TextInput
         value={comment}
-        onChangeText={setComment}
+        onChangeText={(t) => setComment(t.slice(0, MOMENT_COMMENT_MAX_LENGTH))}
         placeholder="Say something about this moment…"
         multiline
         numberOfLines={2}
+        maxLength={MOMENT_COMMENT_MAX_LENGTH}
         style={styles.commentInput}
       />
+      <Text style={{ fontSize: 11.5, color: comment.length >= MOMENT_COMMENT_MAX_LENGTH ? theme.color.danger : theme.color.textMuted, textAlign: "right", marginTop: -10, marginBottom: 4 }}>
+        {comment.length}/{MOMENT_COMMENT_MAX_LENGTH}
+      </Text>
 
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Tag people (optional)</Text>
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>

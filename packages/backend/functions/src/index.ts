@@ -4,7 +4,7 @@ export { reviewVolunteerApplication } from "./http/reviewVolunteerApplication.js
 export { reviewChallengeSubmission } from "./http/reviewChallengeSubmission.js";
 export { adminReviewCheckIn } from "./http/adminReviewCheckIn.js";
 export { setCheckInPhotoOverride } from "./http/setCheckInPhotoOverride.js";
-export { submitGameCard } from "./http/submitGameCard.js";
+export { submitGameCard, reopenGameCard } from "./http/submitGameCard.js";
 export { fileIncident } from "./http/fileIncident.js";
 export { callItFinal } from "./http/callItFinal.js";
 export { askUmojaChannel } from "./ai/chatAssistant.js";

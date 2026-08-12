@@ -43,7 +43,13 @@ export const onGameWrite = onDocumentWritten(
 
     let homeGoals: number;
     let awayGoals: number;
-    if (g.forfeit) {
+    // Branch on g.status, not on g.forfeit's mere presence — a game whose
+    // status was reverted back off "forfeited" (e.g. staff correcting a
+    // mistaken forfeit call) can still carry a stale `forfeit` object if
+    // nothing ever clears it, and a truthy-check here would then score a
+    // legitimately-played, properly-finalized 0-0 game as a 5-0 forfeit
+    // result instead of the real draw.
+    if (g.status === "forfeited" && g.forfeit) {
       homeGoals = g.forfeit.outcome === "home_win" ? 5 : g.forfeit.outcome === "away_win" ? 0 : 0;
       awayGoals = g.forfeit.outcome === "away_win" ? 5 : g.forfeit.outcome === "home_win" ? 0 : 0;
     } else {
@@ -57,7 +63,7 @@ export const onGameWrite = onDocumentWritten(
     if (!home || !away) continue;
 
     // Double no-show: no points, no W/D/L, no GF/GA recorded per the official rules.
-    if (g.forfeit?.outcome === "double_no_show") continue;
+    if (g.status === "forfeited" && g.forfeit?.outcome === "double_no_show") continue;
 
     home.goalsFor += homeGoals;
     home.goalsAgainst += awayGoals;
@@ -112,10 +118,12 @@ export const onGameWrite = onDocumentWritten(
   for (const gdoc of gamesSnap.docs) {
     const g = gdoc.data() as Game;
     if (!g.matchCode || (g.status !== "final" && g.status !== "forfeited")) continue;
-    if (g.forfeit?.outcome === "double_no_show") continue;
+    if (g.status === "forfeited" && g.forfeit?.outcome === "double_no_show") continue;
     let winnerId: string | undefined;
     let loserId: string | undefined;
-    if (g.forfeit) {
+    // Same g.status guard as the stats loop above — a stale g.forfeit object
+    // left over from a reverted forfeit call must not be read as live.
+    if (g.status === "forfeited" && g.forfeit) {
       winnerId = g.forfeit.outcome === "home_win" ? g.homeTeamId : g.awayTeamId;
       loserId = g.forfeit.outcome === "home_win" ? g.awayTeamId : g.homeTeamId;
     } else {

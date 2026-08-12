@@ -38,7 +38,17 @@ export function GameDetailModal({ game, onClose }: { game: Game; onClose: () => 
   const redCardedUids = new Set(game.events.filter((e) => e.type === "red_card").map((e) => e.playerId));
 
   async function setStatus(status: GameStatus) {
-    await updateDoc(doc(db, COLLECTIONS.games, game.id), { status, updatedAt: Date.now() });
+    // Clear a stale Game.forfeit whenever reverting off "forfeited" — the
+    // standings trigger (onGameWrite) branches on status now rather than
+    // forfeit's mere presence, but leaving it around is still a data-hygiene
+    // trap for anything else that might read it later. A real re-forfeit
+    // always goes back through ForfeitModal, which sets a fresh one anyway.
+    const clearForfeit = status !== "forfeited" && !!game.forfeit;
+    await updateDoc(doc(db, COLLECTIONS.games, game.id), {
+      status,
+      ...(clearForfeit ? { forfeit: deleteField() } : {}),
+      updatedAt: Date.now(),
+    });
   }
 
   // Same direct write the referee console makes (firestore.rules already lets

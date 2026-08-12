@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, setDoc, updateDoc, arrayUnion, arrayRemove, deleteField } from "firebase/firestore";
 import { CATEGORIES, COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game, type GameEvent, type GameEventType, type GoalScorerEvent, type RosterEntry } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGame, useGameScorers, useGames, useTeam } from "../hooks/useData";
+import { reopenGameCard } from "../lib/callables";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
 import { PlayerIdModal } from "../components/PlayerIdModal";
 import { ForfeitModal } from "../components/ForfeitModal";
@@ -34,6 +35,8 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const [eventPicker, setEventPicker] = useState<{ type: GameEventType; side: "home" | "away" } | null>(null);
   const [scorerPicker, setScorerPicker] = useState<"home" | "away" | null>(null);
   const [motmSide, setMotmSide] = useState<"home" | "away">("home");
+  const [reopening, setReopening] = useState(false);
+  const [reopenError, setReopenError] = useState<string | null>(null);
 
   const category = CATEGORIES.find((c) => c.id === game?.categoryId);
   const minPerSide = category?.minPlayersToStart ?? 4;
@@ -59,13 +62,62 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
   const homeGoals = game.homeScore ?? 0;
   const awayGoals = game.awayScore ?? 0;
   const cardStatus = game.gameCard?.status ?? "not_submitted";
+  // Once a card's been submitted, firestore.rules itself blocks every field
+  // below from being written by the referee (see games rule's gameCard.status
+  // gate) — this mirrors that in the UI so the console reads as locked
+  // instead of silently failing writes. "Make changes" (below) is the one
+  // deliberate way back into "not_submitted".
+  const locked = cardStatus !== "not_submitted";
+
+  // A verified-and-cleared roster is the pool every downstream action (cards,
+  // scorers, MOTM) is restricted to — a player who isn't checked-in-approved
+  // or hasn't been gate-check-cleared for this specific game has no business
+  // being credited with a goal, a card, or Player of the Game.
+  function eligibleRoster(side: "home" | "away"): RosterEntry[] {
+    // Non-null: the `!home || !away` guard above already returned before this
+    // point, but TS doesn't carry that narrowing into a nested function decl.
+    const roster = side === "home" ? home!.roster : away!.roster;
+    const cleared = side === "home" ? homeCleared : awayCleared;
+    return roster.filter((p) => p.checkInStatus === "approved" && cleared.includes(p.playerKey ?? p.userId));
+  }
 
   async function toggleClear(side: "home" | "away", playerKey: string) {
     const field = side === "home" ? "gateCheck.homeClearedUids" : "gateCheck.awayClearedUids";
     const list = side === "home" ? homeCleared : awayCleared;
+    const clearing = list.includes(playerKey);
     await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [field]: list.includes(playerKey) ? arrayRemove(playerKey) : arrayUnion(playerKey),
+      [field]: clearing ? arrayRemove(playerKey) : arrayUnion(playerKey),
+      // Un-clearing a player after gate check was already marked complete
+      // must revert it to pending — otherwise the "Gate check complete ✓"
+      // banner keeps showing (and Step 2/3 stay unlocked) even though one of
+      // the 3-per-side minimum is no longer actually cleared.
+      ...(clearing && gateComplete ? { "gateCheck.completedAt": deleteField(), "gateCheck.completedBy": deleteField() } : {}),
     });
+  }
+
+  async function reopen() {
+    Alert.alert(
+      "Make changes?",
+      "This sends the game back for commissioner review and unlocks it for changes.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reopen",
+          style: "destructive",
+          onPress: async () => {
+            setReopening(true);
+            setReopenError(null);
+            try {
+              await reopenGameCard({ gameId });
+            } catch (e) {
+              setReopenError(e instanceof Error ? e.message : "Couldn't reopen the game card.");
+            } finally {
+              setReopening(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function completeGateCheck() {
@@ -162,8 +214,10 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
             <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 13 }}>🚩 Declare Forfeit / No-Show</Text>
           </TouchableOpacity>
 
-          {/* Step 1: Gate check */}
-          <View>
+          {/* Step 1: Gate check — locked once the card's been submitted, since
+              re-clearing/un-clearing players after the fact would silently
+              fail against firestore.rules anyway. */}
+          <View style={{ opacity: locked ? 0.5 : 1 }} pointerEvents={locked ? "none" : "auto"}>
             <StepLabel n={1} title="GATE CHECK" done={gateComplete} />
             <View style={{ flexDirection: "row", gap: 12 }}>
               <RosterColumn teamName={home.name} roster={home.roster} cleared={homeCleared} games={allGames} teamId={g.homeTeamId} onPick={(p) => setIdModalPlayer({ player: p, side: "home" })} />
@@ -184,8 +238,9 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
             )}
           </View>
 
-          {/* Step 2: Match console */}
-          <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
+          {/* Step 2: Match console (locked until gate check is complete, and
+              again once the card's been submitted — see `locked` above) */}
+          <View style={{ opacity: gateComplete && !locked ? 1 : 0.4 }} pointerEvents={gateComplete && !locked ? "auto" : "none"}>
             <StepLabel n={2} title="MATCH CONSOLE" />
             <View style={styles.scoreBox}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 18 }}>
@@ -238,15 +293,17 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
             </View>
           </View>
 
-          {/* Step 3: Player of the Game */}
-          <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
+          {/* Step 3: Player of the Game — restricted to players who are both
+              check-in-approved and gate-check-cleared for this game, never
+              the full roster (see eligibleRoster above). */}
+          <View style={{ opacity: gateComplete && !locked ? 1 : 0.4 }} pointerEvents={gateComplete && !locked ? "auto" : "none"}>
             <StepLabel n={3} title="PLAYER OF THE GAME" />
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
               <Pill active={motmSide === "home"} onPress={() => setMotmSide("home")}>{home.name}</Pill>
               <Pill active={motmSide === "away"} onPress={() => setMotmSide("away")}>{away.name}</Pill>
             </View>
             <View style={{ gap: 6 }}>
-              {(motmSide === "home" ? home.roster : away.roster).map((p) => {
+              {eligibleRoster(motmSide).map((p) => {
                 const playerKey = p.playerKey ?? p.userId;
                 return (
                   <Pill key={playerKey} active={game.motmUserId === playerKey} onPress={() => pickMotm(playerKey)}>
@@ -254,13 +311,17 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
                   </Pill>
                 );
               })}
-              {(motmSide === "home" ? home.roster : away.roster).length === 0 && (
-                <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No roster yet.</Text>
+              {eligibleRoster(motmSide).length === 0 && (
+                <Text style={{ fontSize: 12, color: theme.color.textMuted }}>No cleared, verified players yet.</Text>
               )}
             </View>
           </View>
 
-          {/* Step 4: Submit card */}
+          {/* Step 4: Submit card — gated on gate check only, not on `locked`:
+              once a card's been submitted this step is exactly where the
+              submitted/final status and the "make changes" escape hatch
+              live, so it must stay fully interactive rather than dimming
+              itself out along with the now-locked steps above. */}
           <View style={{ opacity: gateComplete ? 1 : 0.4 }} pointerEvents={gateComplete ? "auto" : "none"}>
             <StepLabel n={4} title="SUBMIT GAME CARD" />
             {cardStatus === "not_submitted" && (
@@ -269,13 +330,21 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
               </PrimaryButton>
             )}
             {cardStatus === "awaiting_commissioner" && (
-              <View style={styles.pendingBanner}>
-                <Text style={{ color: theme.color.warning, fontWeight: "700", fontSize: 13 }}>Awaiting commissioner ⏳</Text>
+              <View style={{ gap: 8 }}>
+                <View style={styles.pendingBanner}>
+                  <Text style={{ color: theme.color.warning, fontWeight: "700", fontSize: 13 }}>Awaiting commissioner ⏳</Text>
+                </View>
+                <TouchableOpacity onPress={reopen} disabled={reopening} style={[styles.reopenBtn, reopening && { opacity: 0.6 }]}>
+                  <Text style={{ color: theme.color.textMuted, fontWeight: "700", fontSize: 12.5 }}>
+                    {reopening ? "Reopening…" : "✏️ Make changes (sends back for commissioner review)"}
+                  </Text>
+                </TouchableOpacity>
+                {reopenError && <Text style={{ color: theme.color.danger, fontSize: 12.5 }}>{reopenError}</Text>}
               </View>
             )}
             {cardStatus === "final" && (
               <View style={styles.doneBanner}>
-                <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Final ✓ · called by commissioner</Text>
+                <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Final ✓ · called by commissioner — no further changes can be made</Text>
               </View>
             )}
           </View>
@@ -308,7 +377,7 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
         <Modal visible onClose={() => setEventPicker(null)}>
           <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Which player?</Text>
           <View style={{ gap: 6 }}>
-            {(eventPicker.side === "home" ? home.roster : away.roster)
+            {eligibleRoster(eventPicker.side)
               .filter((p) => !redCardedUids.has(p.playerKey ?? p.userId))
               .map((p) => (
                 <TouchableOpacity key={p.playerKey ?? p.userId} onPress={() => logEvent(p, eventPicker.side)} style={styles.pickerRow}>
@@ -322,7 +391,7 @@ export function RefereeGameScreen({ route, navigation }: NativeStackScreenProps<
         <Modal visible onClose={() => setScorerPicker(null)}>
           <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Which player?</Text>
           <View style={{ gap: 6 }}>
-            {(scorerPicker === "home" ? home.roster : away.roster)
+            {eligibleRoster(scorerPicker)
               .filter((p) => !redCardedUids.has(p.playerKey ?? p.userId))
               .map((p) => (
                 <TouchableOpacity key={p.playerKey ?? p.userId} onPress={() => logScorer(p, scorerPicker)} style={styles.pickerRow}>
@@ -424,5 +493,6 @@ const styles = StyleSheet.create({
   eventBtn: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: theme.radius.sm, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
   logRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#fff", borderRadius: 6, borderWidth: 1, borderColor: theme.color.border },
   pickerRow: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
+  reopenBtn: { borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm, paddingVertical: 10, paddingHorizontal: 14, alignItems: "center" },
   rosterRow: { flexDirection: "row", alignItems: "center", padding: 8, borderRadius: 8, borderWidth: 1, borderColor: theme.color.border, backgroundColor: "#fff" },
 });
