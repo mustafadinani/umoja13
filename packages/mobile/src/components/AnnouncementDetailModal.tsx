@@ -2,6 +2,7 @@ import { View, Text } from "react-native";
 import type { Announcement } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal } from "./ui";
+import { LinkifiedText } from "./LinkifiedText";
 
 /** Shared by Home's teaser and the merged inbox screen — one place that renders a full announcement. */
 export function AnnouncementDetailModal({ announcement, onClose }: { announcement: Announcement | null; onClose: () => void }) {
@@ -14,7 +15,7 @@ export function AnnouncementDetailModal({ announcement, onClose }: { announcemen
             {new Date(announcement.postedAt).toLocaleString()}
             {announcement.postedByName ? ` · ${announcement.postedByName}` : ""}
           </Text>
-          <Text style={{ fontSize: 14.5, lineHeight: 21 }}>{announcement.body}</Text>
+          <LinkifiedText text={announcement.body} style={{ fontSize: 14.5, lineHeight: 21 }} />
         </View>
       )}
     </Modal>

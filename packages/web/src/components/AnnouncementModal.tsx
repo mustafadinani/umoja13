@@ -1,6 +1,7 @@
 import type { Announcement } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal } from "./ui";
+import { LinkifiedText } from "./LinkifiedText";
 
 export function AnnouncementModal({ announcement, onClose }: { announcement: Announcement; onClose: () => void }) {
   return (
@@ -10,7 +11,7 @@ export function AnnouncementModal({ announcement, onClose }: { announcement: Ann
         {new Date(announcement.postedAt).toLocaleString()}
         {announcement.postedByName ? ` · ${announcement.postedByName}` : ""}
       </div>
-      <div style={{ fontSize: 15, lineHeight: 1.6 }}>{announcement.body}</div>
+      <LinkifiedText text={announcement.body} style={{ fontSize: 15, lineHeight: 1.6 }} />
     </Modal>
   );
 }

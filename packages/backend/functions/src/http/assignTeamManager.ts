@@ -56,10 +56,17 @@ export const assignTeamManager = onCall<AssignTeamManagerRequest>(async (request
   // over their richer Outreach-derived profile (name/photo/family/team
   // memberships) the instant it exists.
   const targetSnap = await db.collection(COLLECTIONS.users).doc(targetUid).get();
-  const existingRoles: Role[] = targetSnap.data()?.roles ?? [];
-  const roles: Role[] = existingRoles.includes("coach_manager") ? existingRoles : [...existingRoles, "coach_manager"];
-  const primaryRole: Role = targetSnap.data()?.primaryRole ?? "coach_manager";
   const baseProfile = targetSnap.exists ? {} : await buildBaseProfileFromOutreach(targetUid);
+  // Union of whatever roles the account already had and whatever Outreach
+  // says it should have (only known once baseProfile is computed above, for
+  // a brand-new users/{uid} doc) — same fix as reviewVolunteerApplication.
+  // Computing existingRoles from targetSnap ALONE meant a real registered
+  // player/fan with no users/{uid} doc yet got only ["coach_manager"]
+  // written here, silently dropping their real "player"/"fan" role the
+  // instant this doc was created (the exact bug this comment now prevents).
+  const existingRoles: Role[] = targetSnap.data()?.roles ?? baseProfile.roles ?? [];
+  const roles: Role[] = existingRoles.includes("coach_manager") ? existingRoles : [...existingRoles, "coach_manager"];
+  const primaryRole: Role = targetSnap.data()?.primaryRole ?? baseProfile.primaryRole ?? "coach_manager";
 
   await auth.setCustomUserClaims(targetUid, { roles });
   await db.collection(COLLECTIONS.users).doc(targetUid).set(

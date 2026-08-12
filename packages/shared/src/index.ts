@@ -33,6 +33,7 @@ export * from "./constants/experiences.js";
 export * from "./constants/rules.js";
 export * from "./constants/professions.js";
 
+export * from "./lib/linkify.js";
 export * from "./firestore-paths.js";
 export * from "./types/registration.js";
 export * from "./types/outreachProfile.js";

@@ -9,6 +9,7 @@ import {
   deleteAnnouncement,
 } from "../../../lib/callables";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { LinkifiedText } from "../../../components/LinkifiedText";
 
 type TargetMode = "all" | "role" | "game";
 
@@ -281,7 +282,7 @@ export function NotificationsAdminTab() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                   <div style={{ flex: 1, minWidth: 180 }}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{a.title}</div>
-                    <div style={{ fontSize: 13, color: theme.color.text, marginTop: 4, lineHeight: 1.45 }}>{a.body}</div>
+                    <LinkifiedText text={a.body} style={{ fontSize: 13, color: theme.color.text, marginTop: 4, lineHeight: 1.45, display: "block" }} />
                     <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginTop: 6 }}>
                       {a.postedByName ?? "Umoja"} · {new Date(a.postedAt).toLocaleString()}
                     </div>

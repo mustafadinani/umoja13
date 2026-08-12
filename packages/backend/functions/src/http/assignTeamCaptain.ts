@@ -57,10 +57,16 @@ export const assignTeamCaptain = onCall<AssignTeamCaptainRequest>(async (request
   // authoritative over their richer Outreach-derived profile the instant it
   // exists.
   const targetSnap = await db.collection(COLLECTIONS.users).doc(targetUid).get();
-  const existingRoles: Role[] = targetSnap.data()?.roles ?? [];
-  const roles: Role[] = existingRoles.includes("captain") ? existingRoles : [...existingRoles, "captain"];
-  const primaryRole: Role = targetSnap.data()?.primaryRole ?? "captain";
   const baseProfile = targetSnap.exists ? {} : await buildBaseProfileFromOutreach(targetUid);
+  // Union of whatever roles the account already had and whatever Outreach
+  // says it should have (only known once baseProfile is computed above) —
+  // same fix as reviewVolunteerApplication/assignTeamManager. Computing
+  // existingRoles from targetSnap ALONE would silently drop a real
+  // registered player/fan's "player"/"fan" role the instant their first-ever
+  // users/{uid} doc is created here.
+  const existingRoles: Role[] = targetSnap.data()?.roles ?? baseProfile.roles ?? [];
+  const roles: Role[] = existingRoles.includes("captain") ? existingRoles : [...existingRoles, "captain"];
+  const primaryRole: Role = targetSnap.data()?.primaryRole ?? baseProfile.primaryRole ?? "captain";
 
   await auth.setCustomUserClaims(targetUid, { roles });
   await db.collection(COLLECTIONS.users).doc(targetUid).set(
