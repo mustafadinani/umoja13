@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 import type {
   IncidentSource,
   ComplaintType,
@@ -16,6 +16,12 @@ import type {
 import { app } from "./firebase";
 
 const functions = getFunctions(app, "us-central1");
+// firebase.ts only wires up auth/firestore/storage emulators — functions needs
+// its own connect call, and was previously missing one, so callables silently
+// hit production even with VITE_USE_FIREBASE_EMULATORS=true set.
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true") {
+  connectFunctionsEmulator(functions, "localhost", 5001);
+}
 
 export const adminReviewCheckIn = httpsCallable<
   { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore"; reason?: string },
@@ -128,7 +134,7 @@ type NotificationTarget =
 
 export const sendNotification = httpsCallable<
   { title: string; body: string; target: NotificationTarget },
-  { notifiedCount: number; pushCount: number }
+  { notifiedCount: number; pushCount: number; emailCount: number }
 >(functions, "sendNotification");
 
 export const postAnnouncement = httpsCallable<

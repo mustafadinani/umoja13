@@ -1,5 +1,7 @@
 import { COLLECTIONS } from "@umoja/shared";
 import { db } from "./admin.js";
+import { sendEmail } from "../services/emailjs.service.js";
+import { announcementEmail } from "./emailTemplates.js";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -14,20 +16,26 @@ function chunk<T>(items: T[], size: number): T[][] {
  * Writes an in-app notification doc for each uid (always) and best-effort
  * sends an Expo push to any uid with a registered device token. Shared by
  * sendNotification (admin broadcast) and sendTeamMessage (team channel).
+ *
+ * Pass `{ email: true }` (sendNotification only — team/role channel replies
+ * stay push+in-app-only so a chat thread doesn't turn into an inbox) to also
+ * email anyone who doesn't have a registered push token, as a delivery
+ * fallback for admin broadcasts / game-time reminders.
  */
 export async function notifyUsers(
   uids: string[],
   title: string,
-  body: string
-): Promise<{ notifiedCount: number; pushCount: number }> {
+  body: string,
+  opts: { email?: boolean } = {}
+): Promise<{ notifiedCount: number; pushCount: number; emailCount: number }> {
   const uniqueUids = [...new Set(uids)].filter(Boolean);
-  if (uniqueUids.length === 0) return { notifiedCount: 0, pushCount: 0 };
+  if (uniqueUids.length === 0) return { notifiedCount: 0, pushCount: 0, emailCount: 0 };
 
-  const users: { uid: string; pushToken?: string }[] = [];
+  const users: { uid: string; email?: string; pushToken?: string }[] = [];
   for (const batch of chunk(uniqueUids, 30)) {
     const docs = await Promise.all(batch.map((uid) => db.collection(COLLECTIONS.users).doc(uid).get()));
     for (const d of docs) {
-      if (d.exists) users.push({ uid: d.id, pushToken: d.data()?.pushToken });
+      if (d.exists) users.push({ uid: d.id, email: d.data()?.email, pushToken: d.data()?.pushToken });
     }
   }
 
@@ -69,5 +77,25 @@ export async function notifyUsers(
     }
   }
 
-  return { notifiedCount: users.length, pushCount };
+  let emailCount = 0;
+  if (opts.email) {
+    // Fallback channel only — anyone who already gets a push doesn't also get emailed.
+    const emailRecipients = users.filter(
+      (u): u is { uid: string; email: string; pushToken?: string } =>
+        !!u.email && !u.pushToken?.startsWith("ExponentPushToken")
+    );
+    const { subject, html } = announcementEmail(title, body);
+    for (const batch of chunk(emailRecipients, 10)) {
+      const results = await Promise.allSettled(batch.map((u) => sendEmail(u.email, subject, html)));
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          emailCount++;
+        } else {
+          console.error(`Email failed for uid ${batch[i]?.uid}:`, r.reason);
+        }
+      });
+    }
+  }
+
+  return { notifiedCount: users.length, pushCount, emailCount };
 }

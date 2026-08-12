@@ -3,6 +3,7 @@ import { COLLECTIONS, ROLES, type Role } from "@umoja/shared";
 import { db } from "../util/admin.js";
 import { notifyUsers } from "../util/notify.js";
 import { getCurrentTeamRosterUids } from "../util/roster.js";
+import { EMAIL_SECRETS } from "../services/emailjs.service.js";
 
 type NotificationTarget =
   | { type: "all" }
@@ -54,19 +55,22 @@ async function resolveRecipientUids(target: NotificationTarget): Promise<string[
  * in-app notification doc (always) and an Expo push message (when the
  * recipient has a registered device token).
  */
-export const sendNotification = onCall<SendNotificationRequest>(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) throw new HttpsError("unauthenticated", "Sign in required.");
+export const sendNotification = onCall<SendNotificationRequest>(
+  { secrets: EMAIL_SECRETS, timeoutSeconds: 120 },
+  async (request) => {
+    const callerUid = request.auth?.uid;
+    if (!callerUid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-  const callerSnap = await db.collection(COLLECTIONS.users).doc(callerUid).get();
-  const callerRoles: string[] = callerSnap.data()?.roles ?? [];
-  if (!callerRoles.includes("admin") && !callerRoles.includes("commissioner")) {
-    throw new HttpsError("permission-denied", "Only admin/commissioner can send notifications.");
+    const callerSnap = await db.collection(COLLECTIONS.users).doc(callerUid).get();
+    const callerRoles: string[] = callerSnap.data()?.roles ?? [];
+    if (!callerRoles.includes("admin") && !callerRoles.includes("commissioner")) {
+      throw new HttpsError("permission-denied", "Only admin/commissioner can send notifications.");
+    }
+
+    const { title, body, target } = request.data;
+    if (!title?.trim() || !body?.trim()) throw new HttpsError("invalid-argument", "title and body are required.");
+
+    const uids = await resolveRecipientUids(target);
+    return notifyUsers(uids, title, body, { email: true });
   }
-
-  const { title, body, target } = request.data;
-  if (!title?.trim() || !body?.trim()) throw new HttpsError("invalid-argument", "title and body are required.");
-
-  const uids = await resolveRecipientUids(target);
-  return notifyUsers(uids, title, body);
-});
+);

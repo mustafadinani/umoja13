@@ -2,11 +2,13 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import {
   COLLECTIONS,
+  CATEGORIES,
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   type CheckIn,
   type RegisteredPlayer,
+  type Team,
   type TeamChannelMessage,
 } from "@umoja/shared";
 import { db, defaultDb } from "../util/admin.js";
@@ -14,6 +16,8 @@ import { nextPassId } from "../util/counters.js";
 import { syncRosterCheckInStatus } from "../util/roster.js";
 import { notifyUsers } from "../util/notify.js";
 import { resolveAuthorName } from "../util/authorName.js";
+import { sendEmail, EMAIL_SECRETS } from "../services/emailjs.service.js";
+import { checkInDecisionEmail } from "../util/emailTemplates.js";
 
 interface AdminReviewCheckInRequest {
   checkInId: string;
@@ -28,7 +32,7 @@ interface AdminReviewCheckInRequest {
  * re-checks). Routed through a function (not a direct client write) so
  * pass-id assignment stays behind the same atomic counter every time.
  */
-export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (request) => {
+export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>({ secrets: EMAIL_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
@@ -48,6 +52,11 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
   // Legacy check-ins written before playerKey existed fall back to userId,
   // matching their pre-fix behavior exactly.
   const playerKey = checkIn.playerKey ?? checkIn.userId;
+
+  // Threaded through to sendCheckInDecisionEmail below — `checkIn` itself was
+  // read before this decision's write, so it can't be trusted to carry the
+  // reason this specific call is setting.
+  let emailRejectionReason: string | undefined;
 
   if (decision === "approve") {
     const passId = await nextPassId();
@@ -98,27 +107,32 @@ export const adminReviewCheckIn = onCall<AdminReviewCheckInRequest>(async (reque
         : "Your check-in was declined. Please review and resubmit in the app."
     );
     await postDeclineToTeamChannel(checkIn.teamId, playerKey, uid, callerSnap.data()?.displayName);
+    emailRejectionReason = trimmedReason;
   } else if (decision === "nullify") {
     // Not a decline the player did anything wrong to earn — a spot re-check
     // an admin triggered — so it gets its own fixed, non-blaming reason
     // rather than reusing "reject"'s free-text prompt.
+    const nullifyReason = "Flagged for a routine re-check by an admin. Please check in again.";
     await ref.set(
       {
         status: "rejected",
         reviewedBy: uid,
         reviewedAt: now,
         updatedAt: now,
-        rejectionReason: "Flagged for a routine re-check by an admin. Please check in again.",
+        rejectionReason: nullifyReason,
       },
       { merge: true }
     );
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "rejected" }, { merge: true });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "rejected");
+    emailRejectionReason = nullifyReason;
   } else if (decision === "restore") {
     await ref.set({ status: "approved", reviewedBy: uid, reviewedAt: now, updatedAt: now, rejectionReason: FieldValue.delete() }, { merge: true });
     await db.collection(COLLECTIONS.tournamentPasses).doc(checkIn.id).set({ status: "approved" }, { merge: true });
     await syncRosterCheckInStatus(checkIn.teamId, playerKey, checkIn.categoryId, "approved", checkIn.selfieUrl);
   }
+
+  await sendCheckInDecisionEmail(checkIn, decision === "approve" || decision === "restore", emailRejectionReason);
 
   return { status: decision };
 });
@@ -164,5 +178,31 @@ async function postDeclineToTeamChannel(teamId: string, playerKey: string, admin
   const rosterUids = [...new Set(playersSnap.docs.map((d) => (d.data() as RegisteredPlayer).uid).filter((v): v is string => !!v))];
   if (rosterUids.length > 0) {
     await notifyUsers(rosterUids, "Team check-in update", message.text);
+  }
+}
+
+async function sendCheckInDecisionEmail(checkIn: CheckIn, approved: boolean, rejectionReason?: string): Promise<void> {
+  try {
+    const [userSnap, teamSnap] = await Promise.all([
+      db.collection(COLLECTIONS.users).doc(checkIn.userId).get(),
+      db.collection(COLLECTIONS.teams).doc(checkIn.teamId).get(),
+    ]);
+    const email: string | undefined = userSnap.data()?.email;
+    const name: string = userSnap.data()?.displayName ?? "there";
+    if (!email) return;
+
+    const team = teamSnap.data() as Team | undefined;
+    const categoryLabel = CATEGORIES.find((c) => c.id === checkIn.categoryId)?.label ?? checkIn.categoryId;
+
+    const { subject, html } = checkInDecisionEmail({
+      name,
+      categoryLabel,
+      teamName: team?.name,
+      approved,
+      rejectionReason,
+    });
+    await sendEmail(email, subject, html);
+  } catch (err) {
+    console.error("adminReviewCheckIn: failed to send decision email:", err);
   }
 }

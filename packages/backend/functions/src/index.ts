@@ -13,8 +13,15 @@ export { createSponsorshipIntent, confirmSponsorshipPayment } from "./stripe/cre
 export { stripeWebhook } from "./stripe/stripeWebhook.js";
 export { stripePayment } from "./http/stripePayment.js";
 export { onGameWrite } from "./triggers/onGameWrite.js";
+// onTeamWrite was deliberately removed (see fdc2a48) — it kept
+// teams/{teamId}.roster in sync with this app's own dead pre-Outreach-import
+// teams collection, which nothing else reads or writes anymore and which
+// caused a real privacy bug (stale/wrong team-channel access). It's replaced
+// by onPlayerRegisteredWrite below, which derives roster access from the
+// real Outreach registration data. Do not reintroduce onTeamWrite.
 export { onPlayerRegisteredWrite } from "./triggers/onPlayerRegisteredWrite.js";
 export { onCheckInWrite } from "./triggers/onCheckInWrite.js";
+export { onVolunteerApplicationCreated } from "./triggers/onVolunteerApplicationCreated.js";
 export { registerPushToken } from "./http/registerPushToken.js";
 export { sendNotification } from "./http/sendNotification.js";
 export { postAnnouncement, updateAnnouncement, deleteAnnouncement } from "./http/postAnnouncement.js";
