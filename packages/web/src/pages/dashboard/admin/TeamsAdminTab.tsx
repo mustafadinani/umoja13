@@ -155,6 +155,14 @@ export function TeamsAdminTab() {
       .sort((a, b) =>
         `${a.lastName ?? ""} ${a.firstName ?? ""}`.localeCompare(`${b.lastName ?? ""} ${b.firstName ?? ""}`)
       );
+    // Every camper in this category is still linked to registration's one
+    // auto-generated shell team (see the comment on campCategoryId above) —
+    // Coach/Manager assignment lives on that team's umoja13-app overlay doc
+    // (Team.coachManagerUids) the same way it does for a real team, this
+    // view just never surfaced it since it otherwise bypasses the team
+    // entirely. Assumes (confirmed against real registration data) every
+    // camper in one camp category shares the same single shell team.
+    const campTeamId = campers.find((p) => p.teamId?.trim())?.teamId?.trim() ?? null;
 
     return (
       <div>
@@ -169,6 +177,8 @@ export function TeamsAdminTab() {
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>
           {campers.length} camper{campers.length === 1 ? "" : "s"} registered
         </div>
+
+        {campTeamId && <CoachManagerCard teamId={campTeamId} />}
 
         {loading ? (
           <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Loading players…</div>

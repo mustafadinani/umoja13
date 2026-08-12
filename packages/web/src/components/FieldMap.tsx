@@ -7,11 +7,14 @@ import { theme } from "../lib/theme";
  * SoccerPlex complex map (Umoja13 Toddler Camp schedule PDF, page 3).
  * Fields not in this tournament's set (1-6, 8, 10-11, 18-24) are shown on
  * the map for real-world orientation but have no hotspot — nothing is
- * scheduled there. Field 7's coordinates are the same spot field 5 used to
- * occupy — the venue relabeled the tournament's field, not its location.
+ * scheduled there. Field 7 is its own distinct tile on the map, NOT the
+ * same spot field 5 occupies (5 and 7 are different physical fields,
+ * confirmed by pixel-sampling the map image directly) — an earlier pass
+ * wrongly assumed the venue's field-5-to-7 reallocation kept the same
+ * physical spot and just relabeled it; it didn't.
  */
 const MAP_HOTSPOTS: { cluster: string; label: string; xPct: number; yPct: number }[] = [
-  { cluster: "Field 7", label: "7", xPct: 47.9, yPct: 15.1 },
+  { cluster: "Field 7", label: "7", xPct: 42.2, yPct: 21.9 },
   { cluster: "Field 9", label: "9", xPct: 32.9, yPct: 20.8 },
   { cluster: "Field 12", label: "12", xPct: 28.3, yPct: 20.8 },
   { cluster: "Field 13", label: "13", xPct: 25.4, yPct: 16.3 },

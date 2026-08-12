@@ -220,10 +220,12 @@ export const TODDLER_CAMP_HIGHLIGHT_NOTE = "Cameras ready! Families, please have
 // actually plays on fields 7, 9, and 12-17 at Maryland SoccerPlex, plus the
 // Stadium Field for marquee matches. This is the coarse cluster-level list —
 // used by Pods/FieldMap, which organize by physical field, not by sub-pitch.
-// NOTE: the venue reallocated the tournament from field 5 to field 7 (same
-// physical spot on the map — see MAP_HOTSPOTS in FieldMap.tsx, unchanged
-// coordinates, just relabeled) and added a 4th sub-pitch there, 7D, which
-// Umoja Soccer Camp now uses instead of its old "Field 12 Camp" slot (see
+// NOTE: the venue reallocated the tournament from field 5 to field 7 — field
+// 7 is its OWN distinct physical location on the map, a different tile from
+// field 5 (confirmed by pixel-sampling the real map image), not the same
+// spot just relabeled — see MAP_HOTSPOTS in FieldMap.tsx for its real
+// coordinates. The venue also added a 4th sub-pitch there, 7D, which Umoja
+// Soccer Camp now uses instead of its old "Field 12 Camp" slot (see
 // TODDLER_CAMP_FIELDS) — 7D is camp-only, not a real Game sub-pitch, so it's
 // deliberately left out of GAME_FIELDS/FIELD_CLUSTERS/MAP_HOTSPOTS below,
 // the same way "Field 12 Camp" and "Indoor arena" always were.
