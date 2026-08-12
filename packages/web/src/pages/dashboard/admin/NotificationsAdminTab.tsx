@@ -36,14 +36,14 @@ export function NotificationsAdminTab() {
   const [role, setRole] = useState<Role>("player");
   const [gameId, setGameId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number; emailCount: number } | null>(null);
+  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [annTitle, setAnnTitle] = useState("");
   const [annBody, setAnnBody] = useState("");
   const [alsoNotify, setAlsoNotify] = useState(false);
   const [posting, setPosting] = useState(false);
-  const [annResult, setAnnResult] = useState<{ notifiedCount: number; pushCount: number } | null>(null);
+  const [annResult, setAnnResult] = useState<{ notifiedCount: number; pushCount: number; webPushCount: number } | null>(null);
   const [annError, setAnnError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -97,7 +97,7 @@ export function NotificationsAdminTab() {
     setAnnResult(null);
     try {
       const res = await postAnnouncementCallable({ title: annTitle, body: annBody, alsoNotify });
-      setAnnResult({ notifiedCount: res.data.notifiedCount, pushCount: res.data.pushCount });
+      setAnnResult({ notifiedCount: res.data.notifiedCount, pushCount: res.data.pushCount, webPushCount: res.data.webPushCount });
       setAnnTitle("");
       setAnnBody("");
       setAlsoNotify(false);
@@ -201,8 +201,8 @@ export function NotificationsAdminTab() {
         {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
         {result && (
           <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
-            Sent to {result.notifiedCount} {result.notifiedCount === 1 ? "person" : "people"} ({result.pushCount} got a push,{" "}
-            {result.emailCount} got an email).
+            Sent to {result.notifiedCount} {result.notifiedCount === 1 ? "person" : "people"} ({result.pushCount} got an app push,{" "}
+            {result.webPushCount} got a browser push, {result.emailCount} got an email).
           </div>
         )}
 
@@ -239,7 +239,7 @@ export function NotificationsAdminTab() {
         {annError && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{annError}</div>}
         {annResult && (
           <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
-            Posted{annResult.notifiedCount > 0 ? ` and notified ${annResult.notifiedCount} ${annResult.notifiedCount === 1 ? "person" : "people"} (${annResult.pushCount} got a push)` : ""}.
+            Posted{annResult.notifiedCount > 0 ? ` and notified ${annResult.notifiedCount} ${annResult.notifiedCount === 1 ? "person" : "people"} (${annResult.pushCount} app push, ${annResult.webPushCount} browser push)` : ""}.
           </div>
         )}
         <PrimaryButton disabled={posting || !annTitle.trim() || !annBody.trim()} onClick={postAnnouncement}>{posting ? "Posting…" : "POST"}</PrimaryButton>

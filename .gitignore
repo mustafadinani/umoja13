@@ -12,6 +12,13 @@ build/
 # (real security is Firestore/Storage rules, not hiding this file), and the
 # GitHub Actions build needs it checked in to build a working bundle at all.
 !/packages/web/.env.production
+# Firebase Functions v2 project-scoped env file — holds the Web Push VAPID
+# private key. Every other sensitive credential in this repo lives in
+# Secret Manager (see EMAIL_SECRETS in emailjs.service.ts); this one only
+# uses a plain env file because the deploying service account currently
+# lacks secretmanager.secrets.setIamPolicy (see deploy notes) — once that's
+# granted, migrate VAPID_PRIVATE_KEY to a proper secret and delete this line.
+/packages/backend/functions/.env.umoja-app
 *.local
 firebase-debug.log
 firebase-debug.*.log

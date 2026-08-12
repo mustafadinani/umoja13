@@ -12,6 +12,7 @@ import type {
   Pod,
   PodChannelMessage,
   PodTaskMessage,
+  WebPushSubscription,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
@@ -134,13 +135,18 @@ type NotificationTarget =
 
 export const sendNotification = httpsCallable<
   { title: string; body: string; target: NotificationTarget },
-  { notifiedCount: number; pushCount: number; emailCount: number }
+  { notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number }
 >(functions, "sendNotification");
 
 export const postAnnouncement = httpsCallable<
   { title: string; body: string; alsoNotify?: boolean },
-  { id: string; notifiedCount: number; pushCount: number }
+  { id: string; notifiedCount: number; pushCount: number; webPushCount: number }
 >(functions, "postAnnouncement");
+
+export const registerWebPushSubscription = httpsCallable<
+  { subscription: WebPushSubscription | null },
+  { ok: true }
+>(functions, "registerWebPushSubscription");
 
 export const updateAnnouncement = httpsCallable<
   { id: string; title: string; body: string },

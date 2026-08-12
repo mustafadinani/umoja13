@@ -1,7 +1,8 @@
-import { COLLECTIONS } from "@umoja/shared";
+import { COLLECTIONS, type WebPushSubscription } from "@umoja/shared";
 import { db } from "./admin.js";
 import { sendEmail } from "../services/emailjs.service.js";
 import { announcementEmail } from "./emailTemplates.js";
+import { isGoneSubscriptionError, sendWebPush } from "../services/webPush.service.js";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 
@@ -14,28 +15,36 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 /**
  * Writes an in-app notification doc for each uid (always) and best-effort
- * sends an Expo push to any uid with a registered device token. Shared by
- * sendNotification (admin broadcast) and sendTeamMessage (team channel).
+ * sends an Expo push (native app) and/or a Web Push (browser) to any uid
+ * with one of those registered. Shared by sendNotification (admin
+ * broadcast) and sendTeamMessage (team channel).
  *
  * Pass `{ email: true }` (sendNotification only — team/role channel replies
  * stay push+in-app-only so a chat thread doesn't turn into an inbox) to also
- * email anyone who doesn't have a registered push token, as a delivery
- * fallback for admin broadcasts / game-time reminders.
+ * email anyone who doesn't have a registered push channel at all, as a
+ * delivery fallback for admin broadcasts / game-time reminders.
  */
 export async function notifyUsers(
   uids: string[],
   title: string,
   body: string,
   opts: { email?: boolean } = {}
-): Promise<{ notifiedCount: number; pushCount: number; emailCount: number }> {
+): Promise<{ notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number }> {
   const uniqueUids = [...new Set(uids)].filter(Boolean);
-  if (uniqueUids.length === 0) return { notifiedCount: 0, pushCount: 0, emailCount: 0 };
+  if (uniqueUids.length === 0) return { notifiedCount: 0, pushCount: 0, webPushCount: 0, emailCount: 0 };
 
-  const users: { uid: string; email?: string; pushToken?: string }[] = [];
+  const users: { uid: string; email?: string; pushToken?: string; webPushSubscription?: WebPushSubscription }[] = [];
   for (const batch of chunk(uniqueUids, 30)) {
     const docs = await Promise.all(batch.map((uid) => db.collection(COLLECTIONS.users).doc(uid).get()));
     for (const d of docs) {
-      if (d.exists) users.push({ uid: d.id, email: d.data()?.email, pushToken: d.data()?.pushToken });
+      if (d.exists) {
+        users.push({
+          uid: d.id,
+          email: d.data()?.email,
+          pushToken: d.data()?.pushToken,
+          webPushSubscription: d.data()?.webPushSubscription,
+        });
+      }
     }
   }
 
@@ -77,12 +86,32 @@ export async function notifyUsers(
     }
   }
 
+  const webPushRecipients = users.filter(
+    (u): u is { uid: string; webPushSubscription: WebPushSubscription } => !!u.webPushSubscription
+  );
+
+  let webPushCount = 0;
+  for (const u of webPushRecipients) {
+    try {
+      await sendWebPush(u.webPushSubscription, title, body);
+      webPushCount++;
+    } catch (err) {
+      if (isGoneSubscriptionError(err)) {
+        // Browser unsubscribed/uninstalled/cleared site data — stop retrying
+        // it on every future notification, same idea as a stale Expo token.
+        await db.collection(COLLECTIONS.users).doc(u.uid).set({ webPushSubscription: null }, { merge: true });
+      } else {
+        console.error(`Web push failed for uid ${u.uid}:`, err);
+      }
+    }
+  }
+
   let emailCount = 0;
   if (opts.email) {
-    // Fallback channel only — anyone who already gets a push doesn't also get emailed.
+    // Fallback channel only — anyone who already gets a push (native or web) doesn't also get emailed.
     const emailRecipients = users.filter(
-      (u): u is { uid: string; email: string; pushToken?: string } =>
-        !!u.email && !u.pushToken?.startsWith("ExponentPushToken")
+      (u): u is { uid: string; email: string; pushToken?: string; webPushSubscription?: WebPushSubscription } =>
+        !!u.email && !u.pushToken?.startsWith("ExponentPushToken") && !u.webPushSubscription
     );
     const { subject, html } = announcementEmail(title, body);
     for (const batch of chunk(emailRecipients, 10)) {
@@ -97,5 +126,5 @@ export async function notifyUsers(
     }
   }
 
-  return { notifiedCount: users.length, pushCount, emailCount };
+  return { notifiedCount: users.length, pushCount, webPushCount, emailCount };
 }

@@ -14,8 +14,25 @@ export interface UserProfile {
   followedTeamIds?: string[];
   /** Expo push token for the device this user last registered from (set via registerPushToken). */
   pushToken?: string;
+  /**
+   * Web Push subscription for the browser this user last enabled
+   * notifications from (set via registerWebPushSubscription) — the
+   * browser-native equivalent of pushToken above, for anyone using the site
+   * itself rather than the mobile app. Unlike an Expo token this isn't a
+   * single opaque string; it's the standard PushSubscription shape a
+   * browser hands back from `PushManager.subscribe()`.
+   */
+  webPushSubscription?: WebPushSubscription;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface WebPushSubscription {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
 }
 
 export interface PlayerMembership {

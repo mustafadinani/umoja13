@@ -23,6 +23,7 @@ export { onPlayerRegisteredWrite } from "./triggers/onPlayerRegisteredWrite.js";
 export { onCheckInWrite } from "./triggers/onCheckInWrite.js";
 export { onVolunteerApplicationCreated } from "./triggers/onVolunteerApplicationCreated.js";
 export { registerPushToken } from "./http/registerPushToken.js";
+export { registerWebPushSubscription } from "./http/registerWebPushSubscription.js";
 export { sendNotification } from "./http/sendNotification.js";
 export { postAnnouncement, updateAnnouncement, deleteAnnouncement } from "./http/postAnnouncement.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";

@@ -33,11 +33,11 @@ export const postAnnouncement = onCall<PostAnnouncementRequest>(async (request) 
     postedByName: caller?.displayName ?? "Umoja",
   });
 
-  if (!alsoNotify) return { id: ref.id, notifiedCount: 0, pushCount: 0 };
+  if (!alsoNotify) return { id: ref.id, notifiedCount: 0, pushCount: 0, webPushCount: 0 };
 
   const usersSnap = await db.collection(COLLECTIONS.users).get();
-  const { notifiedCount, pushCount } = await notifyUsers(usersSnap.docs.map((d) => d.id), title, body);
-  return { id: ref.id, notifiedCount, pushCount };
+  const { notifiedCount, pushCount, webPushCount } = await notifyUsers(usersSnap.docs.map((d) => d.id), title, body);
+  return { id: ref.id, notifiedCount, pushCount, webPushCount };
 });
 
 /** Throws unless the caller is signed in with an admin/commissioner role — same gate as postAnnouncement, shared by update/delete below. */
