@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { HuntMissionType, HuntMission, Challenge } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
@@ -86,7 +87,10 @@ export function Hunt() {
         <div style={{ maxWidth: 800, margin: "0 auto" }}>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 36 }}>🧭 THE HUNT</div>
           <div style={{ fontSize: 14, opacity: 0.92, marginTop: 6 }}>
-            45 missions across 3 days, plus surprise challenges. $500 grand prize at Sunday's ceremony.
+            45 missions across 3 days, plus surprise challenges. $500 grand prize at Sunday's ceremony.{" "}
+            <Link to="/hunt-rules" style={{ color: "#fff", textDecoration: "underline" }}>
+              Official Rules
+            </Link>
           </div>
 
           {crew && (

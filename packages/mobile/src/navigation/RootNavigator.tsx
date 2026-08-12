@@ -18,6 +18,7 @@ import { RefereeScreen } from "../screens/RefereeScreen";
 import { RefereeGameScreen } from "../screens/RefereeGameScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
+import { HuntRulesScreen } from "../screens/HuntRulesScreen";
 import { AccountDeleteScreen } from "../screens/AccountDeleteScreen";
 import { UmojaChatScreen } from "../screens/UmojaChatScreen";
 import { PodsListScreen } from "../screens/PodsListScreen";
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;
+  HuntRules: undefined;
   AccountDelete: undefined;
   UmojaChat: undefined;
   Pods: undefined;
@@ -112,6 +114,7 @@ export function RootNavigator() {
             <Stack.Screen name="RefereeGame" component={RefereeGameScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
+            <Stack.Screen name="HuntRules" component={HuntRulesScreen} options={{ headerShown: true, title: "Hunt Official Rules" }} />
             <Stack.Screen name="AccountDelete" component={AccountDeleteScreen} options={{ headerShown: true, title: "Delete Account" }} />
             <Stack.Screen name="UmojaChat" component={UmojaChatScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
             <Stack.Screen name="Pods" component={PodsListScreen} options={{ headerShown: true, title: "Pods" }} />

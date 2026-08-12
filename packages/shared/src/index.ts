@@ -32,6 +32,7 @@ export * from "./constants/consent.js";
 export * from "./constants/knowledge.js";
 export * from "./constants/experiences.js";
 export * from "./constants/rules.js";
+export * from "./constants/huntRules.js";
 export * from "./constants/professions.js";
 
 export * from "./lib/linkify.js";

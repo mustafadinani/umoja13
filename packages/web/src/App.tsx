@@ -15,6 +15,7 @@ import { Dashboard } from "./pages/dashboard/Dashboard";
 import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
+import { HuntRules } from "./pages/HuntRules";
 import { Experiences } from "./pages/Experiences";
 import { Donate } from "./pages/Donate";
 import { Privacy } from "./pages/Privacy";
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/standings" element={<Standings />} />
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
+            <Route path="/hunt-rules" element={<HuntRules />} />
             <Route path="/experiences" element={<Experiences />} />
             <Route path="/donate" element={<Donate />} />
             <Route path="/privacy" element={<Privacy />} />

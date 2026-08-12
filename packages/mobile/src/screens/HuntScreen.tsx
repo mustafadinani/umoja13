@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
@@ -64,6 +65,7 @@ function ResultBadge({ status, wonPoints }: { status: "won" | "pending" | "rejec
 }
 
 export function HuntScreen() {
+  const navigation = useNavigation<any>();
   const { user, profile } = useAuth();
   const { data: huntConfig, loading: huntConfigLoading } = useHuntConfig();
   const { data: crew } = useMyCrew(user?.uid);
@@ -242,6 +244,9 @@ export function HuntScreen() {
         <LinearGradient colors={hunterGradient} style={styles.hero}>
           <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
           <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
+          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("HuntRules")}>
+            <Text style={styles.rulesLink}>Official Rules</Text>
+          </TouchableOpacity>
         </LinearGradient>
         <View style={{ padding: 16 }}>
           <Card style={{ alignItems: "center", paddingVertical: 40 }}>
@@ -264,6 +269,9 @@ export function HuntScreen() {
       <LinearGradient colors={hunterGradient} style={styles.hero}>
         <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
         <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("HuntRules")}>
+          <Text style={styles.rulesLink}>Official Rules</Text>
+        </TouchableOpacity>
       </LinearGradient>
 
       <View style={{ padding: 16 }}>
@@ -597,6 +605,7 @@ const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 24, paddingHorizontal: 20 },
   heroTitle: { color: "#fff", fontWeight: "800", fontSize: 26 },
   heroSub: { color: "#fff", opacity: 0.9, fontSize: 13, marginTop: 6 },
+  rulesLink: { color: "#fff", opacity: 0.9, fontSize: 12, marginTop: 8, textDecorationLine: "underline" },
   textArea: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 70, textAlignVertical: "top" },
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
   inviteRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#F7F6F3", borderRadius: 8, padding: 10, marginBottom: 6 },
