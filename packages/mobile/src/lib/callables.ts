@@ -180,12 +180,14 @@ export const setJerseyNumber = httpsCallable<
 
 export const syncMyRoleClaims = httpsCallable<void, { roles: string[] }>(functions, "syncMyRoleClaims");
 
-export const assignTeamCaptain = httpsCallable<
-  { teamId: string; categoryId: string; playerKey: string; targetUid: string },
-  { ok: true }
->(functions, "assignTeamCaptain");
+export const assignTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string; targetUid: string }
+  | { teamId: string; kind: "manager_coach"; email: string },
+  { ok: true; uid?: string }
+>(functions, "assignTeamOfficial");
 
-export const removeTeamCaptain = httpsCallable<
-  { teamId: string; categoryId: string; playerKey: string },
+export const removeTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string }
+  | { teamId: string; kind: "manager_coach"; uid: string },
   { ok: true }
->(functions, "removeTeamCaptain");
+>(functions, "removeTeamOfficial");

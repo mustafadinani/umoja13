@@ -178,7 +178,7 @@ export function useRegistrationTeam(teamId: string | undefined): { data: Team | 
 
 /**
  * Team ids a given account is an admin-designated coach/manager for
- * (Team.coachManagerUids — see assignTeamManager). Independent of
+ * (Team.coachManagerUids — see assignTeamOfficial). Independent of
  * registration/playerOf data, since a coach/manager isn't necessarily a
  * registered player themselves — this is how the dashboard finds which
  * team(s) to show "managed team" tools for.

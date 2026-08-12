@@ -42,7 +42,7 @@ export interface Team {
   /**
    * Account uids an admin has attached to this team as a coach/manager —
    * independent of registration data, since a coach/manager isn't
-   * necessarily a registered player themselves (see assignTeamManager).
+   * necessarily a registered player themselves (see assignTeamOfficial).
    * Lives on the umoja13-app/teams/{id} overlay doc, same as group/color/
    * sponsorId; merged onto the registration-derived Team the same way.
    */

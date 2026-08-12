@@ -1,6 +1,7 @@
 export * from "./types/roles.js";
 export * from "./types/user.js";
 export * from "./types/team.js";
+export * from "./types/officials.js";
 export * from "./types/game.js";
 export * from "./types/draw.js";
 export * from "./types/checkin.js";

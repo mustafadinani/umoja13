@@ -132,7 +132,7 @@ export interface RosterCheckIn {
   lineOfWork?: string;
   currentEmployer?: string;
   /**
-   * Set by a coach/manager (or staff) via assignTeamCaptain — independent of
+   * Set by a coach/manager (or staff) via assignTeamOfficial — independent of
    * the team's real registration captain (captainProfileId). Both feed
    * RosterEntry.isCaptain (see registeredPlayerToRosterEntry); this one is
    * additive, so a team can have the real captain plus one or more

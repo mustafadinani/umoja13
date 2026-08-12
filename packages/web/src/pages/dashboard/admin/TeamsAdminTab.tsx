@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import {
   COLLECTIONS,
+  MAX_TEAM_OFFICIALS,
+  OFFICIAL_KIND_LABELS,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TODDLERS_CAMP_CATEGORY_LABELS,
   resolveTeamCategoryId,
+  type OfficialKind,
   type RegisteredPlayer,
   type RegisteredTeam,
 } from "@umoja/shared";
@@ -17,7 +20,7 @@ import {
   useRegisteredTeamsRaw,
   useRegistrationCategoryBuckets,
 } from "../../../hooks/useRegistration";
-import { assignTeamManager, removeTeamManager } from "../../../lib/callables";
+import { assignTeamOfficial, removeTeamOfficial } from "../../../lib/callables";
 import { db, defaultDb } from "../../../lib/firebase";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 
@@ -178,7 +181,7 @@ export function TeamsAdminTab() {
           {campers.length} camper{campers.length === 1 ? "" : "s"} registered
         </div>
 
-        {campTeamId && <CoachManagerCard teamId={campTeamId} />}
+        {campTeamId && <TeamOfficialsCard teamId={campTeamId} categoryId={campCategoryId} players={campers} />}
 
         {loading ? (
           <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Loading players…</div>
@@ -295,7 +298,7 @@ export function TeamsAdminTab() {
           )}
         </Card>
 
-        <CoachManagerCard teamId={selectedTeam.id} />
+        <TeamOfficialsCard teamId={selectedTeam.id} categoryId={matched ? resolvedId : null} players={selectedPlayers} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {selectedPlayers.map((player) => (
@@ -410,17 +413,33 @@ export function TeamsAdminTab() {
 }
 
 /**
- * Attaches an account to this team as a coach/manager — independent of
- * registration data, since (unlike the real captain, resolved automatically
- * from the registration record above) a coach/manager isn't necessarily a
- * registered player themselves. Lives on the umoja13-app/teams/{id} overlay
- * doc (Team.coachManagerUids), which this subscribes to directly since
- * everything else in this tab reads the raw registration doc instead.
+ * Staff-side view of the same officials system CaptainRoster.tsx's
+ * AddTeamOfficialPanel offers self-serve — one merged list covering both
+ * appointed co-captains (rosterCheckIns.appointedCaptain, keyed by playerKey)
+ * and coach/managers (Team.coachManagerUids, keyed by account uid), each
+ * removable and capped at MAX_TEAM_OFFICIALS combined. Deliberately excludes
+ * the team's real registration captain (captainProfileId, shown separately
+ * above via teamCaptainName) — nothing here can touch that field; see
+ * assignTeamOfficial's top comment for why.
  */
-function CoachManagerCard({ teamId }: { teamId: string }) {
+function TeamOfficialsCard({
+  teamId,
+  categoryId,
+  players,
+}: {
+  teamId: string;
+  /** Null when this team's category is unmapped (see the "needs category fix" banner above) — appointing a captain needs a real categoryId to key the roster doc, so that path is disabled until it's fixed. */
+  categoryId: string | null;
+  players: RegisteredPlayer[];
+}) {
   const { data: users } = useAllUsers();
   const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  const playerByKey = useMemo(() => new Map(players.map((p) => [p.profileId?.trim() || p.id, p])), [players]);
+
   const [coachManagerUids, setCoachManagerUids] = useState<string[]>([]);
+  const [appointedCaptains, setAppointedCaptains] = useState<{ playerKey: string; categoryId: string }[]>([]);
+  const [kind, setKind] = useState<OfficialKind>("captain");
+  const [search, setSearch] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -433,28 +452,79 @@ function CoachManagerCard({ teamId }: { teamId: string }) {
     );
   }, [teamId]);
 
-  async function add() {
-    const trimmed = email.trim();
-    if (!trimmed) return;
+  useEffect(() => {
+    const q = query(collection(db, COLLECTIONS.rosterCheckIns), where("teamId", "==", teamId), where("appointedCaptain", "==", true));
+    return onSnapshot(
+      q,
+      (snap) => setAppointedCaptains(snap.docs.map((d) => ({ playerKey: d.data().userId as string, categoryId: d.data().categoryId as string }))),
+      () => setAppointedCaptains([])
+    );
+  }, [teamId]);
+
+  const totalCount = appointedCaptains.length + coachManagerUids.length;
+  const atCap = totalCount >= MAX_TEAM_OFFICIALS;
+
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q || !categoryId) return [];
+    const appointedKeys = new Set(appointedCaptains.map((c) => c.playerKey));
+    return players
+      .filter((p) => {
+        const key = p.profileId?.trim() || p.id;
+        if (appointedKeys.has(key)) return false;
+        return `${p.firstName ?? ""} ${p.lastName ?? ""}`.toLowerCase().includes(q);
+      })
+      .slice(0, 6);
+  }, [search, players, categoryId, appointedCaptains]);
+
+  async function addCaptain(player: RegisteredPlayer) {
+    if (!categoryId) return;
     setBusy(true);
     setError(null);
     try {
-      await assignTeamManager({ teamId, email: trimmed });
-      setEmail("");
+      await assignTeamOfficial({ teamId, kind: "captain", categoryId, playerKey: player.profileId?.trim() || player.id, targetUid: player.uid });
+      setSearch("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't add that coach/manager.");
+      setError(e instanceof Error ? e.message : "Couldn't add that captain.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function remove(uid: string) {
+  async function removeCaptain(playerKey: string, catId: string) {
     setBusy(true);
     setError(null);
     try {
-      await removeTeamManager({ teamId, uid });
+      await removeTeamOfficial({ teamId, kind: "captain", categoryId: catId, playerKey });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't remove that coach/manager.");
+      setError(e instanceof Error ? e.message : "Couldn't remove that captain.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addManagerCoach() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await assignTeamOfficial({ teamId, kind: "manager_coach", email: trimmed });
+      setEmail("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that manager/coach.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeManagerCoach(uid: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await removeTeamOfficial({ teamId, kind: "manager_coach", uid });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't remove that manager/coach.");
     } finally {
       setBusy(false);
     }
@@ -462,49 +532,158 @@ function CoachManagerCard({ teamId }: { teamId: string }) {
 
   return (
     <Card style={{ marginBottom: 16, padding: 16 }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Coach / Manager</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <div style={{ fontWeight: 700 }}>Team officials</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: atCap ? theme.color.danger : theme.color.textMuted }}>
+          {totalCount}/{MAX_TEAM_OFFICIALS}
+        </div>
+      </div>
       <div style={{ fontSize: 13, color: theme.color.textMuted, marginBottom: 12, lineHeight: 1.45 }}>
-        Same jersey-editing and complaint tools as this team's real captain, for someone who isn't necessarily a
-        registered player themselves. They need to have signed into the app at least once already.
+        Captains and managers/coaches share the same jersey-editing and complaint tools — a manager/coach doesn't
+        have to be a registered player themselves, but needs to have signed into the app at least once.
       </div>
 
-      {coachManagerUids.length > 0 && (
+      {(appointedCaptains.length > 0 || coachManagerUids.length > 0) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+          {appointedCaptains.map(({ playerKey, categoryId: catId }) => {
+            const p = playerByKey.get(playerKey);
+            const name = p ? `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() : playerKey;
+            return (
+              <OfficialRow key={`captain-${playerKey}`} name={name || playerKey} kind="captain" busy={busy} onRemove={() => removeCaptain(playerKey, catId)} />
+            );
+          })}
           {coachManagerUids.map((uid) => {
             const u = userById.get(uid);
             return (
-              <div key={uid} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#F7F6F3", borderRadius: theme.radius.sm }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{u?.displayName ?? uid}</div>
-                  {u?.email && <div style={{ fontSize: 12, color: theme.color.textMuted }}>{u.email}</div>}
-                </div>
-                <button
-                  disabled={busy}
-                  onClick={() => remove(uid)}
-                  style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}
-                >
-                  Remove
-                </button>
-              </div>
+              <OfficialRow key={`manager-${uid}`} name={u?.displayName ?? uid} sub={u?.email} kind="manager_coach" busy={busy} onRemove={() => removeManagerCoach(uid)} />
             );
           })}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input
-          placeholder="Email address…"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={busy}
-          style={{ flex: 1, minWidth: 200, padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
-        />
-        <PrimaryButton onClick={add} disabled={busy || !email.trim()}>
-          {busy ? "Adding…" : "+ ADD"}
-        </PrimaryButton>
-      </div>
+      {atCap ? (
+        <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>Team officials full — remove one to add another.</div>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {(["captain", "manager_coach"] as const).map((k) => (
+              <button
+                key={k}
+                onClick={() => setKind(k)}
+                style={{
+                  flex: 1,
+                  padding: "7px 10px",
+                  borderRadius: theme.radius.sm,
+                  border: `1px solid ${kind === k ? theme.color.purple : theme.color.border}`,
+                  background: kind === k ? theme.color.purple : "none",
+                  color: kind === k ? "#fff" : theme.color.text,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {OFFICIAL_KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
+
+          {kind === "captain" ? (
+            categoryId ? (
+              <>
+                <input
+                  placeholder="Search roster by name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  disabled={busy}
+                  style={{ width: "100%", padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 8 }}
+                />
+                {matches.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {matches.map((p) => (
+                      <button
+                        key={p.id}
+                        disabled={busy}
+                        onClick={() => addCaptain(p)}
+                        style={{ textAlign: "left", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, background: "#F7F6F3", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {`${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() || "Unnamed player"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {search.trim() && matches.length === 0 && (
+                  <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>No match on this roster.</div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 12.5, color: theme.color.textMuted }}>
+                Fix this team's category above before appointing a captain.
+              </div>
+            )
+          ) : (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                placeholder="Email address…"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+                style={{ flex: 1, minWidth: 200, padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5 }}
+              />
+              <PrimaryButton onClick={addManagerCoach} disabled={busy || !email.trim()}>
+                {busy ? "Adding…" : "+ ADD"}
+              </PrimaryButton>
+            </div>
+          )}
+        </>
+      )}
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginTop: 8 }}>{error}</div>}
     </Card>
+  );
+}
+
+function OfficialRow({
+  name,
+  sub,
+  kind,
+  busy,
+  onRemove,
+}: {
+  name: string;
+  sub?: string;
+  kind: OfficialKind;
+  busy: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#F7F6F3", borderRadius: theme.radius.sm, gap: 12 }}>
+      <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 800,
+            letterSpacing: 0.3,
+            color: kind === "captain" ? theme.color.purple : theme.color.navy,
+            border: `1px solid ${kind === "captain" ? theme.color.purple : theme.color.navy}`,
+            borderRadius: 4,
+            padding: "2px 6px",
+            flexShrink: 0,
+          }}
+        >
+          {OFFICIAL_KIND_LABELS[kind].toUpperCase()}
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{name}</div>
+          {sub && <div style={{ fontSize: 12, color: theme.color.textMuted }}>{sub}</div>}
+        </div>
+      </div>
+      <button
+        disabled={busy}
+        onClick={onRemove}
+        style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}
+      >
+        Remove
+      </button>
+    </div>
   );
 }
 

@@ -43,7 +43,16 @@ export function RosterTile({
   const verified = player.checkInStatus === "approved";
   const showRosterCheck = verified && rosterChecked !== undefined;
   const tileStyle = suspended ? styles.tileDanger : !verified ? styles.tileDanger : showRosterCheck && !rosterChecked ? styles.tileWarning : styles.tileOk;
-  const jerseyText = (
+  // Editable + genuinely empty (never "tap to edit a locked/read-only #—")
+  // gets the dashed "+ Add #" pill treatment instead of muted plain text —
+  // same empty-state idea as web's CaptainRoster jersey pill, so it reads as
+  // tappable instead of as a label. jerseyLabel's caller-overridable, but
+  // nothing currently overrides it, so this reads player.jerseyNumber
+  // directly rather than trying to infer emptiness from the label string.
+  const showAddPill = !!onJerseyPress && !jerseyLocked && player.jerseyNumber === undefined;
+  const jerseyText = showAddPill ? (
+    <Text style={styles.jerseyAddPill}>+ Add #</Text>
+  ) : (
     <Text style={[styles.jersey, onJerseyPress && !jerseyLocked && styles.jerseyEditable]}>
       {jerseyLabel}{jerseyLocked ? " 🔒" : ""}
     </Text>
@@ -122,6 +131,18 @@ const styles = StyleSheet.create({
   name: { fontWeight: "700", fontSize: 13.5, flexShrink: 1 },
   jersey: { marginLeft: "auto", fontWeight: "800", fontSize: 11.5, color: theme.color.textMuted },
   jerseyEditable: { color: theme.color.purple },
+  jerseyAddPill: {
+    marginLeft: "auto",
+    fontWeight: "800",
+    fontSize: 10.5,
+    color: theme.color.purple,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: theme.color.purple,
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" },
   sep: { color: theme.color.border, fontSize: 11 },
   chev: { color: theme.color.textMuted, fontSize: 15 },

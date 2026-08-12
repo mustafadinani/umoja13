@@ -5,7 +5,7 @@ import { db, defaultDb } from "./admin.js";
  * True if this uid is a real registration captain of ANY team (same check
  * setJerseyNumber applies per-team: team.captainProfileId === uid or
  * team.uid === uid), or an admin-designated coach/manager of any team
- * (Team.coachManagerUids — see assignTeamManager). Used to gate the
+ * (Team.coachManagerUids — see assignTeamOfficial). Used to gate the
  * commissioner report/complaint flow to captains/managers only — the UI
  * already only shows that button to this group; this is the server-side
  * enforcement so the callable can't be hit directly to bypass it.

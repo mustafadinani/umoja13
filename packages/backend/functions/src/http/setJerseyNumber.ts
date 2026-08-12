@@ -27,7 +27,7 @@ interface SetJerseyNumberRequest {
  * Sets a player's jersey number on their rosterCheckIns overlay doc — either
  * the player setting their own (optional, offered during check-in), their
  * team's real registration captain, or an admin-designated coach/manager
- * (Team.coachManagerUids — see assignTeamManager; unlike the captain, they
+ * (Team.coachManagerUids — see assignTeamOfficial; unlike the captain, they
  * aren't necessarily a registered player on the team themselves). Jersey
  * numbers are completely locked the moment the tournament starts
  * (TOURNAMENT_START_AT) — no sets, no changes, for anyone, whether or not

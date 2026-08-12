@@ -1,21 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import {
   CATEGORIES,
+  COLLECTIONS,
+  MAX_TEAM_OFFICIALS,
+  OFFICIAL_KIND_LABELS,
   TOURNAMENT_START_AT,
   TOURNAMENT_DAY_DATES,
   computePlayerSuspension,
   formatKickoffTime,
   provisionalSideLabel,
   type Game,
+  type OfficialKind,
   type RosterEntry,
+  type Team,
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
+import { db } from "../lib/firebase";
 import { useGames, useMoments, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
-import { assignTeamCaptain, removeTeamCaptain, sendTeamMessage, setJerseyNumber } from "../lib/callables";
+import { assignTeamOfficial, removeTeamOfficial, sendTeamMessage, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
 import { RosterTile } from "../components/RosterTile";
@@ -66,7 +73,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterPlayerKeys.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
   // Real registration captain OR an admin-designated coach/manager
-  // (Team.coachManagerUids — see assignTeamManager). A coach/manager isn't
+  // (Team.coachManagerUids — see assignTeamOfficial). A coach/manager isn't
   // necessarily a registered player themselves, so this can't come from
   // playerOf the way isCaptain does — team.coachManagerUids is already
   // merged onto this exact team object.
@@ -115,9 +122,9 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
     setError(null);
     try {
       if (makeCaptain) {
-        await assignTeamCaptain({ teamId: team!.id, categoryId: team!.categoryId, playerKey, targetUid });
+        await assignTeamOfficial({ teamId: team!.id, kind: "captain", categoryId: team!.categoryId, playerKey, targetUid });
       } else {
-        await removeTeamCaptain({ teamId: team!.id, categoryId: team!.categoryId, playerKey });
+        await removeTeamOfficial({ teamId: team!.id, kind: "captain", categoryId: team!.categoryId, playerKey });
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't update captain status.");
@@ -208,6 +215,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
           )}
           {isCaptain && error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 6 }}>{error}</Text>}
           {isCaptain && <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>Tap a jersey number to edit it.</Text>}
+          {isCaptain && <AddTeamOfficialPanel team={team} />}
         </View>
       )}
 
@@ -338,6 +346,156 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   );
 }
 
+/**
+ * Self-serve version of the same add-official flow TeamsAdminTab.tsx (web)
+ * offers staff — any current official (real captain, appointed co-captain,
+ * or coach/manager) can add up to MAX_TEAM_OFFICIALS more, enforced
+ * server-side in assignTeamOfficial. Doesn't try to list the OTHER officials
+ * by name — unlike the roster above, a coach/manager isn't necessarily on
+ * this roster, and resolving arbitrary users' display names isn't something
+ * a captain's own Firestore access is meant to allow. Just shows the count
+ * against the cap, which is safe to compute from data this screen already
+ * has access to. See web's CaptainRoster.tsx AddTeamOfficialPanel — same
+ * design, ported.
+ */
+function AddTeamOfficialPanel({ team }: { team: Team }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<OfficialKind>("captain");
+  const [search, setSearch] = useState("");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [appointedCount, setAppointedCount] = useState(0);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, COLLECTIONS.rosterCheckIns),
+      where("teamId", "==", team.id),
+      where("appointedCaptain", "==", true)
+    );
+    return onSnapshot(
+      q,
+      (snap) => setAppointedCount(new Set(snap.docs.map((d) => d.data().userId)).size),
+      () => setAppointedCount(0)
+    );
+  }, [team.id]);
+
+  const totalCount = appointedCount + (team.coachManagerUids?.length ?? 0);
+  const atCap = totalCount >= MAX_TEAM_OFFICIALS;
+
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return team.roster.filter((p) => !p.isCaptain && p.displayName.toLowerCase().includes(q)).slice(0, 6);
+  }, [search, team.roster]);
+
+  async function addCaptain(playerKey: string, targetUid: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await assignTeamOfficial({ teamId: team.id, kind: "captain", categoryId: team.categoryId, playerKey, targetUid });
+      setSearch("");
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that captain.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addManagerCoach() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await assignTeamOfficial({ teamId: team.id, kind: "manager_coach", email: trimmed });
+      setEmail("");
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that manager/coach.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <TouchableOpacity onPress={() => setOpen(true)} disabled={atCap} style={[styles.addOfficialBtn, atCap && styles.addOfficialBtnDisabled]}>
+        <Text style={{ color: atCap ? theme.color.textMuted : theme.color.purple, fontWeight: "700", fontSize: 13 }}>
+          {atCap ? `Team officials full (${MAX_TEAM_OFFICIALS}/${MAX_TEAM_OFFICIALS})` : `+ Add a team official (${totalCount}/${MAX_TEAM_OFFICIALS})`}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <Card style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <Text style={{ fontWeight: "700" }}>Add a team official</Text>
+        <TouchableOpacity onPress={() => { setOpen(false); setError(null); }}>
+          <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}>
+        {(["captain", "manager_coach"] as const).map((k) => (
+          <TouchableOpacity
+            key={k}
+            onPress={() => setKind(k)}
+            style={[styles.kindPill, kind === k && styles.kindPillActive]}
+          >
+            <Text style={{ color: kind === k ? "#fff" : theme.color.text, fontWeight: "700", fontSize: 12.5 }}>
+              {OFFICIAL_KIND_LABELS[k]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {kind === "captain" ? (
+        <>
+          <TextInput
+            placeholder="Search roster by name…"
+            value={search}
+            onChangeText={setSearch}
+            editable={!busy}
+            style={styles.channelInput}
+          />
+          {matches.length > 0 && (
+            <View style={{ marginTop: 8, gap: 6 }}>
+              {matches.map((p) => {
+                const playerKey = p.playerKey ?? p.userId;
+                return (
+                  <TouchableOpacity key={playerKey} disabled={busy} onPress={() => addCaptain(playerKey, p.userId)} style={styles.matchRow}>
+                    <Text style={{ fontSize: 13, fontWeight: "600" }}>{p.displayName}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+          {search.trim() && matches.length === 0 && (
+            <Text style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 6 }}>No match on this roster.</Text>
+          )}
+        </>
+      ) : (
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          <TextInput
+            placeholder="Email address…"
+            value={email}
+            onChangeText={setEmail}
+            editable={!busy}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            style={[styles.channelInput, { flex: 1 }]}
+          />
+          <PrimaryButton disabled={busy || !email.trim()} onPress={addManagerCoach}>{busy ? "Adding…" : "+ Add"}</PrimaryButton>
+        </View>
+      )}
+      {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 10 }}>{error}</Text>}
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   header: { padding: 20 },
   teamName: { color: "#fff", fontWeight: "800", fontSize: 22 },
@@ -357,4 +515,9 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", padding: 18, backgroundColor: "#F7F6F3", borderRadius: 10 },
   channelBubble: { borderRadius: 10, padding: 10, maxWidth: "80%" },
   channelInput: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
+  addOfficialBtn: { borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.color.purple, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12 },
+  addOfficialBtnDisabled: { borderColor: theme.color.border },
+  kindPill: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, paddingVertical: 8, alignItems: "center" },
+  kindPillActive: { backgroundColor: theme.color.purple, borderColor: theme.color.purple },
+  matchRow: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 8, backgroundColor: "#F7F6F3" },
 });

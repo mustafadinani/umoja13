@@ -252,11 +252,16 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
         they'd otherwise never see this section (or anything else on this
         screen) at all. Same tools as a real captain gets: jersey editing
         (via tapping into the Team screen below) + file a complaint, for
-        whichever team(s) an admin attached them to.
+        whichever team(s) an admin attached them to. Renamed from "TEAM
+        MANAGER TOOLS" — a real/appointed captain's own team already shows
+        under MY TEAMS above with the same tools once tapped into (see
+        TeamScreen's isCaptain), so this section only ever needed to exist
+        for the coach/manager case; the label now matches the merged
+        terminology used everywhere else (see PlayerDashboard.tsx on web).
       */}
       {managedTeamIds.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TEAM MANAGER TOOLS</Text>
+          <Text style={styles.sectionTitle}>TEAM OFFICIAL TOOLS</Text>
           {managedTeamIds.map((teamId) => (
             <TeamRow key={teamId} teamId={teamId} onPress={() => navigation.getParent()?.navigate("Team", { teamId })} />
           ))}
@@ -366,7 +371,7 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
           onPress={() => canFileReport && navigation.getParent()?.navigate("Complaint")}
         >
           <Text style={[styles.footerLink, !canFileReport && { opacity: 0.4 }]}>
-            {canFileReport ? "Report an issue to the commissioner" : "Report an issue to the commissioner (captains/managers only)"}
+            {canFileReport ? "Report an issue to the commissioner" : "Report an issue to the commissioner (team officials only)"}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => signOut()} style={{ marginTop: 12 }}>

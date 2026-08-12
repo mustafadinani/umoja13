@@ -62,7 +62,7 @@ export function playerMembershipsFromRegisteredPlayers(
   /**
    * teamId -> the set of playerKeys a coach/manager (or staff) has appointed
    * as captain on that team (see RosterCheckIn.appointedCaptain /
-   * assignTeamCaptain) — additive to teamCaptainByTeamId's real registration
+   * assignTeamOfficial) — additive to teamCaptainByTeamId's real registration
    * captain, and keyed by playerKey (not uid) since two siblings sharing one
    * account need to be distinguishable here the same way RosterEntry.isCaptain
    * already is in registeredPlayerToRosterEntry.

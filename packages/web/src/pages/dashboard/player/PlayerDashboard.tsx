@@ -120,25 +120,25 @@ export function PlayerDashboard() {
             {myGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
 
-          {captainMemberships.length > 0 && (
-            <>
-              <SectionLabel>CAPTAIN TOOLS</SectionLabel>
-              {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} />)}
-            </>
-          )}
         </>
       )}
 
       {/*
-        Deliberately outside the memberships.length > 0 gate above — a
-        coach/manager isn't necessarily a registered player themselves, so
-        they'd otherwise never see this section (or anything else on this
-        page) at all. Same tools as a real captain gets: jersey editing +
-        file a complaint, for whichever team(s) an admin attached them to.
+        One merged section covering both ways someone ends up with team-
+        official tools — either is enough to show it (an OR, not an AND):
+        a real/appointed captain of a team they play on (captainMemberships,
+        from playerOf), or an admin-attached coach/manager of a team they
+        aren't necessarily on the roster of at all (managedTeamIds). That's
+        also why this whole block sits outside the memberships.length > 0
+        gate above — a coach/manager with zero memberships still needs to
+        see it. managedTeamIds already excludes any team counted under
+        captainMemberships, so there's no double-render for someone who
+        happens to be both on the same team.
       */}
-      {managedTeamIds.length > 0 && (
+      {(captainMemberships.length > 0 || managedTeamIds.length > 0) && (
         <>
-          <SectionLabel>TEAM MANAGER TOOLS</SectionLabel>
+          <SectionLabel>TEAM OFFICIAL TOOLS</SectionLabel>
+          {captainMemberships.map((m) => <CaptainSection key={m.teamId} teamId={m.teamId} />)}
           {managedTeamIds.map((teamId) => <CaptainSection key={teamId} teamId={teamId} canAppointCaptain />)}
         </>
       )}
@@ -153,7 +153,7 @@ export function PlayerDashboard() {
             >
               <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
               <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4 }}>
-                {canFileReport ? "$35 review fee (test card payment)" : "Captains and coach/managers only"}
+                {canFileReport ? "$35 review fee (test card payment)" : "Team officials only"}
               </div>
             </Card>
           );

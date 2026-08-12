@@ -162,25 +162,17 @@ export const setJerseyNumber = httpsCallable<
   { ok: true }
 >(functions, "setJerseyNumber");
 
-export const assignTeamManager = httpsCallable<
-  { teamId: string; email: string },
-  { ok: true; uid: string }
->(functions, "assignTeamManager");
+export const assignTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string; targetUid: string }
+  | { teamId: string; kind: "manager_coach"; email: string },
+  { ok: true; uid?: string }
+>(functions, "assignTeamOfficial");
 
-export const removeTeamManager = httpsCallable<{ teamId: string; uid: string }, { ok: true }>(
-  functions,
-  "removeTeamManager"
-);
-
-export const assignTeamCaptain = httpsCallable<
-  { teamId: string; categoryId: string; playerKey: string; targetUid: string },
+export const removeTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string }
+  | { teamId: string; kind: "manager_coach"; uid: string },
   { ok: true }
->(functions, "assignTeamCaptain");
-
-export const removeTeamCaptain = httpsCallable<
-  { teamId: string; categoryId: string; playerKey: string },
-  { ok: true }
->(functions, "removeTeamCaptain");
+>(functions, "removeTeamOfficial");
 
 export const backfillTeamRosterAccess = httpsCallable<void, { teamsFixed: number }>(
   functions,
