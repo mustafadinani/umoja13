@@ -6,7 +6,6 @@ import {
   formatKickoffTime,
   provisionalSideLabel,
   TOURNAMENT_DAY_DATES,
-  TOURNAMENT_START_AT,
   type Game,
   type RosterEntry,
 } from "@umoja/shared";
@@ -46,11 +45,12 @@ export function Team() {
   const [addMomentOpen, setAddMomentOpen] = useState(false);
   // Staff can fix a jersey number themselves right from this page instead of
   // having to go through the team's captain/coach-manager — same
-  // admin-or-commissioner bar setJerseyNumber's backend already enforces,
-  // just previously with no web UI at all outside the captain/manager
-  // dashboard to actually exercise it.
+  // admin-or-commissioner bar setJerseyNumber's backend already enforces.
+  // No tournament-start lock here: this edit affordance is staff-only (see
+  // isStaff below), and setJerseyNumber's backend deliberately exempts
+  // staff from that cutoff — they're who'd need to fix a real conflict
+  // found mid-tournament.
   const isStaff = profile?.roles?.includes("admin") || profile?.roles?.includes("commissioner");
-  const jerseyLocked = Date.now() >= TOURNAMENT_START_AT;
   const [editingJerseyKey, setEditingJerseyKey] = useState<string | null>(null);
   const [jerseyDraft, setJerseyDraft] = useState("");
   const [jerseySaving, setJerseySaving] = useState(false);
@@ -140,7 +140,7 @@ export function Team() {
                       onClick={() => saveJerseyNumber(playerKey)}
                       style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}
                     >
-                      {jerseySaving ? "Saving…" : "Save"}
+                      {jerseySaving ? "Submitting…" : "Submit"}
                     </button>
                     <button onClick={() => { setEditingJerseyKey(null); setJerseyError(null); }} style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12 }}>
                       Cancel
@@ -159,14 +159,10 @@ export function Team() {
                       ? () => { setEditingJerseyKey(playerKey); setJerseyDraft(String(p.jerseyNumber ?? "")); setJerseyError(null); }
                       : undefined
                   }
-                  jerseyLocked={isStaff ? jerseyLocked : undefined}
                 />
               );
             })}
             {isStaff && jerseyError && <div style={{ color: theme.color.danger, fontSize: 12.5 }}>{jerseyError}</div>}
-            {isStaff && jerseyLocked && (
-              <div style={{ color: theme.color.textMuted, fontSize: 12 }}>🔒 Jersey numbers are locked now that the tournament has started.</div>
-            )}
             {team.roster.length === 0 && (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
                 {teamError

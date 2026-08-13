@@ -30,12 +30,13 @@ interface SetJerseyNumberRequest {
  * team's real registration captain, an admin-designated coach/manager
  * (Team.coachManagerUids — see assignTeamOfficial; unlike the captain, they
  * aren't necessarily a registered player on the team themselves), or staff
- * (admin/commissioner). Jersey numbers are completely locked the moment the
- * tournament starts (TOURNAMENT_START_AT) — no sets, no changes, for
- * anyone, whether or not one was ever entered. Everyone with roster
- * authority (captain, coach/manager, staff) is expected to input and lock
- * in every number before then; check-in itself stops offering the
- * jersey-number question once that date passes.
+ * (admin/commissioner). Jersey numbers lock for everyone else the moment
+ * the tournament starts (TOURNAMENT_START_AT) — captains/coach-managers/
+ * players are expected to input and lock in every number before then, and
+ * check-in itself stops offering the jersey-number question once that date
+ * passes. Staff stay exempt from that cutoff — a genuine correction found
+ * mid-tournament (a real conflict discovered at gate check, a data mixup)
+ * needs a live fix, not a trip through direct Firestore access.
  *
  * Only someone with roster authority over the team (captain, coach/manager,
  * staff) can reassign a number that's already claimed by a teammate — a
@@ -117,11 +118,12 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     }
   }
 
-  // Hard cutoff — nobody (player, captain/manager, or staff through this same
-  // path) can set or change a jersey number once the tournament has started,
-  // whether or not one was ever entered. A genuine correction after that
-  // point should go through direct Firestore access, not this callable.
-  if (Date.now() >= TOURNAMENT_START_AT) {
+  // Cutoff for everyone except staff — a player, captain, or coach/manager
+  // can't set or change a jersey number once the tournament has started,
+  // whether or not one was ever entered. Staff (admin/commissioner) are
+  // deliberately exempt: they're the ones who'd actually need to fix a
+  // real conflict discovered mid-tournament.
+  if (!isStaffCaller && Date.now() >= TOURNAMENT_START_AT) {
     throw new HttpsError("failed-precondition", "Jersey numbers are locked now that the tournament has started.");
   }
 

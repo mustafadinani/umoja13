@@ -8,7 +8,6 @@ import {
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TODDLERS_CAMP_CATEGORY_LABELS,
-  TOURNAMENT_START_AT,
   resolvePlayerCategoryId,
   resolveTeamCategoryId,
   type OfficialKind,
@@ -719,8 +718,6 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
-const jerseyLocked = Date.now() >= TOURNAMENT_START_AT;
-
 /**
  * Shared row for both a real team's roster and a camp category's flat
  * camper list — jersey editing (jerseyNumber/onSaveJersey) is optional
@@ -794,20 +791,15 @@ function PlayerRow({
 
         {onSaveJersey && !editing && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <span
-              title={jerseyLocked ? "Locked for the rest of the tournament" : undefined}
-              style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: jerseyLocked ? theme.color.textMuted : theme.color.text }}
-            >
-              {jerseyNumber !== undefined ? `#${jerseyNumber}` : "#—"}{jerseyLocked && " 🔒"}
+            <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: theme.color.text }}>
+              {jerseyNumber !== undefined ? `#${jerseyNumber}` : "#—"}
             </span>
-            {!jerseyLocked && (
-              <button
-                onClick={() => { setEditing(true); setDraft(String(jerseyNumber ?? "")); setError(null); }}
-                style={{ background: "none", border: `1.5px solid ${theme.color.purple}`, color: theme.color.purple, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
-              >
-                Edit
-              </button>
-            )}
+            <button
+              onClick={() => { setEditing(true); setDraft(String(jerseyNumber ?? "")); setError(null); }}
+              style={{ background: "none", border: `1.5px solid ${theme.color.purple}`, color: theme.color.purple, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+            >
+              Edit
+            </button>
           </div>
         )}
       </div>
