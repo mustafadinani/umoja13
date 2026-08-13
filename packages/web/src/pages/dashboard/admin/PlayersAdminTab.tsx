@@ -23,7 +23,7 @@ import { Card, Pill } from "../../../components/ui";
 import { db, defaultDb } from "../../../lib/firebase";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
 import { BulkEmailModal } from "./BulkEmailModal";
-import { PlayerProfileModal } from "./PlayerProfileModal";
+import { PlayerProfileModal, type PlayerProfileSibling } from "./PlayerProfileModal";
 
 /** Same identifier every check-in/roster/jersey lookup elsewhere in the app uses to pick out one specific child on a shared family account — never the bare account uid. */
 function playerKeyOf(player: RegisteredPlayer): string {
@@ -111,6 +111,14 @@ export function PlayersAdminTab() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [openPlayerId, setOpenPlayerId] = useState<string | null>(null);
+  // Full identity review (selfie/ID, decide buttons) is a drill-down from
+  // the profile now, not the default — this tracks which of the two is
+  // showing for whichever player is currently open.
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  function openPlayer(playerId: string) {
+    setOpenPlayerId(playerId);
+    setDocumentsOpen(false);
+  }
   // Otherwise a stale "Copied N emails" from before a filter change keeps
   // showing next to a button that now says a completely different N.
   useEffect(() => setCopyStatus(null), [teamFilter, categoryFilter, search]);
@@ -132,7 +140,9 @@ export function PlayersAdminTab() {
   // one account could show each other's check-in status; this is the same
   // keying CheckInsTab/RosterPanel/Teams tab already use.
   const checkInByPlayerKey = useMemo(() => new Map(checkIns.map((c) => [c.playerKey ?? c.userId, c])), [checkIns]);
-  const jerseyByPlayerKey = useMemo(() => new Map(rosterCheckIns.map((r) => [r.userId, r.jerseyNumber])), [rosterCheckIns]);
+  // Keyed by playerKey (RosterCheckIn.userId) — carries jerseyNumber AND
+  // swagPickedUp, the same PII-free overlay Team/RosterPanel/Teams-tab read.
+  const rosterCheckInByPlayerKey = useMemo(() => new Map(rosterCheckIns.map((r) => [r.userId, r])), [rosterCheckIns]);
 
   const filterLabels = useMemo(() => {
     const set = new Set<string>();
@@ -144,21 +154,28 @@ export function PlayersAdminTab() {
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [players, categories]);
 
+  // Unfiltered, one row per registration player — the base every filtered
+  // view, sibling lookup, and direct-open-by-id resolves against, so a
+  // player who's technically outside the active team/category/search
+  // filters (e.g. a sibling on a different team) is still reachable.
+  const allRows = useMemo(() => {
+    return players.map((p) => {
+      const teamId = p.teamId?.trim() || "";
+      const hasTeam = teamId.length > 0;
+      const teamName = hasTeam
+        ? teamNameById.get(teamId) || p.teamName?.trim() || `Team ${teamId}`
+        : undefined;
+      const playerKey = playerKeyOf(p);
+      const checkIn = checkInByPlayerKey.get(playerKey);
+      const rosterCheckIn = rosterCheckInByPlayerKey.get(playerKey);
+      const categoryMatch = matchPlayerCategory(p, categories);
+      return { player: p, playerKey, teamId, teamName, hasTeam, checkIn, rosterCheckIn, categoryMatch };
+    });
+  }, [players, teamNameById, checkInByPlayerKey, rosterCheckInByPlayerKey, categories]);
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return players
-      .map((p) => {
-        const teamId = p.teamId?.trim() || "";
-        const hasTeam = teamId.length > 0;
-        const teamName = hasTeam
-          ? teamNameById.get(teamId) || p.teamName?.trim() || `Team ${teamId}`
-          : undefined;
-        const playerKey = playerKeyOf(p);
-        const checkIn = checkInByPlayerKey.get(playerKey);
-        const jerseyNumber = jerseyByPlayerKey.get(playerKey);
-        const categoryMatch = matchPlayerCategory(p, categories);
-        return { player: p, playerKey, teamId, teamName, hasTeam, checkIn, jerseyNumber, categoryMatch };
-      })
+    return allRows
       .filter(({ player, hasTeam, categoryMatch }) => {
         // Self-registered and incomplete-registration are each their own
         // dedicated view, independent of team/category status — self-
@@ -203,7 +220,7 @@ export function PlayersAdminTab() {
         const bn = `${b.player.lastName ?? ""} ${b.player.firstName ?? ""}`.toLowerCase();
         return an.localeCompare(bn);
       });
-  }, [players, teamNameById, checkInByPlayerKey, jerseyByPlayerKey, search, categoryFilter, teamFilter, categories]);
+  }, [allRows, search, categoryFilter, teamFilter]);
 
   // Self-registered and incomplete-registration rows aren't real
   // registrations at all (see the identical exclusion in the `rows` filter
@@ -257,7 +274,24 @@ export function PlayersAdminTab() {
   }
   const loading = playersLoading || teamsLoading || checkInsLoading || categoriesLoading;
   const error = playersError || teamsError;
-  const openRow = openPlayerId ? rows.find((r) => r.player.id === openPlayerId) ?? null : null;
+  // Resolved against allRows, not the filtered `rows` — a sibling opened
+  // from the Family section may sit outside whatever filter is active here.
+  const openRow = openPlayerId ? allRows.find((r) => r.player.id === openPlayerId) ?? null : null;
+  // Same account uid, excluding this row itself — surfaces exactly the kind
+  // of shared-family-account sibling mixup several bugs this session traced
+  // back to, right where an admin would actually notice it.
+  const siblings: PlayerProfileSibling[] = useMemo(() => {
+    const uid = openRow?.player.uid?.trim();
+    if (!uid) return [];
+    return allRows
+      .filter((r) => r.player.uid?.trim() === uid && r.player.id !== openRow!.player.id)
+      .map((r) => ({
+        id: r.player.id,
+        name: `${r.player.firstName ?? ""} ${r.player.lastName ?? ""}`.trim() || "Unnamed player",
+        teamName: r.teamName,
+        categoryLabel: r.categoryMatch.matched?.label ?? r.categoryMatch.rawDisplay,
+      }));
+  }, [openRow, allRows]);
 
   async function assignCategory(player: RegisteredPlayer, nextCategoryId: string) {
     const selected = categoryById.get(nextCategoryId);
@@ -446,7 +480,7 @@ export function PlayersAdminTab() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.map(({ player, teamName, hasTeam, checkIn, jerseyNumber, categoryMatch }) => {
+        {rows.map(({ player, teamName, hasTeam, checkIn, rosterCheckIn, categoryMatch }) => {
           const displayName = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
           const invalid = !categoryMatch.matched && !categoryMatch.nonCompetitive;
           const selfRegistered = player.status === SELF_REGISTERED_STATUS;
@@ -454,7 +488,7 @@ export function PlayersAdminTab() {
           return (
             <Card
               key={player.id}
-              onClick={() => setOpenPlayerId(player.id)}
+              onClick={() => openPlayer(player.id)}
               style={{
                 padding: "12px 16px",
                 display: "flex",
@@ -624,9 +658,9 @@ export function PlayersAdminTab() {
                   <div style={{ fontWeight: 800, fontSize: 13, color: theme.color.danger }}>No team assigned.</div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 4 }}>
-                  {jerseyNumber !== undefined && (
+                  {rosterCheckIn?.jerseyNumber !== undefined && (
                     <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13, color: theme.color.purple }}>
-                      #{jerseyNumber}
+                      #{rosterCheckIn.jerseyNumber}
                     </span>
                   )}
                   <span
@@ -655,13 +689,14 @@ export function PlayersAdminTab() {
       </div>
 
       {/*
-        A player with a submitted check-in opens the exact same modal the
-        Check-ins tab uses — same data, same status, same decide/note tools
-        — so there's only ever one place this tab and that one can disagree.
-        A player who's never checked in yet (no CheckIn doc to show) gets
-        the lighter profile-only modal instead.
+        The profile is the default tap target for every row regardless of
+        check-in status — photo, jersey, family, swag. Full identity review
+        (selfie/ID comparison, decide buttons — the exact same modal the
+        Check-ins tab uses, so there's only ever one place the two tabs
+        could disagree) is a drill-down from the "view check-in documents"
+        link, only reachable when there's an actual submitted check-in.
       */}
-      {openRow?.checkIn && (
+      {openRow && documentsOpen && openRow.checkIn && (
         <PlayerDocumentsModal
           checkIn={openRow.checkIn}
           user={userById.get(openRow.checkIn.userId)}
@@ -669,16 +704,23 @@ export function PlayersAdminTab() {
           fallbackPhotoUrl={openRow.player.profilePicture}
           fallbackEmail={openRow.player.email}
           reviewerName={openRow.checkIn.reviewedBy ? userById.get(openRow.checkIn.reviewedBy)?.displayName : undefined}
-          onClose={() => setOpenPlayerId(null)}
+          onClose={() => setDocumentsOpen(false)}
         />
       )}
-      {openRow && !openRow.checkIn && (
+      {openRow && !documentsOpen && (
         <PlayerProfileModal
           player={openRow.player}
+          playerKey={openRow.playerKey}
+          teamId={openRow.teamId || undefined}
           teamName={openRow.teamName}
+          categoryId={openRow.categoryMatch.categoryId || undefined}
           categoryLabel={openRow.categoryMatch.matched?.label ?? openRow.categoryMatch.rawDisplay}
-          jerseyNumber={openRow.jerseyNumber}
-          onClose={() => setOpenPlayerId(null)}
+          checkIn={openRow.checkIn}
+          rosterCheckIn={openRow.rosterCheckIn}
+          siblings={siblings}
+          onOpenSibling={openPlayer}
+          onOpenCheckInDocuments={openRow.checkIn ? () => setDocumentsOpen(true) : undefined}
+          onClose={() => { setOpenPlayerId(null); setDocumentsOpen(false); }}
         />
       )}
       {bulkEmailOpen && <BulkEmailModal recipients={visibleRecipients} onClose={() => setBulkEmailOpen(false)} />}

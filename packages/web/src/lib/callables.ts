@@ -193,6 +193,11 @@ export const setJerseyNumber = httpsCallable<
   { ok: true }
 >(functions, "setJerseyNumber");
 
+export const setSwagPickedUp = httpsCallable<
+  { teamId: string; playerKey: string; categoryId: string; pickedUp: boolean },
+  { ok: true }
+>(functions, "setSwagPickedUp");
+
 export const assignTeamOfficial = httpsCallable<
   | { teamId: string; kind: "captain"; categoryId: string; playerKey: string; targetUid: string }
   | { teamId: string; kind: "manager_coach"; email: string },

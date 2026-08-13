@@ -139,6 +139,8 @@ export interface RosterCheckIn {
    * coach-appointed co-captains at once.
    */
   appointedCaptain?: boolean;
+  /** Set by staff via setSwagPickedUp when this player picks up their tournament swag — no lock, no conflict, just a checkbox at the swag table. */
+  swagPickedUp?: boolean;
   updatedAt: number;
 }
 
