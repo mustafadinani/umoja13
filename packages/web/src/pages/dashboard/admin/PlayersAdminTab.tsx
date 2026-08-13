@@ -8,28 +8,25 @@ import {
   SELF_REGISTERED_STATUS,
   INCOMPLETE_REGISTRATION_STATUS,
   TODDLERS_CAMP_CATEGORY_LABELS,
+  checkInStatusLabel,
+  checkInStatusTone,
   type Category,
-  type CheckIn,
   type RegisteredPlayer,
+  type RosterCheckIn,
   type UserProfile,
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useAllCheckIns, useCategories } from "../../../hooks/useData";
+import { useAllCheckIns, useAllUsers, useCategories } from "../../../hooks/useData";
+import { useCollection } from "../../../hooks/firestore";
 import { useRegisteredPlayers, useRegisteredTeamsRaw } from "../../../hooks/useRegistration";
 import { Card, Pill } from "../../../components/ui";
 import { db, defaultDb } from "../../../lib/firebase";
+import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
+import { PlayerProfileModal } from "./PlayerProfileModal";
 
-function hasSubmittedCheckIn(checkIns: CheckIn[], playerUid: string, teamId: string): boolean {
-  if (!playerUid) return false;
-  return checkIns.some((c) => {
-    if (c.userId !== playerUid) return false;
-    if (teamId && c.teamId && c.teamId !== teamId) return false;
-    // "rejected" is also !== "not_started", but a declined check-in is
-    // explicitly NOT checked in — the player needs to fix and resubmit.
-    // Without this exclusion, this tab kept showing "Checked in." for
-    // players an admin had just declined.
-    return c.status !== "not_started" && c.status !== "rejected";
-  });
+/** Same identifier every check-in/roster/jersey lookup elsewhere in the app uses to pick out one specific child on a shared family account — never the bare account uid. */
+function playerKeyOf(player: RegisteredPlayer): string {
+  return player.profileId?.trim() || player.id;
 }
 
 function normalizeLabel(label: string): string {
@@ -99,6 +96,11 @@ export function PlayersAdminTab() {
   const { data: teams, loading: teamsLoading, error: teamsError } = useRegisteredTeamsRaw();
   const { data: checkIns, loading: checkInsLoading } = useAllCheckIns();
   const { data: categories, loading: categoriesLoading } = useCategories();
+  const { data: users } = useAllUsers();
+  // Whole-collection fetch for jersey numbers — the same PII-free overlay
+  // Teams tab already reads jerseyNumber off, kept as a separate fetch from
+  // checkIns because jerseyNumber is never mirrored onto CheckIn itself.
+  const { data: rosterCheckIns } = useCollection<RosterCheckIn>(COLLECTIONS.rosterCheckIns);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   // Defaults to "with a team" — that's the group admins actually work
@@ -107,6 +109,7 @@ export function PlayersAdminTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [openPlayerId, setOpenPlayerId] = useState<string | null>(null);
   // Otherwise a stale "Copied N emails" from before a filter change keeps
   // showing next to a button that now says a completely different N.
   useEffect(() => setCopyStatus(null), [teamFilter, categoryFilter, search]);
@@ -120,6 +123,15 @@ export function PlayersAdminTab() {
   }, [teams]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const userById = useMemo(() => new Map(users.map((u) => [u.uid, u])), [users]);
+  // Keyed by playerKey (CheckIn.playerKey, falling back to userId for
+  // check-ins written before that field existed) — NOT the bare account
+  // uid, which every sibling on a shared family account has in common.
+  // The tab used to match check-ins by uid alone, so two siblings sharing
+  // one account could show each other's check-in status; this is the same
+  // keying CheckInsTab/RosterPanel/Teams tab already use.
+  const checkInByPlayerKey = useMemo(() => new Map(checkIns.map((c) => [c.playerKey ?? c.userId, c])), [checkIns]);
+  const jerseyByPlayerKey = useMemo(() => new Map(rosterCheckIns.map((r) => [r.userId, r.jerseyNumber])), [rosterCheckIns]);
 
   const filterLabels = useMemo(() => {
     const set = new Set<string>();
@@ -140,9 +152,11 @@ export function PlayersAdminTab() {
         const teamName = hasTeam
           ? teamNameById.get(teamId) || p.teamName?.trim() || `Team ${teamId}`
           : undefined;
-        const checkedIn = hasSubmittedCheckIn(checkIns, p.uid || "", teamId);
+        const playerKey = playerKeyOf(p);
+        const checkIn = checkInByPlayerKey.get(playerKey);
+        const jerseyNumber = jerseyByPlayerKey.get(playerKey);
         const categoryMatch = matchPlayerCategory(p, categories);
-        return { player: p, teamId, teamName, hasTeam, checkedIn, categoryMatch };
+        return { player: p, playerKey, teamId, teamName, hasTeam, checkIn, jerseyNumber, categoryMatch };
       })
       .filter(({ player, hasTeam, categoryMatch }) => {
         // Self-registered and incomplete-registration are each their own
@@ -188,7 +202,7 @@ export function PlayersAdminTab() {
         const bn = `${b.player.lastName ?? ""} ${b.player.firstName ?? ""}`.toLowerCase();
         return an.localeCompare(bn);
       });
-  }, [players, teamNameById, checkIns, search, categoryFilter, teamFilter, categories]);
+  }, [players, teamNameById, checkInByPlayerKey, jerseyByPlayerKey, search, categoryFilter, teamFilter, categories]);
 
   // Self-registered and incomplete-registration rows aren't real
   // registrations at all (see the identical exclusion in the `rows` filter
@@ -228,6 +242,7 @@ export function PlayersAdminTab() {
   }
   const loading = playersLoading || teamsLoading || checkInsLoading || categoriesLoading;
   const error = playersError || teamsError;
+  const openRow = openPlayerId ? rows.find((r) => r.player.id === openPlayerId) ?? null : null;
 
   async function assignCategory(player: RegisteredPlayer, nextCategoryId: string) {
     const selected = categoryById.get(nextCategoryId);
@@ -404,7 +419,7 @@ export function PlayersAdminTab() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.map(({ player, teamName, hasTeam, checkedIn, categoryMatch }) => {
+        {rows.map(({ player, teamName, hasTeam, checkIn, jerseyNumber, categoryMatch }) => {
           const displayName = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
           const invalid = !categoryMatch.matched && !categoryMatch.nonCompetitive;
           const selfRegistered = player.status === SELF_REGISTERED_STATUS;
@@ -412,12 +427,14 @@ export function PlayersAdminTab() {
           return (
             <Card
               key={player.id}
+              onClick={() => setOpenPlayerId(player.id)}
               style={{
                 padding: "12px 16px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "flex-start",
                 gap: 12,
+                cursor: "pointer",
                 borderColor: invalid || selfRegistered ? theme.color.danger : incompleteRegistration ? theme.color.warning : undefined,
               }}
             >
@@ -461,6 +478,7 @@ export function PlayersAdminTab() {
 
                   {selfRegistered && (
                     <div
+                      onClick={(e) => e.stopPropagation()}
                       style={{
                         marginTop: 10,
                         padding: "10px 12px",
@@ -520,6 +538,7 @@ export function PlayersAdminTab() {
 
                   {invalid && (
                     <div
+                      onClick={(e) => e.stopPropagation()}
                       style={{
                         marginTop: 10,
                         padding: "10px 12px",
@@ -577,15 +596,26 @@ export function PlayersAdminTab() {
                 ) : (
                   <div style={{ fontWeight: 800, fontSize: 13, color: theme.color.danger }}>No team assigned.</div>
                 )}
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    marginTop: 4,
-                    color: checkedIn ? theme.color.success : theme.color.textMuted,
-                  }}
-                >
-                  {checkedIn ? "Checked in." : "Not checked in."}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 4 }}>
+                  {jerseyNumber !== undefined && (
+                    <span style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 13, color: theme.color.purple }}>
+                      #{jerseyNumber}
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: {
+                        success: theme.color.success,
+                        warning: theme.color.warning,
+                        muted: theme.color.textMuted,
+                        danger: theme.color.danger,
+                      }[checkInStatusTone(checkIn?.status)],
+                    }}
+                  >
+                    {checkIn ? checkInStatusLabel(checkIn.status) : "Not checked in"}
+                  </span>
                 </div>
               </div>
             </Card>
@@ -596,6 +626,34 @@ export function PlayersAdminTab() {
         )}
         {loading && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Loading players…</div>}
       </div>
+
+      {/*
+        A player with a submitted check-in opens the exact same modal the
+        Check-ins tab uses — same data, same status, same decide/note tools
+        — so there's only ever one place this tab and that one can disagree.
+        A player who's never checked in yet (no CheckIn doc to show) gets
+        the lighter profile-only modal instead.
+      */}
+      {openRow?.checkIn && (
+        <PlayerDocumentsModal
+          checkIn={openRow.checkIn}
+          user={userById.get(openRow.checkIn.userId)}
+          fallbackName={`${openRow.player.firstName ?? ""} ${openRow.player.lastName ?? ""}`.trim() || undefined}
+          fallbackPhotoUrl={openRow.player.profilePicture}
+          fallbackEmail={openRow.player.email}
+          reviewerName={openRow.checkIn.reviewedBy ? userById.get(openRow.checkIn.reviewedBy)?.displayName : undefined}
+          onClose={() => setOpenPlayerId(null)}
+        />
+      )}
+      {openRow && !openRow.checkIn && (
+        <PlayerProfileModal
+          player={openRow.player}
+          teamName={openRow.teamName}
+          categoryLabel={openRow.categoryMatch.matched?.label ?? openRow.categoryMatch.rawDisplay}
+          jerseyNumber={openRow.jerseyNumber}
+          onClose={() => setOpenPlayerId(null)}
+        />
+      )}
     </div>
   );
 }

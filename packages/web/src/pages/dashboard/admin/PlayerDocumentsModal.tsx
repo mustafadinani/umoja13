@@ -16,12 +16,12 @@ import {
 import { db } from "../../../lib/firebase";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { adminReviewCheckIn, setCheckInPhotoOverride } from "../../../lib/callables";
+import { adminReviewCheckIn, sendUserMessage, setCheckInPhotoOverride } from "../../../lib/callables";
 import { useTeam } from "../../../hooks/useData";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 
-export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, reviewerName, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; reviewerName?: string; onClose: () => void }) {
+export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhotoUrl, fallbackEmail, reviewerName, onClose }: { checkIn: CheckIn; user?: UserProfile; fallbackName?: string; fallbackPhotoUrl?: string; /** Registration email — CheckIn itself carries no email, only the account uid. */ fallbackEmail?: string; reviewerName?: string; onClose: () => void }) {
   const { profile } = useAuth();
   const { data: team } = useTeam(checkIn.teamId);
   const [busy, setBusy] = useState(false);
@@ -31,6 +31,28 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
   const [noteReasonOther, setNoteReasonOther] = useState("");
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const email = fallbackEmail ?? user?.email;
+
+  async function sendMessage() {
+    if (!messageText.trim()) return;
+    setMessageSending(true);
+    setMessageError(null);
+    try {
+      await sendUserMessage({ targetUid: checkIn.userId, text: messageText.trim() });
+      setMessageText("");
+      setMessageOpen(false);
+      setMessageSent(true);
+    } catch (e) {
+      setMessageError(e instanceof Error ? e.message : "Couldn't send that message.");
+    } finally {
+      setMessageSending(false);
+    }
+  }
   const categoryLabel = categoryLabelFor(checkIn.categoryId);
   // Match on playerKey too, not just team+category — a shared family
   // account can have two siblings' memberships colliding on the exact same
@@ -133,6 +155,49 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         {team?.name ?? "Team"} · {categoryLabel} · attempt {checkIn.attempt}
         {membership?.playerName && user?.displayName && membership.playerName !== user.displayName ? ` · account: ${user.displayName}` : ""}
       </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        {email && (
+          <a
+            href={`mailto:${email}`}
+            style={{ fontSize: 12, fontWeight: 700, color: theme.color.navy, border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "5px 10px", textDecoration: "none" }}
+          >
+            ✉ Email
+          </a>
+        )}
+        <button
+          onClick={() => { setMessageOpen((o) => !o); setMessageSent(false); setMessageError(null); }}
+          style={{ fontSize: 12, fontWeight: 700, color: theme.color.navy, background: "none", border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "5px 10px", cursor: "pointer" }}
+        >
+          💬 Message
+        </button>
+        {messageSent && <span style={{ fontSize: 12, fontWeight: 700, color: theme.color.success }}>✓ Sent</span>}
+      </div>
+
+      {messageOpen && (
+        <div style={{ marginBottom: 12 }}>
+          <textarea
+            autoFocus
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Message this player through Ask Umoja / organizer chat…"
+            rows={2}
+            style={{ width: "100%", padding: "8px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, marginBottom: 6, resize: "none" }}
+          />
+          <button
+            disabled={messageSending || !messageText.trim()}
+            onClick={sendMessage}
+            style={{
+              background: theme.color.navy, color: "#fff", border: "none", borderRadius: theme.radius.sm,
+              padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+              opacity: messageSending || !messageText.trim() ? 0.6 : 1,
+            }}
+          >
+            {messageSending ? "Sending…" : "Send"}
+          </button>
+          {messageError && <div style={{ color: theme.color.danger, fontSize: 12, marginTop: 6 }}>{messageError}</div>}
+        </div>
+      )}
 
       {!isNonCompetitiveCategory(checkIn.categoryId) && (
         <div style={{ color: theme.color.navy, fontWeight: 700, fontSize: 12.5, marginBottom: 12 }}>
