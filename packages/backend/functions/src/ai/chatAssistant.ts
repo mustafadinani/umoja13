@@ -97,10 +97,12 @@ stating them as certain. If you don't have enough information to answer confiden
 user they can switch this same conversation to a real organizer using the "Ask an organizer" control below the \
 message box — don't invent an answer.
 
-This is a merged conversation thread: some earlier turns are prefixed "(Organizer <name>):" — those were written by \
+This is a merged conversation thread: some earlier turns are prefixed "(Organizer):" — those were written by \
 a real Umoja staff member in this same thread, not by you. Treat them as authoritative and never contradict them; \
-if the user is clearly waiting on an organizer's reply, say so rather than answering on their behalf. Reply with \
-plain conversational text only — no internal tags, no markdown headers.
+if the user is clearly waiting on an organizer's reply, say so rather than answering on their behalf. Never say, \
+guess, or repeat any staff member's personal name, even if one appears elsewhere in this conversation — refer to \
+staff only as "an organizer" or "our team." Reply with plain conversational text only — no internal tags, no \
+markdown headers.
 
 --- App FAQ ---
 ${FAQ_BLOCK}
@@ -150,6 +152,17 @@ const MAX_MESSAGE_LENGTH = 2000;
 const MAX_STORED_MESSAGES = 400;
 const TRIM_TO = 300;
 
+/**
+ * How long after an organizer's last reply the bot stays out of the thread.
+ * The "Talk to an organizer" escalation is local UI state that resets on
+ * reload, so it can't be trusted alone to keep the bot from talking over a
+ * human mid-conversation — this makes the backend itself organizer-aware.
+ */
+const ORGANIZER_ACTIVE_WINDOW_MS = 15 * 60 * 1000;
+/** Sent once per organizer turn, not on every message after it — a single heads-up, not a repeated interruption of its own. */
+const ORGANIZER_ACTIVE_NOTICE =
+  "An organizer just replied here, so I'll step back for a bit and let them take it from here — they'll see your message. Ask me again in a little while if you still need me.";
+
 type ClaudeTurn = { role: "user" | "assistant"; content: string };
 
 /**
@@ -157,13 +170,15 @@ type ClaudeTurn = { role: "user" | "assistant"; content: string };
  * never from anything the client claims happened. Organizer (`admin`) turns
  * are folded into the assistant role too (Claude only knows user/assistant),
  * but labeled so the model treats them as a human's words, not its own.
+ * Deliberately never includes the organizer's real name here — the model
+ * should never learn it, let alone repeat it back in a reply.
  */
 function toClaudeMessages(history: UserChannelMessage[], newText: string): ClaudeTurn[] {
   const slice = [...history].sort((a, b) => a.createdAt - b.createdAt).slice(-AI_CONTEXT_TURNS);
   const raw: ClaudeTurn[] = slice.map((m) =>
     m.from === "user"
       ? { role: "user", content: m.text }
-      : { role: "assistant", content: m.from === "admin" ? `(Organizer ${m.authorName}): ${m.text}` : m.text }
+      : { role: "assistant", content: m.from === "admin" ? `(Organizer): ${m.text}` : m.text }
   );
   raw.push({ role: "user", content: newText });
 
@@ -220,6 +235,34 @@ export const askUmojaChannel = onCall<AskUmojaChannelRequest>({ secrets: [anthro
     { userId: uid, updatedAt: Date.now(), messages: FieldValue.arrayUnion(userMessage) },
     { merge: true }
   );
+
+  // If an organizer replied recently, stay out of the thread rather than
+  // auto-answering over them — the client's "Talk to an organizer" toggle is
+  // local UI state that resets on reload, so this has to hold regardless of
+  // what the client thinks the target is.
+  const sortedHistory = [...history].sort((a, b) => a.createdAt - b.createdAt);
+  const lastAdminMessage = [...sortedHistory].reverse().find((m) => m.from === "admin");
+  if (lastAdminMessage && Date.now() - lastAdminMessage.createdAt < ORGANIZER_ACTIVE_WINDOW_MS) {
+    // Only the first message after the organizer's reply gets the heads-up —
+    // every message after that stays fully silent so the notice itself
+    // doesn't become the thing interrupting the organizer's conversation.
+    const alreadyNotified = sortedHistory.some((m) => m.from === "ai" && m.createdAt > lastAdminMessage.createdAt);
+    if (alreadyNotified) return { reply: null, message: null };
+
+    const noticeMessage: UserChannelMessage = {
+      id: db.collection(COLLECTIONS.userChannels).doc().id,
+      from: "ai",
+      authorUid: AI_AUTHOR_UID,
+      authorName: AI_AUTHOR_NAME,
+      text: ORGANIZER_ACTIVE_NOTICE,
+      createdAt: Date.now(),
+    };
+    await db.collection(COLLECTIONS.userChannels).doc(uid).set(
+      { userId: uid, updatedAt: Date.now(), messages: FieldValue.arrayUnion(noticeMessage) },
+      { merge: true }
+    );
+    return { reply: ORGANIZER_ACTIVE_NOTICE, message: noticeMessage };
+  }
 
   const claude = getClaude();
   const response = await claude.messages.create({
