@@ -155,18 +155,34 @@ export function useResolvedProfile(uid: string | undefined): {
       // without ever seeing this uid's real registrations (e.g. a parent who
       // used the app's own Sign Up form) permanently masks those
       // registrations otherwise, even though regPlayers (matched by uid,
-      // independent of appUser) found them just fine. Only fills in when
-      // appUser's own playerOf is empty — never overwrites a populated one,
-      // so an intentionally-crafted seed/test profile is untouched.
-      if (!appUser.playerOf?.length && regPlayers.length > 0) {
-        const playerOf = playerMembershipsFromRegisteredPlayers(
+      // independent of appUser) found them just fine.
+      //
+      // This used to only fill in when appUser.playerOf was completely
+      // empty — which meant a registration added AFTER the account already
+      // had one real membership (e.g. a parent who's also registered as a
+      // player themselves, on the same account as their kid) never made it
+      // into playerOf at all: the account's existing non-empty array
+      // permanently masked it, with no error and no trace anywhere — the
+      // person just had no Check-In entry point for their own registration.
+      // Reconciling per-entry (add whatever's missing, by teamId+profileId,
+      // never touch what's already there) fixes that while still leaving an
+      // intentionally-crafted seed/test profile with no real registrations
+      // at all (regPlayers.length === 0) completely untouched.
+      if (regPlayers.length > 0) {
+        const freshPlayerOf = playerMembershipsFromRegisteredPlayers(
           uid,
           regPlayers,
           teamCaptainByTeamId,
           appointedCaptainKeysByTeamId
         );
-        if (playerOf.length > 0) {
-          return { profile: { ...appUser, playerOf }, profileSource: "umoja13" as const, loading };
+        const existingKeys = new Set((appUser.playerOf ?? []).map((m) => `${m.teamId}:${m.profileId ?? ""}`));
+        const missing = freshPlayerOf.filter((m) => !existingKeys.has(`${m.teamId}:${m.profileId ?? ""}`));
+        if (missing.length > 0) {
+          return {
+            profile: { ...appUser, playerOf: [...(appUser.playerOf ?? []), ...missing] },
+            profileSource: "umoja13" as const,
+            loading,
+          };
         }
       }
       return { profile: appUser, profileSource: "umoja13" as const, loading };
