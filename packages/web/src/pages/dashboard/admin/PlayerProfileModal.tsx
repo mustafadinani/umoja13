@@ -199,7 +199,7 @@ export function PlayerProfileModal({
               fg={rosterCheckIn?.swagPickedUp ? theme.color.success : theme.color.textMuted}
               onClick={swagSaving ? undefined : toggleSwag}
             >
-              {swagSaving ? "Updating…" : "🎁 Swag picked up"}
+              {swagSaving ? "Updating…" : rosterCheckIn?.swagPickedUp ? "🎁 Swag picked up" : "Swag pickup pending"}
             </Pill>
           )}
           {suspension?.suspended && (
