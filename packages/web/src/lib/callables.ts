@@ -198,6 +198,11 @@ export const setSwagPickedUp = httpsCallable<
   { ok: true }
 >(functions, "setSwagPickedUp");
 
+export const adminManualCheckIn = httpsCallable<
+  { teamId: string; playerKey: string; categoryId: string },
+  { status: "approved" }
+>(functions, "adminManualCheckIn");
+
 export const assignTeamOfficial = httpsCallable<
   | { teamId: string; kind: "captain"; categoryId: string; playerKey: string; targetUid: string }
   | { teamId: string; kind: "manager_coach"; email: string },

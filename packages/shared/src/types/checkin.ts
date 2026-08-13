@@ -74,6 +74,15 @@ export interface CheckIn {
   /** Both optional, offered as an extra step at check-in — never required, never asked of a category more than once per player. */
   lineOfWork?: string;
   currentEmployer?: string;
+  /**
+   * Set when staff approved this check-in directly (adminManualCheckIn) for
+   * a player who never actually submitted a selfie/ID themselves — e.g. the
+   * check-in flow was blocked for them (no camera access, a data bug) but
+   * staff have confirmed who they are in person. selfieUrl/govIdUrl are
+   * blank in this case; the card falls back to the registration photo.
+   * Never set by the player's own submission.
+   */
+  manualOverride?: boolean;
 }
 
 export interface CheckInConsent {

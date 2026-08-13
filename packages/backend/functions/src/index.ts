@@ -48,6 +48,7 @@ export { lookupUserByEmail } from "./http/lookupUserByEmail.js";
 export { markChannelRead } from "./http/markChannelRead.js";
 export { setJerseyNumber } from "./http/setJerseyNumber.js";
 export { setSwagPickedUp } from "./http/setSwagPickedUp.js";
+export { adminManualCheckIn } from "./http/adminManualCheckIn.js";
 export { assignTeamOfficial, removeTeamOfficial, getTeamOfficialNames } from "./http/assignTeamOfficial.js";
 export { setHuntStarted } from "./http/huntConfig.js";
 export { backfillTeamRosterAccess } from "./http/backfillTeamRosterAccess.js";

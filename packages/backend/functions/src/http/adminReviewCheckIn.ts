@@ -181,7 +181,8 @@ async function postDeclineToTeamChannel(teamId: string, playerKey: string, admin
   }
 }
 
-async function sendCheckInDecisionEmail(checkIn: CheckIn, approved: boolean, rejectionReason?: string): Promise<void> {
+/** Also used by adminManualCheckIn — same decision email either way. */
+export async function sendCheckInDecisionEmail(checkIn: CheckIn, approved: boolean, rejectionReason?: string): Promise<void> {
   try {
     const [userSnap, teamSnap] = await Promise.all([
       db.collection(COLLECTIONS.users).doc(checkIn.userId).get(),

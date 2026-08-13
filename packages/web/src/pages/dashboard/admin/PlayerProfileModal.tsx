@@ -9,7 +9,7 @@ import {
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useMoments } from "../../../hooks/useData";
-import { sendUserMessage, setJerseyNumber, setSwagPickedUp } from "../../../lib/callables";
+import { adminManualCheckIn, sendUserMessage, setJerseyNumber, setSwagPickedUp } from "../../../lib/callables";
 import { CheckInStatusPill, Modal, Pill, PrimaryButton, VerifiedBadge } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 import { MomentUploadModal } from "../../../components/MomentUploadModal";
@@ -81,6 +81,14 @@ export function PlayerProfileModal({
   const [swagSaving, setSwagSaving] = useState(false);
   const [swagError, setSwagError] = useState<string | null>(null);
 
+  const [verifyConfirming, setVerifyConfirming] = useState(false);
+  const [verifySaving, setVerifySaving] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  // Covers every "outstanding" case — never submitted, mid-review, or
+  // declined — not just the never-submitted one, so this is one shortcut for
+  // all of them rather than only the case that has no other path at all.
+  const canVerifyManually = canEditRoster && checkIn?.status !== "approved";
+
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [messageSending, setMessageSending] = useState(false);
@@ -120,6 +128,20 @@ export function PlayerProfileModal({
       setSwagError(e instanceof Error ? e.message : "Couldn't update swag status.");
     } finally {
       setSwagSaving(false);
+    }
+  }
+
+  async function verifyManually() {
+    if (!teamId || !categoryId) return;
+    setVerifySaving(true);
+    setVerifyError(null);
+    try {
+      await adminManualCheckIn({ teamId, playerKey, categoryId });
+      setVerifyConfirming(false);
+    } catch (e) {
+      setVerifyError(e instanceof Error ? e.message : "Couldn't verify this player.");
+    } finally {
+      setVerifySaving(false);
     }
   }
 
@@ -209,6 +231,40 @@ export function PlayerProfileModal({
           )}
         </div>
         {swagError && <div style={{ color: theme.color.danger, fontSize: 12, marginTop: -8, marginBottom: 12 }}>{swagError}</div>}
+
+        {canVerifyManually && !verifyConfirming && (
+          <button
+            onClick={() => { setVerifyConfirming(true); setVerifyError(null); }}
+            style={{ width: "100%", background: theme.color.successBg, color: theme.color.success, border: "none", borderRadius: theme.radius.sm, padding: "9px", fontSize: 12.5, fontWeight: 800, cursor: "pointer", marginBottom: 14 }}
+          >
+            ✓ Verify manually
+          </button>
+        )}
+        {canVerifyManually && verifyConfirming && (
+          <div style={{ width: "100%", background: theme.color.successBg, borderRadius: theme.radius.sm, padding: 12, marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, color: theme.color.text, marginBottom: 10, lineHeight: 1.5 }}>
+              Confirm you've verified {displayName} in person — this approves their check-in without a selfie/ID on
+              file, so it'll be flagged for staff at the gate.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                disabled={verifySaving}
+                onClick={verifyManually}
+                style={{ flex: 1, background: theme.color.success, color: "#fff", border: "none", borderRadius: 6, padding: "8px", fontSize: 12, fontWeight: 800, cursor: "pointer", opacity: verifySaving ? 0.7 : 1 }}
+              >
+                {verifySaving ? "Verifying…" : "Yes, verify"}
+              </button>
+              <button
+                disabled={verifySaving}
+                onClick={() => setVerifyConfirming(false)}
+                style={{ flex: 1, background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 6, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+            {verifyError && <div style={{ color: theme.color.danger, fontSize: 12, marginTop: 8 }}>{verifyError}</div>}
+          </div>
+        )}
 
         {showGameFacts && stats && (
           <div style={{ display: "flex", width: "100%", gap: 8, marginBottom: 14 }}>
@@ -346,7 +402,12 @@ export function PlayerProfileModal({
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", background: "#F3E8FC", color: theme.color.purple, borderRadius: 10, padding: "12px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
           >
             <span>
-              {checkIn.status === "approved" ? "✓ Verified by admin" : "Review needed"} · view check-in documents
+              {checkIn.manualOverride
+                ? "⚠ Manually verified — no ID/selfie on file"
+                : checkIn.status === "approved"
+                ? "✓ Verified by admin"
+                : "Review needed"}
+              {" · view check-in documents"}
             </span>
             <span style={{ fontSize: 15 }}>›</span>
           </div>

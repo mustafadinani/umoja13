@@ -205,6 +205,12 @@ export function PlayerDocumentsModal({ checkIn, user, fallbackName, fallbackPhot
         </div>
       )}
 
+      {checkIn.manualOverride && (
+        <div style={{ background: theme.color.warningBg, color: theme.color.warning, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, fontWeight: 600, marginBottom: 14 }}>
+          ⚠ Verified manually by staff — this player never submitted a selfie or ID, so there's nothing to compare below.
+        </div>
+      )}
+
       {(rosterEntry?.jerseyNumber != null || checkIn.lineOfWork || checkIn.privateFieldPreference !== undefined) && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
           {rosterEntry?.jerseyNumber != null && <InfoChip>Jersey #{rosterEntry.jerseyNumber}</InfoChip>}
