@@ -1,5 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { COLLECTIONS, PLAYERS_REGISTERED, REGISTRATION_ROOT, REGISTRATION_YEAR, type CheckInStatus, type RegisteredPlayer } from "@umoja/shared";
+import {
+  COLLECTIONS,
+  PLAYERS_REGISTERED,
+  REGISTRATION_ROOT,
+  REGISTRATION_YEAR,
+  resolvePlayerCategoryId,
+  type CheckInStatus,
+  type RegisteredPlayer,
+} from "@umoja/shared";
 import { db, defaultDb } from "./admin.js";
 
 /**
@@ -68,6 +76,40 @@ export async function getCurrentTeamRosterUids(teamId: string): Promise<string[]
     .where("teamId", "==", teamId)
     .get();
   return [...new Set(playersSnap.docs.map((d) => (d.data() as RegisteredPlayer).uid).filter((v): v is string => !!v))];
+}
+
+/**
+ * The set of `playerKey`s (see playerKeyFor) currently on a team's roster
+ * for one category, straight from the same `(default)` registration import
+ * getCurrentTeamRosterUids uses — the only correct source of "who's really
+ * on this team right now."
+ *
+ * Needed because `rosterCheckIns` (where jersey numbers live) is an
+ * append-only overlay keyed by playerKey that's never pruned: if a player's
+ * registration record is later corrected (a profileId fix, a re-submitted
+ * registration under a new row), the OLD playerKey's rosterCheckIns doc —
+ * including whatever jersey number was on it — just sits there forever,
+ * orphaned from anyone actually on the roster today. A duplicate-jersey
+ * check that only looks at rosterCheckIns docs (see setJerseyNumber.ts) can
+ * therefore flag a number as "taken" by a playerKey nobody on the current
+ * roster actually holds. Cross-checking against this set is what makes that
+ * check trustworthy.
+ */
+export async function getCurrentTeamPlayerKeys(teamId: string, categoryId: string): Promise<Set<string>> {
+  if (!teamId) return new Set();
+  const playersSnap = await defaultDb
+    .collection(REGISTRATION_ROOT)
+    .doc(REGISTRATION_YEAR)
+    .collection(PLAYERS_REGISTERED)
+    .where("teamId", "==", teamId)
+    .get();
+  const keys = new Set<string>();
+  for (const doc of playersSnap.docs) {
+    const p = doc.data() as RegisteredPlayer;
+    if (resolvePlayerCategoryId(p) !== categoryId) continue;
+    keys.add(p.profileId?.trim() || doc.id);
+  }
+  return keys;
 }
 
 /**

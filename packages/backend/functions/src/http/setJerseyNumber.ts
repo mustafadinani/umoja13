@@ -13,6 +13,7 @@ import {
   type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../util/admin.js";
+import { getCurrentTeamPlayerKeys } from "../util/roster.js";
 
 interface SetJerseyNumberRequest {
   teamId: string;
@@ -113,8 +114,17 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
       .where("categoryId", "==", categoryId)
       .where("jerseyNumber", "==", jerseyNumber)
       .get();
-    const dupe = dupeSnap.docs.find((d) => d.data().userId !== playerKey);
-    if (dupe) throw new HttpsError("already-exists", `#${jerseyNumber} is already taken on this team.`);
+    const otherClaims = dupeSnap.docs.filter((d) => d.data().userId !== playerKey);
+    if (otherClaims.length > 0) {
+      // rosterCheckIns is append-only and keyed by playerKey — a claim left
+      // over from a playerKey that's no longer on the current roster (a
+      // registration correction, a re-submitted row) must not block a
+      // number that's genuinely free today. Only a claim held by someone
+      // actually on the roster right now counts as a real conflict.
+      const currentPlayerKeys = await getCurrentTeamPlayerKeys(teamId, categoryId);
+      const realDupe = otherClaims.find((d) => currentPlayerKeys.has(d.data().userId));
+      if (realDupe) throw new HttpsError("already-exists", `#${jerseyNumber} is already taken on this team.`);
+    }
   }
 
   await ref.set(
