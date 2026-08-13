@@ -8,7 +8,6 @@ import {
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TODDLERS_CAMP_CATEGORY_LABELS,
-  registeredPlayerToRosterEntry,
   resolvePlayerCategoryId,
   resolveTeamCategoryId,
   type OfficialKind,
@@ -100,12 +99,11 @@ export function TeamsAdminTab() {
   );
 
   // Whole-collection fetch (not scoped to one team, unlike selectedTeamWithRoster
-  // above) — the summary KPIs below need check-in/jersey status across
+  // above) — the summary KPIs below need check-in/jersey counts across
   // whatever set of teams the filters currently show, not just one selected
-  // team. Keyed by playerKey (RosterCheckIn.userId) so it lines up with the
-  // same field registeredPlayerToRosterEntry already reads it from.
+  // team. Counted directly off these docs (see filteredKpis below), not by
+  // matching them back to playersRegistered rows.
   const { data: allRosterCheckIns } = useCollection<RosterCheckIn>(COLLECTIONS.rosterCheckIns);
-  const checkInByPlayerKey = useMemo(() => new Map(allRosterCheckIns.map((r) => [r.userId, r])), [allRosterCheckIns]);
 
   const playersByTeamId = useMemo(() => {
     const map = new Map<string, RegisteredPlayer[]>();
@@ -156,25 +154,31 @@ export function TeamsAdminTab() {
   }, [teams, playersByTeamId, search, categoryFilter, teamFilter, tournamentCategories]);
 
   // Registered/checked-in/jerseyed counts for whichever teams the filters
-  // above currently show — reuses the exact same mapper (and so the exact
-  // same numbers) RosterPanel/Team.tsx/TeamsAdminTab's own detail view
-  // already derive checkInStatus and jerseyNumber from, rather than
-  // re-deriving the approved/pending precedence by hand here.
+  // above currently show.
+  //
+  // Checked-in and jerseyed deliberately count straight off rosterCheckIns
+  // docs (scoped by teamId), matching exactly how CheckInsTab's own
+  // "Verified" KPI counts (straight off the checkIns collection) — NOT by
+  // looping over current playersRegistered rows and looking up each one's
+  // check-in by playerKey. That loop-and-lookup approach silently drops
+  // every check-in whose playerKey no longer matches any CURRENT
+  // registration row (a registration correction/resubmission leaves the
+  // old check-in's playerKey orphaned — confirmed ~20 real approved
+  // check-ins in production are in exactly this state), undercounting
+  // "Checked-in" below the Check-ins tab's real number even though those
+  // check-ins are genuinely approved. Counting the check-in docs directly
+  // can't drop them, so the two tabs' numbers actually reconcile.
   const filteredKpis = useMemo(() => {
     const teamIds = new Set(rows.map((r) => r.team.id));
-    const filteredPlayers = players.filter((p) => {
+    const registered = players.filter((p) => {
       const tid = p.teamId?.trim();
       return tid && teamIds.has(tid);
-    });
-    let checkedIn = 0;
-    let jerseyed = 0;
-    for (const p of filteredPlayers) {
-      const entry = registeredPlayerToRosterEntry(p, undefined, checkInByPlayerKey.get(p.profileId?.trim() || p.id));
-      if (entry.checkInStatus === "approved") checkedIn++;
-      if (entry.jerseyNumber !== undefined) jerseyed++;
-    }
-    return { registered: filteredPlayers.length, checkedIn, jerseyed };
-  }, [rows, players, checkInByPlayerKey]);
+    }).length;
+    const relevantRosterCheckIns = allRosterCheckIns.filter((r) => teamIds.has(r.teamId));
+    const checkedIn = relevantRosterCheckIns.filter((r) => r.status === "approved").length;
+    const jerseyed = relevantRosterCheckIns.filter((r) => r.jerseyNumber !== undefined).length;
+    return { registered, checkedIn, jerseyed };
+  }, [rows, players, allRosterCheckIns]);
 
   const teamOptions = useMemo(
     () =>
