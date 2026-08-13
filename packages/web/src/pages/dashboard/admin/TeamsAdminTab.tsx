@@ -8,19 +8,21 @@ import {
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TODDLERS_CAMP_CATEGORY_LABELS,
+  TOURNAMENT_START_AT,
+  resolvePlayerCategoryId,
   resolveTeamCategoryId,
   type OfficialKind,
   type RegisteredPlayer,
   type RegisteredTeam,
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
-import { useAllUsers, useCategories } from "../../../hooks/useData";
+import { useAllUsers, useCategories, useTeam } from "../../../hooks/useData";
 import {
   useRegisteredPlayers,
   useRegisteredTeamsRaw,
   useRegistrationCategoryBuckets,
 } from "../../../hooks/useRegistration";
-import { assignTeamOfficial, removeTeamOfficial } from "../../../lib/callables";
+import { assignTeamOfficial, removeTeamOfficial, setJerseyNumber } from "../../../lib/callables";
 import { db, defaultDb } from "../../../lib/firebase";
 import { Card, Pill, PrimaryButton } from "../../../components/ui";
 
@@ -84,6 +86,15 @@ export function TeamsAdminTab() {
   const [campCategoryId, setCampCategoryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Same buildTeamFromRegistration output Team.tsx and RosterPanel already
+  // read jerseyNumber off of — reusing it here instead of re-deriving keeps
+  // this admin view's numbers exactly in sync with what a captain/manager
+  // or the public team page shows, with no separate query to drift.
+  const { data: selectedTeamWithRoster } = useTeam(selectedTeamId ?? undefined);
+  const jerseyByPlayerKey = useMemo(
+    () => new Map((selectedTeamWithRoster?.roster ?? []).map((r) => [r.playerKey ?? r.userId, r.jerseyNumber])),
+    [selectedTeamWithRoster]
+  );
 
   const playersByTeamId = useMemo(() => {
     const map = new Map<string, RegisteredPlayer[]>();
@@ -301,9 +312,19 @@ export function TeamsAdminTab() {
         <TeamOfficialsCard teamId={selectedTeam.id} categoryId={matched ? resolvedId : null} players={selectedPlayers} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {selectedPlayers.map((player) => (
-            <PlayerRow key={player.id} player={player} />
-          ))}
+          {selectedPlayers.map((player) => {
+            const playerKey = player.profileId?.trim() || player.id;
+            return (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                jerseyNumber={jerseyByPlayerKey.get(playerKey)}
+                onSaveJersey={(num) =>
+                  setJerseyNumber({ teamId: selectedTeam.id, playerKey, categoryId: resolvePlayerCategoryId(player), jerseyNumber: num })
+                }
+              />
+            );
+          })}
           {selectedPlayers.length === 0 && (
             <div style={{ color: theme.color.danger, fontWeight: 700, fontSize: 13.5 }}>No players assigned.</div>
           )}
@@ -698,39 +719,121 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
   );
 }
 
-/** Shared row for both a real team's roster and a camp category's flat camper list. */
-function PlayerRow({ player }: { player: RegisteredPlayer }) {
+const jerseyLocked = Date.now() >= TOURNAMENT_START_AT;
+
+/**
+ * Shared row for both a real team's roster and a camp category's flat
+ * camper list — jersey editing (jerseyNumber/onSaveJersey) is optional
+ * since camp categories are non-competitive and have no jersey numbers.
+ * Admin has the same override power here setJerseyNumber grants
+ * captains/coach-managers: reassigning a number already worn by a
+ * teammate bumps them off it rather than getting blocked.
+ */
+function PlayerRow({
+  player,
+  jerseyNumber,
+  onSaveJersey,
+}: {
+  player: RegisteredPlayer;
+  jerseyNumber?: number;
+  onSaveJersey?: (jerseyNumber: number) => Promise<unknown>;
+}) {
   const name = `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() || "Unnamed player";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const num = Number(draft);
+    if (!draft || Number.isNaN(num) || num < 0 || num > 999) return setError("Enter a valid number (0–999).");
+    if (!onSaveJersey) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onSaveJersey(num);
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save that number.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <Card style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-        {player.profilePicture ? (
-          <img src={player.profilePicture} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
-        ) : (
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              background: theme.color.purple,
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: 13,
-            }}
-          >
-            {name.slice(0, 2).toUpperCase()}
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 13.5 }}>{name}</div>
-          <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
-            {[player.email, player.status].filter(Boolean).join(" · ")}
+    <Card style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          {player.profilePicture ? (
+            <img src={player.profilePicture} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                background: theme.color.purple,
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: 13,
+              }}
+            >
+              {name.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5 }}>{name}</div>
+            <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+              {[player.email, player.status].filter(Boolean).join(" · ")}
+            </div>
           </div>
         </div>
+
+        {onSaveJersey && !editing && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <span
+              title={jerseyLocked ? "Locked for the rest of the tournament" : undefined}
+              style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, color: jerseyLocked ? theme.color.textMuted : theme.color.text }}
+            >
+              {jerseyNumber !== undefined ? `#${jerseyNumber}` : "#—"}{jerseyLocked && " 🔒"}
+            </span>
+            {!jerseyLocked && (
+              <button
+                onClick={() => { setEditing(true); setDraft(String(jerseyNumber ?? "")); setError(null); }}
+                style={{ background: "none", border: `1.5px solid ${theme.color.purple}`, color: theme.color.purple, borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {onSaveJersey && editing && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            autoFocus
+            inputMode="numeric"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+            style={{ width: 50, padding: 6, borderRadius: 6, border: `1px solid ${theme.color.border}` }}
+          />
+          <button
+            disabled={saving}
+            onClick={submit}
+            style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+          >
+            {saving ? "Submitting…" : "Submit"}
+          </button>
+          <button onClick={() => { setEditing(false); setError(null); }} style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12, cursor: "pointer" }}>
+            Cancel
+          </button>
+          {error && <span style={{ color: theme.color.danger, fontSize: 12.5 }}>{error}</span>}
+        </div>
+      )}
     </Card>
   );
 }

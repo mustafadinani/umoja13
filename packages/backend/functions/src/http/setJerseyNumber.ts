@@ -27,14 +27,22 @@ interface SetJerseyNumberRequest {
 /**
  * Sets a player's jersey number on their rosterCheckIns overlay doc — either
  * the player setting their own (optional, offered during check-in), their
- * team's real registration captain, or an admin-designated coach/manager
+ * team's real registration captain, an admin-designated coach/manager
  * (Team.coachManagerUids — see assignTeamOfficial; unlike the captain, they
- * aren't necessarily a registered player on the team themselves). Jersey
- * numbers are completely locked the moment the tournament starts
- * (TOURNAMENT_START_AT) — no sets, no changes, for anyone, whether or not
- * one was ever entered. The captain/manager is expected to input and lock
+ * aren't necessarily a registered player on the team themselves), or staff
+ * (admin/commissioner). Jersey numbers are completely locked the moment the
+ * tournament starts (TOURNAMENT_START_AT) — no sets, no changes, for
+ * anyone, whether or not one was ever entered. Everyone with roster
+ * authority (captain, coach/manager, staff) is expected to input and lock
  * in every number before then; check-in itself stops offering the
  * jersey-number question once that date passes.
+ *
+ * Only someone with roster authority over the team (captain, coach/manager,
+ * staff) can reassign a number that's already claimed by a teammate — a
+ * player setting their own number solo still gets a hard "already taken"
+ * block, so nobody can casually snipe a teammate's number for themselves.
+ * Reassigning clears the number from whoever held it; two players never end
+ * up wearing the same number on the same team+category at once.
  */
 export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) => {
   const uid = request.auth?.uid;
@@ -52,14 +60,20 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
   const callerProfile = callerSnap.data() as UserProfile | undefined;
   const isStaffCaller = callerProfile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
 
-  if (!isStaffCaller) {
-    // Not staff — this team's real captain, an admin-designated
-    // coach/manager (acting on a teammate's behalf either way), or the
-    // account this specific playerKey belongs to. playerKey never equals
-    // the caller's own uid (it's the Outreach profileId of one specific
-    // child, shared-uid families included), so this can no longer be a
-    // simple `uid === playerKey` check — it has to actually look up whose
-    // registration row this is.
+  // Roster authority (captain, coach/manager, staff) can bump a teammate off
+  // a number they already hold; a player acting solo on their own number
+  // cannot. Computed even for staff callers, so the one code path below
+  // covers everyone instead of duplicating the override logic per caller kind.
+  let canOverride = isStaffCaller;
+  let authorized = isStaffCaller;
+
+  if (!authorized) {
+    // This team's real captain, an admin-designated coach/manager (acting
+    // on a teammate's behalf either way), or the account this specific
+    // playerKey belongs to. playerKey never equals the caller's own uid
+    // (it's the Outreach profileId of one specific child, shared-uid
+    // families included), so this can't be a simple `uid === playerKey`
+    // check — it has to actually look up whose registration row this is.
     const teamSnap = await defaultDb
       .collection(REGISTRATION_ROOT)
       .doc(REGISTRATION_YEAR)
@@ -69,12 +83,18 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     const team = teamSnap.data() as RegisteredTeam | undefined;
     const isCaptain = !!team && (team.captainProfileId === uid || team.uid === uid);
 
-    let authorized = isCaptain;
+    if (isCaptain) {
+      authorized = true;
+      canOverride = true;
+    }
 
     if (!authorized) {
       const appTeamSnap = await db.collection(COLLECTIONS.teams).doc(teamId).get();
       const coachManagerUids: string[] = appTeamSnap.data()?.coachManagerUids ?? [];
-      authorized = coachManagerUids.includes(uid);
+      if (coachManagerUids.includes(uid)) {
+        authorized = true;
+        canOverride = true;
+      }
     }
 
     if (!authorized) {
@@ -89,6 +109,7 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
         const p = d.data() as RegisteredPlayer;
         return (p.profileId?.trim() || d.id) === playerKey;
       });
+      // authorized-but-solo: canOverride stays false.
     }
 
     if (!authorized) {
@@ -96,10 +117,10 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
     }
   }
 
-  // Hard cutoff — nobody (player, captain, or staff through this same path) can
-  // set or change a jersey number once the tournament has started, whether or
-  // not one was ever entered. A genuine correction after that point should go
-  // through direct Firestore access, not this callable.
+  // Hard cutoff — nobody (player, captain/manager, or staff through this same
+  // path) can set or change a jersey number once the tournament has started,
+  // whether or not one was ever entered. A genuine correction after that
+  // point should go through direct Firestore access, not this callable.
   if (Date.now() >= TOURNAMENT_START_AT) {
     throw new HttpsError("failed-precondition", "Jersey numbers are locked now that the tournament has started.");
   }
@@ -122,8 +143,13 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
       // number that's genuinely free today. Only a claim held by someone
       // actually on the roster right now counts as a real conflict.
       const currentPlayerKeys = await getCurrentTeamPlayerKeys(teamId, categoryId);
-      const realDupe = otherClaims.find((d) => currentPlayerKeys.has(d.data().userId));
-      if (realDupe) throw new HttpsError("already-exists", `#${jerseyNumber} is already taken on this team.`);
+      const realDupes = otherClaims.filter((d) => currentPlayerKeys.has(d.data().userId));
+      if (realDupes.length > 0) {
+        if (!canOverride) throw new HttpsError("already-exists", `#${jerseyNumber} is already taken on this team.`);
+        // Reassign: clear it from whoever held it so the number stays
+        // unique on this team+category instead of two players wearing it.
+        await Promise.all(realDupes.map((d) => d.ref.update({ jerseyNumber: FieldValue.delete(), updatedAt: Date.now() })));
+      }
     }
   }
 

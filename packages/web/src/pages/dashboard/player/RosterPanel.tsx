@@ -62,57 +62,44 @@ export function RosterPanel({ team }: { team: Team }) {
                     onClick={() => saveNumber(playerKey)}
                     style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}
                   >
-                    {saving ? "Saving…" : "Save"}
+                    {saving ? "Submitting…" : "Submit"}
                   </button>
                   <button onClick={() => { setEditing(null); setError(null); }} style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12 }}>
                     Cancel
                   </button>
                 </>
-              ) : p.jerseyNumber !== undefined ? (
-                <span
-                  onClick={() => {
-                    if (locked) return;
-                    setEditing(playerKey);
-                    setDraft(String(p.jerseyNumber ?? ""));
-                    setError(null);
-                  }}
-                  title={locked ? "Locked for the rest of the tournament" : "Tap to edit"}
-                  style={{
-                    fontFamily: theme.font.display,
-                    fontWeight: 800,
-                    fontSize: 15,
-                    color: locked ? theme.color.textMuted : theme.color.purple,
-                    cursor: locked ? "default" : "pointer",
-                    width: 34,
-                  }}
-                >
-                  #{p.jerseyNumber}{locked && " 🔒"}
-                </span>
               ) : (
-                <button
-                  onClick={() => {
-                    if (locked) return;
-                    setEditing(playerKey);
-                    setDraft("");
-                    setError(null);
-                  }}
-                  disabled={locked}
-                  title={locked ? "Locked for the rest of the tournament" : "Tap to add a jersey number"}
-                  style={{
-                    fontFamily: theme.font.display,
-                    fontWeight: 800,
-                    fontSize: 11.5,
-                    color: locked ? theme.color.textMuted : theme.color.purple,
-                    background: "none",
-                    border: `1.5px dashed ${locked ? theme.color.border : theme.color.purple}`,
-                    borderRadius: 6,
-                    padding: "4px 8px",
-                    cursor: locked ? "default" : "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {locked ? "🔒 #—" : "+ Add #"}
-                </button>
+                <>
+                  <span
+                    title={locked ? "Locked for the rest of the tournament" : undefined}
+                    style={{
+                      fontFamily: theme.font.display,
+                      fontWeight: 800,
+                      fontSize: 15,
+                      color: locked ? theme.color.textMuted : theme.color.text,
+                      width: 34,
+                    }}
+                  >
+                    {p.jerseyNumber !== undefined ? `#${p.jerseyNumber}` : "#—"}{locked && " 🔒"}
+                  </span>
+                  {!locked && (
+                    <button
+                      onClick={() => { setEditing(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
+                      style={{
+                        background: "none",
+                        border: `1.5px solid ${theme.color.purple}`,
+                        color: theme.color.purple,
+                        borderRadius: 6,
+                        padding: "3px 9px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </>
               )}
               <span style={{ flex: 1, minWidth: 120, fontWeight: 600, fontSize: 14 }}>
                 {p.displayName}{p.isCaptain ? " (C)" : ""}
