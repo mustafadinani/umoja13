@@ -22,6 +22,7 @@ import { useRegisteredPlayers, useRegisteredTeamsRaw } from "../../../hooks/useR
 import { Card, Pill } from "../../../components/ui";
 import { db, defaultDb } from "../../../lib/firebase";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
+import { BulkEmailModal } from "./BulkEmailModal";
 import { PlayerProfileModal } from "./PlayerProfileModal";
 
 /** Same identifier every check-in/roster/jersey lookup elsewhere in the app uses to pick out one specific child on a shared family account — never the bare account uid. */
@@ -231,6 +232,20 @@ export function PlayersAdminTab() {
     }
     return [...seen].sort();
   }, [rows]);
+  // Same dedup as visibleEmails, with a name alongside each address so
+  // BulkEmailModal's "individual" mode can greet each person by name.
+  const visibleRecipients = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { email: string; name?: string }[] = [];
+    for (const { player } of rows) {
+      const email = player.email?.trim().toLowerCase();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      out.push({ email, name: `${player.firstName ?? ""} ${player.lastName ?? ""}`.trim() });
+    }
+    return out;
+  }, [rows]);
+  const [bulkEmailOpen, setBulkEmailOpen] = useState(false);
 
   async function copyVisibleEmails() {
     try {
@@ -404,6 +419,18 @@ export function PlayersAdminTab() {
           }}
         >
           Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
+        </button>
+        <button
+          onClick={() => setBulkEmailOpen(true)}
+          disabled={visibleRecipients.length === 0}
+          style={{
+            background: "none", color: theme.color.navy, border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm,
+            padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
+            cursor: visibleRecipients.length === 0 ? "default" : "pointer",
+            opacity: visibleRecipients.length === 0 ? 0.6 : 1,
+          }}
+        >
+          ✉ Email these {visibleRecipients.length}
         </button>
         {copyStatus && (
           <span style={{ fontSize: 13, fontWeight: 800, color: theme.color.success }}>✓ {copyStatus}</span>
@@ -654,6 +681,7 @@ export function PlayersAdminTab() {
           onClose={() => setOpenPlayerId(null)}
         />
       )}
+      {bulkEmailOpen && <BulkEmailModal recipients={visibleRecipients} onClose={() => setBulkEmailOpen(false)} />}
     </div>
   );
 }

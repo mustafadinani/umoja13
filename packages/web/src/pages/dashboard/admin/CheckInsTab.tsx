@@ -5,6 +5,7 @@ import { useAllCheckIns, useAllUsers, useTeams } from "../../../hooks/useData";
 import { useRegisteredPlayers } from "../../../hooks/useRegistration";
 import { Card, FilterDropdown, Pill } from "../../../components/ui";
 import { PlayerDocumentsModal } from "./PlayerDocumentsModal";
+import { BulkEmailModal } from "./BulkEmailModal";
 
 const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ id: c.id, label: c.label }));
 
@@ -172,6 +173,28 @@ function ReviewQueue() {
     ? [...new Set(notCheckedIn.map((p) => p.email?.trim().toLowerCase()).filter((v): v is string => !!v))].sort()
     : [...new Set(filtered.map((c) => emailFor(c)?.toLowerCase()).filter((v): v is string => !!v))].sort();
 
+  // Same dedup as visibleEmails, but keeps a name alongside each address so
+  // BulkEmailModal's "individual" mode can greet each person by name — see
+  // its own comment for why it needs the exact same filtered list this
+  // button would otherwise just copy.
+  const visibleRecipients = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { email: string; name?: string }[] = [];
+    const add = (email: string | undefined, name: string | undefined) => {
+      const key = email?.trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push({ email: key, name });
+    };
+    if (statusFilter === "notCheckedIn") {
+      for (const p of notCheckedIn) add(p.email, `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim());
+    } else {
+      for (const c of filtered) add(emailFor(c), nameFor(c));
+    }
+    return out;
+  }, [statusFilter, notCheckedIn, filtered]);
+  const [bulkEmailOpen, setBulkEmailOpen] = useState(false);
+
   async function copyVisibleEmails() {
     try {
       await navigator.clipboard.writeText(visibleEmails.join("\n"));
@@ -226,10 +249,24 @@ function ReviewQueue() {
         >
           Copy {visibleEmails.length} email{visibleEmails.length === 1 ? "" : "s"} (deduped, matches filters above)
         </button>
+        <button
+          onClick={() => setBulkEmailOpen(true)}
+          disabled={visibleRecipients.length === 0}
+          style={{
+            background: "none", color: theme.color.navy, border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.sm,
+            padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
+            cursor: visibleRecipients.length === 0 ? "default" : "pointer",
+            opacity: visibleRecipients.length === 0 ? 0.6 : 1,
+          }}
+        >
+          ✉ Email these {visibleRecipients.length}
+        </button>
         {copyStatus && (
           <span style={{ fontSize: 13, fontWeight: 800, color: theme.color.success }}>✓ {copyStatus}</span>
         )}
       </div>
+
+      {bulkEmailOpen && <BulkEmailModal recipients={visibleRecipients} onClose={() => setBulkEmailOpen(false)} />}
 
       {/*
         key={statusFilter} forces a full remount of this list on every tile

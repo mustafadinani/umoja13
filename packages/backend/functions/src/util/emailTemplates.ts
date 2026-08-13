@@ -206,6 +206,29 @@ export function checkInDecisionEmail(params: {
   };
 }
 
+/**
+ * Free-form email an admin/commissioner composes from an admin list view
+ * (e.g. "email everyone whose check-in was declined") — see
+ * http/sendBulkEmail.ts. `name` personalizes the greeting in "individual"
+ * mode (one send per recipient); omitted entirely in "bcc" mode, since one
+ * shared email can't greet everyone on it by name.
+ */
+export function adminBulkEmail(name: string | undefined, subject: string, body: string): RenderedEmail {
+  const firstName = name?.trim().split(" ")[0];
+  return {
+    subject,
+    html: renderEmailShell({
+      eyebrow: "Umoja Games 2026",
+      heading: firstName ? `Hi ${escapeHtml(firstName)},` : "Hello,",
+      paragraphs: body
+        .split(/\n{2,}/)
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map((p) => escapeHtml(p).replace(/\n/g, "<br/>")),
+    }),
+  };
+}
+
 /** Email mirror of an admin broadcast / game-time reminder (sendNotification), for recipients without a registered push token. */
 export function announcementEmail(title: string, body: string): RenderedEmail {
   return {

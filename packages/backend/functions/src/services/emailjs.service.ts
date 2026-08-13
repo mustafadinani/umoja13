@@ -19,6 +19,11 @@
  *        Body:    {{{html_content}}}   ← triple braces = unescaped HTML
  *      → copy its Template ID.
  * 4. Copy the Public Key + Private Key from Account → API Keys.
+ * 5. (Optional, only needed for sendBulkEmail's "one email, everyone BCC'd"
+ *    mode — the default "individual" mode needs none of this) Add a Bcc
+ *    field to the same template: Bcc: {{bcc_email}}. Until this field
+ *    exists on the template, EmailJS silently ignores the bcc_email param
+ *    below and the email only reaches the single "to" address.
  *
  * ── Wiring credentials in (Cloud Functions v2 secrets) ──────────────────────
  * Production:
@@ -61,8 +66,11 @@ export const EMAIL_SECRETS: ReturnType<typeof defineSecret>[] = [
  * @param to      Recipient email address
  * @param subject Email subject line
  * @param html    Full HTML body (rendered by util/emailTemplates.ts)
+ * @param bcc     Comma-separated addresses to Bcc (see setup step 5 above
+ *                — a no-op until the template has a Bcc field wired to
+ *                {{bcc_email}}). Used only by sendBulkEmail's "bcc" mode.
  */
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string, bcc?: string): Promise<void> {
   const serviceId = emailjsServiceId.value();
   const templateId = emailjsTemplateId.value();
   const publicKey = emailjsPublicKey.value();
@@ -82,6 +90,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
       to_email: to,
       subject,
       html_content: html,
+      ...(bcc ? { bcc_email: bcc } : {}),
     },
   };
 

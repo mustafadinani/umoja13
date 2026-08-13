@@ -25,6 +25,7 @@ export { onVolunteerApplicationCreated } from "./triggers/onVolunteerApplication
 export { registerPushToken } from "./http/registerPushToken.js";
 export { registerWebPushSubscription } from "./http/registerWebPushSubscription.js";
 export { sendNotification } from "./http/sendNotification.js";
+export { sendBulkEmail } from "./http/sendBulkEmail.js";
 export { postAnnouncement, updateAnnouncement, deleteAnnouncement } from "./http/postAnnouncement.js";
 export { sendTeamMessage } from "./http/sendTeamMessage.js";
 export { sendRoleMessage } from "./http/sendRoleMessage.js";

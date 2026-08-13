@@ -138,6 +138,11 @@ export const sendNotification = httpsCallable<
   { notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number }
 >(functions, "sendNotification");
 
+export const sendBulkEmail = httpsCallable<
+  { recipients: { email: string; name?: string }[]; subject: string; body: string; mode: "individual" | "bcc"; bccTo?: string },
+  { sent: number; failed: string[] }
+>(functions, "sendBulkEmail");
+
 export const postAnnouncement = httpsCallable<
   { title: string; body: string; alsoNotify?: boolean },
   { id: string; notifiedCount: number; pushCount: number; webPushCount: number }
