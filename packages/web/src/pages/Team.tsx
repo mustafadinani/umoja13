@@ -6,13 +6,14 @@ import {
   formatKickoffTime,
   provisionalSideLabel,
   TOURNAMENT_DAY_DATES,
+  TOURNAMENT_START_AT,
   type Game,
   type RosterEntry,
 } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { useAuth } from "../auth/AuthProvider";
 import { useCategories, useGames, useMoments, useSponsors, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
-import { markChannelRead } from "../lib/callables";
+import { markChannelRead, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
@@ -31,7 +32,7 @@ function dayDateLabel(day: Game["day"]) {
 export function Team() {
   const { teamId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: team, error: teamError } = useTeam(teamId);
   const { data: categories } = useCategories();
   const { data: games } = useGames();
@@ -43,6 +44,33 @@ export function Team() {
   const [openPlayer, setOpenPlayer] = useState<RosterEntry | null>(null);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
+  // Staff can fix a jersey number themselves right from this page instead of
+  // having to go through the team's captain/coach-manager — same
+  // admin-or-commissioner bar setJerseyNumber's backend already enforces,
+  // just previously with no web UI at all outside the captain/manager
+  // dashboard to actually exercise it.
+  const isStaff = profile?.roles?.includes("admin") || profile?.roles?.includes("commissioner");
+  const jerseyLocked = Date.now() >= TOURNAMENT_START_AT;
+  const [editingJerseyKey, setEditingJerseyKey] = useState<string | null>(null);
+  const [jerseyDraft, setJerseyDraft] = useState("");
+  const [jerseySaving, setJerseySaving] = useState(false);
+  const [jerseyError, setJerseyError] = useState<string | null>(null);
+
+  async function saveJerseyNumber(playerKey: string) {
+    const num = Number(jerseyDraft);
+    if (!jerseyDraft || Number.isNaN(num) || num < 0 || num > 999) return setJerseyError("Enter a valid number (0–999).");
+    if (!teamId) return;
+    setJerseySaving(true);
+    setJerseyError(null);
+    try {
+      await setJerseyNumber({ teamId, playerKey, categoryId: team!.categoryId, jerseyNumber: num });
+      setEditingJerseyKey(null);
+    } catch (e) {
+      setJerseyError(e instanceof Error ? e.message : "Couldn't save that number.");
+    } finally {
+      setJerseySaving(false);
+    }
+  }
   const channelUnread = channelHasUnread(channel?.messages, channel?.lastReadBy, user?.uid);
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -94,14 +122,51 @@ export function Team() {
       <div style={{ padding: "20px 16px" }}>
         {tab === "roster" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {team.roster.map((p) => (
-              <RosterTile
-                key={p.playerKey ?? p.userId}
-                player={p}
-                onClick={() => setOpenPlayer(p)}
-                suspended={computePlayerSuspension(games, team.id, p.playerKey ?? p.userId).suspended}
-              />
-            ))}
+            {team.roster.map((p) => {
+              const playerKey = p.playerKey ?? p.userId;
+              if (editingJerseyKey === playerKey) {
+                return (
+                  <div key={playerKey} style={{ display: "flex", alignItems: "center", gap: 10, border: `1px solid ${theme.color.border}`, borderRadius: theme.radius.md, padding: "9px 12px" }}>
+                    <input
+                      autoFocus
+                      inputMode="numeric"
+                      value={jerseyDraft}
+                      onChange={(e) => setJerseyDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+                      style={{ width: 50, padding: 6, borderRadius: 6, border: `1px solid ${theme.color.border}` }}
+                    />
+                    <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{p.displayName}</span>
+                    <button
+                      disabled={jerseySaving}
+                      onClick={() => saveJerseyNumber(playerKey)}
+                      style={{ background: theme.color.navy, color: "#fff", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700 }}
+                    >
+                      {jerseySaving ? "Saving…" : "Save"}
+                    </button>
+                    <button onClick={() => { setEditingJerseyKey(null); setJerseyError(null); }} style={{ background: "none", border: "none", color: theme.color.textMuted, fontSize: 12 }}>
+                      Cancel
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <RosterTile
+                  key={playerKey}
+                  player={p}
+                  onClick={() => setOpenPlayer(p)}
+                  suspended={computePlayerSuspension(games, team.id, playerKey).suspended}
+                  onJerseyClick={
+                    isStaff
+                      ? () => { setEditingJerseyKey(playerKey); setJerseyDraft(String(p.jerseyNumber ?? "")); setJerseyError(null); }
+                      : undefined
+                  }
+                  jerseyLocked={isStaff ? jerseyLocked : undefined}
+                />
+              );
+            })}
+            {isStaff && jerseyError && <div style={{ color: theme.color.danger, fontSize: 12.5 }}>{jerseyError}</div>}
+            {isStaff && jerseyLocked && (
+              <div style={{ color: theme.color.textMuted, fontSize: 12 }}>🔒 Jersey numbers are locked now that the tournament has started.</div>
+            )}
             {team.roster.length === 0 && (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
                 {teamError
