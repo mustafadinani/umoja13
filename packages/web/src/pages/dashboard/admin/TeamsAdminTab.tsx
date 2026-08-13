@@ -8,14 +8,17 @@ import {
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
   TODDLERS_CAMP_CATEGORY_LABELS,
+  registeredPlayerToRosterEntry,
   resolvePlayerCategoryId,
   resolveTeamCategoryId,
   type OfficialKind,
   type RegisteredPlayer,
   type RegisteredTeam,
+  type RosterCheckIn,
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useAllUsers, useCategories, useTeam } from "../../../hooks/useData";
+import { useCollection } from "../../../hooks/firestore";
 import {
   useRegisteredPlayers,
   useRegisteredTeamsRaw,
@@ -23,7 +26,7 @@ import {
 } from "../../../hooks/useRegistration";
 import { assignTeamOfficial, removeTeamOfficial, setJerseyNumber } from "../../../lib/callables";
 import { db, defaultDb } from "../../../lib/firebase";
-import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { Card, FilterDropdown, Pill, PrimaryButton } from "../../../components/ui";
 
 function teamLogoUrl(team: RegisteredTeam): string | undefined {
   return team.logoUrl || team.teamLogo || team.logo || undefined;
@@ -73,6 +76,7 @@ export function TeamsAdminTab() {
   const { buckets } = useRegistrationCategoryBuckets();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   // Toddlers Camp categories only ever hold one auto-generated "shell" team
   // (a placeholder name, since camp signup never asks for a real team name)
@@ -94,6 +98,14 @@ export function TeamsAdminTab() {
     () => new Map((selectedTeamWithRoster?.roster ?? []).map((r) => [r.playerKey ?? r.userId, r.jerseyNumber])),
     [selectedTeamWithRoster]
   );
+
+  // Whole-collection fetch (not scoped to one team, unlike selectedTeamWithRoster
+  // above) — the summary KPIs below need check-in/jersey status across
+  // whatever set of teams the filters currently show, not just one selected
+  // team. Keyed by playerKey (RosterCheckIn.userId) so it lines up with the
+  // same field registeredPlayerToRosterEntry already reads it from.
+  const { data: allRosterCheckIns } = useCollection<RosterCheckIn>(COLLECTIONS.rosterCheckIns);
+  const checkInByPlayerKey = useMemo(() => new Map(allRosterCheckIns.map((r) => [r.userId, r])), [allRosterCheckIns]);
 
   const playersByTeamId = useMemo(() => {
     const map = new Map<string, RegisteredPlayer[]>();
@@ -130,6 +142,7 @@ export function TeamsAdminTab() {
         playerCount: playersByTeamId.get(team.id)?.length ?? 0,
       }))
       .filter(({ team, resolvedCategoryId }) => {
+        if (teamFilter && team.id !== teamFilter) return false;
         if (categoryFilter && resolvedCategoryId !== categoryFilter) return false;
         if (!q) return true;
         return (
@@ -140,7 +153,36 @@ export function TeamsAdminTab() {
         );
       })
       .sort((a, b) => (a.team.teamName ?? "").localeCompare(b.team.teamName ?? ""));
-  }, [teams, playersByTeamId, search, categoryFilter, tournamentCategories]);
+  }, [teams, playersByTeamId, search, categoryFilter, teamFilter, tournamentCategories]);
+
+  // Registered/checked-in/jerseyed counts for whichever teams the filters
+  // above currently show — reuses the exact same mapper (and so the exact
+  // same numbers) RosterPanel/Team.tsx/TeamsAdminTab's own detail view
+  // already derive checkInStatus and jerseyNumber from, rather than
+  // re-deriving the approved/pending precedence by hand here.
+  const filteredKpis = useMemo(() => {
+    const teamIds = new Set(rows.map((r) => r.team.id));
+    const filteredPlayers = players.filter((p) => {
+      const tid = p.teamId?.trim();
+      return tid && teamIds.has(tid);
+    });
+    let checkedIn = 0;
+    let jerseyed = 0;
+    for (const p of filteredPlayers) {
+      const entry = registeredPlayerToRosterEntry(p, undefined, checkInByPlayerKey.get(p.profileId?.trim() || p.id));
+      if (entry.checkInStatus === "approved") checkedIn++;
+      if (entry.jerseyNumber !== undefined) jerseyed++;
+    }
+    return { registered: filteredPlayers.length, checkedIn, jerseyed };
+  }, [rows, players, checkInByPlayerKey]);
+
+  const teamOptions = useMemo(
+    () =>
+      teams
+        .map((t) => ({ id: t.id, label: t.teamName || "Untitled team" }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [teams]
+  );
 
   const selectedTeam = selectedTeamId ? teams.find((t) => t.id === selectedTeamId) ?? null : null;
   const selectedPlayers = selectedTeamId ? playersByTeamId.get(selectedTeamId) ?? [] : [];
@@ -358,18 +400,46 @@ export function TeamsAdminTab() {
         }}
       />
 
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        <Pill active={!categoryFilter && !campCategoryId} onClick={() => { setCategoryFilter(null); setCampCategoryId(null); }}>All categories</Pill>
-        {buckets.map((c) => (
-          <Pill
-            key={c.id}
-            active={campCategoryId === c.id || categoryFilter === c.id}
-            onClick={() => (TODDLERS_CAMP_CATEGORY_LABELS[c.id] ? setCampCategoryId(c.id) : setCategoryFilter(c.id))}
-          >
-            {c.label} ({c.count})
-            {!c.matched ? " !" : ""}
-          </Pill>
-        ))}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        <FilterDropdown
+          label="Team"
+          value={teamFilter}
+          options={teamOptions}
+          onChange={setTeamFilter}
+        />
+        <FilterDropdown
+          label="Category"
+          value={campCategoryId ?? categoryFilter}
+          options={buckets.map((c) => ({ id: c.id, label: `${c.label} (${c.count})${!c.matched ? " !" : ""}` }))}
+          onChange={(id) => {
+            // Toddlers Camp categories bypass the team list entirely (see
+            // the comment on campCategoryId above) — picking one jumps
+            // straight to its flat camper list instead of filtering rows.
+            if (id && TODDLERS_CAMP_CATEGORY_LABELS[id]) {
+              setCampCategoryId(id);
+            } else {
+              setCampCategoryId(null);
+              setCategoryFilter(id);
+            }
+          }}
+        />
+      </div>
+
+      {(teamFilter || categoryFilter) && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          {teamFilter && (
+            <FilterChip label={teamOptions.find((t) => t.id === teamFilter)?.label ?? "Team"} onRemove={() => setTeamFilter(null)} />
+          )}
+          {categoryFilter && (
+            <FilterChip label={categoryLabelById.get(categoryFilter) ?? "Category"} onRemove={() => setCategoryFilter(null)} />
+          )}
+        </div>
+      )}
+
+      <div className="grid-kpi-3" style={{ marginBottom: 20 }}>
+        <Kpi label="Players registered" value={loading ? "…" : String(filteredKpis.registered)} />
+        <Kpi label="Checked-in" value={loading ? "…" : String(filteredKpis.checkedIn)} />
+        <Kpi label="Assigned jersey #s" value={loading ? "…" : String(filteredKpis.jerseyed)} />
       </div>
 
       {error && (
@@ -703,6 +773,30 @@ function OfficialRow({
       >
         Remove
       </button>
+    </div>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div
+      onClick={onRemove}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#F1EFF5",
+        color: theme.color.purple,
+        padding: "5px 6px 5px 12px",
+        borderRadius: theme.radius.pill,
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+      <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(139,47,209,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>✕</span>
     </div>
   );
 }
