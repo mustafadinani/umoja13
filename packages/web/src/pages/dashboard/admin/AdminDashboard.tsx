@@ -17,35 +17,17 @@ import { PodsAdminTab } from "./PodsAdminTab";
 import { UsersAdminTab } from "./UsersAdminTab";
 import { AwardsAdminTab } from "./AwardsAdminTab";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
-
-type Tab = "games" | "teams" | "liveDraw" | "players" | "checkins" | "ops" | "hunt" | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages" | "pods" | "users" | "awards";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "games", label: "All Games" },
-  { id: "teams", label: "Teams" },
-  { id: "liveDraw", label: "Live Draw" },
-  { id: "players", label: "Players" },
-  { id: "checkins", label: "Player Check-ins" },
-  { id: "ops", label: "Moderation" },
-  { id: "hunt", label: "The Hunt" },
-  { id: "volunteers", label: "Volunteers" },
-  { id: "sponsors", label: "Sponsors" },
-  { id: "notifications", label: "Notifications & Announcements" },
-  { id: "teamChannels", label: "Team Channels" },
-  { id: "messages", label: "Messages" },
-  { id: "pods", label: "Pods" },
-  { id: "users", label: "Users" },
-  { id: "awards", label: "Awards" },
-];
+import { ADMIN_TABS, type AdminTab } from "./adminTabs";
 
 export function AdminDashboard() {
-  const [tab, setTab] = useState<Tab>("games");
+  const [tab, setTab] = useState<AdminTab>("games");
 
   return (
     <div className="page-shell" style={{ maxWidth: 1000 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>ADMIN</div>
       <MyPodTasksSection />
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-        {TABS.map((t) => (
+        {ADMIN_TABS.map((t) => (
           <Pill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Pill>
         ))}
       </div>

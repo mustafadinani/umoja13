@@ -4,11 +4,26 @@ import { CATEGORIES } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useGames, useIncidents, useTeam } from "../../../hooks/useData";
 import { callItFinal } from "../../../lib/callables";
-import { Card, IncidentStatusPill, PrimaryButton } from "../../../components/ui";
+import { Card, IncidentStatusPill, Pill, PrimaryButton } from "../../../components/ui";
 import { IncidentReplyModal } from "../../../components/IncidentReplyModal";
 import { GameCardPhotoModal } from "../../../components/GameCardPhotoModal";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
+import { ADMIN_TABS, type AdminTab } from "../admin/adminTabs";
 import { AllGamesTab } from "../admin/AllGamesTab";
+import { TeamsAdminTab } from "../admin/TeamsAdminTab";
+import { LiveDrawTab } from "../admin/LiveDrawTab";
+import { CheckInsTab } from "../admin/CheckInsTab";
+import { PlayersAdminTab } from "../admin/PlayersAdminTab";
+import { ModerationOpsTab } from "../admin/ModerationOpsTab";
+import { HuntAdminTab } from "../admin/HuntAdminTab";
+import { VolunteersTab } from "../admin/VolunteersTab";
+import { SponsorsAdminTab } from "../admin/SponsorsAdminTab";
+import { NotificationsAdminTab } from "../admin/NotificationsAdminTab";
+import { TeamChannelsAdminTab } from "../admin/TeamChannelsAdminTab";
+import { UserChannelsAdminTab } from "../admin/UserChannelsAdminTab";
+import { PodsAdminTab } from "../admin/PodsAdminTab";
+import { UsersAdminTab } from "../admin/UsersAdminTab";
+import { AwardsAdminTab } from "../admin/AwardsAdminTab";
 
 export function CommissionerDashboard() {
   const { data: awaitingGames } = useGames([where("gameCard.status", "==", "awaiting_commissioner")]);
@@ -17,7 +32,11 @@ export function CommissionerDashboard() {
   const [cardPhotoUrl, setCardPhotoUrl] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
-  const [showAllGames, setShowAllGames] = useState(false);
+  // Everything past the Desk (finalize queue + incidents) below is the exact
+  // same admin tab set AdminDashboard has — the backend already treats
+  // commissioner as full staff everywhere, this just stops the UI from being
+  // the one place that didn't.
+  const [tab, setTab] = useState<AdminTab>("games");
 
   const openIncident = incidents.find((i) => i.id === openIncidentId) ?? null;
 
@@ -34,7 +53,7 @@ export function CommissionerDashboard() {
   }
 
   return (
-    <div className="page-shell-sm" style={{ maxWidth: 900 }}>
+    <div className="page-shell" style={{ maxWidth: 1000 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32, marginBottom: 16 }}>COMMISSIONER DESK</div>
 
       <MyPodTasksSection />
@@ -73,16 +92,29 @@ export function CommissionerDashboard() {
         {incidents.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>Nothing here.</div>}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10, marginTop: 28 }}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18 }}>ALL GAMES</div>
-        <button
-          onClick={() => setShowAllGames((v) => !v)}
-          style={{ background: "none", border: "none", color: theme.color.purple, fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0 }}
-        >
-          {showAllGames ? "Hide" : "Adjust time, field, teams, cards…"}
-        </button>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10, marginTop: 28 }}>
+        EVERYTHING ELSE
       </div>
-      {showAllGames && <AllGamesTab />}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {ADMIN_TABS.map((t) => (
+          <Pill key={t.id} active={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Pill>
+        ))}
+      </div>
+      {tab === "games" && <AllGamesTab />}
+      {tab === "teams" && <TeamsAdminTab />}
+      {tab === "liveDraw" && <LiveDrawTab />}
+      {tab === "players" && <PlayersAdminTab />}
+      {tab === "checkins" && <CheckInsTab />}
+      {tab === "ops" && <ModerationOpsTab />}
+      {tab === "hunt" && <HuntAdminTab />}
+      {tab === "volunteers" && <VolunteersTab />}
+      {tab === "sponsors" && <SponsorsAdminTab />}
+      {tab === "notifications" && <NotificationsAdminTab />}
+      {tab === "teamChannels" && <TeamChannelsAdminTab />}
+      {tab === "messages" && <UserChannelsAdminTab />}
+      {tab === "pods" && <PodsAdminTab />}
+      {tab === "users" && <UsersAdminTab />}
+      {tab === "awards" && <AwardsAdminTab />}
 
       {openIncident && <IncidentReplyModal incident={openIncident} onClose={() => setOpenIncidentId(null)} />}
       {cardPhotoUrl && <GameCardPhotoModal url={cardPhotoUrl} onClose={() => setCardPhotoUrl(null)} />}
