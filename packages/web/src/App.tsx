@@ -22,6 +22,7 @@ import { Privacy } from "./pages/Privacy";
 import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
 import { Stage } from "./pages/Stage";
+import { PrintGameCards } from "./pages/PrintGameCards";
 
 export default function App() {
   return (
@@ -91,6 +92,14 @@ export default function App() {
               element={
                 <ProtectedRoute requireRole={["admin", "commissioner"]}>
                   <Stage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/print/game-cards"
+              element={
+                <ProtectedRoute requireRole={["admin", "commissioner", "referee"]}>
+                  <PrintGameCards />
                 </ProtectedRoute>
               }
             />

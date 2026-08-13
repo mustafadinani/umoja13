@@ -59,6 +59,9 @@ export function Layout({ children }: { children: ReactNode }) {
   // edge — the site nav/footer chrome would just be dead space (and a stray
   // "Sign in" link) on a projector nobody in the crowd should be reading.
   if (pathname.startsWith("/stage")) return <>{children}</>;
+  // Same reasoning for the printable game card page — the site nav has no
+  // business showing up on a printed sheet.
+  if (pathname.startsWith("/print/")) return <>{children}</>;
 
   const barStyle: CSSProperties = {
     background: theme.color.navy,

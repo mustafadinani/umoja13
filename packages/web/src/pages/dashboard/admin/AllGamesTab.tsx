@@ -6,6 +6,12 @@ import { Card, FilterDropdown, PrimaryButton, StatusBadge } from "../../../compo
 import { AddGameModal } from "./AddGameModal";
 import { GameDetailModal } from "./GameDetailModal";
 
+/** Opens the printable Game Card page for these games in a new tab — see PrintGameCards.tsx. */
+function openPrintGameCards(gameIds: string[]) {
+  if (gameIds.length === 0) return;
+  window.open(`/print/game-cards?ids=${gameIds.join(",")}`, "_blank", "noopener");
+}
+
 const FIELD_OPTIONS = GAME_FIELDS.map((f) => ({ id: f, label: f }));
 const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ id: c.id, label: c.label }));
 const DAY_OPTIONS: { id: Game["day"]; label: string }[] = [
@@ -69,6 +75,17 @@ export function AllGamesTab() {
         <FilterDropdown<Game["day"]> label="Day" value={day} options={DAY_OPTIONS} onChange={setDay} />
         <FilterDropdown label="Category" value={categoryId} options={CATEGORY_OPTIONS} onChange={setCategoryId} />
         <FilterDropdown label="Field" value={field} options={FIELD_OPTIONS} onChange={setField} />
+        <button
+          onClick={() => openPrintGameCards(filtered.map((g) => g.id))}
+          disabled={filtered.length === 0}
+          style={{
+            background: "none", border: `1px solid ${theme.color.border}`, color: theme.color.navy, borderRadius: theme.radius.sm,
+            padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: filtered.length === 0 ? "default" : "pointer",
+            opacity: filtered.length === 0 ? 0.5 : 1, whiteSpace: "nowrap",
+          }}
+        >
+          🖨 Print {filtered.length} game card{filtered.length === 1 ? "" : "s"}
+        </button>
         <PrimaryButton onClick={() => setAddOpen(true)}>+ ADD GAME</PrimaryButton>
       </div>
 
@@ -86,7 +103,15 @@ export function AllGamesTab() {
                   {(g.refereeUids ?? []).length > 1 && <span style={{ color: theme.color.textMuted }}> · {g.refereeUids?.length} refs</span>}
                 </div>
               </div>
-              <StatusBadge status={g.status} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); openPrintGameCards([g.id]); }}
+                  style={{ background: "#F1EFF5", color: theme.color.purple, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 11.5, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  🖨 Print
+                </button>
+                <StatusBadge status={g.status} />
+              </div>
             </Card>
           );
         })}

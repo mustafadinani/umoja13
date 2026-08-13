@@ -70,7 +70,15 @@ export function RefereeDashboard() {
                     )}
                   </div>
                 </div>
-                <StatusBadge status={g.status} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); window.open(`/print/game-cards?ids=${g.id}`, "_blank", "noopener"); }}
+                    style={{ background: "#F1EFF5", color: theme.color.purple, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 11.5, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
+                  >
+                    🖨 Print
+                  </button>
+                  <StatusBadge status={g.status} />
+                </div>
               </Card>
             ))}
             {sorted.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No games assigned yet.</div>}
