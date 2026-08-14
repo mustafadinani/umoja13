@@ -215,11 +215,24 @@ export function buildTeamFromRegistration(
   appTeam?: Pick<Team, "stats" | "group" | "color" | "sponsorId" | "coachManagerUids"> | null
 ): Team {
   const captainId = team.captainProfileId ?? team.uid;
+  const resolvedCategoryId = resolveTeamCategoryId(team, catalog);
   // Keyed by playerKey, not the shared account uid — RosterCheckIn.userId
   // actually holds each player's playerKey (see checkin.ts), so two
-  // siblings' check-ins never collide onto the same roster row here.
+  // siblings' check-ins never collide onto the same roster row here. Also
+  // scoped to THIS team's own resolved category, not teamId alone — a team
+  // is always exactly one category, so a stray rosterCheckIns doc for the
+  // same team+player under some OTHER categoryId (a data mixup, confirmed in
+  // production for two players on one team — a rogue "Women's Open" overlay
+  // doc with no status at all, sitting alongside their real, approved
+  // Boy's 12 & Under one) must never be picked up here. Building this map
+  // from teamId alone let whichever doc happened to land last in Firestore's
+  // unordered read silently win — including the status-less stray one,
+  // which resolved to "not started" and showed a genuinely-approved player
+  // as "NOT VERIFIED" at the gate despite admin's own check-in queue (which
+  // reads the real checkIns doc directly, unaffected by this) showing them
+  // correctly verified.
   const checkInByUserId = new Map(
-    rosterCheckIns.filter((r) => r.teamId === team.id).map((r) => [r.userId, r])
+    rosterCheckIns.filter((r) => r.teamId === team.id && r.categoryId === resolvedCategoryId).map((r) => [r.userId, r])
   );
   const roster = playersForTeam(team, players, catalog).map((p) =>
     registeredPlayerToRosterEntry(p, captainId, checkInByUserId.get(p.profileId?.trim() || p.id))
@@ -236,7 +249,7 @@ export function buildTeamFromRegistration(
   return {
     id: team.id,
     name: team.teamName?.trim() || "Untitled team",
-    categoryId: resolveTeamCategoryId(team, catalog),
+    categoryId: resolvedCategoryId,
     color: appTeam?.color || colorForTeamId(team.id),
     group,
     sponsorId: appTeam?.sponsorId,
