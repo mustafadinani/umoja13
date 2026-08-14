@@ -136,7 +136,18 @@ export function PlayerProfileModal({
     setVerifySaving(true);
     setVerifyError(null);
     try {
-      await adminManualCheckIn({ teamId, playerKey, categoryId });
+      try {
+        await adminManualCheckIn({ teamId, playerKey, categoryId });
+      } catch {
+        // This (and other infrequently-called admin actions) scale to zero
+        // when idle — the first call after a quiet stretch can lose a race
+        // with Cloud Run cold-starting a fresh instance, surfacing as a
+        // generic network/internal error even though nothing is actually
+        // wrong. One quiet retry papers over that instead of making the
+        // admin click "Yes, verify" again themselves.
+        await new Promise((r) => setTimeout(r, 1200));
+        await adminManualCheckIn({ teamId, playerKey, categoryId });
+      }
       setVerifyConfirming(false);
     } catch (e) {
       setVerifyError(e instanceof Error ? e.message : "Couldn't verify this player.");
