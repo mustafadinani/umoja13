@@ -140,8 +140,8 @@ export const PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS = [
   "edc8142f-2ef0-4586-a576-2444875c4167", // Women's Open
 ];
 
-/** Aug 14 2026 00:00 America/New_York — once check-in/jersey numbers are locked for the tournament. */
-export const TOURNAMENT_START_AT = new Date("2026-08-14T00:00:00-04:00").getTime();
+/** Aug 14 2026 8:30 AM America/New_York — kickoff of the first games; check-in/jersey numbers lock for the tournament at this moment. */
+export const TOURNAMENT_START_AT = new Date("2026-08-14T08:30:00-04:00").getTime();
 
 /**
  * Display-only — the date shown on the Hunt's "coming soon" page. The
