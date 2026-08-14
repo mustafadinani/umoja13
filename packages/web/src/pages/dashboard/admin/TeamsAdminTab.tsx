@@ -131,6 +131,18 @@ export function TeamsAdminTab() {
     return map;
   }, [tournamentCategories, buckets]);
 
+  // Jersey-assigned count per team, straight off rosterCheckIns docs — same
+  // counting method the aggregate "Assigned jersey #s" KPI below uses, so a
+  // team's own badge always agrees with the filtered total.
+  const jerseyCountByTeamId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of allRosterCheckIns) {
+      if (r.jerseyNumber === undefined) continue;
+      map.set(r.teamId, (map.get(r.teamId) ?? 0) + 1);
+    }
+    return map;
+  }, [allRosterCheckIns]);
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return teams
@@ -138,6 +150,7 @@ export function TeamsAdminTab() {
         team,
         resolvedCategoryId: resolveTeamCategoryId(team, tournamentCategories),
         playerCount: playersByTeamId.get(team.id)?.length ?? 0,
+        jerseyCount: jerseyCountByTeamId.get(team.id) ?? 0,
       }))
       .filter(({ team, resolvedCategoryId }) => {
         if (teamFilter && team.id !== teamFilter) return false;
@@ -151,7 +164,7 @@ export function TeamsAdminTab() {
         );
       })
       .sort((a, b) => (a.team.teamName ?? "").localeCompare(b.team.teamName ?? ""));
-  }, [teams, playersByTeamId, search, categoryFilter, teamFilter, tournamentCategories]);
+  }, [teams, playersByTeamId, jerseyCountByTeamId, search, categoryFilter, teamFilter, tournamentCategories]);
 
   // Registered/checked-in/jerseyed counts for whichever teams the filters
   // above currently show.
@@ -453,8 +466,9 @@ export function TeamsAdminTab() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.map(({ team, playerCount, resolvedCategoryId }) => {
+        {rows.map(({ team, playerCount, jerseyCount, resolvedCategoryId }) => {
           const bucket = buckets.find((b) => b.id === resolvedCategoryId);
+          const allJerseyed = playerCount > 0 && jerseyCount >= playerCount;
           return (
             <Card
               key={team.id}
@@ -490,9 +504,24 @@ export function TeamsAdminTab() {
                 <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22 }}>
                   {playerCount}
                 </div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: playerCount === 0 ? theme.color.danger : theme.color.textMuted }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: playerCount === 0 ? theme.color.danger : theme.color.textMuted, marginBottom: 4 }}>
                   {playerCount === 1 ? "player" : "players"}
                 </div>
+                {playerCount > 0 && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderRadius: 999,
+                      padding: "3px 9px",
+                      background: allJerseyed ? theme.color.successBg : "#F1EFF5",
+                      color: allJerseyed ? theme.color.success : theme.color.textMuted,
+                    }}
+                  >
+                    {jerseyCount}/{playerCount} jerseys
+                  </span>
+                )}
               </div>
             </Card>
           );
