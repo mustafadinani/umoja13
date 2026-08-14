@@ -1,11 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
 import {
   COLLECTIONS,
+  jerseyLockAt,
   PLAYERS_REGISTERED,
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   resolvePlayerCategoryId,
   type CheckInStatus,
+  type Game,
   type RegisteredPlayer,
 } from "@umoja/shared";
 import { db, defaultDb } from "./admin.js";
@@ -124,4 +126,18 @@ export async function syncTeamRosterUidsFromRegistration(teamId: string): Promis
   if (!teamId) return;
   const rosterUids = (await getCurrentTeamRosterUids(teamId)).sort();
   await db.collection(COLLECTIONS.teams).doc(teamId).set({ rosterUids }, { merge: true });
+}
+
+/**
+ * Authoritative "when do jersey numbers lock" instant for one team+category —
+ * the kickoff of that team's own earliest scheduled game (falling back to the
+ * tournament-wide TOURNAMENT_START_AT if its schedule isn't posted yet; see
+ * jerseyLockAt, types/game.ts). Queried fresh on every setJerseyNumber call
+ * rather than trusting anything client-supplied, same as every other
+ * server-side check in that function.
+ */
+export async function getTeamJerseyLockAt(teamId: string, categoryId: string): Promise<number> {
+  const gamesSnap = await db.collection(COLLECTIONS.games).where("categoryId", "==", categoryId).get();
+  const games = gamesSnap.docs.map((d) => d.data() as Game);
+  return jerseyLockAt(games, teamId, categoryId);
 }

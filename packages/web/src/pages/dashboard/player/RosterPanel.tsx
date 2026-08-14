@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { checkInStatusLabel, checkInStatusTone, TOURNAMENT_START_AT, type Team } from "@umoja/shared";
+import { checkInStatusLabel, checkInStatusTone, jerseyLockAt, type Game, type Team } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { setJerseyNumber } from "../../../lib/callables";
 import { Card } from "../../../components/ui";
-
-const tournamentStarted = Date.now() >= TOURNAMENT_START_AT;
 
 /**
  * Check-in status + jersey number editing for one team's roster. No captain
@@ -14,12 +12,17 @@ const tournamentStarted = Date.now() >= TOURNAMENT_START_AT;
  * duplication once the officials card grew its own roster-search add flow).
  * The "(C)" tag stays as a passive indicator of who currently holds it.
  */
-export function RosterPanel({ team }: { team: Team }) {
+export function RosterPanel({ team, games }: { team: Team; games: Game[] }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const clearedCount = team.roster.filter((p) => p.checkInStatus === "approved").length;
+  // This team's own first scheduled game, not a single tournament-wide cutoff
+  // — a team that doesn't play until the afternoon keeps editing rights that
+  // much longer than one that opens at 8:30 AM. See jerseyLockAt for the
+  // fallback when this team/category has no scheduled game yet.
+  const tournamentStarted = Date.now() >= jerseyLockAt(games, team.id, team.categoryId);
 
   async function saveNumber(playerKey: string) {
     const num = Number(draft);
@@ -121,7 +124,7 @@ export function RosterPanel({ team }: { team: Team }) {
       {error && <div style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 8 }}>{error}</div>}
       {tournamentStarted && (
         <div style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>
-          🔒 Jersey numbers are locked now that the tournament has started.
+          🔒 Jersey numbers are locked now that this team's first game has started.
         </div>
       )}
     </div>

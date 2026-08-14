@@ -6,14 +6,13 @@ import {
   REGISTRATION_ROOT,
   REGISTRATION_YEAR,
   TEAMS_REGISTERED,
-  TOURNAMENT_START_AT,
   rosterCheckInIdFor,
   type RegisteredPlayer,
   type RegisteredTeam,
   type UserProfile,
 } from "@umoja/shared";
 import { db, defaultDb } from "../util/admin.js";
-import { getCurrentTeamPlayerKeys } from "../util/roster.js";
+import { getCurrentTeamPlayerKeys, getTeamJerseyLockAt } from "../util/roster.js";
 
 interface SetJerseyNumberRequest {
   teamId: string;
@@ -31,12 +30,14 @@ interface SetJerseyNumberRequest {
  * (Team.coachManagerUids — see assignTeamOfficial; unlike the captain, they
  * aren't necessarily a registered player on the team themselves), or staff
  * (admin/commissioner). Jersey numbers lock for everyone else the moment
- * the tournament starts (TOURNAMENT_START_AT) — captains/coach-managers/
- * players are expected to input and lock in every number before then, and
- * check-in itself stops offering the jersey-number question once that date
- * passes. Staff stay exempt from that cutoff — a genuine correction found
- * mid-tournament (a real conflict discovered at gate check, a data mixup)
- * needs a live fix, not a trip through direct Firestore access.
+ * THIS TEAM's own first scheduled game kicks off (see getTeamJerseyLockAt) —
+ * a team that doesn't play until the afternoon keeps editing rights that
+ * much longer than one that opens at 8:30 AM. Captains/coach-managers/
+ * players are expected to input and lock in every number before their own
+ * kickoff, and check-in itself stops offering the jersey-number question
+ * once that date passes. Staff stay exempt from that cutoff — a genuine
+ * correction found mid-tournament (a real conflict discovered at gate check,
+ * a data mixup) needs a live fix, not a trip through direct Firestore access.
  *
  * Only someone with roster authority over the team (captain, coach/manager,
  * staff) can reassign a number that's already claimed by a teammate — a
@@ -119,12 +120,15 @@ export const setJerseyNumber = onCall<SetJerseyNumberRequest>(async (request) =>
   }
 
   // Cutoff for everyone except staff — a player, captain, or coach/manager
-  // can't set or change a jersey number once the tournament has started,
-  // whether or not one was ever entered. Staff (admin/commissioner) are
-  // deliberately exempt: they're the ones who'd actually need to fix a
-  // real conflict discovered mid-tournament.
-  if (!isStaffCaller && Date.now() >= TOURNAMENT_START_AT) {
-    throw new HttpsError("failed-precondition", "Jersey numbers are locked now that the tournament has started.");
+  // can't set or change a jersey number once THIS TEAM's own first game has
+  // kicked off, whether or not one was ever entered. Staff (admin/
+  // commissioner) are deliberately exempt: they're the ones who'd actually
+  // need to fix a real conflict discovered mid-tournament.
+  if (!isStaffCaller) {
+    const lockAt = await getTeamJerseyLockAt(teamId, categoryId);
+    if (Date.now() >= lockAt) {
+      throw new HttpsError("failed-precondition", "Jersey numbers are locked now that this team's first game has started.");
+    }
   }
 
   const id = rosterCheckInIdFor(teamId, playerKey, categoryId);

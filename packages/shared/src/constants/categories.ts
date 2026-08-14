@@ -158,6 +158,13 @@ export const TOURNAMENT_DAY_DATES: Record<"fri" | "sat" | "sun", string> = {
   sun: "Aug 16",
 };
 
+/** Same calendar as TOURNAMENT_DAY_DATES, as ISO dates — for combining with a Game's kickoffTime into an absolute instant (see gameKickoffAt, types/game.ts). */
+export const TOURNAMENT_DAY_ISO_DATE: Record<"fri" | "sat" | "sun", string> = {
+  fri: "2026-08-14",
+  sat: "2026-08-15",
+  sun: "2026-08-16",
+};
+
 /** Non-match tournament-wide calendar entries (not Games, but shown alongside schedule). */
 export const SPECIAL_EVENTS = [
   { id: "awards-ceremony", label: "Umoja Family Awards Ceremony", day: "sun", time: "19:00", field: "Indoor arena" },

@@ -1,3 +1,5 @@
+import { TOURNAMENT_DAY_ISO_DATE, TOURNAMENT_START_AT } from "../constants/categories.js";
+
 export type GameStatus = "scheduled" | "live" | "final" | "forfeited";
 
 export type GameEventType = "yellow_card" | "red_card";
@@ -158,6 +160,26 @@ export function formatKickoffTime(time: string): string {
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
   return `${h}:${m} ${ampm}`;
+}
+
+/** Absolute epoch ms for a game's kickoff — combines Game.day/kickoffTime with the tournament's known calendar dates (TOURNAMENT_DAY_ISO_DATE), same America/New_York convention TOURNAMENT_START_AT itself was built with. A Game only ever stores day+time relative to that shared calendar, never an absolute instant of its own. */
+export function gameKickoffAt(day: Game["day"], kickoffTime: string): number {
+  return new Date(`${TOURNAMENT_DAY_ISO_DATE[day]}T${kickoffTime}:00-04:00`).getTime();
+}
+
+/**
+ * When jersey numbers lock for one team in one category: the kickoff of that
+ * team's own earliest scheduled game (home or away) in `games`, so a team
+ * that doesn't play until the afternoon keeps editing rights that much
+ * longer than one that opens at 8:30 AM. Falls back to the tournament-wide
+ * TOURNAMENT_START_AT for a team/category with no scheduled game yet (its
+ * bracket/draw hasn't run) — so a team is never left unlocked indefinitely
+ * just because its schedule isn't posted.
+ */
+export function jerseyLockAt(games: Game[], teamId: string, categoryId: string): number {
+  const relevant = games.filter((g) => g.categoryId === categoryId && (g.homeTeamId === teamId || g.awayTeamId === teamId));
+  if (relevant.length === 0) return TOURNAMENT_START_AT;
+  return Math.min(...relevant.map((g) => gameKickoffAt(g.day, g.kickoffTime)));
 }
 
 /** "CupQF1" -> "Cup QF1", "ShieldFinal" -> "Shield Final", "Wildcard" -> "Wild Card" — for referencing another game in copy ("Winner of X"). */

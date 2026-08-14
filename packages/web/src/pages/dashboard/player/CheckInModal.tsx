@@ -6,7 +6,7 @@ import {
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
-  TOURNAMENT_START_AT,
+  jerseyLockAt,
   categoryLabelFor,
   playerKeyFor,
   type PlayerMembership,
@@ -15,7 +15,7 @@ import { db } from "../../../lib/firebase";
 import { uploadPickedPhoto } from "../../../lib/uploadPhoto";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
-import { useVolunteerApplications } from "../../../hooks/useData";
+import { useGames, useVolunteerApplications } from "../../../hooks/useData";
 import { setJerseyNumber } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 import { BecomeVolunteerModal } from "../../../components/BecomeVolunteerModal";
@@ -49,7 +49,11 @@ export function CheckInModal({
   const [error, setError] = useState<string | null>(null);
   const [volunteerSignupOpen, setVolunteerSignupOpen] = useState(false);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(membership.categoryId);
-  const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
+  // This team's own first scheduled game, not a single tournament-wide
+  // cutoff — see jerseyLockAt (types/game.ts) for the fallback when this
+  // team/category has no scheduled game yet.
+  const { data: categoryGames } = useGames([where("categoryId", "==", membership.categoryId)]);
+  const jerseyNumbersLocked = Date.now() >= jerseyLockAt(categoryGames, membership.teamId, membership.categoryId);
   const canContinueFromDetails =
     existingJerseyNumber != null || jerseyNumbersLocked || jerseyNumberDraft.trim() === "" || /^\d{1,3}$/.test(jerseyNumberDraft.trim());
   const canContinueFromConsent = agreed && acceptedBy !== null && (acceptedBy === "self" || guardianName.trim().length > 0);
@@ -204,7 +208,7 @@ export function CheckInModal({
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>#{existingJerseyNumber} — set by your captain/manager.</div>
             ) : jerseyNumbersLocked ? (
               <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
-                Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
+                Jersey numbers are locked now that your team's first game has started — ask your team's captain/manager.
               </div>
             ) : (
               <>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { doc, setDoc, getDoc, deleteField } from "firebase/firestore";
+import { doc, setDoc, getDoc, deleteField, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -12,7 +12,7 @@ import {
   CHECKIN_CONSENT_COPY,
   PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS,
   PROFESSIONS,
-  TOURNAMENT_START_AT,
+  jerseyLockAt,
   categoryLabelFor,
   checkInIdFor,
   isNonCompetitiveCategory,
@@ -22,7 +22,7 @@ import {
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useCheckIn, usePass, useRosterCheckIn, useMyVolunteerApplications } from "../hooks/useData";
+import { useCheckIn, useGames, usePass, useRosterCheckIn, useMyVolunteerApplications } from "../hooks/useData";
 import { setJerseyNumber } from "../lib/callables";
 import { PrimaryButton } from "../components/ui";
 import { VolunteerSignupModal } from "../components/VolunteerSignupModal";
@@ -50,7 +50,11 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
   const { data: rosterInfo } = useRosterCheckIn(user ? rosterCheckInIdFor(teamId, playerKey, categoryId) : undefined);
   const category = CATEGORIES.find((c) => c.id === categoryId);
   const asksFieldPreference = PRIVATE_FIELD_ELIGIBLE_CATEGORY_IDS.includes(categoryId);
-  const jerseyNumbersLocked = Date.now() >= TOURNAMENT_START_AT;
+  // This team's own first scheduled game, not a single tournament-wide
+  // cutoff — see jerseyLockAt (types/game.ts) for the fallback when this
+  // team/category has no scheduled game yet.
+  const { data: categoryGames } = useGames([where("categoryId", "==", categoryId)]);
+  const jerseyNumbersLocked = Date.now() >= jerseyLockAt(categoryGames, teamId, categoryId);
 
   const [step, setStep] = useState<Step>(existingCheckIn?.status === "approved" ? "result" : "confirm");
   const [jerseyNumberDraft, setJerseyNumberDraft] = useState("");
@@ -271,7 +275,7 @@ export function CheckInScreen({ route }: NativeStackScreenProps<RootStackParamLi
             </Text>
           ) : jerseyNumbersLocked ? (
             <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
-              Jersey numbers are locked now that the tournament has started — ask your team's captain/manager.
+              Jersey numbers are locked now that your team's first game has started — ask your team's captain/manager.
             </Text>
           ) : (
             <>

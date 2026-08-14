@@ -8,10 +8,10 @@ import {
   COLLECTIONS,
   MAX_TEAM_OFFICIALS,
   OFFICIAL_KIND_LABELS,
-  TOURNAMENT_START_AT,
   TOURNAMENT_DAY_DATES,
   computePlayerSuspension,
   formatKickoffTime,
+  jerseyLockAt,
   provisionalSideLabel,
   type Game,
   type OfficialKind,
@@ -62,6 +62,10 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
+  // This team's own first scheduled game, not a single tournament-wide
+  // cutoff — see jerseyLockAt (types/game.ts) for the fallback when this
+  // team/category has no scheduled game yet.
+  const jerseyNumbersLocked = Date.now() >= jerseyLockAt(games, team.id, team.categoryId);
   // playerKey, not the bare userId — a moment tagged to one sibling on a
   // shared family account must not disappear just because it's checked
   // against the account uid every sibling shares.
@@ -131,7 +135,7 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
         <View style={styles.section}>
           {team.roster.map((p) => {
             const playerKey = p.playerKey ?? p.userId;
-            const locked = Date.now() >= TOURNAMENT_START_AT;
+            const locked = jerseyNumbersLocked;
             if (isCaptain && editingUserId === playerKey) {
               return (
                 <Card key={playerKey} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>

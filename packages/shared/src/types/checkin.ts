@@ -132,9 +132,10 @@ export interface RosterCheckIn {
   /** Mirrors CheckIn.cardPhotoOverride — see there for what it means. */
   cardPhotoOverride?: "selfie" | "registration";
   /**
-   * Set by the player at check-in (optional) or by their captain/manager
-   * any time before TOURNAMENT_START_AT — locked (can only be set once,
-   * never changed) after that, from either side, once a number is on file.
+   * Set by the player at check-in (optional) or by their captain/manager any
+   * time before this team's own first scheduled game (see jerseyLockAt,
+   * types/game.ts) — locked (can only be set once, never changed) after
+   * that, from either side, once a number is on file.
    */
   jerseyNumber?: number;
   /** Mirrored from the checkIn doc if the player chose to share them — optional, never required. */

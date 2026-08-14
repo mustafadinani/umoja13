@@ -139,7 +139,7 @@ function TeamOfficialPanel({ teamId }: { teamId: string }) {
         ))}
       </div>
 
-      {subTab === "roster" ? <RosterPanel team={team} /> : <TeamSchedulePanel games={teamGames} />}
+      {subTab === "roster" ? <RosterPanel team={team} games={teamGames} /> : <TeamSchedulePanel games={teamGames} />}
 
       <Card style={{ marginTop: 24, cursor: "pointer" }} onClick={() => navigate("/dashboard/report-issue")}>
         <div style={{ fontWeight: 600 }}>Report an issue to the commissioner</div>
