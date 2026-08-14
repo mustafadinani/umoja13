@@ -90,7 +90,7 @@ export const adminManualCheckIn = onCall<AdminManualCheckInRequest>(async (reque
     attempt: existing?.attempt ?? 1,
     reviewedBy: uid,
     reviewedAt: now,
-    manualOverride: existing?.selfieUrl ? existing.manualOverride : true,
+    manualOverride: existing?.selfieUrl ? (existing.manualOverride ?? false) : true,
     consent: existing?.consent ?? { acceptedBy: "self", guardianName: null, acceptedAt: now, policyVersion: CHECKIN_CONSENT_POLICY_VERSION },
     ...(existing?.lineOfWork ? { lineOfWork: existing.lineOfWork } : {}),
     ...(existing?.currentEmployer ? { currentEmployer: existing.currentEmployer } : {}),
