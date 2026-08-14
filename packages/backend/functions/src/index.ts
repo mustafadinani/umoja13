@@ -51,5 +51,6 @@ export { setSwagPickedUp } from "./http/setSwagPickedUp.js";
 export { adminManualCheckIn } from "./http/adminManualCheckIn.js";
 export { assignTeamOfficial, removeTeamOfficial, getTeamOfficialNames } from "./http/assignTeamOfficial.js";
 export { setHuntStarted } from "./http/huntConfig.js";
+export { resetHunt } from "./http/resetHunt.js";
 export { backfillTeamRosterAccess } from "./http/backfillTeamRosterAccess.js";
 export { syncMyRoleClaims } from "./http/syncMyRoleClaims.js";

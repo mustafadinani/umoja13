@@ -188,6 +188,11 @@ export const setHuntStarted = httpsCallable<{ started: boolean }, { started: boo
   "setHuntStarted"
 );
 
+export const resetHunt = httpsCallable<
+  void,
+  { submissionsDeleted: number; momentsDeleted: number; crewsReset: number }
+>(functions, "resetHunt");
+
 export const setJerseyNumber = httpsCallable<
   { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }

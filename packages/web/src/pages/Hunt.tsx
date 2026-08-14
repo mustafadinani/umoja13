@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { HuntMissionType, HuntMission, Challenge } from "@umoja/shared";
+import { currentHuntDayNumber, isHuntMissionVisible, type HuntMissionType, type HuntMission, type Challenge } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { useChallenges, useHuntConfig, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useSponsors } from "../hooks/useData";
@@ -58,7 +58,15 @@ export function Hunt() {
   const [openChallenge, setOpenChallenge] = useState<Challenge | null>(null);
   const [openCrewId, setOpenCrewId] = useState<string | null>(null);
 
+  const now = Date.now();
+  const currentDayNumber = currentHuntDayNumber(now);
+  // Future-day missions stay hidden entirely (not just filtered-out-by-default)
+  // — a mission never shows before its own day has arrived, regardless of
+  // the day pill selected below. Once a day arrives its missions stay
+  // visible for the rest of the weekend (a crew behind on Day 1 can still
+  // see and finish it on Day 2).
   const filteredMissions = missions
+    .filter((m) => isHuntMissionVisible(m.day, now))
     .filter((m) => (!typeFilter || m.type === typeFilter) && (!dayFilter || m.day === dayFilter))
     .slice()
     .sort((a, b) => Number(crew?.missionsCompleted.includes(a.id) ?? false) - Number(crew?.missionsCompleted.includes(b.id) ?? false));
@@ -66,7 +74,6 @@ export function Hunt() {
     .slice()
     .sort((a, b) => Number(crew?.challengesCompleted?.includes(a.id) ?? false) - Number(crew?.challengesCompleted?.includes(b.id) ?? false));
   const openCrew = leaderboard.find((c) => c.id === openCrewId) ?? null;
-  const now = Date.now();
   const activeChallenges = challenges.filter((c) => activeChallenge(c, now));
   const myRank = crew ? leaderboard.findIndex((c) => c.id === crew.id) + 1 : 0;
   const totalDone = crew ? crew.missionsCompleted.length + (crew.challengesCompleted?.length ?? 0) : 0;
@@ -151,7 +158,11 @@ export function Hunt() {
                   <>
                     <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
                       <Pill active={!dayFilter} onClick={() => setDayFilter(null)}>All days</Pill>
-                      {["1", "2", "3", "open"].map((d) => <Pill key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>{DAY_LABELS[d]}</Pill>)}
+                      {/* Only days that have actually arrived get a filter pill — a Day 3 pill
+                          on Day 1 would just always render an empty list. */}
+                      {["1", "2", "3", "open"].filter((d) => d === "open" || Number(d) <= currentDayNumber).map((d) => (
+                        <Pill key={d} active={dayFilter === d} onClick={() => setDayFilter(d)}>{DAY_LABELS[d]}</Pill>
+                      ))}
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {(() => {
@@ -160,6 +171,7 @@ export function Hunt() {
                         const row = (m: HuntMission, isDone: boolean) => {
                           const mySubmission = myHuntSubmissions.find((s) => s.missionId === m.id) ?? null;
                           const pendingReview = !isDone && mySubmission?.status === "pending";
+                          const rejected = !isDone && mySubmission?.status === "rejected";
                           return (
                             <Card key={m.id} onClick={() => setOpenMission(m)} data-testid="mission-row" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                               <div style={{ width: 38, height: 38, borderRadius: 12, background: isDone ? theme.color.successBg : TYPE_ICON_BG[m.type], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
@@ -167,8 +179,14 @@ export function Hunt() {
                               </div>
                               <div style={{ flex: 1, minWidth: 120 }}>
                                 <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: isDone ? "line-through" : "none", color: isDone ? theme.color.textMuted : theme.color.text }}>{m.title}</div>
-                                <div style={{ fontSize: 12, color: isDone ? theme.color.success : pendingReview ? theme.color.warning : theme.color.textMuted, marginTop: 2, fontWeight: isDone || pendingReview ? 700 : 400 }}>
-                                  {isDone ? `Done ✓ — +${m.points} pts earned` : pendingReview ? "Submitted — pending review" : m.subtitle}
+                                <div style={{ fontSize: 12, color: isDone ? theme.color.success : pendingReview ? theme.color.warning : rejected ? theme.color.danger : theme.color.textMuted, marginTop: 2, fontWeight: isDone || pendingReview || rejected ? 700 : 400 }}>
+                                  {isDone
+                                    ? `Done ✓ — +${m.points} pts earned`
+                                    : pendingReview
+                                    ? "Submitted — pending review"
+                                    : rejected
+                                    ? `Not approved — tap to resubmit${mySubmission?.rejectionReason ? ` (${mySubmission.rejectionReason})` : ""}`
+                                    : m.subtitle}
                                 </div>
                               </div>
                               <div style={{ fontFamily: theme.font.display, fontWeight: 800, color: isDone ? theme.color.success : theme.color.pink }}>+{m.points}</div>

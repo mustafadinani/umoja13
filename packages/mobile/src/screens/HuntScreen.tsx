@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, HUNT_LAUNCH_LABEL, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
+import { COLLECTIONS, HUNT_LAUNCH_LABEL, huntMissionIsAutoScored, isHuntMissionVisible, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
@@ -69,7 +69,11 @@ export function HuntScreen() {
   const { user, profile } = useAuth();
   const { data: huntConfig, loading: huntConfigLoading } = useHuntConfig();
   const { data: crew } = useMyCrew(user?.uid);
-  const { data: missions } = useHuntMissions();
+  const { data: allMissions } = useHuntMissions();
+  // Future-day missions stay hidden entirely until their own day arrives —
+  // once a day arrives its missions stay visible for the rest of the
+  // weekend (a crew behind on Day 1 can still see and finish it on Day 2).
+  const missions = useMemo(() => allMissions.filter((m) => isHuntMissionVisible(m.day)), [allMissions]);
   const { data: challenges } = useChallenges();
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
   const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
@@ -365,7 +369,10 @@ export function HuntScreen() {
               </View>
               {(() => {
                 const totalDone = crew.missionsCompleted.length + (crew.challengesCompleted?.length ?? 0);
-                const totalAvailable = missions.length + challenges.length;
+                // Full mission count, not just what's visible today — hiding
+                // not-yet-open days shouldn't make the progress bar look
+                // artificially close to 100%, or jump backward once Day 2 opens.
+                const totalAvailable = allMissions.length + challenges.length;
                 const pct = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
                 return (
                   <>
@@ -535,6 +542,9 @@ export function HuntScreen() {
             {missionStatus === "rejected" && (
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginBottom: 12 }}>
                 <Text style={{ color: theme.color.danger, fontWeight: "700", textAlign: "center" }}>Not approved — try submitting again.</Text>
+                {mySubmission?.rejectionReason && (
+                  <Text style={{ color: theme.color.danger, fontWeight: "600", fontSize: 12.5, textAlign: "center", marginTop: 6 }}>{mySubmission.rejectionReason}</Text>
+                )}
               </View>
             )}
 

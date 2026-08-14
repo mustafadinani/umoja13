@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useAnnouncements, useGames, useHuntConfig, useHuntCrews, useMoments, useSponsors, useTeams } from "../hooks/useData";
+import { useAnnouncements, useGames, useHuntConfig, useHuntCrews, useMoments, useMyCrew, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
 import { CATEGORIES, HUNT_LAUNCH_LABEL, VENUE, formatKickoffTime } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
@@ -23,6 +23,7 @@ export function Home() {
   const { data: announcements } = useAnnouncements();
   const { data: crews } = useHuntCrews();
   const { data: huntConfig } = useHuntConfig();
+  const { data: myCrew } = useMyCrew(user?.uid);
   const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [volunteerOpen, setVolunteerOpen] = useState(false);
@@ -201,14 +202,18 @@ export function Home() {
           </Card>
           <div style={{ background: hunterGradient, color: "#fff", borderRadius: 16, padding: 18, cursor: "pointer" }} onClick={() => navigate("/hunt")}>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>
-              {huntConfig?.started ? "JOIN THE HUNT" : "🔒 THE HUNT"}
+              {!huntConfig?.started ? "🔒 THE HUNT" : myCrew ? myCrew.name : "JOIN THE HUNT"}
             </div>
             {huntConfig?.started ? (
               <>
-                <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>45 missions across 3 days. $500 grand prize at Sunday's ceremony.</div>
+                <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>
+                  {myCrew
+                    ? `${myCrew.points} pts · ${myCrew.missionsCompleted.length} missions done →`
+                    : "45 missions across 3 days. $500 grand prize at Sunday's ceremony."}
+                </div>
                 {topCrews.map((c, i) => (
                   <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)", flexWrap: "wrap", gap: 6 }}>
-                    <span>{i + 1}. {c.name}</span>
+                    <span>{i + 1}. {c.name}{c.id === myCrew?.id ? " (you)" : ""}</span>
                     <span>{c.points} pts</span>
                   </div>
                 ))}

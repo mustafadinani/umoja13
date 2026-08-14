@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, HUNT_LAUNCH_LABEL } from "@umoja/shared";
 import { toggleFollowTeam } from "../../../lib/followTeam";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme, hunterGradient } from "../../../lib/theme";
-import { useTeams } from "../../../hooks/useData";
+import { useHuntConfig, useMyCrew, useTeams } from "../../../hooks/useData";
 import { useCanFileCommissionerReport } from "../../../hooks/useRegistration";
 import { Card, Pill } from "../../../components/ui";
 
@@ -12,6 +12,8 @@ export function FanDashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { data: teams } = useTeams();
+  const { data: huntConfig } = useHuntConfig();
+  const { data: myCrew } = useMyCrew(user?.uid);
   const canFileReport = useCanFileCommissionerReport(user?.uid, profile);
   const [followError, setFollowError] = useState<string | null>(null);
   const followed = new Set(profile?.followedTeamIds ?? []);
@@ -40,8 +42,16 @@ export function FanDashboard() {
       )}
 
       <div style={{ background: hunterGradient, color: "#fff", borderRadius: theme.radius.lg, padding: 18, marginBottom: 16, cursor: "pointer" }} onClick={() => navigate("/hunt")}>
-        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>JOIN THE HUNT</div>
-        <div style={{ fontSize: 13.5, opacity: 0.92, marginTop: 4 }}>Make a crew of up to 4 and start earning points →</div>
+        <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20 }}>
+          {!huntConfig?.started ? "🔒 THE HUNT" : myCrew ? myCrew.name : "JOIN THE HUNT"}
+        </div>
+        <div style={{ fontSize: 13.5, opacity: 0.92, marginTop: 4 }}>
+          {!huntConfig?.started
+            ? `Opens ${HUNT_LAUNCH_LABEL} →`
+            : myCrew
+            ? `${myCrew.points} pts · ${myCrew.missionsCompleted.length} missions done →`
+            : "Make a crew of up to 4 and start earning points →"}
+        </div>
       </div>
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MY TEAMS</div>
