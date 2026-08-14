@@ -1,12 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { addDoc, collection, doc, deleteDoc, updateDoc, arrayUnion, where } from "firebase/firestore";
-import { COLLECTIONS, HUNT_LAUNCH_LABEL, type HuntMissionType, type HuntSubmission } from "@umoja/shared";
+import { COLLECTIONS, HUNT_LAUNCH_LABEL, type HuntMission, type HuntMissionType, type HuntSubmission } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
 import { useHuntConfig, useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
 import { useAuth } from "../../../auth/AuthProvider";
 import { setHuntStarted } from "../../../lib/callables";
-import { Card, Pill, PrimaryButton } from "../../../components/ui";
+import { Card, Modal, Pill, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 import { ChallengesAdminTab } from "./ChallengesAdminTab";
 
@@ -33,6 +33,10 @@ export function HuntAdminTab() {
   const { data: missions } = useHuntMissions();
   const { data: crews } = useHuntCrews();
   const { data: pendingSubmissions } = useHuntSubmissions([where("status", "==", "pending")]);
+  // Every submission, any status — grouped per mission below so the library
+  // can show "3 pending" at a glance and the detail modal can show a
+  // mission's full submission history, not just what's still pending.
+  const { data: allSubmissions } = useHuntSubmissions();
   const [type, setType] = useState<HuntMissionType | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -42,6 +46,18 @@ export function HuntAdminTab() {
   const [launchBusy, setLaunchBusy] = useState(false);
   const [section, setSection] = useState<"missions" | "challenges">("missions");
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
+  const [openMissionId, setOpenMissionId] = useState<string | null>(null);
+
+  const submissionsByMission = useMemo(() => {
+    const map = new Map<string, HuntSubmission[]>();
+    for (const s of allSubmissions) {
+      const list = map.get(s.missionId) ?? [];
+      list.push(s);
+      map.set(s.missionId, list);
+    }
+    return map;
+  }, [allSubmissions]);
+  const openMission = openMissionId ? missions.find((m) => m.id === openMissionId) ?? null : null;
 
   async function toggleHuntStarted(started: boolean) {
     const confirmMsg = started
@@ -205,19 +221,133 @@ export function HuntAdminTab() {
 
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>MISSION LIBRARY ({missions.length})</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {missions.map((m) => (
-          <Card key={m.id} style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <div style={{ minWidth: 120 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{TYPES.find((t) => t.id === m.type)?.label} {m.title}</div>
-              <div style={{ fontSize: 12, color: theme.color.textMuted }}>{m.subtitle} · {m.points} pts</div>
-            </div>
-            <button onClick={() => removeMission(m.id)} style={{ background: "none", border: "none", color: theme.color.danger, fontSize: 12, fontWeight: 700 }}>Remove</button>
-          </Card>
-        ))}
+        {missions.map((m) => {
+          const subs = submissionsByMission.get(m.id) ?? [];
+          const pendingCount = subs.filter((s) => s.status === "pending").length;
+          return (
+            <Card
+              key={m.id}
+              onClick={() => setOpenMissionId(m.id)}
+              style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, cursor: "pointer" }}
+            >
+              <div style={{ minWidth: 120 }}>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{TYPES.find((t) => t.id === m.type)?.label} {m.title}</div>
+                <div style={{ fontSize: 12, color: theme.color.textMuted }}>{m.subtitle} · {m.points} pts</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                {subs.length > 0 && (
+                  <span
+                    style={{
+                      fontSize: 11.5, fontWeight: 700, borderRadius: 999, padding: "4px 10px",
+                      background: pendingCount > 0 ? theme.color.warningBg : "#F1EFF5",
+                      color: pendingCount > 0 ? theme.color.warning : theme.color.textMuted,
+                    }}
+                  >
+                    {pendingCount > 0 ? `${pendingCount} pending · ${subs.length} total` : `${subs.length} submitted`}
+                  </span>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); removeMission(m.id); }}
+                  style={{ background: "none", border: "none", color: theme.color.danger, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                >
+                  Remove
+                </button>
+              </div>
+            </Card>
+          );
+        })}
       </div>
       </>
       )}
       {lightbox && <Lightbox src={lightbox.src} mediaType={lightbox.mediaType} onClose={() => setLightbox(null)} />}
+      {openMission && (
+        <MissionSubmissionsModal
+          mission={openMission}
+          submissions={submissionsByMission.get(openMission.id) ?? []}
+          crews={crews}
+          typeLabel={TYPES.find((t) => t.id === openMission.type)?.label ?? openMission.type}
+          onApprove={(s) => reviewSubmission(s, true)}
+          onReject={(s) => reviewSubmission(s, false)}
+          onViewMedia={(src, mediaType) => setLightbox({ src, mediaType })}
+          onClose={() => setOpenMissionId(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function MissionSubmissionsModal({
+  mission, submissions, crews, typeLabel, onApprove, onReject, onViewMedia, onClose,
+}: {
+  mission: HuntMission;
+  submissions: HuntSubmission[];
+  crews: ReturnType<typeof useHuntCrews>["data"];
+  typeLabel: string;
+  onApprove: (s: HuntSubmission) => void;
+  onReject: (s: HuntSubmission) => void;
+  onViewMedia: (src: string, mediaType: "photo" | "video") => void;
+  onClose: () => void;
+}) {
+  const sorted = [...submissions].sort((a, b) => {
+    // Pending first (needs attention), then most recent.
+    if ((a.status === "pending") !== (b.status === "pending")) return a.status === "pending" ? -1 : 1;
+    return b.createdAt - a.createdAt;
+  });
+  const STATUS_STYLE: Record<HuntSubmission["status"], { bg: string; fg: string; label: string }> = {
+    pending: { bg: theme.color.warningBg, fg: theme.color.warning, label: "Pending" },
+    approved: { bg: theme.color.successBg, fg: theme.color.success, label: "Approved" },
+    rejected: { bg: theme.color.dangerBg, fg: theme.color.danger, label: "Rejected" },
+  };
+
+  return (
+    <Modal onClose={onClose} width={560}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: theme.color.purple, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 }}>
+        {typeLabel}
+      </div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 21, marginBottom: 6 }}>{mission.title}</div>
+      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 4 }}>{mission.subtitle} · {mission.points} pts</div>
+      {mission.description && (
+        <div style={{ fontSize: 13.5, lineHeight: 1.5, background: "#F7F6F3", borderRadius: theme.radius.sm, padding: 12, marginBottom: 18 }}>
+          {mission.description}
+        </div>
+      )}
+
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 14, marginBottom: 10 }}>
+        SUBMISSIONS ({submissions.length})
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {sorted.map((s) => {
+          const crew = crews.find((c) => c.id === s.crewId);
+          const st = STATUS_STYLE[s.status];
+          return (
+            <Card key={s.id} style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {s.mediaUrl && (
+                <div
+                  onClick={() => onViewMedia(s.mediaUrl!, s.mediaType === "video" ? "video" : "photo")}
+                  style={{ width: 56, height: 42, borderRadius: 6, background: `url(${s.mediaUrl}) center/cover`, cursor: "zoom-in", flexShrink: 0 }}
+                />
+              )}
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{crew?.name ?? s.crewId}</div>
+                <div style={{ fontSize: 12, color: theme.color.textMuted }}>
+                  {s.submittedByName} {s.textAnswer && `· "${s.textAnswer}"`}
+                </div>
+              </div>
+              {s.status === "pending" ? (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => onApprove(s)} style={{ background: theme.color.successBg, color: theme.color.success, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Approve</button>
+                  <button onClick={() => onReject(s)} style={{ background: theme.color.dangerBg, color: theme.color.danger, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Reject</button>
+                </div>
+              ) : (
+                <span style={{ background: st.bg, color: st.fg, borderRadius: 999, padding: "5px 12px", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
+                  {st.label}
+                </span>
+              )}
+            </Card>
+          );
+        })}
+        {submissions.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No submissions for this mission yet.</div>}
+      </div>
+    </Modal>
   );
 }
