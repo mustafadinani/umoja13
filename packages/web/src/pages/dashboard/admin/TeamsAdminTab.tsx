@@ -131,17 +131,35 @@ export function TeamsAdminTab() {
     return map;
   }, [tournamentCategories, buckets]);
 
-  // Jersey-assigned count per team, straight off rosterCheckIns docs — same
-  // counting method the aggregate "Assigned jersey #s" KPI below uses, so a
-  // team's own badge always agrees with the filtered total.
+  // Current playerKeys per team — jersey counting below needs this (unlike
+  // check-in counting, see filteredKpis' comment) because rosterCheckIns is
+  // append-only: a registration correction/resubmission leaves the OLD
+  // playerKey's overlay doc behind forever, jerseyNumber and all. Counting
+  // those raw makes a team's "jerseys assigned" exceed its actual player
+  // count (confirmed ~10 real teams in production show exactly this — one
+  // as bad as 16 "assigned" against 12 real current players), which can
+  // never happen once it's scoped to players who are still actually on the
+  // roster.
+  const currentPlayerKeysByTeam = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const [teamId, list] of playersByTeamId) {
+      map.set(teamId, new Set(list.map((p) => p.profileId?.trim() || p.id)));
+    }
+    return map;
+  }, [playersByTeamId]);
+
+  // Jersey-assigned count per team — scoped to current roster spots only
+  // (see currentPlayerKeysByTeam above), so it can never read higher than
+  // the team's own player count.
   const jerseyCountByTeamId = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of allRosterCheckIns) {
       if (r.jerseyNumber === undefined) continue;
+      if (!currentPlayerKeysByTeam.get(r.teamId)?.has(r.userId)) continue;
       map.set(r.teamId, (map.get(r.teamId) ?? 0) + 1);
     }
     return map;
-  }, [allRosterCheckIns]);
+  }, [allRosterCheckIns, currentPlayerKeysByTeam]);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -169,18 +187,24 @@ export function TeamsAdminTab() {
   // Registered/checked-in/jerseyed counts for whichever teams the filters
   // above currently show.
   //
-  // Checked-in and jerseyed deliberately count straight off rosterCheckIns
-  // docs (scoped by teamId), matching exactly how CheckInsTab's own
-  // "Verified" KPI counts (straight off the checkIns collection) — NOT by
-  // looping over current playersRegistered rows and looking up each one's
-  // check-in by playerKey. That loop-and-lookup approach silently drops
-  // every check-in whose playerKey no longer matches any CURRENT
-  // registration row (a registration correction/resubmission leaves the
-  // old check-in's playerKey orphaned — confirmed ~20 real approved
-  // check-ins in production are in exactly this state), undercounting
-  // "Checked-in" below the Check-ins tab's real number even though those
-  // check-ins are genuinely approved. Counting the check-in docs directly
-  // can't drop them, so the two tabs' numbers actually reconcile.
+  // Checked-in deliberately counts straight off rosterCheckIns docs (scoped
+  // by teamId), matching exactly how CheckInsTab's own "Verified" KPI
+  // counts (straight off the checkIns collection) — NOT by looping over
+  // current playersRegistered rows and looking up each one's check-in by
+  // playerKey. That loop-and-lookup approach silently drops every check-in
+  // whose playerKey no longer matches any CURRENT registration row (a
+  // registration correction/resubmission leaves the old check-in's
+  // playerKey orphaned — confirmed ~20 real approved check-ins in
+  // production are in exactly this state), undercounting "Checked-in"
+  // below the Check-ins tab's real number even though those check-ins are
+  // genuinely approved. Counting the check-in docs directly can't drop
+  // them, so the two tabs' numbers actually reconcile.
+  //
+  // Jerseyed is the opposite case: it's scoped to CURRENT playerKeys (see
+  // currentPlayerKeysByTeam above), because an orphaned rosterCheckIns doc
+  // still holding a jerseyNumber represents a number nobody on the current
+  // roster can actually be wearing — counting it raw let this total (and
+  // each team's own badge) exceed the team's real player count.
   const filteredKpis = useMemo(() => {
     const teamIds = new Set(rows.map((r) => r.team.id));
     const registered = players.filter((p) => {
@@ -189,9 +213,11 @@ export function TeamsAdminTab() {
     }).length;
     const relevantRosterCheckIns = allRosterCheckIns.filter((r) => teamIds.has(r.teamId));
     const checkedIn = relevantRosterCheckIns.filter((r) => r.status === "approved").length;
-    const jerseyed = relevantRosterCheckIns.filter((r) => r.jerseyNumber !== undefined).length;
+    const jerseyed = relevantRosterCheckIns.filter(
+      (r) => r.jerseyNumber !== undefined && currentPlayerKeysByTeam.get(r.teamId)?.has(r.userId)
+    ).length;
     return { registered, checkedIn, jerseyed };
-  }, [rows, players, allRosterCheckIns]);
+  }, [rows, players, allRosterCheckIns, currentPlayerKeysByTeam]);
 
   const teamOptions = useMemo(
     () =>
