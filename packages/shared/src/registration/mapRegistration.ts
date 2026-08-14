@@ -102,11 +102,22 @@ function colorForTeamId(id: string): string {
   return TEAM_COLORS[Math.abs(hash) % TEAM_COLORS.length];
 }
 
-function checkInStatusFromRegistration(status: string | undefined): RosterEntry["checkInStatus"] {
-  const s = (status ?? "").toLowerCase();
-  if (s.includes("approved") || s.includes("complete")) return "approved";
-  if (s.includes("reject")) return "rejected";
-  if (s.includes("pending") || s.includes("review")) return "pending_review";
+/**
+ * Fallback for a player with no real check-in overlay doc yet (never touched
+ * the app's check-in flow) — always "not_started". This used to try to guess
+ * a check-in state from Outreach's own registration-paperwork `status` string
+ * (e.g. "Verified. Pending Check-In"), but every single completed real
+ * registration carries that exact same boilerplate text — it has nothing to
+ * do with the app's own check-in review pipeline. Matching "pending" in it
+ * meant literally every player who hadn't started check-in yet was mislabeled
+ * "Pending review" (implying staff needs to act) instead of "Pending
+ * check-in" (they haven't started) — confirmed against production data: all
+ * 904 real rows share the identical status string. Real check-in state (not
+ * started / pending review / verified / declined) can only ever come from an
+ * actual RosterCheckIn/CheckIn doc, which is exactly what `realCheckIn` above
+ * already is when one exists.
+ */
+function checkInStatusFromRegistration(): RosterEntry["checkInStatus"] {
   return "not_started";
 }
 
@@ -154,7 +165,7 @@ export function registeredPlayerToRosterEntry(
     // Real registration captain OR a coach/manager's appointment (see
     // RosterCheckIn.appointedCaptain) — additive, so a team can have both.
     isCaptain: !!(captainProfileId && (player.uid === captainProfileId || player.id === captainProfileId)) || !!realCheckIn?.appointedCaptain,
-    checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(player.status),
+    checkInStatus: realCheckIn?.status ?? checkInStatusFromRegistration(),
     selfieUrl: resolveCardPhotoUrl(realCheckIn, player.profilePicture ?? undefined),
     lineOfWork: realCheckIn?.lineOfWork,
     currentEmployer: realCheckIn?.currentEmployer,
