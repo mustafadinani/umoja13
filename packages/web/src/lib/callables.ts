@@ -193,6 +193,11 @@ export const resetHunt = httpsCallable<
   { submissionsDeleted: number; momentsDeleted: number; crewsReset: number }
 >(functions, "resetHunt");
 
+export const deleteHuntCrew = httpsCallable<
+  { crewId: string },
+  { deleted: true; submissionsDeleted: number; momentsDeleted: number }
+>(functions, "deleteHuntCrew");
+
 export const setJerseyNumber = httpsCallable<
   { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
   { ok: true }
