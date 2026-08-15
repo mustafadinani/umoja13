@@ -19,14 +19,23 @@ self.addEventListener("push", (event) => {
       body: payload.body,
       icon: "/logo-icon.png",
       badge: "/logo-icon.png",
+      data: { url: payload.url },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const url = event.notification.data?.url;
   event.waitUntil(
     (async () => {
+      // A targeted alert's attached PDF isn't part of the SPA — always give
+      // it its own tab rather than trying to reuse/focus an existing app
+      // window, which would just leave the PDF's URL unopened.
+      if (url) {
+        await self.clients.openWindow(url);
+        return;
+      }
       const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       const existing = clientsList.find((c) => "focus" in c);
       if (existing) {

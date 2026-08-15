@@ -55,11 +55,17 @@ export function isGoneSubscriptionError(err: unknown): boolean {
   return status === 404 || status === 410;
 }
 
-/** Sends one Web Push notification. Throws on failure — caller decides how to handle a gone-vs-transient error (see isGoneSubscriptionError). */
-export async function sendWebPush(subscription: WebPushSubscription, title: string, body: string): Promise<void> {
+/**
+ * Sends one Web Push notification. Throws on failure — caller decides how to
+ * handle a gone-vs-transient error (see isGoneSubscriptionError). `url`, when
+ * given, is what tapping the notification opens (see public/sw-push.js) —
+ * used for a targeted alert's attached PDF link; omitted, it just
+ * focuses/opens the app like every other push always has.
+ */
+export async function sendWebPush(subscription: WebPushSubscription, title: string, body: string, url?: string): Promise<void> {
   ensureConfigured();
   await webpush.sendNotification(
     { endpoint: subscription.endpoint, keys: subscription.keys },
-    JSON.stringify({ title, body })
+    JSON.stringify({ title, body, url })
   );
 }

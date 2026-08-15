@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, FlatList, TouchableOpacity, StyleSheet, Linking } from "react-native";
 import { doc, writeBatch } from "firebase/firestore";
 import { COLLECTIONS, buildInbox, type Announcement } from "@umoja/shared";
 import { db } from "../lib/firebase";
@@ -50,6 +50,11 @@ export function NotificationsScreen() {
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.body} numberOfLines={item.kind === "announcement" ? 2 : undefined}>{item.body}</Text>
               {item.kind === "announcement" && <Text style={styles.readMore}>Read more</Text>}
+              {item.kind === "notification" && item.link && (
+                <TouchableOpacity onPress={() => Linking.openURL(item.link!)}>
+                  <Text style={styles.readMore}>📎 View attachment</Text>
+                </TouchableOpacity>
+              )}
             </Card>
           </TouchableOpacity>
         )}

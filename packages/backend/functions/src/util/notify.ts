@@ -23,12 +23,21 @@ function chunk<T>(items: T[], size: number): T[][] {
  * stay push+in-app-only so a chat thread doesn't turn into an inbox) to also
  * email anyone who doesn't have a registered push channel at all, as a
  * delivery fallback for admin broadcasts / game-time reminders.
+ *
+ * Pass `{ link }` (a Storage download URL, e.g. an attached PDF — see
+ * http/sendNotification.ts) to carry it through every channel that can show
+ * one: the in-app Notification doc (rendered as a "View attachment" row —
+ * see NotificationsBell.tsx / mobile NotificationsScreen.tsx), the email
+ * fallback (a button in the body), and Web Push (tapping the OS notification
+ * opens the link directly — see public/sw-push.js). Native Expo push has no
+ * equivalent "tap opens this URL" wiring yet, so it's carried in the push
+ * payload's `data` for future use but doesn't change what tapping it does today.
  */
 export async function notifyUsers(
   uids: string[],
   title: string,
   body: string,
-  opts: { email?: boolean } = {}
+  opts: { email?: boolean; link?: string } = {}
 ): Promise<{ notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number }> {
   const uniqueUids = [...new Set(uids)].filter(Boolean);
   if (uniqueUids.length === 0) return { notifiedCount: 0, pushCount: 0, webPushCount: 0, emailCount: 0 };
@@ -53,7 +62,7 @@ export async function notifyUsers(
     const writer = db.batch();
     for (const u of batch) {
       const ref = db.collection(COLLECTIONS.notifications).doc();
-      writer.set(ref, { userId: u.uid, title, body, read: false, createdAt: now });
+      writer.set(ref, { userId: u.uid, title, body, read: false, createdAt: now, ...(opts.link ? { link: opts.link } : {}) });
     }
     await writer.commit();
   }
@@ -63,7 +72,7 @@ export async function notifyUsers(
 
   let pushCount = 0;
   for (const batch of chunk(pushRecipients, 100)) {
-    const messages = batch.map((r) => ({ to: r.pushToken, title, body, sound: "default" }));
+    const messages = batch.map((r) => ({ to: r.pushToken, title, body, sound: "default", ...(opts.link ? { data: { link: opts.link } } : {}) }));
     try {
       const res = await fetch(EXPO_PUSH_URL, {
         method: "POST",
@@ -93,7 +102,7 @@ export async function notifyUsers(
   let webPushCount = 0;
   for (const u of webPushRecipients) {
     try {
-      await sendWebPush(u.webPushSubscription, title, body);
+      await sendWebPush(u.webPushSubscription, title, body, opts.link);
       webPushCount++;
     } catch (err) {
       if (isGoneSubscriptionError(err)) {
@@ -113,7 +122,7 @@ export async function notifyUsers(
       (u): u is { uid: string; email: string; pushToken?: string; webPushSubscription?: WebPushSubscription } =>
         !!u.email && !u.pushToken?.startsWith("ExponentPushToken") && !u.webPushSubscription
     );
-    const { subject, html } = announcementEmail(title, body);
+    const { subject, html } = announcementEmail(title, body, opts.link);
     for (const batch of chunk(emailRecipients, 10)) {
       const results = await Promise.allSettled(batch.map((u) => sendEmail(u.email, subject, html)));
       results.forEach((r, i) => {

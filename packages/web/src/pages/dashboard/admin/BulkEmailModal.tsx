@@ -1,11 +1,28 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { theme } from "../../../lib/theme";
-import { sendBulkEmail } from "../../../lib/callables";
+import { sendBulkEmail, type EmailAttachment } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
 export interface BulkEmailRecipient {
   email: string;
   name?: string;
+}
+
+const MAX_ATTACHMENTS = 3;
+/** Combined limit, mirrored on the server in sendBulkEmail.ts — kept in sync manually since the two run in separate packages. */
+const MAX_ATTACHMENTS_BYTES = 7 * 1024 * 1024;
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // reader.result is "data:<type>;base64,<data>" — strip the prefix, EmailAttachment carries contentType separately.
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Couldn't read file."));
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
@@ -21,6 +38,43 @@ export function BulkEmailModal({ recipients, onClose }: { recipients: BulkEmailR
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ sent: number; failed: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<(EmailAttachment & { size: number })[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentsBytes = attachments.reduce((sum, a) => sum + a.size, 0);
+
+  async function addFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setAttachError(null);
+    const picked = Array.from(files);
+    if (attachments.length + picked.length > MAX_ATTACHMENTS) {
+      setAttachError(`Up to ${MAX_ATTACHMENTS} attachments.`);
+      return;
+    }
+    const newBytes = picked.reduce((sum, f) => sum + f.size, 0);
+    if (attachmentsBytes + newBytes > MAX_ATTACHMENTS_BYTES) {
+      setAttachError(`Attachments are too large — ${MAX_ATTACHMENTS_BYTES / 1024 / 1024}MB combined, max.`);
+      return;
+    }
+    try {
+      const read = await Promise.all(
+        picked.map(async (file) => ({
+          filename: file.name,
+          contentType: file.type || "application/pdf",
+          base64: await readFileAsBase64(file),
+          size: file.size,
+        }))
+      );
+      setAttachments((prev) => [...prev, ...read]);
+    } catch (e) {
+      setAttachError(e instanceof Error ? e.message : "Couldn't read that file.");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function removeAttachment(filename: string) {
+    setAttachments((prev) => prev.filter((a) => a.filename !== filename));
+  }
 
   async function send() {
     if (!subject.trim() || !body.trim() || recipients.length === 0) return;
@@ -28,7 +82,13 @@ export function BulkEmailModal({ recipients, onClose }: { recipients: BulkEmailR
     setError(null);
     setResult(null);
     try {
-      const res = await sendBulkEmail({ recipients, subject: subject.trim(), body: body.trim(), mode });
+      const res = await sendBulkEmail({
+        recipients,
+        subject: subject.trim(),
+        body: body.trim(),
+        mode,
+        attachments: attachments.length > 0 ? attachments.map(({ filename, contentType, base64 }) => ({ filename, contentType, base64 })) : undefined,
+      });
       setResult(res.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't send this email.");
@@ -76,6 +136,34 @@ export function BulkEmailModal({ recipients, onClose }: { recipients: BulkEmailR
         rows={6}
         style={{ width: "100%", padding: "9px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, marginBottom: 16, resize: "vertical", fontFamily: "inherit" }}
       />
+
+      <label style={{ display: "block", fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Attachments (optional)</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+        {attachments.map((a) => (
+          <div key={a.filename} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5 }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📎 {a.filename} ({(a.size / 1024).toFixed(0)}KB)</span>
+            <button
+              onClick={() => removeAttachment(a.filename)}
+              style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, cursor: "pointer", fontSize: 12.5, flexShrink: 0 }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      {attachments.length < MAX_ATTACHMENTS && (
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={{ background: "none", border: `1px dashed ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, color: theme.color.purple, cursor: "pointer", width: "100%", marginBottom: 6 }}
+        >
+          + Attach a PDF
+        </button>
+      )}
+      <input ref={fileInputRef} type="file" accept="application/pdf" multiple onChange={(e) => void addFiles(e.target.files)} style={{ display: "none" }} />
+      {attachError && <div style={{ color: theme.color.danger, fontSize: 12, marginBottom: 8 }}>{attachError}</div>}
+      <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 16, lineHeight: 1.5 }}>
+        Needs a one-time EmailJS template setup first (see emailjs.service.ts) — and depends on the EmailJS plan supporting attachments. Test with a real send before relying on this.
+      </div>
 
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 12 }}>{error}</div>}
       {result && (

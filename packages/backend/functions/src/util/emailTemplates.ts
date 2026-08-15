@@ -41,6 +41,8 @@ export interface EmailShellOptions {
   rows?: { label: string; value: string }[];
   /** Optional colored status pill under the heading, e.g. { text: "APPROVED", tone: "success" }. */
   pill?: { text: string; tone: "success" | "danger" };
+  /** Optional call-to-action button below the body copy, e.g. linking out to an attached PDF. */
+  button?: { label: string; url: string };
 }
 
 /** Single-column, brand-colored email shell with inlined styles so it survives most mail clients. */
@@ -76,6 +78,14 @@ export function renderEmailShell(opts: EmailShellOptions): string {
     ? `<p style="margin:0 0 6px;color:${BRAND.purple};font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(opts.eyebrow)}</p>`
     : "";
 
+  const buttonHtml = opts.button
+    ? `<p style="margin:8px 0 20px;">
+        <a href="${escapeHtml(opts.button.url)}" style="display:inline-block;padding:10px 20px;border-radius:8px;background:${BRAND.purple};color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;">
+          ${escapeHtml(opts.button.label)}
+        </a>
+      </p>`
+    : "";
+
   return `<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:${BRAND.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -95,6 +105,7 @@ export function renderEmailShell(opts: EmailShellOptions): string {
               ${pillHtml}
               ${paragraphsHtml}
               ${rowsHtml}
+              ${buttonHtml}
               <p style="margin:24px 0 0;color:${BRAND.textMuted};font-size:12px;line-height:1.5;">
                 Umoja Games 2026 · Maryland SoccerPlex, Boyds MD · August 14–16, 2026
               </p>
@@ -229,14 +240,15 @@ export function adminBulkEmail(name: string | undefined, subject: string, body: 
   };
 }
 
-/** Email mirror of an admin broadcast / game-time reminder (sendNotification), for recipients without a registered push token. */
-export function announcementEmail(title: string, body: string): RenderedEmail {
+/** Email mirror of an admin broadcast / game-time reminder (sendNotification), for recipients without a registered push token. `link` carries an attached PDF's URL, when the admin attached one — see http/sendNotification.ts. */
+export function announcementEmail(title: string, body: string, link?: string): RenderedEmail {
   return {
     subject: title,
     html: renderEmailShell({
       eyebrow: "Announcement",
       heading: title,
       paragraphs: [escapeHtml(body).replace(/\n/g, "<br/>")],
+      button: link ? { label: "📎 View attachment", url: link } : undefined,
     }),
   };
 }

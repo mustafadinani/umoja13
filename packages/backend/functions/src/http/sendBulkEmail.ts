@@ -1,13 +1,15 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { COLLECTIONS, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
-import { EMAIL_SECRETS, sendEmail } from "../services/emailjs.service.js";
+import { EMAIL_SECRETS, MAX_ATTACHMENTS, sendEmail, type EmailAttachment } from "../services/emailjs.service.js";
 import { adminBulkEmail } from "../util/emailTemplates.js";
 
 const MAX_RECIPIENTS = 500;
 /** How many EmailJS sends run at once in "individual" mode — a plain loop of a few hundred sequential calls is slow enough to risk the callable's own timeout; unbounded parallelism risks EmailJS rate-limiting instead. */
 const CONCURRENCY = 5;
 const DEFAULT_BCC_TO = "info@umojaoutreach.org";
+/** Combined decoded size of all attachments — comfortably under the ~10MB request-body ceiling a Cloud Functions callable enforces (base64 inflates the wire size by ~33% on top of this). */
+const MAX_ATTACHMENTS_BYTES = 7 * 1024 * 1024;
 
 interface Recipient {
   email: string;
@@ -23,6 +25,8 @@ interface SendBulkEmailRequest {
   mode: "individual" | "bcc";
   /** Only used in "bcc" mode. Defaults to info@umojaoutreach.org. */
   bccTo?: string;
+  /** Up to MAX_ATTACHMENTS files, same ones attached to every recipient's email — needs a one-time EmailJS template step, see emailjs.service.ts. */
+  attachments?: EmailAttachment[];
 }
 
 /**
@@ -60,10 +64,19 @@ export const sendBulkEmail = onCall<SendBulkEmailRequest>({ secrets: EMAIL_SECRE
     throw new HttpsError("invalid-argument", `Too many recipients (${recipients.length}, max ${MAX_RECIPIENTS}) — narrow your filters first.`);
   }
 
+  const attachments = request.data.attachments ?? [];
+  if (attachments.length > MAX_ATTACHMENTS) {
+    throw new HttpsError("invalid-argument", `Too many attachments (${attachments.length}, max ${MAX_ATTACHMENTS}).`);
+  }
+  const attachmentsBytes = attachments.reduce((sum, a) => sum + Buffer.byteLength(a.base64, "base64"), 0);
+  if (attachmentsBytes > MAX_ATTACHMENTS_BYTES) {
+    throw new HttpsError("invalid-argument", `Attachments are too large (${(attachmentsBytes / 1024 / 1024).toFixed(1)}MB, max ${MAX_ATTACHMENTS_BYTES / 1024 / 1024}MB combined).`);
+  }
+
   if (mode === "bcc") {
     const bccTo = request.data.bccTo?.trim() || DEFAULT_BCC_TO;
     const { subject: renderedSubject, html } = adminBulkEmail(undefined, subject, body);
-    await sendEmail(bccTo, renderedSubject, html, recipients.map((r) => r.email.trim()).join(","));
+    await sendEmail(bccTo, renderedSubject, html, recipients.map((r) => r.email.trim()).join(","), attachments);
     return { sent: recipients.length, failed: [] };
   }
 
@@ -75,7 +88,7 @@ export const sendBulkEmail = onCall<SendBulkEmailRequest>({ secrets: EMAIL_SECRE
       batch.map(async (r) => {
         const { subject: renderedSubject, html } = adminBulkEmail(r.name, subject, body);
         try {
-          await sendEmail(r.email.trim(), renderedSubject, html);
+          await sendEmail(r.email.trim(), renderedSubject, html, undefined, attachments);
           return true;
         } catch (err) {
           console.error(`sendBulkEmail: failed to send to ${r.email}:`, err);

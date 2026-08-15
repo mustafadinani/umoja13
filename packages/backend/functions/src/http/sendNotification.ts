@@ -15,6 +15,8 @@ interface SendNotificationRequest {
   title: string;
   body: string;
   target: NotificationTarget;
+  /** A Storage download URL for an attached PDF — see NotificationsAdminTab.tsx (client uploads first, then passes the URL here). */
+  link?: string;
 }
 
 async function resolveRecipientUids(target: NotificationTarget): Promise<string[]> {
@@ -67,10 +69,11 @@ export const sendNotification = onCall<SendNotificationRequest>(
       throw new HttpsError("permission-denied", "Only admin/commissioner can send notifications.");
     }
 
-    const { title, body, target } = request.data;
+    const { title, body, target, link } = request.data;
     if (!title?.trim() || !body?.trim()) throw new HttpsError("invalid-argument", "title and body are required.");
+    if (link && !/^https:\/\//.test(link)) throw new HttpsError("invalid-argument", "link must be an https:// URL.");
 
     const uids = await resolveRecipientUids(target);
-    return notifyUsers(uids, title, body, { email: true });
+    return notifyUsers(uids, title, body, { email: true, link });
   }
 );

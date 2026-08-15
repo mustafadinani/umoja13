@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { ROLES, formatKickoffTime, type Announcement, type Role } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
+import { storage } from "../../../lib/firebase";
+import { useAuth } from "../../../auth/AuthProvider";
 import { useAnnouncements, useGames, useTeams } from "../../../hooks/useData";
 import {
   sendNotification,
@@ -25,6 +28,7 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 export function NotificationsAdminTab() {
+  const { user } = useAuth();
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: announcements } = useAnnouncements();
@@ -38,6 +42,10 @@ export function NotificationsAdminTab() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [annTitle, setAnnTitle] = useState("");
   const [annBody, setAnnBody] = useState("");
@@ -66,28 +74,54 @@ export function NotificationsAdminTab() {
   }
 
   async function send() {
-    if (!title.trim() || !body.trim()) return;
+    if (!title.trim() || !body.trim() || !user) return;
     if (targetMode === "game" && !gameId) return;
     setSending(true);
     setError(null);
     setResult(null);
     try {
+      let link: string | undefined;
+      if (attachedFile) {
+        setUploadingAttachment(true);
+        const storageRef = ref(storage, `notificationAttachments/${user.uid}/${Date.now()}-${attachedFile.name}`);
+        await uploadBytes(storageRef, attachedFile, { contentType: "application/pdf" });
+        link = await getDownloadURL(storageRef);
+        setUploadingAttachment(false);
+      }
       const target =
         targetMode === "all"
           ? { type: "all" as const }
           : targetMode === "role"
           ? { type: "role" as const, role }
           : { type: "game" as const, gameId: gameId! };
-      const res = await sendNotification({ title, body, target });
+      const res = await sendNotification({ title, body, target, link });
       setResult(res.data);
       setTitle("");
       setBody("");
       setGameId(null);
+      setAttachedFile(null);
     } catch (e) {
+      setUploadingAttachment(false);
       setError(e instanceof Error ? e.message : "Couldn't send this notification.");
     } finally {
       setSending(false);
     }
+  }
+
+  function pickAttachment(files: FileList | null) {
+    setAttachError(null);
+    const file = files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setAttachError("Only PDF files are supported.");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setAttachError("That PDF is too large — 15MB max.");
+      return;
+    }
+    setAttachedFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function postAnnouncement() {
@@ -198,6 +232,27 @@ export function NotificationsAdminTab() {
           style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
         />
 
+        {attachedFile ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "6px 10px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 12.5, marginBottom: 10 }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📎 {attachedFile.name} ({(attachedFile.size / 1024).toFixed(0)}KB)</span>
+            <button
+              onClick={() => setAttachedFile(null)}
+              style={{ background: "none", border: "none", color: theme.color.danger, fontWeight: 700, cursor: "pointer", fontSize: 12.5, flexShrink: 0 }}
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{ background: "none", border: `1px dashed ${theme.color.border}`, borderRadius: theme.radius.sm, padding: "8px 12px", fontSize: 12.5, fontWeight: 700, color: theme.color.purple, cursor: "pointer", width: "100%", marginBottom: 10 }}
+          >
+            + Attach a PDF
+          </button>
+        )}
+        <input ref={fileInputRef} type="file" accept="application/pdf" onChange={(e) => pickAttachment(e.target.files)} style={{ display: "none" }} />
+        {attachError && <div style={{ color: theme.color.danger, fontSize: 12, marginBottom: 10 }}>{attachError}</div>}
+
         {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
         {result && (
           <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
@@ -210,7 +265,7 @@ export function NotificationsAdminTab() {
           disabled={sending || !title.trim() || !body.trim() || (targetMode === "game" && !gameId)}
           onClick={send}
         >
-          {sending ? "Sending…" : "SEND"}
+          {uploadingAttachment ? "Uploading attachment…" : sending ? "Sending…" : "SEND"}
         </PrimaryButton>
       </Card>
 

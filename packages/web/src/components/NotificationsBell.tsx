@@ -144,6 +144,17 @@ export function NotificationsBell() {
               )}
               <div style={{ fontWeight: 700, fontSize: 13.5 }}>{e.title}</div>
               <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 2 }}>{e.body}</div>
+              {e.kind === "notification" && e.link && (
+                <a
+                  href={e.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(ev) => ev.stopPropagation()}
+                  style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 700, color: theme.color.purple }}
+                >
+                  📎 View attachment
+                </a>
+              )}
             </div>
           ))}
         </div>

@@ -92,6 +92,17 @@ service firebase.storage {
         (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
     }
 
+    // PDF attached to a targeted alert (sendNotification's `link` field) —
+    // staff-only upload, public read (a recipient opening the link from a
+    // push notification, email fallback, or the in-app inbox is never
+    // guaranteed to be signed in to this specific browser/session).
+    match /notificationAttachments/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() &&
+        request.resource.size < 15 * 1024 * 1024 &&
+        request.resource.contentType == 'application/pdf';
+    }
+
     // Public reference assets (logo, sponsor logos) — admin-managed, world-readable.
     match /public/{fileName} {
       allow read: if true;

@@ -134,12 +134,26 @@ type NotificationTarget =
   | { type: "users"; uids: string[] };
 
 export const sendNotification = httpsCallable<
-  { title: string; body: string; target: NotificationTarget },
+  { title: string; body: string; target: NotificationTarget; link?: string },
   { notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number }
 >(functions, "sendNotification");
 
+export interface EmailAttachment {
+  filename: string;
+  contentType: string;
+  /** Base64-encoded file bytes (no "data:...;base64," prefix). */
+  base64: string;
+}
+
 export const sendBulkEmail = httpsCallable<
-  { recipients: { email: string; name?: string }[]; subject: string; body: string; mode: "individual" | "bcc"; bccTo?: string },
+  {
+    recipients: { email: string; name?: string }[];
+    subject: string;
+    body: string;
+    mode: "individual" | "bcc";
+    bccTo?: string;
+    attachments?: EmailAttachment[];
+  },
   { sent: number; failed: string[] }
 >(functions, "sendBulkEmail");
 
