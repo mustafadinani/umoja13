@@ -8,16 +8,19 @@ import {
   SPONSOR_TIER_LABELS,
   CATEGORIES,
   TODDLERS_CAMP_CATEGORY_LABELS,
+  TODDLER_CAMP_SCHEDULE,
   TOURNAMENT_DAY_DATES,
   channelHasUnread,
   buildInbox,
   unreadCount,
   compareGamesByKickoff,
+  isNonCompetitiveCategory,
   formatKickoffTime,
   HUNT_LAUNCH_LABEL,
   type Sponsor,
   type SponsorTier,
   type PlayerMembership,
+  type ToddlerCampSession,
 } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
@@ -103,6 +106,20 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
   const activeMemberships = kidGroups.get(selectedKid) ?? [];
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
+  // Toddlers Camp registrants never get a real Game doc (see TeamsAdminTab's
+  // "shell team" comment) — myGames is always empty for them, which used to
+  // read exactly like an unscheduled/unregistered kid. Surface their actual
+  // camp session times instead, filtered to their own age group (plus "All
+  // ages" sessions everyone attends), the same bracket-matching GamesScreen's
+  // schedule tab already does.
+  const myCampGroups = new Set(
+    activeMemberships
+      .filter((m) => isNonCompetitiveCategory(m.categoryId))
+      .map((m): ToddlerCampSession["group"] =>
+        TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId].includes("3 and 4") ? "Ages 3 & 4" : "Ages 5 & 6"
+      )
+  );
+  const myCampSessions = TODDLER_CAMP_SCHEDULE.filter((s) => myCampGroups.has(s.group) || (myCampGroups.size > 0 && s.group === "All ages"));
   const captainMemberships = activeMemberships.filter((m) => m.isCaptain);
   // Account-wide, not per-kid tab — a coach/manager isn't necessarily a
   // registered player themselves, so this doesn't come from playerOf at
@@ -236,7 +253,21 @@ export function HomeScreen({ navigation }: BottomTabScreenProps<any>) {
                 </Card>
               );
             })}
-            {myGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
+            {myGames.length === 0 && myCampSessions.length > 0 &&
+              myCampSessions.map((s) => (
+                <Card key={s.id} style={{ marginBottom: 6 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: "700", fontSize: 13.5 }}>{s.activity}</Text>
+                      <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
+                        {s.day.toUpperCase()}, {TOURNAMENT_DAY_DATES[s.day]} · {s.location} · {s.start}{s.end ? `–${s.end}` : ""}
+                      </Text>
+                    </View>
+                    {s.highlight && <Pill bg={theme.color.gold} fg="#fff">📸 Highlight</Pill>}
+                  </View>
+                </Card>
+              ))}
+            {myGames.length === 0 && myCampSessions.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
           </View>
 
           <View style={styles.section}>

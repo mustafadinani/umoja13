@@ -1,6 +1,17 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CATEGORIES, TODDLERS_CAMP_CATEGORY_LABELS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, formatKickoffTime, type Game, type PlayerMembership } from "@umoja/shared";
+import {
+  CATEGORIES,
+  TODDLERS_CAMP_CATEGORY_LABELS,
+  TODDLER_CAMP_SCHEDULE,
+  TOURNAMENT_DAY_DATES,
+  compareGamesByKickoff,
+  isNonCompetitiveCategory,
+  formatKickoffTime,
+  type Game,
+  type PlayerMembership,
+  type ToddlerCampSession,
+} from "@umoja/shared";
 import { useAuth } from "../../../auth/AuthProvider";
 import { theme } from "../../../lib/theme";
 import { useGames, useSponsors, useTeam } from "../../../hooks/useData";
@@ -49,6 +60,20 @@ export function PlayerDashboard() {
 
   const myTeamIds = new Set(activeMemberships.map((m) => m.teamId));
   const myGames = games.filter((g) => myTeamIds.has(g.homeTeamId) || myTeamIds.has(g.awayTeamId));
+  // Toddlers Camp registrants never get a real Game doc (see TeamsAdminTab's
+  // "shell team" comment) — myGames is always empty for them, which used to
+  // read exactly like an unscheduled/unregistered kid. Surface their actual
+  // camp session times instead, filtered to their own age group (plus "All
+  // ages" sessions everyone attends), the same bracket-matching Schedule.tsx
+  // already does for the public schedule.
+  const myCampGroups = new Set(
+    activeMemberships
+      .filter((m) => isNonCompetitiveCategory(m.categoryId))
+      .map((m): ToddlerCampSession["group"] =>
+        TODDLERS_CAMP_CATEGORY_LABELS[m.categoryId].includes("3 and 4") ? "Ages 3 & 4" : "Ages 5 & 6"
+      )
+  );
+  const myCampSessions = TODDLER_CAMP_SCHEDULE.filter((s) => myCampGroups.has(s.group) || (myCampGroups.size > 0 && s.group === "All ages"));
 
   return (
     <div className="page-shell-sm">
@@ -117,7 +142,8 @@ export function PlayerDashboard() {
             {[...myGames].sort(compareGamesByKickoff).map((g) => (
               <MyGameRow key={g.id} game={g} onOpen={() => navigate(`/game/${g.id}`)} />
             ))}
-            {myGames.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
+            {myGames.length === 0 && myCampSessions.length > 0 && myCampSessions.map((s) => <MyCampSessionRow key={s.id} session={s} />)}
+            {myGames.length === 0 && myCampSessions.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No games scheduled yet.</div>}
           </div>
         </>
       )}
@@ -224,6 +250,23 @@ function MyGameRow({ game, onOpen }: { game: Game; onOpen: () => void }) {
         {decided && <span style={{ fontWeight: 800, fontSize: 15 }}>{game.homeScore ?? 0}–{game.awayScore ?? 0}</span>}
         <StatusBadge status={game.status} />
       </div>
+    </Card>
+  );
+}
+
+/** Toddlers Camp's non-competitive stand-in for MyGameRow — no opponent, no score, just when/where. */
+function MyCampSessionRow({ session }: { session: ToddlerCampSession }) {
+  return (
+    <Card style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+      <div style={{ minWidth: 150 }}>
+        <div style={{ fontWeight: 700, fontSize: 13.5 }}>{session.activity}</div>
+        <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+          {session.day.toUpperCase()}, {TOURNAMENT_DAY_DATES[session.day]} · {session.location} · {session.start}{session.end ? `–${session.end}` : ""}
+        </div>
+      </div>
+      {session.highlight && (
+        <span style={{ background: theme.color.gold, color: "#fff", fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 999 }}>📸 Highlight</span>
+      )}
     </Card>
   );
 }
