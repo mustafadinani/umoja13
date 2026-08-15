@@ -63,6 +63,20 @@ service firebase.storage {
         request.resource.size < 100 * 1024 * 1024 &&
         (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
     }
+    // Challenge submissions — same idea as Hunt submissions above, but the
+    // path is /challengeSubmissions/{challengeId}/{fileName} (uid lives in
+    // the filename, not its own path segment), so ownership can't be
+    // enforced via the path the way huntSubmissions' can. This match block
+    // never existed at all before, which meant every real upload here was
+    // silently denied by Storage's default-deny (no rule matched the path) —
+    // surfacing to participants as an opaque "Firebase error" the instant
+    // they tried to submit a Challenge, regardless of early-bird ranking.
+    match /challengeSubmissions/{challengeId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        request.resource.size < 100 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
 
     // Chat attachments (Pod/Team/Role/User channels): a message's mediaUrl is
     // uploaded here by the sender BEFORE the send*Message callable ever runs,

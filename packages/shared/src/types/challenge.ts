@@ -37,5 +37,7 @@ export interface ChallengeSubmission {
   bonusPoints?: number;
   reviewedBy?: string;
   reviewedAt?: number;
+  /** Only set when status === "rejected" — shown to the crew so they know what to fix. Picked from the same HUNT_DECLINE_REASONS pool as mission submissions (types/hunt.ts). */
+  rejectionReason?: string;
   createdAt: number;
 }

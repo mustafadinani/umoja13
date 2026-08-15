@@ -12,9 +12,9 @@ import {
 } from "@umoja/shared";
 import { db } from "../../../lib/firebase";
 import { theme } from "../../../lib/theme";
-import { useHuntConfig, useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
+import { useAllUsers, useHuntConfig, useHuntCrews, useHuntMissions, useHuntSubmissions } from "../../../hooks/useData";
 import { useAuth } from "../../../auth/AuthProvider";
-import { deleteHuntCrew, resetHunt, setHuntStarted } from "../../../lib/callables";
+import { deleteHuntCrew, resetHunt, sendNotification, setHuntStarted } from "../../../lib/callables";
 import { Card, Modal, Pill, PrimaryButton } from "../../../components/ui";
 import { Lightbox } from "../../../components/Lightbox";
 import { ChallengesAdminTab } from "./ChallengesAdminTab";
@@ -54,7 +54,7 @@ export function HuntAdminTab() {
   const [busy, setBusy] = useState(false);
   const [launchBusy, setLaunchBusy] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
-  const [section, setSection] = useState<"missions" | "challenges" | "leaderboard">("missions");
+  const [section, setSection] = useState<"missions" | "challenges" | "leaderboard" | "message">("missions");
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   // Set while a Reject is awaiting a reason from the picker below — separate
@@ -232,14 +232,17 @@ export function HuntAdminTab() {
         </div>
       </Card>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         <Pill active={section === "missions"} onClick={() => setSection("missions")}>Missions</Pill>
         <Pill active={section === "challenges"} onClick={() => setSection("challenges")}>Challenges</Pill>
         <Pill active={section === "leaderboard"} onClick={() => setSection("leaderboard")}>🏆 Leaderboard</Pill>
+        <Pill active={section === "message"} onClick={() => setSection("message")}>📣 Message participants</Pill>
       </div>
 
       {section === "challenges" ? <ChallengesAdminTab /> : section === "leaderboard" ? (
         <HuntLeaderboard crews={crews} totalMissions={missions.length} onSelect={(id) => setOpenCrewId(id)} />
+      ) : section === "message" ? (
+        <HuntMessageComposer crews={crews} />
       ) : (
       <>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 10 }}>SUBMISSIONS TO REVIEW ({pendingSubmissions.length})</div>
@@ -667,5 +670,89 @@ function CrewAdminDetailModal({
         </button>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * One-click way to reach everyone tied to the Hunt without leaving this tab
+ * or hunting through the general Notifications & Announcements page:
+ * every accepted crew member (HuntCrew.memberUids, across every crew) plus
+ * every account with the coach_manager role — sent as one combined push +
+ * email via the same sendNotification callable the Notifications tab uses,
+ * just pre-scoped to this specific audience (target: {type: "users", uids}).
+ */
+function HuntMessageComposer({ crews }: { crews: HuntCrew[] }) {
+  const { data: users } = useAllUsers();
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ notifiedCount: number; pushCount: number; webPushCount: number; emailCount: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const recipientUids = useMemo(() => {
+    const uids = new Set<string>();
+    for (const c of crews) for (const uid of c.memberUids) uids.add(uid);
+    for (const u of users) if (u.roles?.includes("coach_manager")) uids.add(u.uid);
+    return [...uids];
+  }, [crews, users]);
+  const crewCount = crews.filter((c) => c.memberUids.length > 0).length;
+  const coachCount = users.filter((u) => u.roles?.includes("coach_manager")).length;
+
+  async function send() {
+    if (!title.trim() || !body.trim() || recipientUids.length === 0) return;
+    setSending(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await sendNotification({ title, body, target: { type: "users", uids: recipientUids } });
+      setResult(res.data);
+      setTitle("");
+      setBody("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send this message.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 4 }}>
+        MESSAGE HUNT PARTICIPANTS &amp; COACHES
+      </div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, marginBottom: 10 }}>
+        Reaches every crew member across {crewCount} crew{crewCount === 1 ? "" : "s"} and every coach/manager ({coachCount}) in
+        one send — as an in-app notification, a push (app or browser, whichever they've enabled), and an email.
+        For anything not Hunt-specific, use Admin → Notifications &amp; Announcements instead.
+      </div>
+      <Card>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.purple, marginBottom: 10 }}>
+          {recipientUids.length} recipient{recipientUids.length === 1 ? "" : "s"}
+        </div>
+        <input
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+        />
+        <textarea
+          placeholder="Message — e.g. a reminder about Day 2 missions, a rules clarification, a schedule change…"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 10, fontSize: 13.5, resize: "none" }}
+        />
+        {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+        {result && (
+          <div style={{ color: theme.color.success, fontSize: 13, marginBottom: 10 }}>
+            Sent to {result.notifiedCount} {result.notifiedCount === 1 ? "person" : "people"} ({result.pushCount} app push,{" "}
+            {result.webPushCount} browser push, {result.emailCount} email).
+          </div>
+        )}
+        <PrimaryButton disabled={sending || !title.trim() || !body.trim() || recipientUids.length === 0} onClick={send}>
+          {sending ? "Sending…" : `SEND TO ${recipientUids.length}`}
+        </PrimaryButton>
+      </Card>
+    </div>
   );
 }

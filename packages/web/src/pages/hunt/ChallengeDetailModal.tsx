@@ -121,6 +121,7 @@ export function ChallengeDetailModal({
               {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
               <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 10, fontSize: 12.5, marginBottom: 12, textAlign: "center" }}>
                 Not approved — try submitting again.
+                {mySubmission.rejectionReason && <div style={{ fontWeight: 600, marginTop: 4 }}>{mySubmission.rejectionReason}</div>}
               </div>
             </>
           )}

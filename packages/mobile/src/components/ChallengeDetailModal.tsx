@@ -135,6 +135,9 @@ export function ChallengeDetailModal({
               {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 10, marginBottom: 12 }}>
                 <Text style={{ color: theme.color.danger, fontSize: 12.5, textAlign: "center" }}>Not approved — try submitting again.</Text>
+                {mySubmission.rejectionReason && (
+                  <Text style={{ color: theme.color.danger, fontWeight: "600", fontSize: 12.5, textAlign: "center", marginTop: 4 }}>{mySubmission.rejectionReason}</Text>
+                )}
               </View>
             </>
           )}

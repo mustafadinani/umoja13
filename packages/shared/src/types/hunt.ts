@@ -84,10 +84,10 @@ export interface HuntCrew {
 
 export type HuntSubmissionStatus = "pending" | "approved" | "rejected";
 
-/** Pre-filled reasons a facilitator can attach when declining a Hunt submission — "Other" pairs with a free-text field for anything not covered here. Shown back to the crew so they know what to fix before resubmitting. */
+/** Pre-filled reasons a facilitator can attach when declining a Hunt mission or Challenge submission — "Other" pairs with a free-text field for anything not covered here. Shown back to the crew so they know what to fix before resubmitting. */
 export const HUNT_DECLINE_REASONS = [
   "Doesn't show the required location/subject",
-  "Wrong mission — resubmitted to the wrong one",
+  "Wrong mission/challenge — resubmitted to the wrong one",
   "Photo/video quality too poor to verify",
   "Answer is incorrect or incomplete",
   "Missing required crew members",

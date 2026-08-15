@@ -123,7 +123,7 @@ export const reviewVolunteerApplication = httpsCallable<
 >(functions, "reviewVolunteerApplication");
 
 export const reviewChallengeSubmission = httpsCallable<
-  { submissionId: string; decision: "approve" | "reject" },
+  { submissionId: string; decision: "approve" | "reject"; rejectionReason?: string },
   { status: "approved" | "rejected"; bonusPoints?: number; rank?: number }
 >(functions, "reviewChallengeSubmission");
 
