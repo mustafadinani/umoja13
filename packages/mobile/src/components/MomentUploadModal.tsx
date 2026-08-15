@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Keyboard } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useVideoPlayer } from "expo-video";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
 import { COLLECTIONS, MOMENT_COMMENT_MAX_LENGTH, MOMENT_TAGS, parseMomentEmbedUrl, type MomentSource } from "@umoja/shared";
@@ -10,6 +11,7 @@ import { theme } from "../lib/theme";
 import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, Pill, PrimaryButton } from "./ui";
 import { TagPickerDrawer } from "./TagPickerDrawer";
+import { LoadingVideo } from "./LoadingVideo";
 
 export function MomentUploadModal({
   onClose,
@@ -29,6 +31,7 @@ export function MomentUploadModal({
   const { data: categories } = useCategories();
   const isStaff = profile?.roles.some((r) => r === "admin" || r === "commissioner") ?? false;
   const [uri, setUri] = useState<string | null>(null);
+  const [pickedIsVideo, setPickedIsVideo] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [tag, setTag] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -38,6 +41,12 @@ export function MomentUploadModal({
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState(false);
+
+  const showVideoPreview = !!uri && pickedIsVideo;
+  const previewPlayer = useVideoPlayer(showVideoPreview ? uri : null, (p) => {
+    p.loop = true;
+    p.play();
+  });
 
   const taggedTeams = teams.filter((t) => teamTagIds.includes(t.id));
   // playerKey (never the bare userId) — two siblings sharing one family
@@ -54,7 +63,16 @@ export function MomentUploadModal({
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images", "videos"], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images", "videos"], quality: 0.7 });
     if (!result.canceled && result.assets[0]) {
-      setUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setUri(asset.uri);
+      // The picker's own `type` is the reliable signal — a bare file-extension
+      // check (asset.uri.endsWith(".mov"/".mp4")) silently misclassified any
+      // Android `content://` pick as a photo (those URIs never carry a file
+      // extension at all) and any oddly-cased extension (".MOV") on iOS,
+      // uploading a real video with an image/jpeg contentType. Playback then
+      // had nothing valid to load — see LoadingVideo.tsx's now-visible error
+      // state, which used to just render blank instead of surfacing this.
+      setPickedIsVideo(asset.type === "video" || /\.(mov|mp4|m4v)$/i.test(asset.uri));
       setLinkUrl(""); // a moment is either an upload or a link, never both
     }
   }
@@ -89,12 +107,11 @@ export function MomentUploadModal({
       } else {
         const response = await fetch(uri!);
         const blob = await response.blob();
-        const isVideo = uri!.endsWith(".mov") || uri!.endsWith(".mp4");
-        const path = `moments/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+        const path = `moments/${user.uid}/${Date.now()}.${pickedIsVideo ? "mp4" : "jpg"}`;
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+        await uploadBytes(storageRef, blob, { contentType: pickedIsVideo ? "video/mp4" : "image/jpeg" });
         mediaUrl = await getDownloadURL(storageRef);
-        mediaType = isVideo ? "video" : "photo";
+        mediaType = pickedIsVideo ? "video" : "photo";
       }
       await addDoc(collection(db, COLLECTIONS.moments), {
         mediaType,
@@ -138,7 +155,15 @@ export function MomentUploadModal({
     <Modal visible onClose={onClose}>
       <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 10 }}>Share a moment</Text>
       {uri ? (
-        <Image source={{ uri }} style={{ width: "100%", height: 180, borderRadius: 8, marginBottom: 12 }} />
+        showVideoPreview ? (
+          // A picked video used to be handed straight to <Image>, which has
+          // no way to decode video bytes — it rendered nothing at all, with
+          // no error and no indication a video had even been picked. This is
+          // the "adding a new video moment just blanks out" bug.
+          <LoadingVideo player={previewPlayer} source={uri} style={{ width: "100%", height: 180, borderRadius: 8, marginBottom: 12 }} nativeControls={false} contentFit="cover" />
+        ) : (
+          <Image source={{ uri }} style={{ width: "100%", height: 180, borderRadius: 8, marginBottom: 12 }} />
+        )
       ) : (
         <View style={{ flexDirection: "row", gap: 8, marginBottom: 12, opacity: trimmedLink ? 0.5 : 1 }}>
           <PrimaryButton onPress={() => pickImage(true)} disabled={!!trimmedLink} style={{ flex: 1 }}>📷 Camera</PrimaryButton>

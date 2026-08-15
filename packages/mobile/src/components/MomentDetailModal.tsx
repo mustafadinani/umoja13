@@ -68,7 +68,7 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
             <ScrollView bounces={false}>
               {moment.mediaUrl ? (
                 isVideo ? (
-                  <LoadingVideo player={player} style={styles.videoMedia} nativeControls contentFit="contain" />
+                  <LoadingVideo player={player} source={moment.mediaUrl} style={styles.videoMedia} nativeControls contentFit="contain" />
                 ) : isEmbed ? (
                   <WebView source={{ uri: moment.mediaUrl }} style={styles.videoMedia} allowsInlineMediaPlayback allowsFullscreenVideo />
                 ) : (

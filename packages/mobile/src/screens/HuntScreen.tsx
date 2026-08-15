@@ -91,6 +91,7 @@ export function HuntScreen() {
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [mediaIsVideo, setMediaIsVideo] = useState(false);
   const [textAnswer, setTextAnswer] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState<"pending" | "correct" | "wrong" | null>(null);
@@ -127,6 +128,7 @@ export function HuntScreen() {
     setOpenMissionId(id);
     setTriviaChoice(null);
     setMediaUri(null);
+    setMediaIsVideo(false);
     setTextAnswer("");
     setSubmitError(null);
     setJustSubmitted(null);
@@ -138,7 +140,14 @@ export function HuntScreen() {
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images", "videos"], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images", "videos"], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) setMediaUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setMediaUri(asset.uri);
+      // Picker's own `type` is the reliable signal — see MomentUploadModal.tsx's
+      // identical fix for why a bare file-extension check misses Android
+      // content:// picks (no extension at all) and oddly-cased iOS ones.
+      setMediaIsVideo(asset.type === "video" || /\.(mov|mp4|m4v)$/i.test(asset.uri));
+    }
   }
 
   async function submitForReview() {
@@ -151,11 +160,10 @@ export function HuntScreen() {
       if (mediaUri) {
         const response = await fetch(mediaUri);
         const blob = await response.blob();
-        const isVideo = mediaUri.endsWith(".mov") || mediaUri.endsWith(".mp4");
-        mediaType = isVideo ? "video" : "photo";
-        const path = `huntSubmissions/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+        mediaType = mediaIsVideo ? "video" : "photo";
+        const path = `huntSubmissions/${user.uid}/${Date.now()}.${mediaIsVideo ? "mp4" : "jpg"}`;
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+        await uploadBytes(storageRef, blob, { contentType: mediaIsVideo ? "video/mp4" : "image/jpeg" });
         mediaUrl = await getDownloadURL(storageRef);
       } else if (textAnswer.trim()) {
         mediaType = "text";
@@ -527,7 +535,7 @@ export function HuntScreen() {
             )}
             {missionStatus === "pending" && (
               <>
-                {missionPreviewUri && mySubmission?.mediaType !== "text" && renderMediaPreview(missionPreviewUri, mySubmission?.mediaType ?? (mediaUri ? "photo" : null))}
+                {missionPreviewUri && mySubmission?.mediaType !== "text" && renderMediaPreview(missionPreviewUri, mySubmission?.mediaType ?? (mediaUri ? (mediaIsVideo ? "video" : "photo") : null))}
                 {mySubmission?.textAnswer && (
                   <View style={{ backgroundColor: "#F7F6F3", borderRadius: 8, padding: 12, marginBottom: 12 }}>
                     <Text style={{ fontSize: 13.5 }}>"{mySubmission.textAnswer}"</Text>
@@ -566,9 +574,13 @@ export function HuntScreen() {
                 <>
                   {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
                     mediaUri ? (
-                      <TouchableOpacity onPress={() => setLightbox({ uri: mediaUri, mediaType: openMission.type === "video" ? "video" : "photo" })}>
-                        <LoadingImage source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
-                      </TouchableOpacity>
+                      // Route through the actual picked type (mediaIsVideo), not
+                      // openMission.type's expected type — a photo picked for a
+                      // "mini_game" mission, or vice versa, still needs its real
+                      // preview. Previously always LoadingImage, which rendered
+                      // blank for any picked video (no image decoder for video
+                      // bytes) — this is the "adding a video blanks out" bug.
+                      renderMediaPreview(mediaUri, mediaIsVideo ? "video" : "photo")
                     ) : (
                       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                         <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
