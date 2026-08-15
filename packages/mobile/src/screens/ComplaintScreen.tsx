@@ -107,7 +107,11 @@ export function ComplaintScreen({ navigation }: NativeStackScreenProps<RootStack
         filedByName: profile.displayName,
         filedByRole: profile.primaryRole,
         paymentIntentId,
-        source: "fan_message",
+        // Not "fan_message" — this whole screen is gated to a team's real
+        // captain or an admin-designated coach/manager, so a report filed
+        // here always IS a captain complaint. See web ReportIssuePage.tsx's
+        // matching fix for why "fan_message" was wrong.
+        source: "captain_complaint",
         complaintType,
         gameId: complaintType === "game_related" ? (selectedGameId ?? undefined) : undefined,
         playerKey: complaintType === "ineligible_player" ? selectedPlayer?.playerKey : undefined,

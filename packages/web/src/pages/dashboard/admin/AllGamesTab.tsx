@@ -3,6 +3,7 @@ import { CATEGORIES, GAME_FIELDS, TOURNAMENT_DAY_DATES, compareGamesByKickoff, f
 import { theme } from "../../../lib/theme";
 import { useGames, useTeams } from "../../../hooks/useData";
 import { Card, FilterDropdown, PrimaryButton, StatusBadge } from "../../../components/ui";
+import { GameCardReviewModal } from "../../../components/GameCardReviewModal";
 import { AddGameModal } from "./AddGameModal";
 import { GameDetailModal } from "./GameDetailModal";
 
@@ -37,8 +38,17 @@ export function AllGamesTab() {
   // (or another tab's) land.
   const [detailGameId, setDetailGameId] = useState<string | null>(null);
   const detailGame = detailGameId ? games.find((g) => g.id === detailGameId) ?? null : null;
+  const [reviewGameId, setReviewGameId] = useState<string | null>(null);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+
+  // Sits above the filtered/searched list below regardless of whatever
+  // filters are active — a card waiting on a decision shouldn't disappear
+  // just because someone's mid-search for something else.
+  const awaitingGames = useMemo(
+    () => games.filter((g) => g.gameCard?.status === "awaiting_commissioner").sort(compareGamesByKickoff),
+    [games]
+  );
 
   const filtered = games
     .filter((g) => {
@@ -89,10 +99,42 @@ export function AllGamesTab() {
         <PrimaryButton onClick={() => setAddOpen(true)}>+ ADD GAME</PrimaryButton>
       </div>
 
+      {awaitingGames.length > 0 && (
+        <div style={{ border: `1.5px solid ${theme.color.warning}`, background: theme.color.warningBg, borderRadius: theme.radius.lg, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 16, color: theme.color.warning, marginBottom: 10 }}>
+            ⏳ Game cards awaiting your review ({awaitingGames.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {awaitingGames.map((g) => {
+              const home = teamById.get(g.homeTeamId);
+              const away = teamById.get(g.awayTeamId);
+              return (
+                <Card key={g.id} onClick={() => setReviewGameId(g.id)} style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, cursor: "pointer", borderColor: theme.color.warning }}>
+                  <div style={{ minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{home?.name ?? "TBD"} {g.homeScore ?? 0}–{g.awayScore ?? 0} {away?.name ?? "TBD"}</div>
+                    <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>
+                      {CATEGORIES.find((c) => c.id === g.categoryId)?.label} · {g.field} · {g.day.toUpperCase()} {formatKickoffTime(g.kickoffTime)}
+                      {g.gameCard?.submittedAt && ` · submitted ${new Date(g.gameCard.submittedAt).toLocaleTimeString()}`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setReviewGameId(g.id); }}
+                    style={{ background: theme.color.purple, color: "#fff", border: "none", borderRadius: theme.radius.sm, padding: "9px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Review →
+                  </button>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.map((g) => {
           const home = teamById.get(g.homeTeamId);
           const away = teamById.get(g.awayTeamId);
+          const cardStatus = g.gameCard?.status ?? "not_submitted";
           return (
             <Card key={g.id} onClick={() => setDetailGameId(g.id)} data-testid="admin-game-row" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <div style={{ minWidth: 160 }}>
@@ -103,7 +145,18 @@ export function AllGamesTab() {
                   {(g.refereeUids ?? []).length > 1 && <span style={{ color: theme.color.textMuted }}> · {g.refereeUids?.length} refs</span>}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {cardStatus === "final" && (
+                  <>
+                    <span style={{ background: theme.color.successBg, color: theme.color.success, fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 999 }}>Card final</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setReviewGameId(g.id); }}
+                      style={{ background: "none", border: `1px solid ${theme.color.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      View card →
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); openPrintGameCards([g.id]); }}
                   style={{ background: "#F1EFF5", color: theme.color.purple, border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 11.5, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
@@ -120,6 +173,7 @@ export function AllGamesTab() {
 
       {addOpen && <AddGameModal onClose={() => setAddOpen(false)} />}
       {detailGame && <GameDetailModal game={detailGame} onClose={() => setDetailGameId(null)} />}
+      {reviewGameId && <GameCardReviewModal gameId={reviewGameId} onClose={() => setReviewGameId(null)} />}
     </div>
   );
 }

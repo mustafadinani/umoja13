@@ -108,7 +108,15 @@ export function ReportIssuePage() {
         filedByName: profile.displayName,
         filedByRole: profile.primaryRole,
         paymentIntentId,
-        source: "fan_message",
+        // Not "fan_message" — this whole page is gated to a team's real
+        // captain or an admin-designated coach/manager (see canFileReport /
+        // createReportFeeIntent's own isCaptainOrCoachManager check), so a
+        // report filed here always IS a captain complaint. Filing it as
+        // "fan_message" meant every real, $35-paid report got the wrong
+        // icon/label in the commissioner's Complaints queue AND the wrong
+        // case-number prefix (UQ instead of UG) — indistinguishable from an
+        // actual anonymous fan message.
+        source: "captain_complaint",
         complaintType,
         gameId: complaintType === "game_related" ? (selectedGameId ?? undefined) : undefined,
         playerKey: complaintType === "ineligible_player" ? selectedPlayer?.playerKey : undefined,
