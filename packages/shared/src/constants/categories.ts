@@ -188,9 +188,15 @@ export interface ToddlerCampSession {
  * The two camp-only locations sessions below are held at — not real
  * tournament sub-pitches (see GAME_FIELDS), so they're kept as their own
  * list rather than folded into FIELDS/GAME_FIELDS, but still offered as real
- * choices anywhere a schedule's field filter is built.
+ * choices anywhere a schedule's field filter is built. "7D" (bare, no
+ * "Field " prefix) matches the same bare-code convention every other
+ * sub-pitch uses (see GAME_FIELDS, FIELD_CLUSTERS) — it used to be stored as
+ * "Field 7D" here while FIELD_CLUSTERS's own "7D" pitch entry (added later,
+ * for the field map) stayed bare, so clicking that map hotspot set a field
+ * filter that could never match a single camp session's location. Same
+ * fix applies to every TODDLER_CAMP_SCHEDULE entry below.
  */
-export const TODDLER_CAMP_FIELDS = ["Field 7D", "Indoor arena"] as const;
+export const TODDLER_CAMP_FIELDS = ["7D", "Indoor arena"] as const;
 
 /**
  * Umoja Soccer Camp (Toddlers, ages 3-6) session schedule — from the real
@@ -202,11 +208,11 @@ export const TODDLER_CAMP_FIELDS = ["Field 7D", "Indoor arena"] as const;
  */
 export const TODDLER_CAMP_SCHEDULE: ToddlerCampSession[] = [
   // Friday
-  { id: "camp-fri-1", day: "fri", start: "10:00", end: "10:50", location: "Field 7D", group: "Ages 3 & 4", activity: "Soccer training" },
-  { id: "camp-fri-2", day: "fri", start: "11:00", end: "12:15", location: "Field 7D", group: "Ages 5 & 6", activity: "Soccer training" },
-  { id: "camp-fri-3", day: "fri", start: "14:00", end: "14:50", location: "Field 7D", group: "Ages 3 & 4", activity: "Soccer training" },
-  { id: "camp-fri-4", day: "fri", start: "15:00", end: "16:00", location: "Field 7D", group: "Ages 5 & 6", activity: "Soccer training" },
-  { id: "camp-fri-5", day: "fri", start: "16:15", end: "17:15", location: "Field 7D", group: "All ages", activity: "Fun activities" },
+  { id: "camp-fri-1", day: "fri", start: "10:00", end: "10:50", location: "7D", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-2", day: "fri", start: "11:00", end: "12:15", location: "7D", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-3", day: "fri", start: "14:00", end: "14:50", location: "7D", group: "Ages 3 & 4", activity: "Soccer training" },
+  { id: "camp-fri-4", day: "fri", start: "15:00", end: "16:00", location: "7D", group: "Ages 5 & 6", activity: "Soccer training" },
+  { id: "camp-fri-5", day: "fri", start: "16:15", end: "17:15", location: "7D", group: "All ages", activity: "Fun activities" },
   // Saturday
   { id: "camp-sat-1", day: "sat", start: "10:00", end: "10:50", location: "Indoor arena", group: "Ages 3 & 4", activity: "Soccer training" },
   { id: "camp-sat-2", day: "sat", start: "11:00", end: "12:15", location: "Indoor arena", group: "Ages 5 & 6", activity: "Soccer training" },
@@ -233,9 +239,12 @@ export const TODDLER_CAMP_HIGHLIGHT_NOTE = "Cameras ready! Families, please have
 // spot just relabeled — see MAP_HOTSPOTS in FieldMap.tsx for its real
 // coordinates. The venue also added a 4th sub-pitch there, 7D, which Umoja
 // Soccer Camp now uses instead of its old "Field 12 Camp" slot (see
-// TODDLER_CAMP_FIELDS) — 7D is camp-only, not a real Game sub-pitch, so it's
-// deliberately left out of GAME_FIELDS/FIELD_CLUSTERS/MAP_HOTSPOTS below,
-// the same way "Field 12 Camp" and "Indoor arena" always were.
+// TODDLER_CAMP_FIELDS). 7D is camp-only, not a real Game sub-pitch, so it's
+// left out of GAME_FIELDS below (no Game is ever scheduled on it) — but it
+// IS included in FIELD_CLUSTERS's "Field 7" pitch list further down, since
+// FieldMap's clickable field-map hotspot needs a bare "7D" to set the
+// schedule filter to, matching TODDLER_CAMP_FIELDS/TODDLER_CAMP_SCHEDULE's
+// own bare-code convention (see the comment on TODDLER_CAMP_FIELDS above).
 export const FIELDS = ["Field 7", "Field 9", "Field 12", "Field 13", "Field 14", "Field 15", "Field 16", "Field 17", "Stadium Field"] as const;
 
 /**
