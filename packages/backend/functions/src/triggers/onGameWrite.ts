@@ -90,6 +90,20 @@ export const onGameWrite = onDocumentWritten(
     stats.goalDiff = stats.goalsFor - stats.goalsAgainst;
   }
 
+  // Apply any standings-points penalty (rule infringement, etc.) — see
+  // Team.pointsPenalty's doc comment. Folded in here, after the raw
+  // game-by-game tally and before ranking, so it survives every future
+  // recompute instead of being an edit to stats.points that the next game
+  // write in this category would silently wipe. Goal difference/goals-for
+  // are left untouched — only points move, same as how league point
+  // deductions are conventionally applied.
+  for (const teamDoc of teamsSnap.docs) {
+    const penalty = (teamDoc.data() as { pointsPenalty?: number }).pointsPenalty;
+    if (!penalty) continue;
+    const stats = statsByTeam.get(teamDoc.id);
+    if (stats) stats.points -= penalty;
+  }
+
   const ranked = [...statsByTeam.entries()].sort(([, a], [, b]) => {
     if (b.points !== a.points) return b.points - a.points;
     if (b.goalDiff !== a.goalDiff) return b.goalDiff - a.goalDiff;

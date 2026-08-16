@@ -55,6 +55,18 @@ export interface Team {
   // Aggregate stats, recomputed by a Cloud Function trigger whenever a game
   // in this category is set to "final". Never written directly by clients.
   stats: TeamStats;
+  /**
+   * Standings-points deduction for a rule infringement (e.g. an eligibility
+   * violation), set once by an admin and never touched by onGameWrite itself
+   * — it's folded into the *computed* points on every recompute rather than
+   * being an edit to stats.points directly, since stats is fully re-derived
+   * from scratch on every game write in the category and a direct edit to
+   * stats.points would just get silently overwritten the next time any
+   * team's game in that category changes.
+   */
+  pointsPenalty?: number;
+  /** Free-text record of why pointsPenalty was applied, shown nowhere in the UI yet — kept for admin/audit reference. */
+  pointsPenaltyReason?: string;
 }
 
 export interface RosterEntry {
