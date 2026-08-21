@@ -25,13 +25,37 @@ import { DonateNowModal } from "../components/DonateNowModal";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
+// The full labels' two-line wrap (see the ratings table below) only has
+// room to breathe on a wide-enough screen — at real phone widths, "Needs
+// Improvement" and "Didn't Like It" both wrapping to 2 lines in a ~58px
+// column overlap into their neighbor. One short word each sidesteps needing
+// a wrap at all, rather than trying to shrink text further to force-fit.
+const MOBILE_RATING_VALUE_LABELS: Record<FeedbackRatingValue, string> = {
+  excellent: "Excellent",
+  good: "Good",
+  neutral: "Neutral",
+  needs_improvement: "Needs",
+  didnt_like_it: "Disliked",
+};
+
 function Req() {
   return <span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span>;
 }
 
-function SectionBar({ children }: { children: string }) {
+/**
+ * A direct child of the zero-padding Card wrapping every step (see below) —
+ * it needs no negative-margin bleed trick, since there's no padding on its
+ * own parent to cancel out. It previously assumed one anyway (copied from a
+ * mockup where the equivalent title sat inside a padded container), which
+ * pushed it 24px past the Card's own edges on both sides and got clipped by
+ * the Card's `overflow: hidden` — cutting off the "F" in "Feedback" and,
+ * because the browser was then treating the Card as wider than its visible
+ * box, throwing off every scroll-region calculation below it too (the
+ * ratings table's horizontal scroll included).
+ */
+function SectionBar({ children, isMobile }: { children: string; isMobile: boolean }) {
   return (
-    <div style={{ fontFamily: theme.font.display, fontWeight: 700, fontSize: 20, background: theme.color.navy, color: "#fff", margin: "-24px -24px 22px", padding: "14px 24px" }}>
+    <div style={{ fontFamily: theme.font.display, fontWeight: 700, fontSize: 20, background: theme.color.navy, color: "#fff", padding: isMobile ? "14px 22px" : "14px 32px", marginBottom: 22 }}>
       {children}
     </div>
   );
@@ -125,13 +149,21 @@ export function Feedback() {
                 </div>
               </div>
               <div style={{ padding: isMobile ? "26px 22px 30px" : "30px 32px 34px" }}>
+                <p style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.55, margin: "0 0 14px" }}>
+                  Salaams, Umoja Family!
+                </p>
                 <p style={{ fontSize: 15, lineHeight: 1.55, margin: "0 0 14px" }}>
-                  We'd like to extend our heartfelt gratitude for joining us in making Umoja 13 a truly magical experience. We hope it provided you
-                  with the opportunity to create everlasting memories, reignite old connections, and forge new friendships.
+                  From the very first whistle to the final trophy lift, Umoja 13 was everything we hoped it would be — and then some. Thank you to
+                  every player who laced up, every parent who cheered from the sideline, every coach who showed up early and stayed late, and every
+                  volunteer and referee who kept things running smoothly all weekend long.
+                </p>
+                <p style={{ fontSize: 15, lineHeight: 1.55, margin: "0 0 14px" }}>
+                  We also want to be honest: there's always room for improvement. We know there are things that need to be fixed and adjusted, and
+                  we don't take that lightly. We're listening, we hear you, and we're already working on what needs to change for future events so
+                  things run more seamlessly.
                 </p>
                 <p style={{ fontSize: 15, lineHeight: 1.55, margin: 0, color: theme.color.textMuted, fontStyle: "italic" }}>
-                  Every year, we strive to make Umoja Games the best experience ever. You play a vital role in helping us achieve this — we humbly
-                  request your feedback to help us take Umoja to the next level.
+                  Please take a moment to share any thoughts, concerns, or ideas with us.
                 </p>
                 <PrimaryButton style={{ width: "100%", marginTop: 24 }} onClick={() => setStep(2)}>Start →</PrimaryButton>
               </div>
@@ -140,7 +172,7 @@ export function Feedback() {
 
           {step === 2 && (
             <div style={{ padding: isMobile ? "0 0 26px" : "0 0 30px" }}>
-              <SectionBar>Your Role</SectionBar>
+              <SectionBar isMobile={isMobile}>Your Role</SectionBar>
               <div style={{ padding: isMobile ? "0 22px" : "0 32px" }}>
                 <div style={{ fontSize: 12.5, fontStyle: "italic", color: theme.color.textMuted, marginBottom: 22 }}>
                   Anonymous &amp; confidential — identifying yourself below is optional
@@ -206,43 +238,67 @@ export function Feedback() {
 
           {step === 3 && (
             <div style={{ padding: isMobile ? "0 0 26px" : "0 0 30px" }}>
-              <SectionBar>Feedback</SectionBar>
+              <SectionBar isMobile={isMobile}>Feedback</SectionBar>
               <div style={{ padding: isMobile ? "0 22px" : "0 32px" }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Please rate the following items<Req /></div>
-                <div style={{ overflowX: "auto", margin: isMobile ? "0 -22px 22px" : "0 -32px 22px", padding: isMobile ? "0 22px 4px" : "0 32px 4px" }}>
-                  <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 620, fontSize: 12.5 }}>
-                    <thead>
-                      <tr>
-                        <th></th>
-                        {FEEDBACK_RATING_VALUES.map((v) => (
-                          <th key={v} style={{ fontWeight: 700, fontSize: 11, color: theme.color.textMuted, padding: "0 6px 12px", textAlign: "center" }}>
-                            {FEEDBACK_RATING_VALUE_LABELS[v]}
+                {/*
+                  Same radio-grid the Google Form had — the earlier cutoff
+                  wasn't a "needs more width than a phone has" problem, it was
+                  the label column forced onto one line (whiteSpace: nowrap)
+                  padding the table out past any container's real width.
+                  table-layout: fixed + letting labels wrap onto their own
+                  lines keeps every column's width proportional and
+                  predictable instead, so the whole grid fits without
+                  needing horizontal scroll at any width.
+                */}
+                <table style={{ borderCollapse: "collapse", tableLayout: "fixed", width: "100%", fontSize: isMobile ? 10.5 : 12.5 }}>
+                  <colgroup>
+                    <col style={{ width: isMobile ? "26%" : "34%" }} />
+                    {FEEDBACK_RATING_VALUES.map((v) => <col key={v} />)}
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th></th>
+                      {FEEDBACK_RATING_VALUES.map((v) => {
+                        if (isMobile) {
+                          return (
+                            <th key={v} style={{ fontWeight: 700, fontSize: 9.5, color: theme.color.textMuted, padding: "0 2px 12px", textAlign: "center" }}>
+                              {MOBILE_RATING_VALUE_LABELS[v]}
+                            </th>
+                          );
+                        }
+                        const label = FEEDBACK_RATING_VALUE_LABELS[v];
+                        const spaceIdx = label.indexOf(" ");
+                        return (
+                          <th key={v} style={{ fontWeight: 700, fontSize: 11, color: theme.color.textMuted, padding: "0 2px 12px", textAlign: "center" }}>
+                            {spaceIdx === -1 ? label : <>{label.slice(0, spaceIdx)}<br />{label.slice(spaceIdx + 1)}</>}
                           </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {FEEDBACK_RATING_CATEGORIES.map((cat, i) => (
+                      <tr key={cat} style={{ background: i % 2 === 1 ? theme.color.bg : "transparent" }}>
+                        <td style={{ fontWeight: 600, padding: "10px 6px 10px 0", borderTop: `1px solid ${theme.color.border}` }}>
+                          {FEEDBACK_RATING_CATEGORY_LABELS[cat]}
+                        </td>
+                        {FEEDBACK_RATING_VALUES.map((v) => (
+                          <td key={v} style={{ textAlign: "center", padding: "10px 2px", borderTop: `1px solid ${theme.color.border}` }}>
+                            <input
+                              type="radio"
+                              name={`rating-${cat}`}
+                              checked={ratings[cat] === v}
+                              onChange={() => setRating(cat, v)}
+                              style={{ width: isMobile ? 14 : 16, height: isMobile ? 14 : 16, accentColor: theme.color.purple }}
+                            />
+                          </td>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {FEEDBACK_RATING_CATEGORIES.map((cat, i) => (
-                        <tr key={cat} style={{ background: i % 2 === 1 ? theme.color.bg : "transparent" }}>
-                          <td style={{ fontWeight: 600, padding: "10px 14px 10px 0", borderTop: `1px solid ${theme.color.border}`, whiteSpace: "nowrap" }}>
-                            {FEEDBACK_RATING_CATEGORY_LABELS[cat]}
-                          </td>
-                          {FEEDBACK_RATING_VALUES.map((v) => (
-                            <td key={v} style={{ textAlign: "center", padding: "10px 6px", borderTop: `1px solid ${theme.color.border}` }}>
-                              <input
-                                type="radio"
-                                name={`rating-${cat}`}
-                                checked={ratings[cat] === v}
-                                onChange={() => setRating(cat, v)}
-                                style={{ width: 16, height: 16, accentColor: theme.color.purple }}
-                              />
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginBottom: 22 }} />
 
                 <div style={{ marginBottom: 22 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>What did you love?<Req /></div>
@@ -277,7 +333,7 @@ export function Feedback() {
 
           {step === 4 && (
             <div style={{ padding: isMobile ? "0 0 26px" : "0 0 30px" }}>
-              <SectionBar>Help Us Take Umoja to the Next Level</SectionBar>
+              <SectionBar isMobile={isMobile}>Help Us Take Umoja to the Next Level</SectionBar>
               <div style={{ padding: isMobile ? "0 22px" : "0 32px" }}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>How can you help us?</div>
                 <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginBottom: 12 }}>
