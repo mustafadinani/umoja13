@@ -432,6 +432,8 @@ export function Feedback() {
         <DonateNowModal
           onClose={() => setDonateOpen(false)}
           onDonated={(info) => { setDonation(info); setDonateOpen(false); }}
+          initialName={name}
+          initialEmail={email}
         />
       )}
     </div>

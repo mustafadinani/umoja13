@@ -33,18 +33,23 @@ function callableMessage(err: unknown, fallback: string) {
 export function DonateNowModal({
   onClose,
   onDonated,
+  initialName = "",
+  initialEmail = "",
 }: {
   onClose: () => void;
   /** Fired the moment payment is confirmed — caller uses this to record donatedOrderId on the feedback response. */
   onDonated: (info: { orderId: string; amountCents: number }) => void;
+  /** Whatever the caller already has on hand (e.g. page 2 of the survey) — still fully editable, just saves a guest from retyping it. */
+  initialName?: string;
+  initialEmail?: string;
 }) {
   const { user, profile } = useAuth();
   const [step, setStep] = useState<"amount" | "pay" | "done">("amount");
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [usingCustom, setUsingCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
-  const [donorName, setDonorName] = useState(profile?.displayName ?? "");
-  const [email, setEmail] = useState(user?.email ?? profile?.email ?? "");
+  const [donorName, setDonorName] = useState(profile?.displayName || initialName);
+  const [email, setEmail] = useState(user?.email || profile?.email || initialEmail);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -55,10 +60,20 @@ export function DonateNowModal({
 
   const amountCents = Math.round((usingCustom ? parseFloat(customAmount || "0") : amount) * 100);
   const validAmount = amountCents >= 100;
-  const canSubmit = validAmount && !!donorName.trim() && !!email.trim();
 
+  // Deliberately not disabling the button on missing fields — a disabled
+  // button that's easy to miss reads as "did nothing" (the donor taps it,
+  // sees no reaction, and assumes the flow is broken instead of scrolling
+  // up to see what's missing). Always clickable; tells you what's wrong.
   async function continueToPayment() {
-    if (!canSubmit) return;
+    if (!validAmount) {
+      setError("Enter an amount of at least $1.");
+      return;
+    }
+    if (!donorName.trim() || !email.trim()) {
+      setError("Enter your name and email to continue.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -177,13 +192,13 @@ export function DonateNowModal({
             />
           )}
 
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Full name</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Full name<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
           <input
             value={donorName}
             onChange={(e) => setDonorName(e.target.value)}
             style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
           />
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
           <input
             type="email"
             value={email}
@@ -192,7 +207,7 @@ export function DonateNowModal({
           />
 
           {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-          <PrimaryButton disabled={!canSubmit || busy} onClick={() => void continueToPayment()} style={{ width: "100%" }}>
+          <PrimaryButton disabled={busy} onClick={() => void continueToPayment()} style={{ width: "100%" }}>
             {busy ? "Preparing payment…" : `DONATE ${formatDollars(Math.max(amountCents, 100))} →`}
           </PrimaryButton>
         </>
