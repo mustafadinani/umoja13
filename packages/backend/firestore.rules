@@ -295,6 +295,19 @@ service cloud.firestore {
       allow update: if isStaff();
     }
 
+    // ---- Umoja 13 Feedback survey — anonymous by default, guest-writable ----
+    // Same "no impersonation, no faking anonymity" shape as sponsorInquiries
+    // above: a signed-in caller may only tag their own uid (or omit it
+    // entirely to answer anonymously despite being logged in); a signed-out
+    // caller must leave filedByUid unset. Never publicly readable — results
+    // are staff-only (see FeedbackAdminTab).
+    match /feedbackResponses/{id} {
+      allow read, update, delete: if isStaff();
+      allow create: if isSignedIn()
+        ? (!('filedByUid' in request.resource.data) || request.resource.data.filedByUid == request.auth.uid)
+        : !('filedByUid' in request.resource.data);
+    }
+
     // ---- Account deletion requests (Apple 5.1.1(v)) ----
     // Signed-in users file a request tagged with their own uid. Staff read /
     // process; clients cannot update or delete their own request.

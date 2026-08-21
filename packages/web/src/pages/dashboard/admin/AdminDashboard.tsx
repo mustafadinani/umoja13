@@ -16,6 +16,7 @@ import { UserChannelsAdminTab } from "./UserChannelsAdminTab";
 import { PodsAdminTab } from "./PodsAdminTab";
 import { UsersAdminTab } from "./UsersAdminTab";
 import { AwardsAdminTab } from "./AwardsAdminTab";
+import { FeedbackAdminTab } from "./FeedbackAdminTab";
 import { MyPodTasksSection } from "../../../components/MyPodTasksSection";
 import { ADMIN_TABS, type AdminTab } from "./adminTabs";
 
@@ -46,6 +47,7 @@ export function AdminDashboard() {
       {tab === "pods" && <PodsAdminTab />}
       {tab === "users" && <UsersAdminTab />}
       {tab === "awards" && <AwardsAdminTab />}
+      {tab === "feedback" && <FeedbackAdminTab />}
     </div>
   );
 }

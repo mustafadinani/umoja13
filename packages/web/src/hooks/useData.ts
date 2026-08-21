@@ -32,6 +32,7 @@ import {
   type CategoryAwards,
   type HuntConfig,
   HUNT_CONFIG_DOC_ID,
+  type FeedbackResponse,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
 import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
@@ -50,6 +51,8 @@ export function useCategories() {
 export const useSponsors = () => useCollection<Sponsor>(COLLECTIONS.sponsors);
 export const useSponsorshipOrders = () =>
   useCollection<SponsorshipOrder>(COLLECTIONS.sponsorshipOrders, [orderBy("createdAt", "desc")]);
+export const useFeedbackResponses = () =>
+  useCollection<FeedbackResponse>(COLLECTIONS.feedbackResponses, [orderBy("createdAt", "desc")]);
 export const useAnnouncements = () =>
   useCollection<Announcement>(COLLECTIONS.announcements, [orderBy("postedAt", "desc")]);
 export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.huntMissions);

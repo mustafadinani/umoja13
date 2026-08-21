@@ -18,6 +18,7 @@ import { Hunt } from "./pages/Hunt";
 import { HuntRules } from "./pages/HuntRules";
 import { Experiences } from "./pages/Experiences";
 import { Donate } from "./pages/Donate";
+import { Feedback } from "./pages/Feedback";
 import { Privacy } from "./pages/Privacy";
 import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/hunt-rules" element={<HuntRules />} />
             <Route path="/experiences" element={<Experiences />} />
             <Route path="/donate" element={<Donate />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/privacy" element={<Privacy />} />
             {/* Info merged into Experiences — keep old bookmarks/links working. */}
             <Route path="/info" element={<Navigate to="/experiences" replace />} />

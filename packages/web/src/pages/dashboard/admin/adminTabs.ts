@@ -11,7 +11,7 @@
 export type AdminTab =
   | "games" | "teams" | "liveDraw" | "players" | "checkins" | "ops" | "hunt"
   | "volunteers" | "sponsors" | "notifications" | "teamChannels" | "messages"
-  | "pods" | "users" | "awards";
+  | "pods" | "users" | "awards" | "feedback";
 
 export const ADMIN_TABS: { id: AdminTab; label: string }[] = [
   { id: "games", label: "All Games" },
@@ -29,4 +29,5 @@ export const ADMIN_TABS: { id: AdminTab; label: string }[] = [
   { id: "pods", label: "Pods" },
   { id: "users", label: "Users" },
   { id: "awards", label: "Awards" },
+  { id: "feedback", label: "Feedback" },
 ];

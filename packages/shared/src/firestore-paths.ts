@@ -46,6 +46,8 @@ export const COLLECTIONS = {
   categoryAwards: "categoryAwards",
   /** Single-doc-per-feature settings, Cloud-Function-only writes (see types/huntConfig.ts for the Hunt's doc). */
   config: "config",
+  /** Anonymous-by-default "Umoja 13 Feedback" survey responses (see types/feedback.ts) — guest-writable, staff-only read. */
+  feedbackResponses: "feedbackResponses",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];
