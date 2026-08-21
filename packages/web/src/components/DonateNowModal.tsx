@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
@@ -7,6 +7,11 @@ import { StripePaymentForm } from "./StripePaymentForm";
 
 const QUICK_AMOUNTS = [25, 50, 100];
 const DEFAULT_AMOUNT = 100;
+// How long to wait after the last edit before quietly loading the card form
+// for whatever amount/name/email are currently entered — long enough that a
+// few keystrokes in a row don't each fire their own PaymentIntent, short
+// enough that it still feels automatic rather than like a "Next" click.
+const INTENT_DEBOUNCE_MS = 800;
 
 function formatDollars(cents: number) {
   return `$${(cents / 100).toLocaleString()}`;
@@ -29,6 +34,13 @@ function callableMessage(err: unknown, fallback: string) {
  * post-tournament ask. A completed donation is still a real SponsorshipOrder,
  * so it shows up in the existing sponsorship admin queue exactly like any
  * other donation, with nothing new to maintain there.
+ *
+ * Deliberately one screen, not a wizard: amount, name/email, and the card
+ * form all sit on the same page. The card form loads itself in place a beat
+ * after the amount/name/email are filled in (see INTENT_DEBOUNCE_MS) instead
+ * of behind a "Continue" tap — SponsorshipCheckoutModal's own amount → pay
+ * step split makes sense for its full sponsor form, but for a quick default-
+ * $100 ask that extra screen just reads as friction.
  */
 export function DonateNowModal({
   onClose,
@@ -44,75 +56,77 @@ export function DonateNowModal({
   initialEmail?: string;
 }) {
   const { user, profile } = useAuth();
-  const [step, setStep] = useState<"amount" | "pay" | "done">("amount");
+  const [done, setDone] = useState(false);
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [usingCustom, setUsingCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [donorName, setDonorName] = useState(profile?.displayName || initialName);
   const [email, setEmail] = useState(user?.email || profile?.email || initialEmail);
-  const [busy, setBusy] = useState(false);
+
+  const [loadingCard, setLoadingCard] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [publishableKey, setPublishableKey] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paidAmountCents, setPaidAmountCents] = useState<number | null>(null);
+  // Which "amount|name|email" combo the loaded clientSecret actually belongs
+  // to — lets a later edit invalidate a stale card form instead of letting
+  // someone confirm a $25 PaymentIntent while the button now says $100.
+  const readyKeyRef = useRef<string | null>(null);
 
   const amountCents = Math.round((usingCustom ? parseFloat(customAmount || "0") : amount) * 100);
   const validAmount = amountCents >= 100;
+  const currentKey = `${amountCents}|${donorName.trim()}|${email.trim()}`;
+  const cardReady = validAmount && !!donorName.trim() && !!email.trim() && readyKeyRef.current === currentKey && !!clientSecret && !!publishableKey;
 
-  // Deliberately not disabling the button on missing fields — a disabled
-  // button that's easy to miss reads as "did nothing" (the donor taps it,
-  // sees no reaction, and assumes the flow is broken instead of scrolling
-  // up to see what's missing). Always clickable; tells you what's wrong.
-  async function continueToPayment() {
-    if (!validAmount) {
-      setError("Enter an amount of at least $1.");
-      return;
-    }
-    if (!donorName.trim() || !email.trim()) {
-      setError("Enter your name and email to continue.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const intent = await createSponsorshipIntent({
+  useEffect(() => {
+    if (!validAmount || !donorName.trim() || !email.trim()) return;
+    if (readyKeyRef.current === currentKey) return;
+    const key = currentKey;
+    const handle = setTimeout(() => {
+      setLoadingCard(true);
+      setError(null);
+      createSponsorshipIntent({
         tierId: "custom",
         donorType: "individual",
         donorName: donorName.trim(),
         email: email.trim(),
         customAmountCents: amountCents,
-      });
-      setClientSecret(intent.data.clientSecret);
-      setPublishableKey(intent.data.publishableKey);
-      setPaymentIntentId(intent.data.paymentIntentId);
-      setOrderId(intent.data.orderId);
-      setPaidAmountCents(intent.data.amountCents);
-      setStep("pay");
-    } catch (e) {
-      setError(callableMessage(e, "Couldn't start payment."));
-    } finally {
-      setBusy(false);
-    }
-  }
+      })
+        .then((intent) => {
+          readyKeyRef.current = key;
+          setClientSecret(intent.data.clientSecret);
+          setPublishableKey(intent.data.publishableKey);
+          setPaymentIntentId(intent.data.paymentIntentId);
+          setOrderId(intent.data.orderId);
+          setPaidAmountCents(intent.data.amountCents);
+        })
+        .catch((e) => setError(callableMessage(e, "Couldn't load the card form.")))
+        .finally(() => setLoadingCard(false));
+    }, INTENT_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amountCents, donorName, email, validAmount]);
 
   async function onCardPaid() {
     if (!orderId || !paymentIntentId) return;
-    setBusy(true);
+    setConfirming(true);
     setError(null);
     try {
       await confirmSponsorshipPayment({ orderId, paymentIntentId });
-      setStep("done");
+      setDone(true);
       onDonated({ orderId, amountCents: paidAmountCents ?? amountCents });
     } catch (e) {
       setError(callableMessage(e, "Payment succeeded but confirming it failed. Contact us with your payment receipt."));
     } finally {
-      setBusy(false);
+      setConfirming(false);
     }
   }
 
-  if (step === "done") {
+  if (done) {
     return (
       <Modal onClose={onClose} width={420}>
         <div style={{ textAlign: "center", padding: "10px 0" }}>
@@ -134,83 +148,87 @@ export function DonateNowModal({
         Goes straight to Umoja 14 — same secure checkout as umoja13.com/donate.
       </div>
 
-      {step === "pay" && clientSecret && publishableKey ? (
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose an amount</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        {QUICK_AMOUNTS.map((a) => {
+          const active = !usingCustom && amount === a;
+          return (
+            <button
+              key={a}
+              onClick={() => { setUsingCustom(false); setAmount(a); }}
+              style={{
+                padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
+                border: `1.5px solid ${active ? theme.color.navy : theme.color.border}`,
+                background: active ? theme.color.navy : "#fff",
+                color: active ? "#fff" : theme.color.text,
+              }}
+            >
+              ${a}
+            </button>
+          );
+        })}
+        <button
+          onClick={() => setUsingCustom(true)}
+          style={{
+            padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
+            border: `1.5px solid ${usingCustom ? theme.color.navy : theme.color.border}`,
+            background: usingCustom ? theme.color.navy : "#fff",
+            color: usingCustom ? "#fff" : theme.color.text,
+          }}
+        >
+          Other amount
+        </button>
+      </div>
+      {usingCustom && (
+        <input
+          type="number"
+          min={1}
+          autoFocus
+          value={customAmount}
+          onChange={(e) => setCustomAmount(e.target.value)}
+          placeholder="e.g. 250"
+          style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 14, fontSize: 13.5 }}
+        />
+      )}
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Full name<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
+      <input
+        value={donorName}
+        onChange={(e) => setDonorName(e.target.value)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+      />
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
+      />
+
+      {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      {cardReady ? (
         <>
-          {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
           <StripePaymentForm
-            clientSecret={clientSecret}
-            publishableKey={publishableKey}
+            key={clientSecret}
+            clientSecret={clientSecret!}
+            publishableKey={publishableKey!}
             onPaid={() => void onCardPaid()}
             onError={setError}
             statusText={`Enter card details for your ${formatDollars(paidAmountCents ?? amountCents)} donation.`}
             payLabel={`DONATE ${formatDollars(paidAmountCents ?? amountCents)}`}
           />
-          {busy && <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 12 }}>Confirming your donation…</div>}
+          {confirming && <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 12 }}>Confirming your donation…</div>}
         </>
       ) : (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose an amount</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-            {QUICK_AMOUNTS.map((a) => {
-              const active = !usingCustom && amount === a;
-              return (
-                <button
-                  key={a}
-                  onClick={() => { setUsingCustom(false); setAmount(a); }}
-                  style={{
-                    padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
-                    border: `1.5px solid ${active ? theme.color.navy : theme.color.border}`,
-                    background: active ? theme.color.navy : "#fff",
-                    color: active ? "#fff" : theme.color.text,
-                  }}
-                >
-                  ${a}
-                </button>
-              );
-            })}
-            <button
-              onClick={() => setUsingCustom(true)}
-              style={{
-                padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
-                border: `1.5px solid ${usingCustom ? theme.color.navy : theme.color.border}`,
-                background: usingCustom ? theme.color.navy : "#fff",
-                color: usingCustom ? "#fff" : theme.color.text,
-              }}
-            >
-              Other amount
-            </button>
-          </div>
-          {usingCustom && (
-            <input
-              type="number"
-              min={1}
-              autoFocus
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              placeholder="e.g. 250"
-              style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 14, fontSize: 13.5 }}
-            />
-          )}
-
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Full name<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
-          <input
-            value={donorName}
-            onChange={(e) => setDonorName(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
-          />
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
-          />
-
-          {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-          <PrimaryButton disabled={busy} onClick={() => void continueToPayment()} style={{ width: "100%" }}>
-            {busy ? "Preparing payment…" : `DONATE ${formatDollars(Math.max(amountCents, 100))} →`}
-          </PrimaryButton>
-        </>
+        <div
+          style={{
+            borderRadius: 10, border: `1px dashed ${theme.color.border}`, background: theme.color.bg,
+            padding: "16px 14px", textAlign: "center", color: theme.color.textMuted, fontSize: 13,
+          }}
+        >
+          {loadingCard ? "Loading the secure card form…" : "Enter your name and email above to load the secure card form."}
+        </div>
       )}
     </Modal>
   );
