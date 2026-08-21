@@ -1,8 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
 import { StripePaymentForm } from "./StripePaymentForm";
+
+// Matches Feedback.tsx's own "we already have this" chip (page 4's help-
+// contact fields) — same confirmation, not a second free-text ask.
+const alreadyHaveStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 13,
+  fontWeight: 600,
+  color: theme.color.success,
+  background: theme.color.successBg,
+  borderRadius: theme.radius.sm,
+  padding: "10px 14px",
+  marginBottom: 10,
+};
 
 const QUICK_AMOUNTS = [25, 50, 100];
 const DEFAULT_AMOUNT = 100;
@@ -59,6 +74,12 @@ export function DonateStep({
   const [customAmount, setCustomAmount] = useState("");
   const [donorName, setDonorName] = useState(profile?.displayName || initialName);
   const [email, setEmail] = useState(user?.email || profile?.email || initialEmail);
+  // Fixed at mount, not recomputed as donorName/email change below — this is
+  // "did we already know this about them" (account or an earlier page of
+  // the survey), so already-answered fields show as a confirmation instead
+  // of asking a second time for something they just told us.
+  const [nameProvided] = useState(() => !!donorName.trim());
+  const [emailProvided] = useState(() => !!email.trim());
 
   const [loadingCard, setLoadingCard] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -170,19 +191,37 @@ export function DonateStep({
         />
       )}
 
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Full name<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
-      <input
-        value={donorName}
-        onChange={(e) => setDonorName(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
-      />
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Email<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
-      />
+      {nameProvided ? (
+        <div style={alreadyHaveStyle}>
+          <span>✓ Name</span>
+          <span style={{ marginLeft: "auto", fontWeight: 700, color: theme.color.text }}>{donorName}</span>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Full name<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
+          <input
+            value={donorName}
+            onChange={(e) => setDonorName(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+          />
+        </>
+      )}
+      {emailProvided ? (
+        <div style={{ ...alreadyHaveStyle, marginBottom: 16 }}>
+          <span>✓ Email</span>
+          <span style={{ marginLeft: "auto", fontWeight: 700, color: theme.color.text }}>{email}</span>
+        </div>
+      ) : (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Email<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 16, fontSize: 13.5 }}
+          />
+        </>
+      )}
 
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
 
