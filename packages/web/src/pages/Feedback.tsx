@@ -85,6 +85,7 @@ export function Feedback() {
   const [improve, setImprove] = useState("");
 
   const [helpOptions, setHelpOptions] = useState<FeedbackHelpOption[]>([]);
+  const [wantsToDonate, setWantsToDonate] = useState(false);
   const [donation, setDonation] = useState<{ orderId: string; amountCents: number } | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -348,17 +349,16 @@ export function Feedback() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
-                  <button
-                    onClick={() => setStep("donate")}
+                  <label
                     style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left",
-                      padding: "12px 14px", borderRadius: theme.radius.sm, border: `1.5px solid ${theme.color.gold}`,
-                      background: "#FFF8E8", cursor: "pointer", fontSize: 14, fontWeight: 700,
+                      display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: theme.radius.sm,
+                      border: `1px solid ${wantsToDonate ? theme.color.gold : theme.color.border}`,
+                      background: wantsToDonate ? "#FFF8E8" : "#fff", fontSize: 14, fontWeight: 500, cursor: "pointer",
                     }}
                   >
-                    <span>💛 Make a donation today</span>
-                    <span style={{ color: theme.color.navy, fontWeight: 800 }}>→</span>
-                  </button>
+                    <input type="checkbox" checked={wantsToDonate} onChange={() => setWantsToDonate((v) => !v)} style={{ width: 17, height: 17 }} />
+                    💛 Make a donation today
+                  </label>
                   {FEEDBACK_HELP_OPTIONS.map((h) => {
                     const active = helpOptions.includes(h);
                     return (
@@ -405,7 +405,7 @@ export function Feedback() {
                   </div>
                 )}
 
-                {!needsHelpContact && (
+                {!needsHelpContact && !wantsToDonate && (
                   <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 12 }}>Not able to help right now? No problem — skip ahead.</div>
                 )}
 
@@ -414,7 +414,9 @@ export function Feedback() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26 }}>
                   <button onClick={() => setStep(3)} style={outlineBtnStyle}>← Back</button>
                   <span style={{ fontSize: 12, color: theme.color.textMuted, fontWeight: 600 }}>Page 4 of 5</span>
-                  <PrimaryButton disabled={submitting} onClick={() => void finishAndSubmit()}>{submitting ? "Submitting…" : "Next →"}</PrimaryButton>
+                  <PrimaryButton disabled={submitting} onClick={() => (wantsToDonate ? setStep("donate") : void finishAndSubmit())}>
+                    {submitting ? "Submitting…" : "Next →"}
+                  </PrimaryButton>
                 </div>
               </div>
             </div>
