@@ -13,7 +13,7 @@ import {
 } from "@umoja/shared";
 import { theme } from "../../../lib/theme";
 import { useFeedbackResponses } from "../../../hooks/useData";
-import { Card } from "../../../components/ui";
+import { Card, Drawer } from "../../../components/ui";
 
 const RATING_COLOR: Record<FeedbackRatingValue, string> = {
   excellent: theme.color.success,
@@ -25,6 +25,80 @@ const RATING_COLOR: Record<FeedbackRatingValue, string> = {
 
 /** A tappable subset of responses — clicking the KPI/bar/pill that produced it filters the list below to exactly this. */
 type Filter = { key: string; label: string; test: (r: FeedbackResponse) => boolean };
+
+function RatingChip({ value }: { value?: FeedbackRatingValue }) {
+  if (!value) {
+    return <span style={{ fontSize: 11.5, fontWeight: 700, color: theme.color.textMuted }}>Not rated</span>;
+  }
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 800, color: theme.color.text }}>
+      <span style={{ width: 8, height: 8, borderRadius: 3, background: RATING_COLOR[value], display: "inline-block" }} />
+      {FEEDBACK_RATING_VALUE_LABELS[value]}
+    </span>
+  );
+}
+
+/** Everything about one response — opened from the compact row in the list below, so the row itself can stay scannable. */
+function ResponseDetailDrawer({ response, onClose }: { response: FeedbackResponse; onClose: () => void }) {
+  return (
+    <Drawer onClose={onClose}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        {response.roles.map((role) => (
+          <span key={role} style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
+            {FEEDBACK_ROLE_LABELS[role]}
+          </span>
+        ))}
+      </div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, marginBottom: 2 }}>
+        {response.name || response.email ? [response.name, response.email].filter(Boolean).join(" · ") : "Anonymous"}
+      </div>
+      <div style={{ fontSize: 12, color: theme.color.textMuted, marginBottom: 22 }}>
+        Submitted {new Date(response.createdAt).toLocaleString()}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.3, color: theme.color.textMuted }}>Ratings</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 22 }}>
+        {FEEDBACK_RATING_CATEGORIES.map((cat) => (
+          <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 13 }}>{FEEDBACK_RATING_CATEGORY_LABELS[cat]}</span>
+            <RatingChip value={response.ratings[cat]} />
+          </div>
+        ))}
+      </div>
+
+      {response.loved && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>What they loved</div>
+          <div style={{ fontSize: 13.5, color: theme.color.textMuted, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{response.loved}"</div>
+        </>
+      )}
+      {response.improve && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>What we can improve</div>
+          <div style={{ fontSize: 13.5, color: theme.color.textMuted, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{response.improve}"</div>
+        </>
+      )}
+
+      {(response.helpOptions.length > 0 || response.donatedOrderId) && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>How they want to help</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {response.donatedOrderId && (
+              <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, background: theme.color.warningBg, color: "#8A5A0F" }}>
+                🎁 Donated ${((response.donatedAmountCents ?? 0) / 100).toLocaleString()}
+              </span>
+            )}
+            {response.helpOptions.map((h) => (
+              <span key={h} style={{ fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
+                {FEEDBACK_HELP_OPTION_LABELS[h]}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+    </Drawer>
+  );
+}
 
 function Kpi({ num, label, active, onClick }: { num: string; label: string; active: boolean; onClick: () => void }) {
   return (
@@ -62,6 +136,7 @@ function Kpi({ num, label, active, onClick }: { num: string; label: string; acti
 export function FeedbackAdminTab() {
   const { data: responses } = useFeedbackResponses();
   const [filter, setFilter] = useState<Filter | null>(null);
+  const [selected, setSelected] = useState<FeedbackResponse | null>(null);
 
   const totalResponses = responses.length;
 
@@ -243,58 +318,46 @@ export function FeedbackAdminTab() {
               </button>
             )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {filtered.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No responses match this filter.</div>}
             {filtered.map((r) => (
-              <Card key={r.id} style={{ padding: "14px 16px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {r.roles.map((role) => (
-                      <span key={role} style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
-                        {FEEDBACK_ROLE_LABELS[role]}
-                      </span>
-                    ))}
-                  </div>
-                  <span style={{ fontSize: 11.5, color: theme.color.textMuted }}>{new Date(r.createdAt).toLocaleDateString()}</span>
+              <Card
+                key={r.id}
+                onClick={() => setSelected(r)}
+                style={{ padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                  {r.roles.map((role) => (
+                    <span key={role} style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
+                      {FEEDBACK_ROLE_LABELS[role]}
+                    </span>
+                  ))}
+                  <RatingChip value={r.ratings.overall} />
+                  {r.donatedOrderId && (
+                    <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999, background: theme.color.warningBg, color: "#8A5A0F" }}>
+                      🎁 ${((r.donatedAmountCents ?? 0) / 100).toLocaleString()}
+                    </span>
+                  )}
+                  {r.helpOptions.length > 0 && (
+                    <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
+                      Wants to help ({r.helpOptions.length})
+                    </span>
+                  )}
                 </div>
-
-                {(r.loved || r.improve) && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 10 }}>
-                    {r.loved && (
-                      <div style={{ fontSize: 12.5, fontStyle: "italic", color: theme.color.textMuted }}>
-                        <span style={{ fontWeight: 700, color: theme.color.text, fontStyle: "normal" }}>Loved: </span>"{r.loved}"
-                      </div>
-                    )}
-                    {r.improve && (
-                      <div style={{ fontSize: 12.5, fontStyle: "italic", color: theme.color.textMuted }}>
-                        <span style={{ fontWeight: 700, color: theme.color.text, fontStyle: "normal" }}>Improve: </span>"{r.improve}"
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {r.donatedOrderId && (
-                      <span style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999, background: theme.color.warningBg, color: "#8A5A0F" }}>
-                        🎁 Donated ${((r.donatedAmountCents ?? 0) / 100).toLocaleString()}
-                      </span>
-                    )}
-                    {r.helpOptions.map((h) => (
-                      <span key={h} style={{ fontSize: 10.5, fontWeight: 800, padding: "3px 8px", borderRadius: 999, background: "#F1EFF5", color: theme.color.purple }}>
-                        {FEEDBACK_HELP_OPTION_LABELS[h]}
-                      </span>
-                    ))}
-                  </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 11.5, color: theme.color.textMuted }}>{new Date(r.createdAt).toLocaleDateString()}</span>
                   <span style={{ fontSize: 12, color: theme.color.textMuted }}>
                     {r.name || r.email ? [r.name, r.email].filter(Boolean).join(" · ") : "Anonymous"}
                   </span>
+                  <span style={{ color: theme.color.textMuted }}>›</span>
                 </div>
               </Card>
             ))}
           </div>
         </>
       )}
+
+      {selected && <ResponseDetailDrawer response={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }
