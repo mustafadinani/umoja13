@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
-import { Modal, PrimaryButton } from "./ui";
 import { StripePaymentForm } from "./StripePaymentForm";
 
 const QUICK_AMOUNTS = [25, 50, 100];
@@ -25,8 +24,9 @@ function callableMessage(err: unknown, fallback: string) {
 }
 
 /**
- * Lean "donate right now" flow launched from the Feedback survey's "Make a
- * donation today" option. Reuses the exact same backend as the full Become a
+ * "Grab their donation right on the next page" — the survey's own donate
+ * step, laid out inline like every other page of /feedback (not a popup
+ * over the survey). Reuses the exact same backend as the full Become a
  * Sponsor checkout (createSponsorshipIntent under the "custom" tier +
  * confirmSponsorshipPayment) and the same embedded Stripe Payment Element
  * (StripePaymentForm) — just without any of the sponsor-branding fields
@@ -35,28 +35,25 @@ function callableMessage(err: unknown, fallback: string) {
  * so it shows up in the existing sponsorship admin queue exactly like any
  * other donation, with nothing new to maintain there.
  *
- * Deliberately one screen, not a wizard: amount, name/email, and the card
- * form all sit on the same page. The card form loads itself in place a beat
- * after the amount/name/email are filled in (see INTENT_DEBOUNCE_MS) instead
- * of behind a "Continue" tap — SponsorshipCheckoutModal's own amount → pay
- * step split makes sense for its full sponsor form, but for a quick default-
- * $100 ask that extra screen just reads as friction.
+ * One screen, not a wizard: amount, name/email, and the card form all sit
+ * here together. The card form loads itself in place a beat after amount/
+ * name/email are filled in (see INTENT_DEBOUNCE_MS) instead of behind a
+ * "Continue" tap. The caller (Feedback.tsx) submits the whole survey and
+ * jumps to the Thank You step the instant onDonated fires — donating IS
+ * finishing the survey, no separate "thanks for the gift" screen needed.
  */
-export function DonateNowModal({
-  onClose,
+export function DonateStep({
   onDonated,
   initialName = "",
   initialEmail = "",
 }: {
-  onClose: () => void;
-  /** Fired the moment payment is confirmed — caller uses this to record donatedOrderId on the feedback response. */
+  /** Fired the moment payment is confirmed — caller submits the survey with donatedOrderId attached and moves on. */
   onDonated: (info: { orderId: string; amountCents: number }) => void;
   /** Whatever the caller already has on hand (e.g. page 2 of the survey) — still fully editable, just saves a guest from retyping it. */
   initialName?: string;
   initialEmail?: string;
 }) {
   const { user, profile } = useAuth();
-  const [done, setDone] = useState(false);
   const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [usingCustom, setUsingCustom] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
@@ -117,38 +114,20 @@ export function DonateNowModal({
     setError(null);
     try {
       await confirmSponsorshipPayment({ orderId, paymentIntentId });
-      setDone(true);
       onDonated({ orderId, amountCents: paidAmountCents ?? amountCents });
     } catch (e) {
       setError(callableMessage(e, "Payment succeeded but confirming it failed. Contact us with your payment receipt."));
-    } finally {
       setConfirming(false);
     }
   }
 
-  if (done) {
-    return (
-      <Modal onClose={onClose} width={420}>
-        <div style={{ textAlign: "center", padding: "10px 0" }}>
-          <div style={{ fontSize: 40 }}>🎉</div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginTop: 8 }}>Thank you for your gift!</div>
-          <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 8, lineHeight: 1.45 }}>
-            Your {formatDollars(paidAmountCents ?? amountCents)} donation goes straight to Umoja 14 — a receipt is on its way to your email.
-          </div>
-          <PrimaryButton style={{ marginTop: 20, width: "100%" }} onClick={onClose}>Continue →</PrimaryButton>
-        </div>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal onClose={onClose} width={440}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Make a Donation</div>
-      <div style={{ color: theme.color.textMuted, fontSize: 13, marginBottom: 18 }}>
+    <div>
+      <div style={{ color: theme.color.textMuted, fontSize: 12.5, fontStyle: "italic", marginBottom: 20 }}>
         Goes straight to Umoja 14 — same secure checkout as umoja13.com/donate.
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose an amount</div>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Choose an amount</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
         {QUICK_AMOUNTS.map((a) => {
           const active = !usingCustom && amount === a;
@@ -191,13 +170,13 @@ export function DonateNowModal({
         />
       )}
 
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Full name<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Full name<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
       <input
         value={donorName}
         onChange={(e) => setDonorName(e.target.value)}
         style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
       />
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Email<span style={{ color: theme.color.danger, marginLeft: 3 }}>*</span></div>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Email<span style={{ color: theme.color.pink, marginLeft: 3 }}>*</span></div>
       <input
         type="email"
         value={email}
@@ -230,6 +209,6 @@ export function DonateNowModal({
           {loadingCard ? "Loading the secure card form…" : "Enter your name and email above to load the secure card form."}
         </div>
       )}
-    </Modal>
+    </div>
   );
 }

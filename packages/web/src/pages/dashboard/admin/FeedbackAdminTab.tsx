@@ -51,7 +51,7 @@ function Kpi({ num, label, active, onClick }: { num: string; label: string; acti
  * Staff-only results view for the public /feedback survey — mirrors the
  * design reviewed as an artifact: KPIs, a role breakdown, a stacked bar per
  * rated category, then the individual responses (quotes + who wants to help
- * and how, including a live "Donated $X" tag when DonateNowModal actually
+ * and how, including a live "Donated $X" tag when DonateStep actually
  * closed the loop instead of just leaving a lead).
  *
  * Every KPI tile, role pill, and rating-bar segment is clickable — it sets

@@ -21,9 +21,9 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { Card, PrimaryButton } from "../components/ui";
-import { DonateNowModal } from "../components/DonateNowModal";
+import { DonateStep } from "../components/DonateStep";
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | "donate" | 5;
 
 // The full labels' two-line wrap (see the ratings table below) only has
 // room to breathe on a wide-enough screen — at real phone widths, "Needs
@@ -64,10 +64,12 @@ function SectionBar({ children, isMobile }: { children: string; isMobile: boolea
 /**
  * Public "Umoja 13 Feedback" survey — anonymous by default (see
  * FeedbackResponse's doc comment), five steps mirroring the org's old Google
- * Form. The one real departure from that form: "Make a donation today" opens
- * DonateNowModal for a real payment in the moment, instead of just collecting
- * contact info for a follow-up call — see that component for why it's a
- * separate flow from Sponsor/Volunteer/Academy below.
+ * Form. The one real departure from that form: "Make a donation today" is
+ * its own inline step (DonateStep) collecting a real payment in the moment,
+ * instead of just collecting contact info for a follow-up call — see that
+ * component for why it's a separate flow from Sponsor/Volunteer/Academy
+ * below. Donating submits the whole survey and jumps straight to the Thank
+ * You step; there's no separate "thanks for the gift" screen to click past.
  */
 export function Feedback() {
   const { user, profile } = useAuth();
@@ -83,7 +85,6 @@ export function Feedback() {
   const [improve, setImprove] = useState("");
 
   const [helpOptions, setHelpOptions] = useState<FeedbackHelpOption[]>([]);
-  const [donateOpen, setDonateOpen] = useState(false);
   const [donation, setDonation] = useState<{ orderId: string; amountCents: number } | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -112,7 +113,13 @@ export function Feedback() {
   const step3Valid = FEEDBACK_RATING_CATEGORIES.every((c) => !!ratings[c]) && !!loved.trim() && !!improve.trim();
   const needsHelpContact = helpOptions.length > 0;
 
-  async function finishAndSubmit() {
+  // Takes an explicit donation to record instead of always reading the
+  // `donation` state — the donate step calls this the instant a payment
+  // confirms, and `setDonation` right before it wouldn't have landed in this
+  // closure's state yet (donating IS finishing the survey, no separate
+  // "thanks for the gift" screen in between to wait out the re-render).
+  async function finishAndSubmit(justDonated?: { orderId: string; amountCents: number }) {
+    const finalDonation = justDonated ?? donation;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -124,7 +131,7 @@ export function Feedback() {
         ...(loved.trim() ? { loved: loved.trim() } : {}),
         ...(improve.trim() ? { improve: improve.trim() } : {}),
         helpOptions,
-        ...(donation ? { donatedOrderId: donation.orderId, donatedAmountCents: donation.amountCents } : {}),
+        ...(finalDonation ? { donatedOrderId: finalDonation.orderId, donatedAmountCents: finalDonation.amountCents } : {}),
         ...(user ? { filedByUid: user.uid } : {}),
         createdAt: Date.now(),
       });
@@ -342,15 +349,15 @@ export function Feedback() {
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
                   <button
-                    onClick={() => setDonateOpen(true)}
+                    onClick={() => setStep("donate")}
                     style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", textAlign: "left",
                       padding: "12px 14px", borderRadius: theme.radius.sm, border: `1.5px solid ${theme.color.gold}`,
-                      background: donation ? theme.color.successBg : "#FFF8E8", cursor: "pointer", fontSize: 14, fontWeight: 700,
+                      background: "#FFF8E8", cursor: "pointer", fontSize: 14, fontWeight: 700,
                     }}
                   >
-                    <span>{donation ? `✓ Donated $${(donation.amountCents / 100).toLocaleString()} — thank you!` : "💛 Make a donation today"}</span>
-                    {!donation && <span style={{ color: theme.color.navy, fontWeight: 800 }}>→</span>}
+                    <span>💛 Make a donation today</span>
+                    <span style={{ color: theme.color.navy, fontWeight: 800 }}>→</span>
                   </button>
                   {FEEDBACK_HELP_OPTIONS.map((h) => {
                     const active = helpOptions.includes(h);
@@ -398,7 +405,7 @@ export function Feedback() {
                   </div>
                 )}
 
-                {!needsHelpContact && !donation && (
+                {!needsHelpContact && (
                   <div style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 12 }}>Not able to help right now? No problem — skip ahead.</div>
                 )}
 
@@ -408,6 +415,25 @@ export function Feedback() {
                   <button onClick={() => setStep(3)} style={outlineBtnStyle}>← Back</button>
                   <span style={{ fontSize: 12, color: theme.color.textMuted, fontWeight: 600 }}>Page 4 of 5</span>
                   <PrimaryButton disabled={submitting} onClick={() => void finishAndSubmit()}>{submitting ? "Submitting…" : "Next →"}</PrimaryButton>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === "donate" && (
+            <div style={{ padding: isMobile ? "0 0 26px" : "0 0 30px" }}>
+              <SectionBar isMobile={isMobile}>Make a Donation</SectionBar>
+              <div style={{ padding: isMobile ? "0 22px" : "0 32px" }}>
+                <DonateStep
+                  initialName={name}
+                  initialEmail={email}
+                  onDonated={(info) => { setDonation(info); void finishAndSubmit(info); }}
+                />
+                {submitError && <div style={{ color: theme.color.danger, fontSize: 13, marginTop: 14 }}>{submitError}</div>}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26 }}>
+                  <button onClick={() => setStep(4)} style={outlineBtnStyle}>← Back</button>
+                  <span style={{ fontSize: 12, color: theme.color.textMuted, fontWeight: 600 }}>Page 4 of 5</span>
+                  <span style={{ width: 84 }} />
                 </div>
               </div>
             </div>
@@ -427,15 +453,6 @@ export function Feedback() {
           )}
         </Card>
       </div>
-
-      {donateOpen && (
-        <DonateNowModal
-          onClose={() => setDonateOpen(false)}
-          onDonated={(info) => { setDonation(info); setDonateOpen(false); }}
-          initialName={name}
-          initialEmail={email}
-        />
-      )}
     </div>
   );
 }
