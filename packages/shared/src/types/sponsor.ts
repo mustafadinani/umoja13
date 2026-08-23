@@ -18,8 +18,8 @@ export interface SponsorshipTierInfo {
   perks: string[];
 }
 
-/** Suggested starting point for the "Build Your Own" custom tier — donor can adjust it up or down. */
-export const CUSTOM_TIER_SUGGESTED_CENTS = 100_000;
+/** Suggested starting point for the "Give What You Can" custom tier — donor can adjust it up or down. Kept modest on purpose: this is the tier an individual giving out of goodwill lands on, not just a business naming a sponsorship figure. */
+export const CUSTOM_TIER_SUGGESTED_CENTS = 5_000;
 
 export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
@@ -61,16 +61,16 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   },
   {
     id: "custom",
-    label: "Build Your Own",
+    label: "Give What You Can",
     priceCents: null,
     tagline: "Join the movement",
-    perks: ["Tell us what matters to you — we'll build a custom package together"],
+    perks: ["Any amount helps — from a token of support to a full sponsorship, it's entirely up to you"],
   },
 ];
 
 export type SponsorInquiryStatus = "new" | "contacted" | "closed";
 
-/** A lead from the public "Become a Sponsor" CTA — reviewed by staff, not auto-approved into a real Sponsor. */
+/** A lead from the public "Partner With Us" CTA — reviewed by staff, not auto-approved into a real Sponsor. */
 export interface SponsorInquiry {
   id: string;
   orgName: string;

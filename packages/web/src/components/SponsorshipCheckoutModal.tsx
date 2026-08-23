@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { CUSTOM_TIER_SUGGESTED_CENTS, SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
+import { SPONSORSHIP_TIERS, type SponsorTier, type SponsorshipDonorType } from "@umoja/shared";
+
+// Quick amounts for the "Give What You Can" tier — kept low so a family
+// giving out of goodwill sees numbers that feel like them, not a business
+// naming a sponsorship figure. "Other amount" still covers anyone who wants
+// to go bigger (or land on a real dollar sponsorship figure) without a
+// separate flow.
+const QUICK_AMOUNTS = [25, 50, 100, 250];
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { createSponsorshipIntent, confirmSponsorshipPayment } from "../lib/callables";
@@ -28,10 +35,12 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
   const [donorName, setDonorName] = useState(profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  // A blank field reads as "I don't know what to give" — a concrete
-  // starting point they can raise or lower gets people moving instead of
-  // staring at an empty box, and it's clearly editable (not a fixed price).
-  const [customAmount, setCustomAmount] = useState(String(CUSTOM_TIER_SUGGESTED_CENTS / 100));
+  // A quick-pick amount pre-selected (see QUICK_AMOUNTS) reads as "here's
+  // roughly what people give," not a blank box begging for a big number —
+  // "Other amount" is still one tap away for whatever they'd rather give.
+  const [quickAmount, setQuickAmount] = useState(QUICK_AMOUNTS[1]);
+  const [usingCustomAmount, setUsingCustomAmount] = useState(false);
+  const [customAmount, setCustomAmount] = useState("");
   const [customNote, setCustomNote] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -49,7 +58,7 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
   if (showInquiry) return <SponsorInquiryModal onClose={onClose} />;
 
   const tier = SPONSORSHIP_TIERS.find((t) => t.id === tierId) ?? null;
-  const customAmountCents = Math.round(parseFloat(customAmount || "0") * 100);
+  const customAmountCents = Math.round((usingCustomAmount ? parseFloat(customAmount || "0") : quickAmount) * 100);
   const validCustomAmount = tier?.priceCents == null ? customAmountCents >= 100 : true;
   const canSubmit = !!tier && !!donorName.trim() && !!email.trim() && validCustomAmount;
 
@@ -115,8 +124,10 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
           <div style={{ fontSize: 40 }}>✓</div>
           <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginTop: 8 }}>Thank you for your support!</div>
           <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 8, lineHeight: 1.45 }}>
-            Your {tier?.label.toLowerCase()} sponsorship{paidAmountCents ? ` (${formatDollars(paidAmountCents)})` : ""} is confirmed. Our team
-            will follow up by email.
+            {tier?.priceCents == null
+              ? `Your gift${paidAmountCents ? ` (${formatDollars(paidAmountCents)})` : ""} is confirmed.`
+              : `Your ${tier?.label.toLowerCase()} sponsorship${paidAmountCents ? ` (${formatDollars(paidAmountCents)})` : ""} is confirmed.`}{" "}
+            Our team will follow up by email.
           </div>
           <PrimaryButton style={{ marginTop: 20, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
         </div>
@@ -126,9 +137,9 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
 
   return (
     <Modal onClose={onClose} width={560}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24, marginBottom: 4 }}>Become a Sponsor</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24, marginBottom: 4 }}>Support Us</div>
       <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 18 }}>
-        Pick a tier, tell us about yourself, then pay securely through Stripe.
+        Choose an amount or a package, then pay securely through Stripe.
       </div>
 
       {step === "pay" && clientSecret && publishableKey && (
@@ -139,16 +150,16 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
             publishableKey={publishableKey}
             onPaid={() => void onCardPaid()}
             onError={setError}
-            statusText={`Enter card details for your ${tier ? formatDollars(paidAmountCents ?? tier.priceCents ?? customAmountCents) : ""} sponsorship.`}
+            statusText={`Enter card details for your ${tier ? formatDollars(paidAmountCents ?? tier.priceCents ?? customAmountCents) : ""} ${tier?.priceCents == null ? "gift" : "sponsorship"}.`}
             payLabel={`PAY ${paidAmountCents != null ? formatDollars(paidAmountCents) : ""}`}
           />
-          {busy && <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 12 }}>Confirming your sponsorship…</div>}
+          {busy && <div style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 12 }}>Confirming your {tier?.priceCents == null ? "gift" : "sponsorship"}…</div>}
         </>
       )}
 
       {step === "form" && (
       <>
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose a tier</div>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose how you'd like to give</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
         {SPONSORSHIP_TIERS.map((t) => {
           const active = tierId === t.id;
@@ -187,27 +198,60 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
         <>
           {tier.priceCents == null && (
             <>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Your amount ($)</div>
-              <input
-                type="number"
-                min={1}
-                value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value)}
-                placeholder="e.g. 2500"
-                style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
-              />
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>What would you like to include? (optional)</div>
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Choose an amount</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+                {QUICK_AMOUNTS.map((a) => {
+                  const active = !usingCustomAmount && quickAmount === a;
+                  return (
+                    <button
+                      key={a}
+                      onClick={() => { setUsingCustomAmount(false); setQuickAmount(a); }}
+                      style={{
+                        padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
+                        border: `1.5px solid ${active ? theme.color.purple : theme.color.border}`,
+                        background: active ? theme.color.purple : "#fff",
+                        color: active ? "#fff" : theme.color.text,
+                      }}
+                    >
+                      ${a}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setUsingCustomAmount(true)}
+                  style={{
+                    padding: "9px 18px", borderRadius: theme.radius.pill, fontWeight: 800, fontSize: 13.5, cursor: "pointer",
+                    border: `1.5px solid ${usingCustomAmount ? theme.color.purple : theme.color.border}`,
+                    background: usingCustomAmount ? theme.color.purple : "#fff",
+                    color: usingCustomAmount ? "#fff" : theme.color.text,
+                  }}
+                >
+                  Other amount
+                </button>
+              </div>
+              {usingCustomAmount && (
+                <input
+                  type="number"
+                  min={1}
+                  autoFocus
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder="e.g. 2500"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 14, fontSize: 13.5 }}
+                />
+              )}
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Anything you'd like to add? (optional)</div>
               <textarea
                 value={customNote}
                 onChange={(e) => setCustomNote(e.target.value)}
-                rows={3}
-                placeholder="Tell us what matters to you — signage, jerseys, media, anything else…"
+                rows={2}
+                placeholder="A note, a dedication, or anything you'd like us to know…"
                 style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 12 }}
               />
             </>
           )}
 
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>You're sponsoring as</div>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>This gift is from</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
             <Pill active={donorType === "individual"} onClick={() => setDonorType("individual")}>Individual</Pill>
             <Pill active={donorType === "business"} onClick={() => setDonorType("business")}>Business</Pill>
@@ -236,39 +280,42 @@ export function SponsorshipCheckoutModal({ onClose, initialTierId }: { onClose: 
             style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
           />
 
+          {/* Brand-visibility fields — a business sponsor cares about these; an
+              individual giving $25-100 out of goodwill shouldn't have to
+              scroll past a logo upload and a website field to finish. */}
           {donorType === "business" && (
             <>
               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Company logo (optional)</div>
               <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
+
+              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Show off your support (all optional)</div>
+              <input
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="Website (https://…)"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+              />
+              <input
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="Instagram handle or link"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+              />
+              <input
+                value={socialUrl}
+                onChange={(e) => setSocialUrl(e.target.value)}
+                placeholder="Another social media page (optional)"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
+              />
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                placeholder="A short description of your business or why you're supporting Umoja (optional)"
+                style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
+              />
             </>
           )}
-
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, marginTop: 4 }}>Show off your support (all optional)</div>
-          <input
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-            placeholder="Website (https://…)"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
-          />
-          <input
-            value={instagramUrl}
-            onChange={(e) => setInstagramUrl(e.target.value)}
-            placeholder="Instagram handle or link"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
-          />
-          <input
-            value={socialUrl}
-            onChange={(e) => setSocialUrl(e.target.value)}
-            placeholder="Another social media page (optional)"
-            style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 8, fontSize: 13.5 }}
-          />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            placeholder="A short description of your business or why you're supporting Umoja (optional)"
-            style={{ width: "100%", padding: 10, borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, fontSize: 13.5, resize: "none", marginBottom: 16 }}
-          />
 
           {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
           <PrimaryButton disabled={!canSubmit || busy} onClick={() => void continueToPayment()} style={{ width: "100%" }}>

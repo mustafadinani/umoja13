@@ -37,7 +37,7 @@ export function SponsorStrip({ sponsors }: { sponsors: Sponsor[] }) {
           PROUDLY SUPPORTED BY
         </div>
         <Link to="/donate" style={{ fontSize: 12.5, fontWeight: 700, color: theme.color.blue }}>
-          Become a Sponsor →
+          Support Us →
         </Link>
       </div>
 

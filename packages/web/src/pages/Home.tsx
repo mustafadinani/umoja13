@@ -81,7 +81,7 @@ export function Home() {
                 onClick={() => setSponsorOpen(true)}
                 style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
-                🤝 BECOME A SPONSOR
+                💛 SUPPORT US
               </button>
             </div>
           </div>

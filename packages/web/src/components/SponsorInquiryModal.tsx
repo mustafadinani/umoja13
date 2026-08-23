@@ -57,7 +57,7 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} width={460}>
-      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Become a Sponsor</div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, marginBottom: 4 }}>Partner With Us</div>
       <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginBottom: 16 }}>
         Tell us about your organization and we'll follow up with tiers and pricing.
       </div>

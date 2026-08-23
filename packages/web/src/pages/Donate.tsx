@@ -95,7 +95,7 @@ export function Donate() {
               onClick={() => setCheckoutTier(null)}
               style={{ background: "#fff", color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 17, letterSpacing: 1, padding: isMobile ? "12px 22px" : "14px 28px", borderRadius: 12, border: "none", cursor: "pointer" }}
             >
-              🤝 BECOME A SPONSOR
+              💛 SUPPORT US
             </button>
             <button
               onClick={() => setInquiryOpen(true)}
@@ -187,7 +187,7 @@ export function Donate() {
           </ul>
         </Card>
 
-        <SectionLabel eyebrow="GET INVOLVED" title="Pick a package, or build your own" />
+        <SectionLabel eyebrow="GET INVOLVED" title="Pick a package, or give any amount" />
         <div className="grid-2-equal" style={{ marginBottom: 48 }}>
           {SPONSORSHIP_TIERS.map((t) => (
             <Card key={t.id}>
@@ -204,7 +204,7 @@ export function Donate() {
                 ))}
               </ul>
               <PrimaryButton onClick={() => setCheckoutTier(t.id)} style={{ width: "100%" }}>
-                {t.priceCents != null ? `SPONSOR AT ${formatDollars(t.priceCents)}` : "BUILD YOUR PACKAGE"}
+                {t.priceCents != null ? `SPONSOR AT ${formatDollars(t.priceCents)}` : "GIVE WHAT YOU CAN"}
               </PrimaryButton>
             </Card>
           ))}
@@ -220,7 +220,7 @@ export function Donate() {
               onClick={() => setCheckoutTier(null)}
               style={{ background: theme.color.gold, color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, letterSpacing: 1, padding: "12px 24px", borderRadius: 12, border: "none", cursor: "pointer" }}
             >
-              🤝 BECOME A SPONSOR
+              💛 SUPPORT US
             </button>
             <button
               onClick={() => setInquiryOpen(true)}
