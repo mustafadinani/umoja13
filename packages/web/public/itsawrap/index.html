@@ -320,15 +320,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
       var pdfStyle = document.createElement('style');
       pdfStyle.textContent = '@media print { #__wrap_pdf_btn { display: none !important; } } ' +
-        '#__wrap_pdf_btn { position: fixed; bottom: 24px; right: 24px; z-index: 999999; ' +
+        '#__wrap_pdf_btn { position: fixed; top: max(16px, env(safe-area-inset-top)); ' +
+        'right: max(16px, env(safe-area-inset-right)); z-index: 999999; ' +
         'background: #FDB528; color: #211A33; border: none; border-radius: 999px; ' +
-        'padding: 14px 24px; font: 800 14px/1 -apple-system, BlinkMacSystemFont, sans-serif; ' +
+        'padding: 12px 20px; font: 800 13px/1 -apple-system, BlinkMacSystemFont, sans-serif; ' +
         'letter-spacing: .3px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.35); }' +
-        '#__wrap_pdf_btn:hover { filter: brightness(1.05); }';
+        '#__wrap_pdf_btn:hover { filter: brightness(1.05); }' +
+        '@media (max-width: 640px) { #__wrap_pdf_btn { padding: 9px 15px; font-size: 12px; ' +
+        'top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); } }';
       document.head.appendChild(pdfStyle);
       var pdfBtn = document.createElement('button');
       pdfBtn.id = '__wrap_pdf_btn';
-      pdfBtn.textContent = '\u2b07 Download as PDF';
+      pdfBtn.textContent = '\u2b07 Download';
       pdfBtn.onclick = function () { window.print(); };
       document.body.appendChild(pdfBtn);
     } catch (e) { console.warn('[wrap] PDF button failed to mount:', e); }
