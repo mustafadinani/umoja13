@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { SPONSORSHIP_TIERS, VENUE, type SponsorTier } from "@umoja/shared";
 import { theme, heroGradient } from "../lib/theme";
 import { useIsMobile } from "../hooks/useMediaQuery";
@@ -74,7 +75,13 @@ const BENEFITS = [
 export function Donate() {
   const isMobile = useIsMobile();
   const { data: sponsors } = useSponsors();
-  const [checkoutTier, setCheckoutTier] = useState<SponsorTier | null | "closed">("closed");
+  const [searchParams] = useSearchParams();
+  // A shareable "already open" link — /donate?open=support — for anywhere
+  // pointing straight at giving matters more than the rest of the page
+  // (an email footer, a text message, a QR code at an event).
+  const [checkoutTier, setCheckoutTier] = useState<SponsorTier | null | "closed">(
+    searchParams.get("open") === "support" ? null : "closed"
+  );
   const [inquiryOpen, setInquiryOpen] = useState(false);
 
   return (
