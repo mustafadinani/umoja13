@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal as RNModal } from "react-native";
 import { useVideoPlayer } from "expo-video";
+import { WebView } from "react-native-webview";
 import { doc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
@@ -8,6 +9,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { LoadingImage } from "./LoadingImage";
 import { LoadingVideo } from "./LoadingVideo";
+import { Lightbox } from "./Lightbox";
 
 const SOURCE_LABEL: Record<string, string> = { game: "⚽ Game moment", hunt: "🧭 Hunt submission", community: "🎉 Community" };
 
@@ -20,7 +22,9 @@ const SOURCE_LABEL: Record<string, string> = { game: "⚽ Game moment", hunt: "�
 export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; onClose: () => void }) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const isVideo = moment?.mediaType === "video" && !!moment.mediaUrl;
+  const isEmbed = moment?.mediaType === "embed" && !!moment.mediaUrl;
   const player = useVideoPlayer(isVideo ? moment!.mediaUrl! : null);
 
   useEffect(() => {
@@ -28,6 +32,10 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
     player.play();
     return () => player.pause();
   }, [player, isVideo]);
+
+  useEffect(() => {
+    if (!moment) setLightboxOpen(false);
+  }, [moment]);
 
   const liked = user && moment ? moment.likeUids.includes(user.uid) : false;
   const isOwn = !!moment && user?.uid === moment.postedBy;
@@ -60,9 +68,13 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
             <ScrollView bounces={false}>
               {moment.mediaUrl ? (
                 isVideo ? (
-                  <LoadingVideo player={player} style={styles.media} nativeControls contentFit="contain" />
+                  <LoadingVideo player={player} source={moment.mediaUrl} style={styles.videoMedia} nativeControls contentFit="contain" />
+                ) : isEmbed ? (
+                  <WebView source={{ uri: moment.mediaUrl }} style={styles.videoMedia} allowsInlineMediaPlayback allowsFullscreenVideo />
                 ) : (
-                  <LoadingImage source={{ uri: moment.mediaUrl }} style={styles.media} resizeMode="cover" />
+                  <TouchableOpacity activeOpacity={0.9} onPress={() => setLightboxOpen(true)}>
+                    <LoadingImage source={{ uri: moment.mediaUrl }} style={styles.media} resizeMode="cover" />
+                  </TouchableOpacity>
                 )
               ) : (
                 <View style={[styles.media, { backgroundColor: theme.color.purple }]} />
@@ -95,6 +107,7 @@ export function MomentDetailModal({ moment, onClose }: { moment: Moment | null; 
           </View>
         )}
       </View>
+      <Lightbox visible={lightboxOpen} src={moment?.mediaUrl ?? null} mediaType="photo" onClose={() => setLightboxOpen(false)} />
     </RNModal>
   );
 }
@@ -105,5 +118,6 @@ const styles = StyleSheet.create({
   grabberWrap: { paddingVertical: 8, alignItems: "center" },
   grabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.color.border },
   media: { width: "100%", height: 280, backgroundColor: theme.color.bg },
+  videoMedia: { width: "100%", height: 280 },
   likeBtn: { paddingVertical: 4 },
 });

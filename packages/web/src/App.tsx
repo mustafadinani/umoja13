@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { Layout } from "./components/Layout";
@@ -6,14 +6,24 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { Home } from "./pages/Home";
 import { Schedule } from "./pages/Schedule";
+import { FieldMapPage } from "./pages/FieldMapPage";
 import { Standings } from "./pages/Standings";
 import { Moments } from "./pages/Moments";
 import { Game } from "./pages/Game";
 import { Team } from "./pages/Team";
 import { Dashboard } from "./pages/dashboard/Dashboard";
+import { ReportIssuePage } from "./pages/dashboard/ReportIssuePage";
 import { RefereeGameConsole } from "./pages/dashboard/referee/RefereeGameConsole";
 import { Hunt } from "./pages/Hunt";
+import { HuntRules } from "./pages/HuntRules";
+import { Experiences } from "./pages/Experiences";
+import { Donate } from "./pages/Donate";
+import { Feedback } from "./pages/Feedback";
+import { Privacy } from "./pages/Privacy";
+import { Pods } from "./pages/Pods";
 import { Uat } from "./pages/uat/Uat";
+import { Stage } from "./pages/Stage";
+import { PrintGameCards } from "./pages/PrintGameCards";
 
 export default function App() {
   return (
@@ -23,9 +33,17 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/schedule/map" element={<FieldMapPage />} />
             <Route path="/standings" element={<Standings />} />
             <Route path="/moments" element={<Moments />} />
             <Route path="/hunt" element={<Hunt />} />
+            <Route path="/hunt-rules" element={<HuntRules />} />
+            <Route path="/experiences" element={<Experiences />} />
+            <Route path="/donate" element={<Donate />} />
+            <Route path="/feedback" element={<Feedback />} />
+            <Route path="/privacy" element={<Privacy />} />
+            {/* Info merged into Experiences — keep old bookmarks/links working. */}
+            <Route path="/info" element={<Navigate to="/experiences" replace />} />
             <Route path="/game/:gameId" element={<Game />} />
             <Route path="/team/:teamId" element={<Team />} />
             <Route path="/login" element={<Login />} />
@@ -35,6 +53,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/report-issue"
+              element={
+                <ProtectedRoute>
+                  <ReportIssuePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pods"
+              element={
+                <ProtectedRoute>
+                  <Pods />
                 </ProtectedRoute>
               }
             />
@@ -51,6 +85,23 @@ export default function App() {
               element={
                 <ProtectedRoute requireRole={["referee"]}>
                   <RefereeGameConsole />
+                </ProtectedRoute>
+              }
+            />
+            {/* Award-ceremony presenter screen — deliberately not linked anywhere in the nav; staff bring it up by typing the URL directly. */}
+            <Route
+              path="/stage"
+              element={
+                <ProtectedRoute requireRole={["admin", "commissioner"]}>
+                  <Stage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/print/game-cards"
+              element={
+                <ProtectedRoute requireRole={["admin", "commissioner", "referee"]}>
+                  <PrintGameCards />
                 </ProtectedRoute>
               }
             />

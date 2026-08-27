@@ -5,6 +5,8 @@ import { db } from "../util/admin.js";
 interface ReviewChallengeSubmissionRequest {
   submissionId: string;
   decision: "approve" | "reject";
+  /** Only meaningful when decision === "reject" — shown back to the crew. */
+  rejectionReason?: string;
 }
 
 /**
@@ -24,7 +26,7 @@ export const reviewChallengeSubmission = onCall<ReviewChallengeSubmissionRequest
     throw new HttpsError("permission-denied", "Only admin/commissioner can review challenge submissions.");
   }
 
-  const { submissionId, decision } = request.data;
+  const { submissionId, decision, rejectionReason } = request.data;
   const ref = db.collection(COLLECTIONS.challengeSubmissions).doc(submissionId);
   const snap = await ref.get();
   if (!snap.exists) throw new HttpsError("not-found", "Submission not found.");
@@ -33,7 +35,10 @@ export const reviewChallengeSubmission = onCall<ReviewChallengeSubmissionRequest
   const now = Date.now();
 
   if (decision === "reject") {
-    await ref.set({ status: "rejected", reviewedBy: uid, reviewedAt: now }, { merge: true });
+    await ref.set(
+      { status: "rejected", reviewedBy: uid, reviewedAt: now, rejectionReason: rejectionReason || "Not approved" },
+      { merge: true }
+    );
     return { status: "rejected" };
   }
 

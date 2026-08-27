@@ -38,10 +38,13 @@ export const auth: Auth = alreadyInitialized
   : initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 
 export const db = initializeFirestore(app, {}, firestoreDatabaseId);
+/** Outreach / registration data (teamsRegistered, playersRegistered) lives on the project's default DB. */
+export const defaultDb = initializeFirestore(app, {}, "(default)");
 export const storage = getStorage(app, storageBucketUrl);
 
 if (useEmulators) {
   connectAuthEmulator(auth, `http://${emulatorHost}:9099`);
   connectFirestoreEmulator(db, emulatorHost, 8080);
+  // Named + default DBs share the emulator host when emulating; skip dual connect if unsupported.
   connectStorageEmulator(storage, emulatorHost, 9199);
 }

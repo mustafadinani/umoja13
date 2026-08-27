@@ -1,3 +1,6 @@
+/** Caps Moment.comment — a raw client-side Firestore write (see moments.ts's `allow create` rule, which never checked length), so an unbounded string here has broken rendering on the feed before. Enforced both client-side (input maxLength, cheaper UX) and here for the rules check. */
+export const MOMENT_COMMENT_MAX_LENGTH = 280;
+
 export const MOMENT_TAGS = [
   "Goal",
   "Save",

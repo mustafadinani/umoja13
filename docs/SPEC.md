@@ -156,8 +156,9 @@ Incident.
 
 ## What's stubbed vs. real (per user's explicit direction)
 - **Real**: Firebase Auth, Firestore (no localStorage anywhere), Storage for
-  all media, Stripe test-mode Checkout for the $35 complaint fee, Claude
-  vision for check-in selfie/ID verification.
+  all media, Stripe **live-mode** Checkout for the $35 complaint fee (switched
+  from test-mode 2026-08-05 — confirmed intentional), Claude vision for
+  check-in selfie/ID verification.
 - **Stubbed** (clearly marked, swappable later): referee game-card photo →
   score OCR. Build the upload + commissioner review queue for real; the
   "AI reads the card" step returns a placeholder result function.

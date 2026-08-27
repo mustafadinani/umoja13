@@ -8,10 +8,14 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.umojaoutreach.umoja13"
+      "bundleIdentifier": "com.umojaoutreach.umoja13",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.umojaoutreach.umoja13",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -22,6 +26,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ddf3e5f7-077c-4ace-8d2f-36b27fccc3c7"
     },
     "extra": {
       "eas": {

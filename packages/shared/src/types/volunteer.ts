@@ -11,7 +11,8 @@ export interface VolunteerApplication {
   name: string;
   email: string;
   phone: string;
-  emergencyContact: string;
+  /** Dropped from the sign-up form — kept optional so old applications still render it. */
+  emergencyContact?: string;
   availability: string[]; // subset of VOLUNTEER_AVAILABILITY_DAYS
   selfieUrl?: string;
   categoryId?: string; // optional: tournament category they also play/coach in, for scheduling around their games
@@ -36,15 +37,57 @@ export const VOLUNTEER_TASK_TYPES: { id: VolunteerTaskType; label: string }[] = 
 ];
 
 export const VOLUNTEER_TASK_TIMES = [
+  "Wed 4–6 PM (Pre-event setup)",
+  "Thu 9 AM–12 PM (Pre-event setup)",
+  "Thu 4–6 PM (Pre-event setup)",
   "Fri 8–9 AM",
   "Fri 9 AM–12 PM",
   "Fri 12–2 PM",
   "Sat 8–10 AM",
   "Sat 10 AM–1 PM",
   "Sun 8 AM–2 PM",
+  "Mon 9–11 AM (Post-event pack-down)",
+  "Tue 9–11 AM (Post-event pack-down)",
 ] as const;
 
+/**
+ * Explicit chronological order for every value above — sorting shift lists
+ * by plain string comparison (`.localeCompare`) only ever worked by
+ * coincidence, since "Fri" < "Sat" < "Sun" alphabetically happens to match
+ * date order. It breaks the moment a day outside Fri/Sat/Sun is added (e.g.
+ * "Wed"/"Mon" would sort after "Sun" alphabetically despite coming first/last
+ * chronologically). This map is the one source of truth every shift-list sort
+ * should key off instead.
+ */
+const TASK_TIME_ORDER = new Map<string, number>(VOLUNTEER_TASK_TIMES.map((t, i) => [t, i]));
+
+/** Sorts by real chronological order (falling back to alphabetical for any value not in VOLUNTEER_TASK_TIMES, e.g. legacy data). */
+export function compareTaskTimes(a: string, b: string): number {
+  const ai = TASK_TIME_ORDER.get(a);
+  const bi = TASK_TIME_ORDER.get(b);
+  if (ai !== undefined && bi !== undefined) return ai - bi;
+  if (ai !== undefined) return -1;
+  if (bi !== undefined) return 1;
+  return a.localeCompare(b);
+}
+
 export const VOLUNTEER_TASK_LOCATIONS = ["Main HQ", "Field 1–3", "Field 4–6", "Entrance", "Food court"] as const;
+
+export interface VolunteerTaskMessage {
+  id: string;
+  from: "admin" | "member";
+  authorUid: string;
+  authorName: string;
+  text: string;
+  createdAt: number;
+}
+
+/** A step inside one shift (e.g. "Set up," "Restock at 9:30," "Break down") — distinct from a pod-wide PodTask, which isn't tied to any one shift. */
+export interface VolunteerTaskStep {
+  id: string;
+  title: string;
+  done: boolean;
+}
 
 /** A shift/task, either open (unassigned) or assigned to one volunteer. */
 export interface VolunteerTask {
@@ -53,6 +96,8 @@ export interface VolunteerTask {
   type: VolunteerTaskType;
   time: string;
   location: string;
+  /** Optional pod this shift belongs to, set explicitly when creating the shift — `location` is free text and doesn't reliably map onto a pod's fields. */
+  podId?: string;
   assigneeUid: string | null;
   assigneeName: string | null;
   done: boolean;
@@ -60,4 +105,8 @@ export interface VolunteerTask {
   cantMakeReason?: string;
   createdAt: number;
   createdBy: string;
+  /** Contextual Q&A scoped to this one shift, so staff always know exactly which task a question is about. */
+  messages?: VolunteerTaskMessage[];
+  /** Internal checklist for this one shift — separate from the pod-wide TASKS list. */
+  steps?: VolunteerTaskStep[];
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, TextInput, Image, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Image, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useAuth } from "../auth/AuthProvider";
@@ -11,16 +11,29 @@ export function Signup({ navigation }: NativeStackScreenProps<RootStackParamList
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Umoja Outreach runs several other programs on this same Firebase
+  // project, so plenty of real people already have an account under their
+  // email from something else entirely — "email already in use" is common
+  // and not a sign anything's broken. Give them a way forward instead of a
+  // raw Firebase error string.
+  const [emailInUse, setEmailInUse] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     setError(null);
+    setEmailInUse(false);
     setBusy(true);
     try {
       await signUp(email, password, name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't create your account.");
+      const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : null;
+      if (code === "auth/email-already-in-use") {
+        setEmailInUse(true);
+      } else {
+        setError(e instanceof Error ? e.message : "Couldn't create your account.");
+      }
     } finally {
       setBusy(false);
     }
@@ -32,8 +45,43 @@ export function Signup({ navigation }: NativeStackScreenProps<RootStackParamList
       <Text style={styles.title}>Join Umoja Games</Text>
       <TextInput style={styles.input} placeholder="Full name" value={name} onChangeText={setName} />
       <TextInput style={styles.input} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-      <TextInput style={styles.input} placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
-      {error && <Text style={styles.error}>{error}</Text>}
+      <View style={styles.passwordWrap}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder="Password"
+          secureTextEntry={!showPassword}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <Pressable
+          onPress={() => setShowPassword((v) => !v)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+          style={styles.eyeButton}
+        >
+          <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
+        </Pressable>
+      </View>
+      {emailInUse ? (
+        <View style={styles.inUseBox}>
+          <Text style={styles.inUseText}>An account already exists for this email.</Text>
+          <Text
+            style={styles.inUseLink}
+            onPress={() => navigation.navigate("Login", { prefillEmail: email })}
+          >
+            Sign in instead
+          </Text>
+          <Text
+            style={styles.inUseLink}
+            onPress={() => navigation.navigate("Login", { prefillEmail: email, mode: "forgotPassword" })}
+          >
+            Reset your password
+          </Text>
+        </View>
+      ) : (
+        error && <Text style={styles.error}>{error}</Text>
+      )}
       <PrimaryButton onPress={submit} disabled={busy} style={{ width: "100%", marginTop: 8 }}>
         {busy ? "Creating account…" : "CREATE ACCOUNT"}
       </PrimaryButton>
@@ -47,6 +95,21 @@ const styles = StyleSheet.create({
   logo: { width: 72, height: 72, alignSelf: "center", marginBottom: 8 },
   title: { fontWeight: "800", fontSize: 22, color: theme.color.text, textAlign: "center", marginBottom: 24 },
   input: { backgroundColor: "#fff", borderWidth: 1, borderColor: theme.color.border, borderRadius: theme.radius.sm, padding: 14, marginBottom: 12, fontSize: 15 },
+  passwordWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.sm,
+    marginBottom: 12,
+  },
+  passwordInput: { flex: 1, padding: 14, fontSize: 15 },
+  eyeButton: { paddingHorizontal: 14, paddingVertical: 14 },
+  eyeText: { color: theme.color.blue, fontWeight: "600", fontSize: 13 },
   error: { color: theme.color.danger, fontSize: 13, marginBottom: 8 },
   link: { textAlign: "center", marginTop: 18, color: theme.color.blue, fontWeight: "600" },
+  inUseBox: { backgroundColor: theme.color.dangerBg, borderRadius: theme.radius.sm, padding: 12, marginBottom: 8 },
+  inUseText: { color: theme.color.danger, fontSize: 13, marginBottom: 6 },
+  inUseLink: { color: theme.color.danger, fontSize: 13, fontWeight: "700", textDecorationLine: "underline", marginTop: 2 },
 });

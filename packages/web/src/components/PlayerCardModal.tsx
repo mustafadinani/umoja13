@@ -1,46 +1,48 @@
 import { useState } from "react";
-import type { RosterEntry } from "@umoja/shared";
+import { computePlayerGameStats, computePlayerSuspension, suspensionReasonLabel, type RosterEntry } from "@umoja/shared";
 import { theme } from "../lib/theme";
-import { useMoments } from "../hooks/useData";
-import { Drawer, PrimaryButton } from "./ui";
+import { useGames, useMoments } from "../hooks/useData";
+import { CheckInStatusPill, Drawer, Pill, PrimaryButton, VerifiedBadge } from "./ui";
 import { Lightbox } from "./Lightbox";
 import { MomentUploadModal } from "./MomentUploadModal";
-
-const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
-  approved: { label: "✓ Cleared to play", color: theme.color.success, bg: theme.color.successBg },
-  pending_review: { label: "Pending review", color: theme.color.warning, bg: theme.color.warningBg },
-  admin_review: { label: "Under admin review", color: theme.color.warning, bg: theme.color.warningBg },
-  rejected: { label: "Not cleared", color: theme.color.danger, bg: theme.color.dangerBg },
-  not_started: { label: "Check-in not started", color: theme.color.textMuted, bg: theme.color.bg },
-};
 
 export function PlayerCardModal({
   player,
   teamId,
   teamName,
+  /** Scoped to one game (Game Day) — leave undefined on the Team roster tab, where there's no single game to check it against. Mirrors RosterTile's own rule. */
+  rosterChecked,
   onClose,
 }: {
   player: RosterEntry;
   teamId: string;
   teamName: string;
+  rosterChecked?: boolean;
   onClose: () => void;
 }) {
-  const status = STATUS_LABEL[player.checkInStatus] ?? STATUS_LABEL.not_started;
   const { data: moments } = useMoments();
-  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(player.userId)).sort((a, b) => b.createdAt - a.createdAt);
+  const { data: games } = useGames();
+  // playerKey, not the bare userId — moments are tagged per-child now.
+  const playerKey = player.playerKey ?? player.userId;
+  const playerMoments = moments.filter((m) => m.playerTagUids?.includes(playerKey)).sort((a, b) => b.createdAt - a.createdAt);
+  const stats = computePlayerGameStats(games, teamId, playerKey);
+  const suspension = computePlayerSuspension(games, teamId, playerKey);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
 
   return (
     <Drawer onClose={onClose}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {player.selfieUrl ? (
-          <img src={player.selfieUrl} alt={player.displayName} style={{ width: 140, height: 140, borderRadius: "50%", objectFit: "cover", marginBottom: 14 }} />
-        ) : (
-          <div style={{ width: 140, height: 140, borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: 40 }}>{player.displayName.slice(0, 2).toUpperCase()}</span>
-          </div>
-        )}
+        <div style={{ position: "relative", width: 140, height: 140, marginBottom: 14 }}>
+          {player.selfieUrl ? (
+            <img src={player.selfieUrl} alt={player.displayName} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: 40 }}>{player.displayName.slice(0, 2).toUpperCase()}</span>
+            </div>
+          )}
+          {player.checkInStatus === "approved" && <VerifiedBadge size={36} />}
+        </div>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 22, textAlign: "center" }}>
           {player.displayName}{player.isCaptain ? " (C)" : ""}
         </div>
@@ -48,20 +50,30 @@ export function PlayerCardModal({
           {teamName} · #{player.jerseyNumber ?? "—"}
         </div>
 
-        <div style={{ background: status.bg, color: status.color, fontWeight: 700, fontSize: 13, padding: "8px 16px", borderRadius: 99, marginBottom: 14 }}>
-          {status.label}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", justifyContent: "center" }}>
+          <CheckInStatusPill status={player.checkInStatus} />
+          {player.checkInStatus === "approved" && rosterChecked !== undefined && (
+            <Pill bg={rosterChecked ? theme.color.successBg : theme.color.warningBg} fg={rosterChecked ? theme.color.success : theme.color.warning}>
+              {rosterChecked ? "Cleared to play" : "Ref check pending"}
+            </Pill>
+          )}
+          {suspension.suspended && (
+            <Pill bg={theme.color.dangerBg} fg={theme.color.danger}>
+              🚫 Suspended next game{suspension.reason ? ` · ${suspensionReasonLabel(suspension.reason)}` : ""}
+            </Pill>
+          )}
         </div>
 
-        {(player.goals > 0 || player.assists > 0) && (
-          <div style={{ display: "flex", gap: 24, marginBottom: 14 }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{player.goals}</div>
-              <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2 }}>Goals</div>
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: 22 }}>{player.assists}</div>
-              <div style={{ fontSize: 11, color: theme.color.textMuted, marginTop: 2 }}>Assists</div>
-            </div>
+        <div style={{ display: "flex", width: "100%", gap: 8, marginBottom: 14 }}>
+          <StatBox icon="⚽" value={stats.gamesPlayed} label="Games" />
+          <StatBox icon="🟨" value={stats.yellowCards} label="Yellow" />
+          <StatBox icon="🟥" value={stats.redCards} label="Red" />
+          <StatBox icon="★" value={stats.motmCount} label="Player of the Game" />
+        </div>
+
+        {player.lineOfWork && (
+          <div style={{ width: "100%", background: "#F7F6F3", borderRadius: theme.radius.sm, padding: "0 12px", marginBottom: 14 }}>
+            <FactRow label="Profession" value={player.lineOfWork} />
           </div>
         )}
 
@@ -76,7 +88,7 @@ export function PlayerCardModal({
         )}
 
         <div style={{ width: "100%" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 15 }}>MOMENTS</div>
             {playerMoments.length > 0 && (
               <div onClick={() => setAddMomentOpen(true)} style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 700, color: theme.color.purple }}>
@@ -95,10 +107,18 @@ export function PlayerCardModal({
               {playerMoments.map((m) => (
                 <div
                   key={m.id}
-                  onClick={() => setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
-                  style={{ borderRadius: 8, overflow: "hidden", cursor: "pointer", border: `1px solid ${theme.color.border}` }}
+                  onClick={() => m.mediaType !== "embed" && setLightbox({ src: m.mediaUrl, mediaType: m.mediaType })}
+                  style={{ borderRadius: 8, overflow: "hidden", cursor: m.mediaType === "embed" ? "default" : "pointer", border: `1px solid ${theme.color.border}` }}
                 >
-                  {m.mediaType === "video" ? (
+                  {m.mediaType === "embed" ? (
+                    <iframe
+                      src={m.mediaUrl}
+                      style={{ width: "100%", height: 90, border: "none" }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      title={m.caption}
+                    />
+                  ) : m.mediaType === "video" ? (
                     <video src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} />
                   ) : (
                     <img src={m.mediaUrl} style={{ width: "100%", height: 90, objectFit: "cover" }} alt={m.caption} />
@@ -114,9 +134,27 @@ export function PlayerCardModal({
         <MomentUploadModal
           onClose={() => setAddMomentOpen(false)}
           initialTeamTagIds={[teamId]}
-          initialPlayerTagUids={[player.userId]}
+          initialPlayerTagUids={[playerKey]}
         />
       )}
     </Drawer>
+  );
+}
+
+function StatBox({ icon, value, label }: { icon: string; value: number; label: string }) {
+  return (
+    <div style={{ flex: 1, textAlign: "center", background: "#F7F6F3", borderRadius: theme.radius.sm, padding: "10px 4px" }}>
+      <div style={{ fontWeight: 800, fontSize: 18 }}>{value}</div>
+      <div style={{ fontSize: 10, color: theme.color.textMuted, marginTop: 2, fontWeight: 700, textTransform: "uppercase" }}>{icon} {label}</div>
+    </div>
+  );
+}
+
+function FactRow({ label, value, borderTop }: { label: string; value: string; borderTop?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: borderTop ? `1px solid ${theme.color.border}` : "none", fontSize: 12.5 }}>
+      <span style={{ color: theme.color.textMuted }}>{label}</span>
+      <span style={{ fontWeight: 600 }}>{value}</span>
+    </div>
   );
 }

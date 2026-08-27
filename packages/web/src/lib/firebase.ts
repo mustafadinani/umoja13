@@ -19,6 +19,8 @@ const useEmulators = import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true";
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {}, firestoreDatabaseId);
+/** Outreach / registration data (teamsRegistered, playersRegistered) lives on the project's default DB. */
+export const defaultDb = initializeFirestore(app, {}, "(default)");
 export const storage = getStorage(app, storageBucketUrl);
 
 if (useEmulators) {

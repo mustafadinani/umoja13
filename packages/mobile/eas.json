@@ -6,6 +6,7 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -23,6 +24,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDNMLAbAMYC7b3QzcqSFT8Cx2pRApqAOyQ",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "umoja-app.firebaseapp.com",

@@ -4,8 +4,8 @@ import {
   COLLECTIONS,
   CATEGORIES,
   type Category,
-  type Team,
   type Game,
+  type GameScorers,
   type Moment,
   type Announcement,
   type Sponsor,
@@ -14,15 +14,25 @@ import {
   type HuntSubmission,
   type Notification,
   type CheckIn,
+  type RosterCheckIn,
   type TournamentPass,
   type Challenge,
   type ChallengeSubmission,
   type VolunteerTask,
+  type VolunteerApplication,
   type TeamChannel,
   type ChannelRole,
   type RoleChannel,
+  type UserChannel,
+  type Pod,
+  type PodChannel,
+  type PodTask,
+  type HuntConfig,
+  HUNT_CONFIG_DOC_ID,
+  type Incident,
 } from "@umoja/shared";
 import { useCollection, useDocument } from "./firestore";
+import { useRegistrationTeam, useRegistrationTeams } from "./useRegistration";
 
 const CATEGORY_ORDER = new Map(CATEGORIES.map((c, i) => [c.id, i]));
 
@@ -39,15 +49,55 @@ export const useSponsors = () => useCollection<Sponsor>(COLLECTIONS.sponsors);
 export const useAnnouncements = () => useCollection<Announcement>(COLLECTIONS.announcements, [orderBy("postedAt", "desc")]);
 export const useHuntMissions = () => useCollection<HuntMission>(COLLECTIONS.huntMissions);
 
-export const useTeams = (categoryId?: string) =>
-  useCollection<Team>(COLLECTIONS.teams, categoryId ? [where("categoryId", "==", categoryId)] : []);
+/** The single admin-controlled switch that reveals The Hunt to everyone — see types/huntConfig.ts. */
+export const useHuntConfig = () => useDocument<HuntConfig>(COLLECTIONS.config, HUNT_CONFIG_DOC_ID);
 
-export const useTeam = (teamId: string | undefined) => useDocument<Team>(COLLECTIONS.teams, teamId);
+export const useIncidents = (constraints: QueryConstraint[] = []) =>
+  useCollection<Incident>(COLLECTIONS.incidents, [orderBy("createdAt", "desc"), ...constraints]);
+
+/** A filer's own cases — "My Reports" under Report an Issue — scoped so the query matches the incidents rule's per-doc filedByUid check. */
+export const useMyIncidents = (uid: string | undefined) =>
+  useIncidents(uid ? [where("filedByUid", "==", uid)] : []);
+
+export const useTeams = (categoryId?: string) => useRegistrationTeams(categoryId);
+
+export const useTeam = (teamId: string | undefined) => useRegistrationTeam(teamId);
 export const useTeamChannel = (teamId: string | undefined) => useDocument<TeamChannel>(COLLECTIONS.teamChannels, teamId);
 export const useRoleChannel = (role: ChannelRole) => useDocument<RoleChannel>(COLLECTIONS.roleChannels, role);
+export const useUserChannel = (uid: string | undefined) => useDocument<UserChannel>(COLLECTIONS.userChannels, uid);
+
+export const usePods = () => useCollection<Pod>(COLLECTIONS.pods);
+export const usePod = (podId: string | undefined) => useDocument<Pod>(COLLECTIONS.pods, podId);
+export const usePodChannel = (podId: string | undefined) => useDocument<PodChannel>(COLLECTIONS.podChannels, podId);
+
+/**
+ * Pods a uid belongs to — its own array-contains query, not a client filter
+ * over usePods()'s unscoped list. That unscoped list only succeeds for
+ * staff (the pods/{id} rule's non-staff branch is per-document, so
+ * Firestore rejects an unscoped list outright for anyone relying on it),
+ * so a plain fan/player pod member got silently zero pods back.
+ */
+export const useMyPods = (uid: string | undefined) =>
+  useCollection<Pod>(COLLECTIONS.pods, uid ? [where("memberUids", "array-contains", uid)] : []);
+
+export const useVolunteerTasksByPod = (podId: string | undefined) =>
+  useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, podId ? [where("podId", "==", podId)] : []);
+
+export const useGamesByPod = (podId: string | undefined) =>
+  useCollection<Game>(COLLECTIONS.games, podId ? [where("podId", "==", podId)] : []);
+
+/** No orderBy here on purpose — where(podId) + orderBy(createdAt) needs a composite index; sorted client-side in PodTaskList instead. */
+export const usePodTasksByPod = (podId: string | undefined) =>
+  useCollection<PodTask>(COLLECTIONS.podTasks, podId ? [where("podId", "==", podId)] : []);
+
+export const useMyPodTasks = (uid: string | undefined) =>
+  useCollection<PodTask>(COLLECTIONS.podTasks, uid ? [where("assigneeUid", "==", uid)] : []);
 
 export const useGames = (constraints: QueryConstraint[] = []) => useCollection<Game>(COLLECTIONS.games, constraints);
 export const useGame = (gameId: string | undefined) => useDocument<Game>(COLLECTIONS.games, gameId);
+
+/** Staff (or this game's assigned referee) only — see GameScorers' doc comment for why this is a separate collection from `games`. */
+export const useGameScorers = (gameId: string | undefined) => useDocument<GameScorers>(COLLECTIONS.gameScorers, gameId);
 
 export const useMoments = (approvedOnly = true) =>
   useCollection<Moment>(
@@ -74,6 +124,7 @@ export const useMyInvites = (email: string | undefined) =>
 
 export const useCheckIn = (checkInId: string) => useDocument<CheckIn>(COLLECTIONS.checkIns, checkInId);
 export const usePass = (checkInId: string) => useDocument<TournamentPass>(COLLECTIONS.tournamentPasses, checkInId);
+export const useRosterCheckIn = (id: string | undefined) => useDocument<RosterCheckIn>(COLLECTIONS.rosterCheckIns, id);
 
 export const useChallenges = () => useCollection<Challenge>(COLLECTIONS.challenges, [orderBy("createdAt", "desc")]);
 
@@ -94,3 +145,7 @@ export const useMyHuntSubmissions = (crewId: string | undefined) =>
 /** Shifts assigned to this volunteer. */
 export const useMyVolunteerTasks = (uid: string | undefined) =>
   useCollection<VolunteerTask>(COLLECTIONS.volunteerTasks, uid ? [where("assigneeUid", "==", uid)] : []);
+
+/** This account's own "Become a Volunteer" applications, so we can tell whether a specific kid's name has already applied. */
+export const useMyVolunteerApplications = (uid: string | undefined) =>
+  useCollection<VolunteerApplication>(COLLECTIONS.volunteerApplications, uid ? [where("filedByUid", "==", uid)] : []);

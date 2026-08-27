@@ -1,7 +1,5 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type {
-  ChatMessage,
-  ChatEscalationTopic,
   IncidentSource,
   ComplaintType,
   SponsorTier,
@@ -9,27 +7,15 @@ import type {
   TeamChannelMessage,
   ChannelRole,
   RoleChannelMessage,
+  UserChannelMessage,
+  VolunteerTaskMessage,
+  PodChannelMessage,
+  PodTaskMessage,
+  Pod,
 } from "@umoja/shared";
 import { app } from "./firebase";
 
 const functions = getFunctions(app);
-
-interface OcrResult {
-  readScore: string | null;
-  matchesConsole: boolean;
-  note: string;
-}
-
-// The backend only reads role/text off each transcript entry (see
-// packages/backend/functions/src/ai/chatAssistant.ts) — callers don't carry
-// a message id/createdAt on in-flight chat state, so callables shouldn't
-// require the full ChatMessage shape.
-type TranscriptEntry = Pick<ChatMessage, "role" | "text">;
-
-export const verifyCheckIn = httpsCallable<
-  { checkInId: string },
-  { status: "approved" | "rejected" | "admin_review"; reason?: string }
->(functions, "verifyCheckIn");
 
 export const adminReviewCheckIn = httpsCallable<
   { checkInId: string; decision: "approve" | "reject" | "nullify" | "restore" },
@@ -38,8 +24,13 @@ export const adminReviewCheckIn = httpsCallable<
 
 export const submitGameCard = httpsCallable<
   { gameId: string; photoUrl: string },
-  { status: "awaiting_commissioner"; ocr: OcrResult }
+  { status: "awaiting_commissioner" }
 >(functions, "submitGameCard");
+
+export const reopenGameCard = httpsCallable<
+  { gameId: string },
+  { status: "not_submitted" }
+>(functions, "reopenGameCard");
 
 export const fileIncident = httpsCallable<
   {
@@ -48,6 +39,10 @@ export const fileIncident = httpsCallable<
     filedByRole: string;
     complaintType?: ComplaintType;
     gameId?: string;
+    playerKey?: string;
+    playerName?: string;
+    playerTeamId?: string;
+    playerCategoryId?: string;
     text: string;
   },
   { id: string; caseNumber: string }
@@ -58,22 +53,34 @@ export const callItFinal = httpsCallable<{ gameId: string }, { status: "final" }
   "callItFinal"
 );
 
-export const askUmoja = httpsCallable<
-  { transcript: TranscriptEntry[]; message: string },
-  { reply: string }
->(functions, "askUmoja");
+export const askUmojaChannel = httpsCallable<
+  { text: string },
+  { reply: string; message: UserChannelMessage }
+>(functions, "askUmojaChannel");
 
-export const escalateChat = httpsCallable<
-  { transcript: TranscriptEntry[]; topic: ChatEscalationTopic; message: string },
-  { ticketNumber: string }
->(functions, "escalateChat");
+export const createReportFeeIntent = httpsCallable<
+  Record<string, never>,
+  { clientSecret: string; paymentIntentId: string; publishableKey: string; amountCents: number }
+>(functions, "createReportFeeIntent");
 
-export const createComplaintCheckout = httpsCallable<
-  { incidentId: string; successUrl: string; cancelUrl: string },
-  { checkoutUrl: string | null }
->(functions, "createComplaintCheckout");
+export const filePaidReport = httpsCallable<
+  {
+    text: string;
+    filedByName: string;
+    filedByRole: string;
+    paymentIntentId: string;
+    source?: "fan_message" | "captain_complaint";
+    complaintType?: ComplaintType;
+    gameId?: string;
+    playerKey?: string;
+    playerName?: string;
+    playerTeamId?: string;
+    playerCategoryId?: string;
+  },
+  { id: string; caseNumber: string; stripeConfirmationId: string }
+>(functions, "filePaidReport");
 
-export const createSponsorshipCheckout = httpsCallable<
+export const createSponsorshipIntent = httpsCallable<
   {
     tierId: SponsorTier;
     donorType: SponsorshipDonorType;
@@ -83,11 +90,14 @@ export const createSponsorshipCheckout = httpsCallable<
     companyLogoUrl?: string;
     customNote?: string;
     customAmountCents?: number;
-    successUrl: string;
-    cancelUrl: string;
   },
-  { checkoutUrl: string | null; orderId: string }
->(functions, "createSponsorshipCheckout");
+  { clientSecret: string; paymentIntentId: string; publishableKey: string; orderId: string; amountCents: number }
+>(functions, "createSponsorshipIntent");
+
+export const confirmSponsorshipPayment = httpsCallable<
+  { orderId: string; paymentIntentId: string },
+  { orderId: string; status: "paid" }
+>(functions, "confirmSponsorshipPayment");
 
 export const setUserRole = httpsCallable<
   { targetUid: string; roles: string[]; primaryRole: string },
@@ -110,11 +120,93 @@ export const registerPushToken = httpsCallable<{ token: string | null }, { ok: t
 );
 
 export const sendTeamMessage = httpsCallable<
-  { teamId: string; text: string },
+  { teamId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: TeamChannelMessage }
 >(functions, "sendTeamMessage");
 
 export const sendRoleMessage = httpsCallable<
-  { role: ChannelRole; text: string },
+  { role: ChannelRole; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
   { message: RoleChannelMessage }
 >(functions, "sendRoleMessage");
+
+export const sendUserMessage = httpsCallable<
+  { targetUid?: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
+  { message: UserChannelMessage }
+>(functions, "sendUserMessage");
+
+export const markChannelRead = httpsCallable<
+  { kind: "user" | "team" | "role" | "pod"; id: string },
+  { ok: true }
+>(functions, "markChannelRead");
+
+export const sendVolunteerTaskMessage = httpsCallable<
+  { taskId: string; text: string },
+  { message: VolunteerTaskMessage }
+>(functions, "sendVolunteerTaskMessage");
+
+export const sendPodTaskMessage = httpsCallable<
+  { taskId: string; text: string },
+  { message: PodTaskMessage }
+>(functions, "sendPodTaskMessage");
+
+export const sendPodMessage = httpsCallable<
+  { podId: string; text?: string; mediaUrl?: string; mediaType?: "photo" | "video" },
+  { message: PodChannelMessage }
+>(functions, "sendPodMessage");
+
+export const listOpenPods = httpsCallable<
+  Record<string, never>,
+  { pods: { id: string; name: string; memberCount: number }[] }
+>(functions, "listOpenPods");
+
+export const joinPod = httpsCallable<{ podId: string }, { ok: true }>(functions, "joinPod");
+
+/** Staff-only full roster replace — also used from mobile to remove a member (staff can't self-serve-recruit-only like a volunteer pod member can). */
+export const updatePod = httpsCallable<
+  { podId: string; name?: string; fields?: string[]; memberUids?: string[]; visibility?: Pod["visibility"] },
+  { ok: true }
+>(functions, "updatePod");
+
+export const getPodMemberNames = httpsCallable<
+  { podId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getPodMemberNames");
+
+export const getRecruitableVolunteers = httpsCallable<
+  { podId: string },
+  { candidates: { uid: string; displayName: string }[] }
+>(functions, "getRecruitableVolunteers");
+
+export const addPodVolunteer = httpsCallable<{ podId: string; uidToAdd: string }, { ok: true }>(
+  functions,
+  "addPodVolunteer"
+);
+
+export const lookupUserByEmail = httpsCallable<
+  { email: string },
+  { user: { uid: string; email: string; displayName: string } | null }
+>(functions, "lookupUserByEmail");
+
+export const setJerseyNumber = httpsCallable<
+  { teamId: string; playerKey: string; categoryId: string; jerseyNumber: number | null },
+  { ok: true }
+>(functions, "setJerseyNumber");
+
+export const syncMyRoleClaims = httpsCallable<void, { roles: string[] }>(functions, "syncMyRoleClaims");
+
+export const assignTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string; targetUid: string }
+  | { teamId: string; kind: "manager_coach"; email: string },
+  { ok: true; uid?: string }
+>(functions, "assignTeamOfficial");
+
+export const removeTeamOfficial = httpsCallable<
+  | { teamId: string; kind: "captain"; categoryId: string; playerKey: string }
+  | { teamId: string; kind: "manager_coach"; uid: string },
+  { ok: true }
+>(functions, "removeTeamOfficial");
+
+export const getTeamOfficialNames = httpsCallable<
+  { teamId: string },
+  { members: { uid: string; displayName: string }[] }
+>(functions, "getTeamOfficialNames");

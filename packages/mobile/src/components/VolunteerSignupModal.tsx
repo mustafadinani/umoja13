@@ -2,21 +2,24 @@ import { useState } from "react";
 import { View, Text, TextInput } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
-import { db, storage } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
-export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (v: string) => EMAIL_RE.test(v.trim());
+const isValidPhone = (v: string) => v.replace(/\D/g, "").length >= 7;
+
+export function VolunteerSignupModal({ onClose, initialName }: { onClose: () => void; initialName?: string }) {
   const { user, profile } = useAuth();
   const { data: categories } = useCategories();
-  const [name, setName] = useState(profile?.displayName ?? "");
+  const [name, setName] = useState(initialName ?? profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -24,6 +27,7 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   function toggleDay(day: string) {
@@ -37,26 +41,29 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
     if (!result.canceled && result.assets[0]) setSelfieUri(result.assets[0].uri);
   }
 
+  const formValid = !!name.trim() && isValidEmail(email) && isValidPhone(phone) && availability.length > 0;
+
   async function submit() {
-    if (!user || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0) return;
+    if (!user || !formValid) return;
     setBusy(true);
     setError(null);
     try {
+      // The photo is genuinely optional — a failed upload (bad connection,
+      // etc.) shouldn't block the whole application. Fall back to
+      // submitting without it instead of throwing.
       let selfieUrl: string | undefined;
       if (selfieUri) {
-        const response = await fetch(selfieUri);
-        const blob = await response.blob();
-        const path = `volunteers/${user.uid}/${Date.now()}.jpg`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-        selfieUrl = await getDownloadURL(storageRef);
+        try {
+          selfieUrl = await uploadPickedPhoto(selfieUri, `volunteers/${user.uid}/${Date.now()}.jpg`);
+        } catch {
+          setPhotoWarning("Couldn't upload your photo, so we submitted your application without it.");
+        }
       }
 
       await addDoc(collection(db, COLLECTIONS.volunteerApplications), {
         name,
         email,
         phone,
-        emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
         ...(categoryId ? { categoryId } : {}),
@@ -82,6 +89,9 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
           <Text style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6, textAlign: "center" }}>
             An organizer will review your application and follow up with your shifts.
           </Text>
+          {photoWarning && (
+            <Text style={{ color: theme.color.warning, fontSize: 12.5, marginTop: 10, textAlign: "center" }}>{photoWarning}</Text>
+          )}
           <PrimaryButton style={{ marginTop: 18, width: "100%" }} onPress={onClose}>DONE</PrimaryButton>
         </View>
       </Modal>
@@ -96,9 +106,21 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
       </Text>
 
       <Field label="Full name" value={name} onChangeText={setName} />
-      <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-      <Field label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-      <Field label="Emergency contact (name & phone)" value={emergencyContact} onChangeText={setEmergencyContact} />
+      <Field
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        error={email.trim().length > 0 && !isValidEmail(email) ? "Enter a valid email address." : undefined}
+      />
+      <Field
+        label="Phone"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+        error={phone.trim().length > 0 && !isValidPhone(phone) ? "Enter a valid phone number." : undefined}
+      />
 
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>Available days</Text>
       <View style={{ flexDirection: "row", gap: 6, marginBottom: 14 }}>
@@ -137,11 +159,7 @@ export function VolunteerSignupModal({ onClose }: { onClose: () => void }) {
       )}
 
       {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginBottom: 10 }}>{error}</Text>}
-      <PrimaryButton
-        disabled={busy || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0}
-        onPress={submit}
-        style={{ width: "100%" }}
-      >
+      <PrimaryButton disabled={busy || !formValid} onPress={submit} style={{ width: "100%" }}>
         {busy ? "Submitting…" : "SUBMIT APPLICATION"}
       </PrimaryButton>
     </Modal>
@@ -154,23 +172,29 @@ function Field({
   onChangeText,
   keyboardType,
   autoCapitalize,
+  helper,
+  error,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   keyboardType?: "default" | "email-address" | "phone-pad";
   autoCapitalize?: "none" | "sentences";
+  helper?: string;
+  error?: string;
 }) {
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={{ fontWeight: "700", fontSize: 13, marginBottom: 6 }}>{label}</Text>
+      {helper && <Text style={{ color: theme.color.textMuted, fontSize: 12, marginBottom: 6 }}>{helper}</Text>}
       <TextInput
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
-        style={{ borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 }}
+        style={{ borderWidth: 1, borderColor: error ? theme.color.danger : theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 }}
       />
+      {error && <Text style={{ color: theme.color.danger, fontSize: 11.5, marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }

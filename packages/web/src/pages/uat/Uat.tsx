@@ -6,7 +6,21 @@ import { useAuth } from "../../auth/AuthProvider";
 import { useCollection } from "../../hooks/firestore";
 import { theme } from "../../lib/theme";
 import { Card, PrimaryButton, Pill } from "../../components/ui";
-import { UAT_SECTIONS, UAT_SCENARIOS, UAT_DEMO_ACCOUNTS, UAT_DEMO_PASSWORD, type UatScenario } from "./data";
+import {
+  UAT_SECTIONS,
+  UAT_SCENARIOS,
+  UAT_DEMO_ACCOUNTS,
+  UAT_DEMO_PASSWORD,
+  UAT_ROUNDS,
+  UAT_ROUND_2_CHANGES,
+  CURRENT_UAT_ROUND,
+  type UatScenario,
+} from "./data";
+
+/** Round 2+ scenario progress lives at a round-suffixed doc id so it never collides with the archived Round 1 doc (bare scenario.id). */
+function progressDocId(scenarioId: string, round: number) {
+  return round === 1 ? scenarioId : `${scenarioId}__v${round}`;
+}
 
 const SEVERITIES: { id: UatBugSeverity; label: string; color: string }[] = [
   { id: "critical", label: "Critical — blocks testing", color: theme.color.danger },
@@ -26,9 +40,13 @@ const inputStyle: React.CSSProperties = {
 function ScenarioCard({
   scenario,
   progress,
+  round,
+  readOnly,
 }: {
   scenario: UatScenario;
   progress: UatScenarioProgress | undefined;
+  round: number;
+  readOnly: boolean;
 }) {
   const { user, profile } = useAuth();
   const [notesDraft, setNotesDraft] = useState(progress?.notes ?? "");
@@ -41,11 +59,12 @@ function ScenarioCard({
   const done = progress?.done ?? false;
 
   async function toggleDone(checked: boolean) {
-    if (!user) return;
+    if (!user || readOnly) return;
     await setDoc(
-      doc(db, COLLECTIONS.uatScenarios, scenario.id),
+      doc(db, COLLECTIONS.uatScenarios, progressDocId(scenario.id, round)),
       {
         id: scenario.id,
+        round,
         done: checked,
         doneByUid: user.uid,
         doneByName: profile?.displayName ?? "Someone",
@@ -57,10 +76,10 @@ function ScenarioCard({
   }
 
   async function saveNotes() {
-    if (!user) return;
+    if (!user || readOnly) return;
     await setDoc(
-      doc(db, COLLECTIONS.uatScenarios, scenario.id),
-      { id: scenario.id, notes: notesDraft, updatedAt: Date.now() },
+      doc(db, COLLECTIONS.uatScenarios, progressDocId(scenario.id, round)),
+      { id: scenario.id, round, notes: notesDraft, updatedAt: Date.now() },
       { merge: true }
     );
   }
@@ -77,18 +96,19 @@ function ScenarioCard({
         transition: "opacity 120ms ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <input
           type="checkbox"
           checked={done}
+          disabled={readOnly}
           onChange={(e) => toggleDone(e.target.checked)}
           aria-label={`Mark ${scenario.id} complete`}
-          style={{ width: 20, height: 20, marginTop: 2, accentColor: theme.color.success, cursor: "pointer", flexShrink: 0 }}
+          style={{ width: 20, height: 20, marginTop: 2, accentColor: theme.color.success, cursor: readOnly ? "default" : "pointer", flexShrink: 0 }}
         />
         <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 700, color: theme.color.purple, background: theme.color.purpleLight + "33", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>
           {scenario.id}
         </span>
-        <span style={{ fontWeight: 800, fontSize: 15.5, flex: 1 }}>{scenario.title}</span>
+        <span style={{ fontWeight: 800, fontSize: 15.5, flex: 1, minWidth: 120 }}>{scenario.title}</span>
         <span style={{ fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, padding: "3px 8px", borderRadius: 99, background: "#F7F6F3", color: theme.color.textMuted, border: `1px solid ${theme.color.border}`, whiteSpace: "nowrap" }}>
           {scenario.platform}
         </span>
@@ -112,6 +132,7 @@ function ScenarioCard({
           type="text"
           placeholder="Notes…"
           value={notesDraft}
+          disabled={readOnly}
           onChange={(e) => setNotesDraft(e.target.value)}
           onBlur={saveNotes}
           style={{ width: "100%", border: "none", background: "transparent", borderBottom: `1px solid ${theme.color.border}`, padding: "4px 0", fontSize: 13.5, fontFamily: "inherit" }}
@@ -141,6 +162,7 @@ function BugReportForm({ onFiled }: { onFiled: () => void }) {
     setSubmitting(true);
     try {
       await addDoc(collection(db, COLLECTIONS.uatBugs), {
+        round: CURRENT_UAT_ROUND,
         title: title.trim(),
         scenarioId: scenarioId.trim(),
         platform: platform.trim(),
@@ -244,6 +266,7 @@ function SignoffForm({ onSubmitted }: { onSubmitted: () => void }) {
     setSubmitting(true);
     try {
       await addDoc(collection(db, COLLECTIONS.uatSignoffs), {
+        round: CURRENT_UAT_ROUND,
         testerName: testerName.trim(),
         platformsTested: platformsTested.trim(),
         scenariosCompleted: scenariosCompleted.trim(),
@@ -272,17 +295,25 @@ function SignoffForm({ onSubmitted }: { onSubmitted: () => void }) {
 }
 
 export function Uat() {
+  const [viewRound, setViewRound] = useState(CURRENT_UAT_ROUND);
+  const readOnly = viewRound !== CURRENT_UAT_ROUND;
+
   const { data: progressDocs } = useCollection<UatScenarioProgress>(COLLECTIONS.uatScenarios);
   const { data: bugs } = useCollection<UatBugReport>(COLLECTIONS.uatBugs, [orderBy("createdAt", "desc")]);
   const { data: signoffs } = useCollection<UatSignoff>(COLLECTIONS.uatSignoffs, [orderBy("createdAt", "desc")]);
 
   const progressById = useMemo(() => {
     const map: Record<string, UatScenarioProgress & { id: string }> = {};
-    progressDocs.forEach((d) => { map[d.id] = d; });
+    progressDocs.forEach((d) => {
+      if ((d.round ?? 1) === viewRound) map[d.id] = d;
+    });
     return map;
-  }, [progressDocs]);
+  }, [progressDocs, viewRound]);
 
-  const doneCount = progressDocs.filter((d) => d.done).length;
+  const roundBugs = useMemo(() => bugs.filter((b) => (b.round ?? 1) === viewRound), [bugs, viewRound]);
+  const roundSignoffs = useMemo(() => signoffs.filter((s) => (s.round ?? 1) === viewRound), [signoffs, viewRound]);
+
+  const doneCount = Object.values(progressById).filter((d) => d.done).length;
 
   return (
     <div style={{ maxWidth: 780, margin: "0 auto", padding: "0 20px 96px" }}>
@@ -294,6 +325,42 @@ export function Uat() {
         <p style={{ color: theme.color.textMuted, fontSize: 15, margin: "0 0 18px", maxWidth: "60ch" }}>
           Live, shared with every tester — checkmarks, notes, bugs, and sign-offs sync in real time for everyone signed in.
         </p>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+          {UAT_ROUNDS.map((r) => (
+            <button
+              key={r.round}
+              type="button"
+              onClick={() => setViewRound(r.round)}
+              style={{
+                fontSize: 12.5, fontWeight: 800, padding: "7px 14px", borderRadius: 999, cursor: "pointer",
+                border: `1px solid ${theme.color.purple}66`,
+                background: viewRound === r.round ? theme.color.purple : "transparent",
+                color: viewRound === r.round ? "#fff" : theme.color.purple,
+              }}
+            >
+              {r.label}{r.status === "archived" ? " (read-only)" : ""}
+            </button>
+          ))}
+        </div>
+
+        {readOnly && (
+          <div style={{ background: "#F7F6F3", border: `1px solid ${theme.color.border}`, borderRadius: 12, padding: "12px 16px", marginBottom: 18, fontSize: 13.5, color: theme.color.textMuted }}>
+            You're viewing an archived round, captured for reference. Checkmarks and notes here are frozen — switch to the current round to log new testing.
+          </div>
+        )}
+
+        {!readOnly && (
+          <div style={{ background: theme.color.purpleLight + "22", borderRadius: 12, padding: "16px 18px", marginBottom: 18 }}>
+            <p style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", color: theme.color.purple, margin: "0 0 8px" }}>What's new since Round 1</p>
+            <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
+              {UAT_ROUND_2_CHANGES.map((c) => (
+                <li key={c} style={{ marginBottom: 4 }}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <strong style={{ fontSize: 15 }}>{doneCount} / {UAT_SCENARIOS.length} scenarios checked</strong>
         </div>
@@ -302,9 +369,8 @@ export function Uat() {
       <section style={{ margin: "32px 0" }}>
         <h2 style={{ fontFamily: theme.font.display, fontSize: 22, fontWeight: 900, margin: "0 0 12px" }}>Before You Start</h2>
         <div style={{ background: theme.color.warningBg, borderRadius: 12, padding: "16px 18px", marginBottom: 16 }}>
-          <p style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", color: theme.color.warning, margin: "0 0 8px" }}>⚠ Two known gaps — don't file these as bugs</p>
+          <p style={{ fontWeight: 800, fontSize: 13.5, textTransform: "uppercase", color: theme.color.warning, margin: "0 0 8px" }}>⚠ One known gap — don't file this as a bug</p>
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14.5 }}>
-            <li style={{ marginBottom: 6 }}><strong>Check-in ID verification</strong> uses a real AI vision model, but the production API key isn't wired up in this build yet — every check-in ends in an error at the final step. Please still test up through submission.</li>
             <li><strong>Captain complaint payments</strong>: Stripe checkout works end-to-end, but the webhook that syncs payment status back isn't fully wired up yet.</li>
           </ul>
         </div>
@@ -330,7 +396,7 @@ export function Uat() {
             </h2>
             <p style={{ color: theme.color.textMuted, fontSize: 14.5, margin: "0 0 20px", maxWidth: "65ch" }}>{section.desc}</p>
             {scenarios.map((s) => (
-              <ScenarioCard key={s.id} scenario={s} progress={progressById[s.id]} />
+              <ScenarioCard key={s.id} scenario={s} progress={progressById[s.id]} round={viewRound} readOnly={readOnly} />
             ))}
           </section>
         );
@@ -339,17 +405,17 @@ export function Uat() {
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontFamily: theme.font.display, fontSize: 22, fontWeight: 900, margin: "0 0 6px" }}>Report a Bug</h2>
         <p style={{ color: theme.color.textMuted, fontSize: 14.5, margin: "0 0 20px" }}>Every bug filed here is visible to the whole team below.</p>
-        <BugReportForm onFiled={() => {}} />
+        {!readOnly && <BugReportForm onFiled={() => {}} />}
         <div style={{ marginTop: 20 }}>
-          <BugList bugs={bugs} />
+          <BugList bugs={roundBugs} />
         </div>
       </section>
 
       <section>
         <h2 style={{ fontFamily: theme.font.display, fontSize: 22, fontWeight: 900, margin: "0 0 16px" }}>Tester Sign-off</h2>
-        <SignoffForm onSubmitted={() => {}} />
+        {!readOnly && <SignoffForm onSubmitted={() => {}} />}
         <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-          {signoffs.map((s) => (
+          {roundSignoffs.map((s) => (
             <Card key={s.id}>
               <strong style={{ fontSize: 15 }}>{s.testerName}</strong>
               <p style={{ fontSize: 13.5, margin: "6px 0 0" }}>{s.platformsTested} · {s.scenariosCompleted} · {s.bugsFiled} bugs filed</p>

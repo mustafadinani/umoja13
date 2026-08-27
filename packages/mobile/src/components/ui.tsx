@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, TouchableOpacity, Modal as RNModal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, type ViewStyle } from "react-native";
+import {
+  checkInStatusLabel,
+  checkInStatusTone,
+  incidentStatusLabel,
+  incidentStatusTone,
+  type CheckInStatus,
+  type IncidentStatus,
+} from "@umoja/shared";
 import { theme } from "../lib/theme";
 
 export function Card({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
@@ -48,13 +56,15 @@ export function PrimaryButton({
 export function Modal({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   return (
     <RNModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
-          <ScrollView contentContainerStyle={styles.modalCardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {children}
-          </ScrollView>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalCard} onPress={() => {}}>
+            <ScrollView contentContainerStyle={styles.modalCardContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {children}
+            </ScrollView>
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </KeyboardAvoidingView>
     </RNModal>
   );
 }
@@ -89,6 +99,32 @@ export function Drawer({
   );
 }
 
+/** Initials circle for a person — the one avatar look used anywhere a name needs a face-shaped placeholder (pod rosters, member lists) without an actual photo on file. */
+export function Avatar({ name, size = 28, color }: { name: string; size?: number; color?: string }) {
+  const initials = name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color ?? theme.color.purple, alignItems: "center", justifyContent: "center" }}>
+      <Text style={{ color: "#fff", fontWeight: "700", fontSize: size * 0.4 }}>{initials}</Text>
+    </View>
+  );
+}
+
+/** Overlapping avatar row (a "who's here" glance) — caps how many render before collapsing the rest into a "+N" tail. */
+export function AvatarStack({ names, size = 20, colorFor, max = 4 }: { names: string[]; size?: number; colorFor?: (name: string) => string; max?: number }) {
+  const shown = names.slice(0, max);
+  const extra = names.length - shown.length;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      {shown.map((n, i) => (
+        <View key={n + i} style={{ marginLeft: i === 0 ? 0 : -size * 0.3, borderWidth: 2, borderColor: "#fff", borderRadius: size / 2 }}>
+          <Avatar name={n} size={size} color={colorFor?.(n)} />
+        </View>
+      ))}
+      {extra > 0 && <Text style={{ fontSize: 10.5, color: theme.color.textMuted, marginLeft: 5 }}>+{extra}</Text>}
+    </View>
+  );
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; fg: string; label: string }> = {
     scheduled: { bg: "#F1EFF5", fg: theme.color.textMuted, label: "Upcoming" },
@@ -98,6 +134,61 @@ export function StatusBadge({ status }: { status: string }) {
   };
   const s = map[status] ?? { bg: "#F1EFF5", fg: theme.color.textMuted, label: status };
   return <Pill bg={s.bg} fg={s.fg}>{s.label}</Pill>;
+}
+
+/** Shared bg/fg pair per semantic tone — backs both CheckInStatusPill and IncidentStatusPill so the same tone always reads the same color anywhere in the app. */
+const TONE_COLORS: Record<"success" | "warning" | "muted" | "danger", { fg: string; bg: string }> = {
+  success: { fg: theme.color.success, bg: theme.color.successBg },
+  warning: { fg: theme.color.warning, bg: theme.color.warningBg },
+  muted: { fg: theme.color.textMuted, bg: theme.color.bg },
+  danger: { fg: theme.color.danger, bg: theme.color.dangerBg },
+};
+
+/**
+ * Diagonal "VERIFIED" ribbon across the corner of a player's photo — the one
+ * visual for "this identity is confirmed," reused on the Tournament Pass and
+ * the player card so it means the same thing everywhere it shows up.
+ */
+export function VerifiedRibbon() {
+  return (
+    <View style={styles.verifiedRibbon}>
+      <Text style={styles.verifiedRibbonText}>VERIFIED</Text>
+    </View>
+  );
+}
+
+/** Small checkmark badge for compact avatars (roster rows) where a full ribbon won't fit — same green, same meaning, just scaled down. */
+export function VerifiedBadge({ size = 16 }: { size?: number }) {
+  return (
+    <View
+      style={[
+        styles.verifiedBadge,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      <Text style={{ color: "#fff", fontSize: size * 0.55, fontWeight: "900", lineHeight: size * 0.6 }}>✓</Text>
+    </View>
+  );
+}
+
+/** The one check-in status pill — same label vocabulary and colors (green/amber/muted) wherever a status needs to read as a chip rather than plain text. */
+export function CheckInStatusPill({ status }: { status: CheckInStatus | undefined }) {
+  const { fg, bg } = TONE_COLORS[checkInStatusTone(status)];
+  return (
+    <Pill bg={bg} fg={fg}>
+      {checkInStatusLabel(status)}
+    </Pill>
+  );
+}
+
+/** The one incident/case status pill — same tone vocabulary as CheckInStatusPill (Pending/Under review/Resolved/Denied). */
+export function IncidentStatusPill({ status }: { status: IncidentStatus }) {
+  const { fg, bg } = TONE_COLORS[incidentStatusTone(status)];
+  return (
+    <Pill bg={bg} fg={fg}>
+      {incidentStatusLabel(status)}
+    </Pill>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -184,5 +275,32 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: theme.color.border,
+  },
+  verifiedRibbon: {
+    position: "absolute",
+    top: 20,
+    right: -42,
+    width: 160,
+    transform: [{ rotate: "45deg" }],
+    backgroundColor: theme.color.success,
+    alignItems: "center",
+    paddingVertical: 5,
+  },
+  verifiedRibbonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "800",
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    backgroundColor: theme.color.success,
+    borderWidth: 2,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { where } from "firebase/firestore";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
-import { CATEGORIES } from "@umoja/shared";
+import { CATEGORIES, formatKickoffTime } from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useGames } from "../hooks/useData";
@@ -13,13 +13,14 @@ type Tab = "assignments" | "channel";
 
 export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
   const { user } = useAuth();
-  const { data: games } = useGames(user ? [where("refereeUid", "==", user.uid)] : []);
+  const { data: games } = useGames(user ? [where("refereeUids", "array-contains", user.uid)] : []);
   const [tab, setTab] = useState<Tab>("assignments");
 
   const sorted = [...games].sort((a, b) => (a.day + a.kickoffTime).localeCompare(b.day + b.kickoffTime));
   const gateNeeded = sorted.filter((g) => g.status !== "final" && g.status !== "forfeited" && !g.gateCheck?.completedAt);
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={styles.header}>
         <Text style={styles.title}>REFEREE</Text>
@@ -59,7 +60,7 @@ export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontWeight: "700" }}>{CATEGORIES.find((c) => c.id === g.categoryId)?.label ?? g.categoryId}</Text>
                     <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 2 }}>
-                      {g.day.toUpperCase()} · {g.field} · {g.kickoffTime}
+                      {g.day.toUpperCase()} · {g.field} · {formatKickoffTime(g.kickoffTime)}
                       {!g.gateCheck?.completedAt && g.status !== "final" && (
                         <Text style={{ color: theme.color.warning, fontWeight: "700" }}> · Gate check needed</Text>
                       )}
@@ -74,6 +75,7 @@ export function RefereeScreen({ navigation }: BottomTabScreenProps<any>) {
         </>
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,29 +1,53 @@
-import { useState } from "react";
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { doc, updateDoc } from "firebase/firestore";
-import { CATEGORIES, COLLECTIONS, type RosterEntry } from "@umoja/shared";
-import { db } from "../lib/firebase";
+import {
+  CATEGORIES,
+  COLLECTIONS,
+  MAX_TEAM_OFFICIALS,
+  OFFICIAL_KIND_LABELS,
+  TOURNAMENT_DAY_DATES,
+  computePlayerSuspension,
+  formatKickoffTime,
+  jerseyLockAt,
+  provisionalSideLabel,
+  type Game,
+  type OfficialKind,
+  type RosterEntry,
+  type Team,
+} from "@umoja/shared";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useGames, useMoments, useTeam, useTeamChannel } from "../hooks/useData";
-import { sendTeamMessage } from "../lib/callables";
+import { db } from "../lib/firebase";
+import { useGames, useMoments, useTeam, useTeamChannel, useTeams } from "../hooks/useData";
+import { assignTeamOfficial, getTeamOfficialNames, removeTeamOfficial, sendTeamMessage, setJerseyNumber } from "../lib/callables";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
 import { LoadingImage } from "../components/LoadingImage";
+import { RosterTile } from "../components/RosterTile";
 import { PlayerCardModal } from "../components/PlayerCardModal";
 import { Lightbox } from "../components/Lightbox";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { ChannelAttachButton } from "../components/ChannelAttachButton";
+import { ChannelAttachmentThumb } from "../components/ChannelAttachmentThumb";
+import type { ChannelAttachment } from "../lib/uploadChannelAttachment";
 
 type Tab = "roster" | "schedule" | "moments" | "channel";
+
+/** Short "SAT · AUG 15" tile label — day abbreviation always paired with its actual date. */
+function dayDateLabel(day: Game["day"]) {
+  return `${day.toUpperCase()} · ${TOURNAMENT_DAY_DATES[day].toUpperCase()}`;
+}
 
 export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootStackParamList, "Team">) {
   const { teamId } = route.params;
   const { profile } = useAuth();
-  const { data: team } = useTeam(teamId);
+  const { data: team, error: teamError } = useTeam(teamId);
   const { data: games } = useGames();
   const { data: moments } = useMoments();
   const { data: channel } = useTeamChannel(teamId);
+  const { data: teams } = useTeams();
   const [tab, setTab] = useState<Tab>("roster");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -32,45 +56,67 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
   const [lightbox, setLightbox] = useState<{ uri: string; mediaType: "photo" | "video" } | null>(null);
   const [addMomentOpen, setAddMomentOpen] = useState(false);
   const [channelDraft, setChannelDraft] = useState("");
+  const [channelAttachment, setChannelAttachment] = useState<ChannelAttachment | null>(null);
   const [sending, setSending] = useState(false);
+  const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
   if (!team) return <View style={{ flex: 1, backgroundColor: theme.color.bg }} />;
   const teamGames = games.filter((g) => g.homeTeamId === team.id || g.awayTeamId === team.id);
-  const rosterUids = new Set(team.roster.map((p) => p.userId));
+  // This team's own first scheduled game, not a single tournament-wide
+  // cutoff — see jerseyLockAt (types/game.ts) for the fallback when this
+  // team/category has no scheduled game yet.
+  const jerseyNumbersLocked = Date.now() >= jerseyLockAt(games, team.id, team.categoryId);
+  // playerKey, not the bare userId — a moment tagged to one sibling on a
+  // shared family account must not disappear just because it's checked
+  // against the account uid every sibling shares.
+  const rosterPlayerKeys = new Set(team.roster.map((p) => p.playerKey ?? p.userId));
   // Team moments plus any moment tagging a player on this roster — a fan
   // tagging just the player should still surface it here.
   const teamMoments = moments
-    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterUids.has(uid)))
+    .filter((m) => m.teamTagIds?.includes(team.id) || m.playerTagUids?.some((uid) => rosterPlayerKeys.has(uid)))
     .sort((a, b) => b.createdAt - a.createdAt);
-  const isCaptain = profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false;
+  // Real registration captain OR an admin-designated coach/manager
+  // (Team.coachManagerUids — see assignTeamOfficial). A coach/manager isn't
+  // necessarily a registered player themselves, so this can't come from
+  // playerOf the way isCaptain does — team.coachManagerUids is already
+  // merged onto this exact team object.
+  const isCaptain =
+    (profile?.playerOf?.some((m) => m.teamId === team.id && m.isCaptain) ?? false) ||
+    (!!profile?.uid && !!team.coachManagerUids?.includes(profile.uid));
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
-  const onRoster = profile ? rosterUids.has(profile.uid) : false;
+  // Account-level, not per-child — "am I on this roster at all" (posting to
+  // the team channel) is a family-account question, distinct from the
+  // per-child playerKey set used for moments above.
+  const onRoster = profile ? team.roster.some((p) => p.userId === profile.uid) : false;
   const canPostToChannel = isStaff || onRoster;
   const channelMessages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
   async function sendChannelMessage() {
-    if (!channelDraft.trim()) return;
+    if (!channelDraft.trim() && !channelAttachment) return;
     setSending(true);
     try {
-      await sendTeamMessage({ teamId: team!.id, text: channelDraft });
+      await sendTeamMessage({ teamId: team!.id, text: channelDraft, ...(channelAttachment ?? {}) });
       setChannelDraft("");
+      setChannelAttachment(null);
     } finally {
       setSending(false);
     }
   }
 
-  async function saveNumber(userId: string) {
+  async function saveNumber(playerKey: string) {
     const num = Number(draft);
-    if (!draft || Number.isNaN(num)) return setError("Enter a valid number.");
-    const dup = team!.roster.some((p) => p.userId !== userId && p.jerseyNumber === num);
-    if (dup) return setError("That number is already taken on this team.");
+    if (!draft || Number.isNaN(num) || num < 0 || num > 999) return setError("Enter a valid number (0–999).");
     setError(null);
-    const roster = team!.roster.map((p) => (p.userId === userId ? { ...p, jerseyNumber: num } : p));
-    await updateDoc(doc(db, COLLECTIONS.teams, team!.id), { roster });
-    setEditingUserId(null);
+    try {
+      await setJerseyNumber({ teamId: team!.id, playerKey, categoryId: team!.categoryId, jerseyNumber: num });
+      setEditingUserId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save that number.");
+    }
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <View style={[styles.header, { backgroundColor: team.color }]}>
         <Text style={styles.teamName}>{team.name}</Text>
@@ -87,59 +133,96 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
 
       {tab === "roster" && (
         <View style={styles.section}>
-          {team.roster.map((p) => (
-            <Card key={p.userId} onPress={() => setOpenPlayer(p)} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
-              {p.selfieUrl ? (
-                <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
-                </View>
-              )}
-              {isCaptain && editingUserId === p.userId ? (
-                <>
+          {team.roster.map((p) => {
+            const playerKey = p.playerKey ?? p.userId;
+            const locked = jerseyNumbersLocked;
+            if (isCaptain && editingUserId === playerKey) {
+              return (
+                <Card key={playerKey} style={{ marginBottom: 6, flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <View style={styles.avatarWrap}>
+                    {p.selfieUrl ? (
+                      <LoadingImage source={{ uri: p.selfieUrl }} style={styles.avatar} />
+                    ) : (
+                      <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                        <Text style={{ color: "#fff", fontWeight: "800", fontSize: 13 }}>{p.displayName.slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontWeight: "600", flex: 1 }} numberOfLines={1}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
                   <TextInput
                     autoFocus
                     value={draft}
-                    onChangeText={setDraft}
+                    onChangeText={(t) => setDraft(t.replace(/[^0-9]/g, "").slice(0, 3))}
                     keyboardType="number-pad"
                     style={styles.jerseyInput}
                   />
-                  <TouchableOpacity onPress={() => saveNumber(p.userId)} style={styles.saveBtn}>
+                  <TouchableOpacity onPress={() => saveNumber(playerKey)} style={styles.saveBtn}>
                     <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>Save</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditingUserId(null)}>
+                  <TouchableOpacity onPress={() => { setEditingUserId(null); setError(null); }}>
                     <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
                   </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  disabled={!isCaptain}
-                  onPress={() => { setEditingUserId(p.userId); setDraft(String(p.jerseyNumber ?? "")); setError(null); }}
-                >
-                  <Text style={{ fontWeight: "800", fontSize: 15, color: theme.color.purple, width: 34 }}>#{p.jerseyNumber ?? "—"}</Text>
-                </TouchableOpacity>
-              )}
-              <Text style={{ fontWeight: "600", flex: 1 }}>{p.displayName}{p.isCaptain ? " (C)" : ""}</Text>
-              <Text style={{ color: p.checkInStatus === "approved" ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 12 }}>
-                {p.checkInStatus === "approved" ? "Cleared" : "Pending"}
-              </Text>
-            </Card>
-          ))}
-          {team.roster.length === 0 && <Text style={{ color: theme.color.textMuted }}>Roster not published yet.</Text>}
+                </Card>
+              );
+            }
+            return (
+              <RosterTile
+                key={playerKey}
+                player={p}
+                onPress={() => setOpenPlayer(p)}
+                suspended={computePlayerSuspension(games, team.id, playerKey).suspended}
+                onJerseyPress={isCaptain ? () => { setEditingUserId(playerKey); setDraft(String(p.jerseyNumber ?? "")); setError(null); } : undefined}
+                jerseyLocked={locked}
+              />
+            );
+          })}
+          {team.roster.length === 0 && (
+            <Text style={{ color: theme.color.textMuted }}>
+              {teamError
+                ? `Couldn't load players: ${teamError}`
+                : "No players found for this team in registration (playersRegistered)."}
+            </Text>
+          )}
           {isCaptain && error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 6 }}>{error}</Text>}
           {isCaptain && <Text style={{ color: theme.color.textMuted, fontSize: 12, marginTop: 8 }}>Tap a jersey number to edit it.</Text>}
+          {isCaptain && <TeamOfficialsCard team={team} />}
         </View>
       )}
 
       {tab === "schedule" && (
         <View style={styles.section}>
-          {teamGames.map((g) => (
-            <Card key={g.id} onPress={() => navigation.navigate("Game", { gameId: g.id })} style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between" }}>
-              <Text>{g.day.toUpperCase()} · {g.field}</Text>
-              <StatusBadge status={g.status} />
-            </Card>
-          ))}
+          {teamGames.map((g) => {
+            const isHome = g.homeTeamId === team.id;
+            const opponent = teamById.get(isHome ? g.awayTeamId : g.homeTeamId);
+            const opponentLabel =
+              opponent?.name ??
+              provisionalSideLabel(isHome ? g.awayDrawPos : g.homeDrawPos, isHome ? g.awayRef : g.homeRef) ??
+              "TBD";
+            const homeGoals = g.homeScore ?? 0;
+            const awayGoals = g.awayScore ?? 0;
+            return (
+              <Card
+                key={g.id}
+                onPress={() => navigation.navigate("Game", { gameId: g.id })}
+                style={{ marginBottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <View>
+                  <Text style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 2 }}>
+                    {dayDateLabel(g.day)} · {g.field}
+                  </Text>
+                  <Text style={{ fontWeight: "600", fontSize: 14.5 }}>
+                    {isHome ? "vs" : "@"} {opponentLabel}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <StatusBadge status={g.status} />
+                  <Text style={{ fontWeight: "800", fontSize: 16, marginTop: 4 }}>
+                    {g.status === "scheduled" ? formatKickoffTime(g.kickoffTime) : `${homeGoals}–${awayGoals}`}
+                  </Text>
+                </View>
+              </Card>
+            );
+          })}
           {teamGames.length === 0 && <Text style={{ color: theme.color.textMuted }}>No games scheduled yet.</Text>}
         </View>
       )}
@@ -158,10 +241,15 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
               </TouchableOpacity>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                 {teamMoments.map((m) => (
-                  <TouchableOpacity key={m.id} onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType })} activeOpacity={0.85}>
-                    {m.mediaType === "video" ? (
+                  <TouchableOpacity
+                    key={m.id}
+                    disabled={m.mediaType === "embed"}
+                    onPress={() => setLightbox({ uri: m.mediaUrl, mediaType: m.mediaType as "photo" | "video" })}
+                    activeOpacity={0.85}
+                  >
+                    {m.mediaType === "video" || m.mediaType === "embed" ? (
                       <View style={[styles.momentTile, styles.momentTileVideo]}>
-                        <Text style={{ fontSize: 20 }}>▶</Text>
+                        <Text style={{ fontSize: 20 }}>{m.mediaType === "embed" ? "🔗" : "▶"}</Text>
                       </View>
                     ) : (
                       <LoadingImage source={{ uri: m.mediaUrl }} style={styles.momentTile} />
@@ -191,21 +279,29 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
                 <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: m.from === "admin" ? "#fff" : theme.color.textMuted }}>
                   {m.from === "admin" ? "Organizers" : m.authorName}
                 </Text>
-                <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text }}>{m.text}</Text>
+                {m.mediaUrl && m.mediaType && (
+                  <ChannelAttachmentThumb mediaUrl={m.mediaUrl} mediaType={m.mediaType} onPress={() => setLightbox({ uri: m.mediaUrl!, mediaType: m.mediaType! })} />
+                )}
+                {m.text ? <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text, marginTop: m.mediaUrl ? 6 : 0 }}>{m.text}</Text> : null}
               </View>
             ))}
-            {channelMessages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</Text>}
+            {channelMessages.length === 0 && (
+              <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>
+                {canPostToChannel ? "No messages yet — send the first one to your organizers below." : "No messages yet."}
+              </Text>
+            )}
           </View>
 
           {canPostToChannel ? (
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
+              <ChannelAttachButton value={channelAttachment} onChange={setChannelAttachment} disabled={sending} />
               <TextInput
                 value={channelDraft}
                 onChangeText={setChannelDraft}
-                placeholder="Send a message…"
+                placeholder={channelMessages.length === 0 ? "Message your organizers…" : "Send a message…"}
                 style={styles.channelInput}
               />
-              <PrimaryButton disabled={sending || !channelDraft.trim()} onPress={sendChannelMessage}>Send</PrimaryButton>
+              <PrimaryButton disabled={sending || (!channelDraft.trim() && !channelAttachment)} onPress={sendChannelMessage}>Send</PrimaryButton>
             </View>
           ) : (
             <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers and players on this team can post here.</Text>
@@ -216,6 +312,273 @@ export function TeamScreen({ route, navigation }: NativeStackScreenProps<RootSta
       <Lightbox visible={!!lightbox} src={lightbox?.uri ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
       {addMomentOpen && <MomentUploadModal onClose={() => setAddMomentOpen(false)} initialTeamTagIds={[team.id]} />}
     </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * The one place to add or remove a team official (captain or manager/coach)
+ * — replaces the roster's old per-row "Make Captain" button, which
+ * duplicated this exact action once this card grew its own roster-search add
+ * flow. Self-serve, available to any current official, matching
+ * assignTeamOfficial's broadened permission check. See web's
+ * TeamOfficialsCard.tsx — same design, ported.
+ */
+function TeamOfficialsCard({ team }: { team: Team }) {
+  const [appointedPlayerKeys, setAppointedPlayerKeys] = useState<Set<string>>(new Set());
+  const [managerNames, setManagerNames] = useState<Map<string, string>>(new Map());
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<OfficialKind>("captain");
+  const [search, setSearch] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const q = query(
+      collection(db, COLLECTIONS.rosterCheckIns),
+      where("teamId", "==", team.id),
+      where("appointedCaptain", "==", true)
+    );
+    return onSnapshot(
+      q,
+      (snap) => setAppointedPlayerKeys(new Set(snap.docs.map((d) => d.data().userId as string))),
+      () => setAppointedPlayerKeys(new Set())
+    );
+  }, [team.id]);
+
+  const coachManagerUids = team.coachManagerUids ?? [];
+  const coachManagerKey = coachManagerUids.join(",");
+  useEffect(() => {
+    if (coachManagerUids.length === 0) {
+      setManagerNames(new Map());
+      return;
+    }
+    let cancelled = false;
+    getTeamOfficialNames({ teamId: team.id })
+      .then((res) => {
+        if (!cancelled) setManagerNames(new Map(res.data.members.map((m) => [m.uid, m.displayName])));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team.id, coachManagerKey]);
+
+  // Real registration captain: has isCaptain but isn't in the appointed set
+  // — that set is now known precisely from the rosterCheckIns query above,
+  // so "isCaptain but not appointed" reliably means "the real one".
+  const realCaptain = team.roster.find((p) => p.isCaptain && !appointedPlayerKeys.has(p.playerKey ?? p.userId));
+  const appointedCaptains = team.roster.filter((p) => p.isCaptain && appointedPlayerKeys.has(p.playerKey ?? p.userId));
+  const totalCount = appointedCaptains.length + coachManagerUids.length;
+  const atCap = totalCount >= MAX_TEAM_OFFICIALS;
+
+  const matches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return team.roster.filter((p) => !p.isCaptain && p.displayName.toLowerCase().includes(q)).slice(0, 6);
+  }, [search, team.roster]);
+
+  async function addCaptain(playerKey: string, targetUid: string) {
+    setBusyKey(playerKey);
+    setError(null);
+    try {
+      await assignTeamOfficial({ teamId: team.id, kind: "captain", categoryId: team.categoryId, playerKey, targetUid });
+      setSearch("");
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that captain.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function removeCaptain(playerKey: string) {
+    setBusyKey(playerKey);
+    setError(null);
+    try {
+      await removeTeamOfficial({ teamId: team.id, kind: "captain", categoryId: team.categoryId, playerKey });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't remove that captain.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function addManagerCoach() {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setBusyKey("email");
+    setError(null);
+    try {
+      await assignTeamOfficial({ teamId: team.id, kind: "manager_coach", email: trimmed });
+      setEmail("");
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't add that manager/coach.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function removeManagerCoach(uid: string) {
+    setBusyKey(uid);
+    setError(null);
+    try {
+      await removeTeamOfficial({ teamId: team.id, kind: "manager_coach", uid });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't remove that manager/coach.");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  return (
+    <Card style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+        <Text style={{ fontWeight: "700" }}>Team Officials</Text>
+        <Text style={{ fontSize: 12, fontWeight: "700", color: atCap ? theme.color.danger : theme.color.textMuted }}>
+          {totalCount}/{MAX_TEAM_OFFICIALS}
+        </Text>
+      </View>
+
+      <View style={{ gap: 6, marginBottom: open ? 12 : 0 }}>
+        {realCaptain && <OfficialRow kind="captain" name={realCaptain.displayName} sub="Registration captain" locked />}
+        {appointedCaptains.map((p) => {
+          const playerKey = p.playerKey ?? p.userId;
+          return (
+            <OfficialRow
+              key={playerKey}
+              kind="captain"
+              name={p.displayName}
+              busy={busyKey === playerKey}
+              onRemove={() => removeCaptain(playerKey)}
+            />
+          );
+        })}
+        {coachManagerUids.map((uid) => (
+          <OfficialRow
+            key={uid}
+            kind="manager_coach"
+            name={managerNames.get(uid) ?? "…"}
+            busy={busyKey === uid}
+            onRemove={() => removeManagerCoach(uid)}
+          />
+        ))}
+        {!realCaptain && appointedCaptains.length === 0 && coachManagerUids.length === 0 && (
+          <Text style={{ color: theme.color.textMuted, fontSize: 13 }}>No officials on record for this team yet.</Text>
+        )}
+      </View>
+
+      {error && <Text style={{ color: theme.color.danger, fontSize: 12.5, marginTop: 10 }}>{error}</Text>}
+
+      {!open ? (
+        <TouchableOpacity onPress={() => setOpen(true)} disabled={atCap} style={[styles.addOfficialBtn, atCap && styles.addOfficialBtnDisabled]}>
+          <Text style={{ color: atCap ? theme.color.textMuted : theme.color.purple, fontWeight: "700", fontSize: 13 }}>
+            {atCap ? `Team officials full (${MAX_TEAM_OFFICIALS}/${MAX_TEAM_OFFICIALS})` : `+ Add a team official (${totalCount}/${MAX_TEAM_OFFICIALS})`}
+          </Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: theme.color.border, paddingTop: 12 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <Text style={{ fontWeight: "700" }}>Add a team official</Text>
+            <TouchableOpacity onPress={() => { setOpen(false); setError(null); }}>
+              <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 6, marginBottom: 12 }}>
+            {(["captain", "manager_coach"] as const).map((k) => (
+              <TouchableOpacity
+                key={k}
+                onPress={() => setKind(k)}
+                style={[styles.kindPill, kind === k && styles.kindPillActive]}
+              >
+                <Text style={{ color: kind === k ? "#fff" : theme.color.text, fontWeight: "700", fontSize: 12.5 }}>
+                  {OFFICIAL_KIND_LABELS[k]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {kind === "captain" ? (
+            <>
+              <TextInput
+                placeholder="Search roster by name…"
+                value={search}
+                onChangeText={setSearch}
+                editable={busyKey === null}
+                style={styles.channelInput}
+              />
+              {matches.length > 0 && (
+                <View style={{ marginTop: 8, gap: 6 }}>
+                  {matches.map((p) => {
+                    const playerKey = p.playerKey ?? p.userId;
+                    return (
+                      <TouchableOpacity key={playerKey} disabled={busyKey !== null} onPress={() => addCaptain(playerKey, p.userId)} style={styles.matchRow}>
+                        <Text style={{ fontSize: 13, fontWeight: "600" }}>{p.displayName}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+              {search.trim() && matches.length === 0 && (
+                <Text style={{ fontSize: 12.5, color: theme.color.textMuted, marginTop: 6 }}>No match on this roster.</Text>
+              )}
+            </>
+          ) : (
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+              <TextInput
+                placeholder="Email address…"
+                value={email}
+                onChangeText={setEmail}
+                editable={busyKey === null}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={[styles.channelInput, { flex: 1 }]}
+              />
+              <PrimaryButton disabled={busyKey !== null || !email.trim()} onPress={addManagerCoach}>{busyKey === "email" ? "Adding…" : "+ Add"}</PrimaryButton>
+            </View>
+          )}
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function OfficialRow({
+  kind,
+  name,
+  sub,
+  locked,
+  busy,
+  onRemove,
+}: {
+  kind: OfficialKind;
+  name: string;
+  sub?: string;
+  locked?: boolean;
+  busy?: boolean;
+  onRemove?: () => void;
+}) {
+  return (
+    <View style={styles.officialRow}>
+      <Text style={[styles.kindBadge, kind === "captain" ? styles.kindBadgeCaptain : styles.kindBadgeManager]}>
+        {OFFICIAL_KIND_LABELS[kind].toUpperCase()}
+      </Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontWeight: "600", fontSize: 13.5 }} numberOfLines={1}>{name}</Text>
+        {sub && <Text style={{ fontSize: 12, color: theme.color.textMuted }}>{sub}</Text>}
+      </View>
+      {locked ? (
+        <Text style={{ color: theme.color.textMuted, fontSize: 12 }}>🔒</Text>
+      ) : (
+        <TouchableOpacity disabled={busy} onPress={onRemove}>
+          <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 12.5 }}>{busy ? "…" : "Remove"}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
@@ -227,6 +590,7 @@ const styles = StyleSheet.create({
   section: { padding: 16 },
   jerseyInput: { width: 46, borderWidth: 1, borderColor: theme.color.border, borderRadius: 6, padding: 6, textAlign: "center" },
   saveBtn: { backgroundColor: theme.color.navy, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
+  avatarWrap: { width: 36, height: 36 },
   avatar: { width: 36, height: 36, borderRadius: 18 },
   avatarPlaceholder: { backgroundColor: theme.color.purple, alignItems: "center", justifyContent: "center" },
   momentTile: { width: 84, height: 84, borderRadius: 8 },
@@ -234,4 +598,13 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: "center", padding: 18, backgroundColor: "#F7F6F3", borderRadius: 10 },
   channelBubble: { borderRadius: 10, padding: 10, maxWidth: "80%" },
   channelInput: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
+  addOfficialBtn: { borderWidth: 1.5, borderStyle: "dashed", borderColor: theme.color.purple, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12 },
+  addOfficialBtnDisabled: { borderColor: theme.color.border },
+  kindPill: { flex: 1, borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, paddingVertical: 8, alignItems: "center" },
+  kindPillActive: { backgroundColor: theme.color.purple, borderColor: theme.color.purple },
+  matchRow: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 8, backgroundColor: "#F7F6F3" },
+  officialRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 8, backgroundColor: "#F7F6F3", borderRadius: 8 },
+  kindBadge: { fontSize: 10.5, fontWeight: "800", letterSpacing: 0.3, borderRadius: 4, paddingVertical: 2, paddingHorizontal: 6, borderWidth: 1 },
+  kindBadgeCaptain: { color: theme.color.purple, borderColor: theme.color.purple },
+  kindBadgeManager: { color: theme.color.navy, borderColor: theme.color.navy },
 });

@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { theme } from "../lib/theme";
 import { submitGameCard } from "../lib/callables";
 import { Modal, PrimaryButton } from "./ui";
 
 export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClose: () => void }) {
   const [uri, setUri] = useState<string | null>(null);
-  const [step, setStep] = useState<"capture" | "scanning" | "done">("capture");
+  const [step, setStep] = useState<"capture" | "uploading" | "done">("capture");
   const [error, setError] = useState<string | null>(null);
 
   async function capture() {
@@ -21,15 +20,10 @@ export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClo
 
   async function submit() {
     if (!uri) return;
-    setStep("scanning");
+    setStep("uploading");
     setError(null);
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const path = `gameCards/${gameId}/${Date.now()}.jpg`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
-      const photoUrl = await getDownloadURL(storageRef);
+      const photoUrl = await uploadPickedPhoto(uri, `gameCards/${gameId}/${Date.now()}.jpg`);
       await submitGameCard({ gameId, photoUrl });
       setStep("done");
     } catch (e) {
@@ -53,11 +47,11 @@ export function SubmitGameCardModal({ gameId, onClose }: { gameId: string; onClo
     );
   }
 
-  if (step === "scanning") {
+  if (step === "uploading") {
     return (
       <Modal visible onClose={onClose}>
         <View style={{ alignItems: "center", paddingVertical: 20 }}>
-          <Text style={{ fontWeight: "700" }}>Reading the card…</Text>
+          <Text style={{ fontWeight: "700" }}>Uploading…</Text>
         </View>
       </Modal>
     );

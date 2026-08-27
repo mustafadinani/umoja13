@@ -9,7 +9,7 @@ import { Signup } from "../screens/Signup";
 import { HomeScreen } from "../screens/HomeScreen";
 import { GamesScreen } from "../screens/GamesScreen";
 import { MomentsScreen } from "../screens/MomentsScreen";
-import { MyUmojaScreen } from "../screens/MyUmojaScreen";
+import { HubScreen } from "../screens/HubScreen";
 import { GameScreen } from "../screens/GameScreen";
 import { TeamScreen } from "../screens/TeamScreen";
 import { CheckInScreen } from "../screens/CheckInScreen";
@@ -18,17 +18,41 @@ import { RefereeScreen } from "../screens/RefereeScreen";
 import { RefereeGameScreen } from "../screens/RefereeGameScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ComplaintScreen } from "../screens/ComplaintScreen";
+import { HuntRulesScreen } from "../screens/HuntRulesScreen";
+import { AccountDeleteScreen } from "../screens/AccountDeleteScreen";
+import { UmojaChatScreen } from "../screens/UmojaChatScreen";
+import { PodsListScreen } from "../screens/PodsListScreen";
+import { PodDetailScreen } from "../screens/PodDetailScreen";
+import { PodMembersScreen } from "../screens/PodMembersScreen";
+import { HubInfoScreen, HubTravelScreen, HubLocalScreen, HubMuslimScreen } from "../screens/HubExperienceScreens";
 
 export type RootStackParamList = {
-  Login: undefined;
+  // Set when arriving from Signup's "email already in use" message — carries
+  // over the typed email and can jump straight into the reset-password form.
+  Login: { prefillEmail?: string; mode?: "signIn" | "forgotPassword" } | undefined;
   Signup: undefined;
   Tabs: undefined;
   Game: { gameId: string };
   Team: { teamId: string };
-  CheckIn: { teamId: string; categoryId: string };
+  // profileId disambiguates which sibling on a shared family account this
+  // check-in is for — without it, CheckInScreen has to guess by searching
+  // profile.playerOf for the first teamId+categoryId match, which silently
+  // resolves to the WRONG kid whenever two siblings share a team+category
+  // (e.g. Ayaan's check-in landing on Amaar's record).
+  CheckIn: { teamId: string; categoryId: string; profileId?: string };
   RefereeGame: { gameId: string };
   Notifications: undefined;
   Complaint: undefined;
+  HuntRules: undefined;
+  AccountDelete: undefined;
+  UmojaChat: undefined;
+  Pods: undefined;
+  PodDetail: { podId: string };
+  PodMembers: { podId: string };
+  HubInfo: undefined;
+  HubTravel: undefined;
+  HubLocal: undefined;
+  HubMuslim: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -63,7 +87,7 @@ function TabNavigator() {
         <Tabs.Screen name="Hunt" component={HuntScreen} options={{ title: "The Hunt", tabBarIcon: ({ focused }) => <TabIcon label="🧭" focused={focused} /> }} />
       )}
       <Tabs.Screen name="Moments" component={MomentsScreen} options={{ tabBarIcon: ({ focused }) => <TabIcon label="🎬" focused={focused} /> }} />
-      <Tabs.Screen name="MyUmoja" component={MyUmojaScreen} options={{ title: "My Umoja", tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }} />
+      <Tabs.Screen name="Hub" component={HubScreen} options={{ title: "Hub", tabBarIcon: ({ focused }) => <TabIcon label="📋" focused={focused} /> }} />
     </Tabs.Navigator>
   );
 }
@@ -90,6 +114,16 @@ export function RootNavigator() {
             <Stack.Screen name="RefereeGame" component={RefereeGameScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: true, title: "Notifications" }} />
             <Stack.Screen name="Complaint" component={ComplaintScreen} options={{ headerShown: true, title: "Report an Issue" }} />
+            <Stack.Screen name="HuntRules" component={HuntRulesScreen} options={{ headerShown: true, title: "Hunt Official Rules" }} />
+            <Stack.Screen name="AccountDelete" component={AccountDeleteScreen} options={{ headerShown: true, title: "Delete Account" }} />
+            <Stack.Screen name="UmojaChat" component={UmojaChatScreen} options={{ headerShown: true, title: "Ask Umoja" }} />
+            <Stack.Screen name="Pods" component={PodsListScreen} options={{ headerShown: true, title: "Pods" }} />
+            <Stack.Screen name="PodDetail" component={PodDetailScreen} options={{ headerShown: true, title: "" }} />
+            <Stack.Screen name="PodMembers" component={PodMembersScreen} options={{ headerShown: true, title: "" }} />
+            <Stack.Screen name="HubInfo" component={HubInfoScreen} options={{ headerShown: true, title: "Info" }} />
+            <Stack.Screen name="HubTravel" component={HubTravelScreen} options={{ headerShown: true, title: "Travel" }} />
+            <Stack.Screen name="HubLocal" component={HubLocalScreen} options={{ headerShown: true, title: "Local" }} />
+            <Stack.Screen name="HubMuslim" component={HubMuslimScreen} options={{ headerShown: true, title: "Muslim Guide" }} />
           </>
         )}
       </Stack.Navigator>

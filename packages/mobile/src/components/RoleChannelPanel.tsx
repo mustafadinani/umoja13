@@ -6,13 +6,19 @@ import { useAuth } from "../auth/AuthProvider";
 import { useRoleChannel } from "../hooks/useData";
 import { sendRoleMessage } from "../lib/callables";
 import { PrimaryButton } from "./ui";
+import { ChannelAttachButton } from "./ChannelAttachButton";
+import { ChannelAttachmentThumb } from "./ChannelAttachmentThumb";
+import { Lightbox } from "./Lightbox";
+import type { ChannelAttachment } from "../lib/uploadChannelAttachment";
 
 /** One-way broadcast + reply-back channel for an entire role (volunteers/referees), mirroring the per-team Channel tab but scoped by role instead of roster. */
 export function RoleChannelPanel({ role }: { role: ChannelRole }) {
   const { profile } = useAuth();
   const { data: channel } = useRoleChannel(role);
   const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<ChannelAttachment | null>(null);
   const [sending, setSending] = useState(false);
+  const [lightbox, setLightbox] = useState<ChannelAttachment | null>(null);
 
   const isStaff = profile?.roles?.some((r) => r === "admin" || r === "commissioner") ?? false;
   const hasRole = profile?.roles?.includes(role) ?? false;
@@ -20,11 +26,12 @@ export function RoleChannelPanel({ role }: { role: ChannelRole }) {
   const messages = [...(channel?.messages ?? [])].sort((a, b) => a.createdAt - b.createdAt);
 
   async function send() {
-    if (!draft.trim()) return;
+    if (!draft.trim() && !attachment) return;
     setSending(true);
     try {
-      await sendRoleMessage({ role, text: draft });
+      await sendRoleMessage({ role, text: draft, ...(attachment ?? {}) });
       setDraft("");
+      setAttachment(null);
     } finally {
       setSending(false);
     }
@@ -47,20 +54,26 @@ export function RoleChannelPanel({ role }: { role: ChannelRole }) {
             <Text style={{ fontSize: 11, fontWeight: "700", opacity: 0.8, marginBottom: 2, color: m.from === "admin" ? "#fff" : theme.color.textMuted }}>
               {m.from === "admin" ? "Organizers" : m.authorName}
             </Text>
-            <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text }}>{m.text}</Text>
+            {m.mediaUrl && m.mediaType && (
+              <ChannelAttachmentThumb mediaUrl={m.mediaUrl} mediaType={m.mediaType} onPress={() => setLightbox({ mediaUrl: m.mediaUrl!, mediaType: m.mediaType! })} />
+            )}
+            {m.text ? <Text style={{ fontSize: 13.5, color: m.from === "admin" ? "#fff" : theme.color.text, marginTop: m.mediaUrl ? 6 : 0 }}>{m.text}</Text> : null}
           </View>
         ))}
         {messages.length === 0 && <Text style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No messages yet.</Text>}
       </View>
 
       {canPost ? (
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>
+          <ChannelAttachButton value={attachment} onChange={setAttachment} disabled={sending} />
           <TextInput value={draft} onChangeText={setDraft} placeholder="Send a message…" style={styles.input} />
-          <PrimaryButton disabled={sending || !draft.trim()} onPress={send}>Send</PrimaryButton>
+          <PrimaryButton disabled={sending || (!draft.trim() && !attachment)} onPress={send}>Send</PrimaryButton>
         </View>
       ) : (
         <Text style={{ color: theme.color.textMuted, fontSize: 12.5 }}>Only organizers can post here.</Text>
       )}
+
+      <Lightbox visible={!!lightbox} src={lightbox?.mediaUrl ?? null} mediaType={lightbox?.mediaType} onClose={() => setLightbox(null)} />
     </View>
   );
 }

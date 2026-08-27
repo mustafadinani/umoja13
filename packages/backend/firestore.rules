@@ -23,6 +23,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    // A well-formed CheckIn.consent is required on every check-ins create/update.
+    function validCheckInConsent() {
+      return request.resource.data.consent.acceptedBy in ['self', 'guardian'] &&
+        request.resource.data.consent.acceptedAt is number;
+    }
+
     // ---- users ----
     match /users/{uid} {
       allow read: if isOwner(uid) || isStaff();
@@ -30,11 +36,23 @@ service cloud.firestore {
       // Self-serve join-a-team (no admin registration/invite system exists yet) may
       // promote a user to 'player'/'captain', but never to referee/commissioner/admin —
       // those privileged roles are only ever granted via the setUserRole Cloud Function
-      // (Admin SDK, bypasses rules).
+      // (Admin SDK, bypasses rules). The `resource.data.primaryRole` check on the
+      // CURRENT value (not just the new one) is load-bearing: without it, this rule
+      // also allowed a self-write to DOWNGRADE an existing referee/commissioner/admin
+      // down to fan/player/captain, since ['fan'] legitimately satisfies hasOnly(...)
+      // regardless of what the account was before. A buggy client write exploited
+      // exactly that gap in production; this closes it so this path can never touch
+      // an account that isn't already low-privilege.
       allow update: if isOwner(uid) &&
+        resource.data.primaryRole in ['fan', 'player', 'captain'] &&
         request.resource.data.roles.hasOnly(['fan', 'player', 'captain']) &&
         request.resource.data.primaryRole in ['fan', 'player', 'captain'];
-      allow update: if isStaff();
+      // Staff may edit non-role profile fields directly (e.g. syncing playerOf on a
+      // category reassignment), but role changes — even a commissioner's own —
+      // must go through setUserRole so the admin-only check there can't be
+      // bypassed by a direct client write.
+      allow update: if isStaff() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'primaryRole']);
     }
 
     // ---- reference data: public read, staff write ----
@@ -46,9 +64,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isStaff();
     }
-    match /announcements/{id} {
+    // ---- Live Draw state: which real team occupies which draw position, per category ----
+    match /draws/{categoryId} {
       allow read: if true;
       allow write: if isStaff();
+    }
+    // ---- Award ceremony: nominees/winners per category — staff-only in both directions, never public ----
+    match /categoryAwards/{categoryId} {
+      allow read, write: if isStaff();
+    }
+    // ---- announcements: public/always-readable (signed-out Home visitors see these too); posted only via the postAnnouncement Cloud Function ----
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /config/{id} {
+      allow read: if true;
+      allow write: if false;
     }
     match /huntMissions/{id} {
       allow read: if true;
@@ -57,38 +89,79 @@ service cloud.firestore {
 
     // ---- teams ----
     // Aggregate `stats` is written only by a Cloud Function trigger on game finalize.
-    // Any signed-in user may touch only the `roster` field (self-serve join, and
-    // captain jersey-number edits) — no admin-invite/import flow exists yet.
+    // `roster` isn't actually written by any client code today (the live roster comes
+    // from the separate Outreach registration import, not this field) — staff-only
+    // until a real self-serve join/import flow is built and needs a narrower rule.
     match /teams/{teamId} {
       allow read: if true;
-      allow update: if isStaff() ||
-        (isSignedIn() &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['roster']));
+      allow update: if isStaff();
       allow create, delete: if isStaff();
     }
 
     // ---- games ----
-    // Referee assigned to a game may update gate-check/events/motm/gameCard/status;
-    // commissioner/admin may update anything (score corrections, ref assignment, forfeits).
+    // Any referee assigned to a game (refereeUids — some games run with two,
+    // not just one) may update only gate-check/events/motm/score/forfeit
+    // (exactly the fields their own console writes) and may flip `status` only to
+    // 'forfeited' — never directly to 'live'/'final', which stay commissioner/admin-
+    // only (and, for 'final', gated by callItFinal's own preconditions). `gameCard` is
+    // never in this list: it's written exclusively via the submitGameCard/callItFinal
+    // Cloud Functions (Admin SDK, bypasses rules), never by a direct client write.
     match /games/{gameId} {
       allow read: if true;
       allow create: if isStaff();
+      // A referee's own fields (gate check, cards, score, MOTM, forfeit) are
+      // only writable while the game card is still "not_submitted" (or never
+      // submitted at all) — gameCard itself is never in this affectedKeys
+      // list, so referees can never touch it directly; the ONLY way it moves
+      // back from "awaiting_commissioner" is the reopenGameCard callable
+      // (Admin SDK), which is the one deliberate, visible "make changes"
+      // action. Without this gate, a referee could quietly undo goals/cards/
+      // MOTM/gate-check clearances after submitting the card, with no
+      // warning and no record — and once the commissioner has called it
+      // final, reopenGameCard itself refuses, so nothing here can move at
+      // all past that point either.
       allow update: if isStaff() ||
-        (isSignedIn() && resource.data.refereeUid == request.auth.uid);
+        (isSignedIn() && request.auth.uid in resource.data.get('refereeUids', []) &&
+         resource.data.get('gameCard', {}).get('status', 'not_submitted') == 'not_submitted' &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['gateCheck', 'events', 'motmUserId', 'homeScore', 'awayScore', 'forfeit', 'status', 'updatedAt']) &&
+         (request.resource.data.status == resource.data.status || request.resource.data.status == 'forfeited'));
       allow delete: if isStaff();
+    }
+
+    // Who scored each goal — deliberately its OWN collection, never a field
+    // on the public `games` doc above (see GameScorers' doc comment in
+    // packages/shared/src/types/game.ts for why: rules are per-document, so
+    // anything inside a publicly-readable Game doc is downloadable by
+    // anyone regardless of what the UI shows). Only staff and this specific
+    // game's assigned referee(s) can read or write it.
+    match /gameScorers/{gameId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.get('refereeUids', []));
+      // Same post-submission lock as the games rule above — a referee can log/
+      // undo scorers only while that game's card is still "not_submitted".
+      allow write: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/games/$(gameId)).data.get('refereeUids', []) &&
+         get(/databases/$(database)/documents/games/$(gameId)).data.get('gameCard', {}).get('status', 'not_submitted') == 'not_submitted');
     }
 
     // ---- check-ins & tournament passes: sensitive PII (selfie, gov ID, DOB) ----
     // Only the player themselves, or admin/commissioner, may read/write these.
-    // Captains/referees see only derived status via teams/{id}.roster, never the docs.
+    // Captains/referees/fans see only the derived status via rosterCheckIns, never these docs.
     match /checkIns/{checkInId} {
       // `resource == null` covers listening on a check-in that hasn't been created
       // yet (Firestore still evaluates read rules against a non-existent doc) —
       // must be allowed or the client gets a hard permission-denied error instead
       // of a normal "not found" snapshot.
       allow read: if isStaff() || (isSignedIn() && (resource == null || resource.data.userId == request.auth.uid));
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isStaff() || (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['not_started', 'rejected']);
+      // Non-staff can only ever land a check-in in admin_review — approved/
+      // rejected are set exclusively by adminReviewCheckIn (Admin SDK), never
+      // by the player's own client.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'admin_review' && validCheckInConsent();
+      allow update: if isStaff() ||
+        (isSignedIn() && resource.data.userId == request.auth.uid && resource.data.status in ['not_started', 'rejected'] &&
+         request.resource.data.status == 'admin_review' && validCheckInConsent());
       allow delete: if isStaff();
     }
     match /tournamentPasses/{passId} {
@@ -96,13 +169,35 @@ service cloud.firestore {
       allow write: if isStaff();
     }
 
+    // PII-free mirror of each check-in's status (no gov ID/DOB/selfie-for-identity),
+    // written only by the onCheckInWrite trigger / adminReviewCheckIn (Admin SDK).
+    // Public read, same as teams/games, so a roster's Verified/Admin Review/Pending
+    // status is visible to captains, referees, and fans alike.
+    match /rosterCheckIns/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ---- moments ----
     match /moments/{momentId} {
       allow read: if true;
       // Staff may also create a moment on a submitter's behalf — used when an
       // approved Hunt mission/challenge photo/video submission is mirrored
-      // into the Moments wall so the whole community can see it.
-      allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff());
+      // into the Moments wall so the whole community can see it. An "embed"
+      // moment (a pasted YouTube/Vimeo link, not an uploaded file) is
+      // staff-only on top of that, and mediaUrl must already be one of the
+      // two canonical player URLs parseMomentEmbedUrl produces
+      // (packages/shared/src/types/moments.ts) — never an arbitrary page.
+      // Without this, the app's own iframe/WebView renderer would become an
+      // open embed of anything a client sends.
+      allow create: if isSignedIn() && (request.resource.data.postedBy == request.auth.uid || isStaff()) &&
+        (request.resource.data.mediaType != 'embed' || (isStaff() &&
+          (request.resource.data.mediaUrl.matches('^https://www[.]youtube[.]com/embed/[A-Za-z0-9_-]+$') ||
+           request.resource.data.mediaUrl.matches('^https://player[.]vimeo[.]com/video/[0-9]+$')))) &&
+        // Keep in sync with MOMENT_COMMENT_MAX_LENGTH (packages/shared/src/constants/moments.ts) —
+        // an unbounded comment here has broken feed rendering before; rules can't import the shared
+        // constant, so this is the enforced copy.
+        (!('comment' in request.resource.data) || request.resource.data.comment.size() <= 280);
       allow update: if isStaff() ||
         (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeUids']));
       allow delete: if isStaff() || (isSignedIn() && resource.data.postedBy == request.auth.uid);
@@ -125,21 +220,45 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
         request.resource.data.status == 'pending';
     }
-    // Tasks/shifts: publicly readable (matches games/moments), staff manage the
-    // task list, an assigned volunteer may only flag a conflict or mark done.
+    // Tasks/shifts: private to staff, the assigned volunteer, and — since a
+    // Pod Hub shows every shift tagged to its pod, not just the viewer's own
+    // — anyone on that pod's roster. A task carries a contextual Q&A thread;
+    // an assigned volunteer may only flag a conflict or mark done directly;
+    // messages are Cloud-Function-only (sendVolunteerTaskMessage) so `from`
+    // can't be spoofed. Beyond staff, any pod member can also create a shift
+    // for their own pod (self-serve, not just admin-scheduled) and assign it
+    // to anyone else on that same pod's roster; they can also delete a shift
+    // they created themselves.
     match /volunteerTasks/{taskId} {
-      allow read: if true;
-      allow create, delete: if isStaff();
+      allow read: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid) ||
+        (isSignedIn() && resource.data.get('podId', null) != null &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
+      allow create: if isStaff() ||
+        (isSignedIn() && request.resource.data.podId is string &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids &&
+          request.resource.data.createdBy == request.auth.uid &&
+          (request.resource.data.assigneeUid == null ||
+            request.resource.data.assigneeUid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids));
+      allow delete: if isStaff() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
       allow update: if isStaff() || (isSignedIn() && resource.data.assigneeUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done']));
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cantMake', 'cantMakeReason', 'done', 'steps']));
     }
 
     // ---- The Hunt ----
     match /huntCrews/{crewId} {
       allow read: if true;
       allow create: if isSignedIn() && request.resource.data.leadUserId == request.auth.uid;
-      allow update: if isStaff() || (isSignedIn() && !resource.data.locked &&
-        request.auth.uid in resource.data.memberUids);
+      allow update: if isStaff() ||
+        (isSignedIn() && !resource.data.locked && request.auth.uid in resource.data.memberUids) ||
+        // A merely-invited member only appears in memberEmails — memberUids
+        // only gains their uid once they accept, via this very update — so
+        // accept/decline needs its own branch keyed on email, and it's
+        // restricted to touching just members/memberUids so an invitee
+        // can't otherwise rewrite the crew's points/missions/name.
+        (isSignedIn() && !resource.data.locked &&
+          request.auth.token.email != null &&
+          request.auth.token.email.lower() in resource.data.memberEmails &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'memberUids']));
     }
     match /huntSubmissions/{submissionId} {
       allow read: if true;
@@ -162,11 +281,42 @@ service cloud.firestore {
     }
 
     // ---- Sponsorship inquiries ("Become a Sponsor" CTA) ----
+    // Deliberately allows an anonymous (signed-out) create — sending an
+    // inquiry, like the paid checkout flow, shouldn't require an account.
+    // A signed-in caller must still tag it with their own uid (no
+    // impersonating another user); an anonymous caller must leave
+    // filedByUid unset rather than fake one.
     match /sponsorInquiries/{id} {
       allow read: if isStaff() || (isSignedIn() && resource.data.filedByUid == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.filedByUid == request.auth.uid &&
-        request.resource.data.status == 'new';
+      allow create: if request.resource.data.status == 'new' &&
+        (isSignedIn()
+          ? request.resource.data.filedByUid == request.auth.uid
+          : !('filedByUid' in request.resource.data));
       allow update: if isStaff();
+    }
+
+    // ---- Umoja 13 Feedback survey — anonymous by default, guest-writable ----
+    // Same "no impersonation, no faking anonymity" shape as sponsorInquiries
+    // above: a signed-in caller may only tag their own uid (or omit it
+    // entirely to answer anonymously despite being logged in); a signed-out
+    // caller must leave filedByUid unset. Never publicly readable — results
+    // are staff-only (see FeedbackAdminTab).
+    match /feedbackResponses/{id} {
+      allow read, update, delete: if isStaff();
+      allow create: if isSignedIn()
+        ? (!('filedByUid' in request.resource.data) || request.resource.data.filedByUid == request.auth.uid)
+        : !('filedByUid' in request.resource.data);
+    }
+
+    // ---- Account deletion requests (Apple 5.1.1(v)) ----
+    // Signed-in users file a request tagged with their own uid. Staff read /
+    // process; clients cannot update or delete their own request.
+    match /accountDelete/{id} {
+      allow read: if isStaff() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update, delete: if isStaff();
     }
 
     // ---- Sponsorship orders (real $ tiers via Stripe Checkout) ----
@@ -183,9 +333,13 @@ service cloud.firestore {
     // Written only by the sendTeamMessage Cloud Function (Admin SDK, bypasses
     // rules), which derives `from` server-side from the caller's role/roster
     // membership rather than trusting a client-set field. Private to staff
-    // and that team's own roster — teams.rosterUids (kept in sync by
-    // onTeamWrite) is what makes a cheap membership check possible here,
-    // since roster itself is an array of objects rules can't filter by field.
+    // and that team's own roster — teams.rosterUids is what makes a cheap
+    // membership check possible here, since a rule can't run the real
+    // registration-data roster query itself. Kept in sync with the real,
+    // current roster by the onPlayerRegisteredWrite trigger (NOT derived
+    // from teams.roster, this app's own pre-Outreach-import teams
+    // collection — nothing has written that field since the Outreach import
+    // replaced it, so it no longer reflects who's actually on a team).
     match /teamChannels/{teamId} {
       allow read: if isStaff() ||
         (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.rosterUids);
@@ -202,15 +356,66 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ---- notifications & chat escalations: written only by Cloud Functions ----
-    match /notifications/{id} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+    // ---- User channels: one-way "message the organizers" ----
+    // General contact channel scoped to a single user (not every user is on
+    // a team or holds a role like volunteer/referee). Written only by
+    // sendUserMessage. Private to staff and the channel's own owner.
+    match /userChannels/{uid} {
+      allow read: if isStaff() || isOwner(uid);
       allow write: if false;
     }
-    match /chatEscalations/{id} {
-      allow read: if isStaff() || (isSignedIn() && resource.data.userUid == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userUid == request.auth.uid;
-      allow update: if isStaff();
+
+    // ---- Pods: staffing-zone roster + flat peer group chat ----
+    // Pod docs carry an explicit memberUids roster (admin-curated, like
+    // teams.rosterUids) rather than being derived from role — membership is
+    // "whoever's assigned to this zone," not "everyone with a role." Only
+    // staff can create/edit/delete pods (via createPod/updatePod/deletePod);
+    // a member (or staff) can read their own pod.
+    match /pods/{podId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in resource.data.memberUids);
+      allow write: if false;
+    }
+
+    // Chat is a flat peer group (no staff/member distinction, unlike
+    // teamChannels/roleChannels/userChannels) — written only by
+    // sendPodMessage, which re-derives membership server-side.
+    match /podChannels/{podId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/pods/$(podId)).data.memberUids);
+      allow write: if false;
+    }
+
+    // General tournament-prep checklist items scoped to a pod — distinct
+    // from volunteerTasks (a scheduled shift). Any pod member can toggle
+    // `done` on a shared item, not just a single assignee, since this is a
+    // team checklist rather than a personal shift assignment. Any pod member
+    // can also add an item for their own pod (not just staff) and assign it
+    // to anyone else on that pod's roster, and can delete an item they
+    // created themselves.
+    match /podTasks/{taskId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids);
+      allow create: if isStaff() ||
+        (isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids &&
+          request.resource.data.createdBy == request.auth.uid &&
+          (request.resource.data.assigneeUid == null ||
+            request.resource.data.assigneeUid in get(/databases/$(database)/documents/pods/$(request.resource.data.podId)).data.memberUids));
+      allow delete: if isStaff() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
+      allow update: if isStaff() ||
+        (isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/pods/$(resource.data.podId)).data.memberUids &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done']));
+    }
+
+    // ---- notifications: created only by Cloud Functions; the owner may mark their own as read ----
+    match /notifications/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+        request.resource.data.read == true;
+      allow create, delete: if false;
     }
 
     // ---- server-only sequence counters (case numbers, pass ids) ----

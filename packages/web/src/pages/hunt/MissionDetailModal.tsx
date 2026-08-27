@@ -146,6 +146,7 @@ export function MissionDetailModal({
           {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
           <div style={{ background: theme.color.dangerBg, color: theme.color.danger, borderRadius: theme.radius.sm, padding: 12, fontWeight: 700, textAlign: "center", marginBottom: 12 }}>
             Not approved — try submitting again.
+            {mySubmission?.rejectionReason && <div style={{ fontWeight: 600, fontSize: 12.5, marginTop: 6 }}>{mySubmission.rejectionReason}</div>}
           </div>
         </>
       )}

@@ -2,22 +2,32 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, heroGradient, hunterGradient } from "../lib/theme";
-import { useAnnouncements, useGames, useHuntCrews, useMoments, useTeams } from "../hooks/useData";
+import { useIsMobile } from "../hooks/useMediaQuery";
+import { useAnnouncements, useGames, useHuntConfig, useHuntCrews, useMoments, useMyCrew, useSponsors, useTeams } from "../hooks/useData";
 import { Card } from "../components/ui";
-import { VENUE } from "@umoja/shared";
+import { CATEGORIES, HUNT_LAUNCH_LABEL, VENUE, formatKickoffTime } from "@umoja/shared";
 import { AnnouncementModal } from "../components/AnnouncementModal";
 import { BecomeVolunteerModal } from "../components/BecomeVolunteerModal";
+import { SponsorStrip } from "../components/SponsorStrip";
+import { SponsorshipCheckoutModal } from "../components/SponsorshipCheckoutModal";
+
+const MOMENT_SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUNT", community: "🎉 COMMUNITY" };
 
 export function Home() {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const isMobile = useIsMobile();
   const { data: games } = useGames();
   const { data: teams } = useTeams();
   const { data: moments } = useMoments();
   const { data: announcements } = useAnnouncements();
   const { data: crews } = useHuntCrews();
+  const { data: huntConfig } = useHuntConfig();
+  const { data: myCrew } = useMyCrew(user?.uid);
+  const { data: sponsors } = useSponsors();
   const [openAnnouncementId, setOpenAnnouncementId] = useState<string | null>(null);
   const [volunteerOpen, setVolunteerOpen] = useState(false);
+  const [sponsorOpen, setSponsorOpen] = useState(false);
 
   const teamById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
 
@@ -36,43 +46,49 @@ export function Home() {
   return (
     <div>
       <div style={{ background: heroGradient, color: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 24px 40px", display: "flex", alignItems: "flex-end", gap: 40, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 380 }}>
-            <img src="/logo-icon.png" alt="" style={{ height: 54, width: "auto", marginBottom: 12 }} />
-            <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "28px 16px 32px" : "44px 24px 40px", display: "flex", alignItems: "flex-end", gap: isMobile ? 24 : 40, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+            <img src="/logo-icon.png" alt="" style={{ height: isMobile ? 44 : 54, width: "auto", marginBottom: 12 }} />
+            <div style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>
               {VENUE.name.toUpperCase()} · {VENUE.dates.toUpperCase()}
             </div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 56, lineHeight: 0.98, marginTop: 10 }}>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 36 : 56, lineHeight: 0.98, marginTop: 10 }}>
               UNITED WE STAND.<br />TOGETHER WE WIN.
             </div>
-            <div style={{ marginTop: 14, fontSize: 17, opacity: 0.9, maxWidth: 520 }}>
+            <div style={{ marginTop: 14, fontSize: isMobile ? 15 : 17, opacity: 0.9, maxWidth: 520 }}>
               Three days, {teams.length ? new Set(teams.map((t) => t.categoryId)).size : 14} categories, one community. Follow every game, share every moment.
             </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+            <div className="hero-cta-row">
               <button
                 onClick={() => navigate("/schedule")}
-                style={{ background: "#fff", color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, border: "none", cursor: "pointer" }}
+                style={{ background: "#fff", color: theme.color.navy, fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, border: "none", cursor: "pointer" }}
               >
                 TODAY'S GAMES
               </button>
               <button
                 onClick={() => navigate("/moments")}
-                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 FRESH MOMENTS
               </button>
               <button
                 onClick={() => (user ? setVolunteerOpen(true) : navigate("/signup"))}
-                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, letterSpacing: 1, padding: "13px 26px", borderRadius: 12, cursor: "pointer" }}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
               >
                 🙋 BECOME A VOLUNTEER
+              </button>
+              <button
+                onClick={() => setSponsorOpen(true)}
+                style={{ background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.4)", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: isMobile ? 15 : 18, letterSpacing: 1, padding: isMobile ? "11px 18px" : "13px 26px", borderRadius: 12, cursor: "pointer" }}
+              >
+                💛 SUPPORT US
               </button>
             </div>
           </div>
           {liveGame && (
             <div
               onClick={() => navigate(`/game/${liveGame.id}`)}
-              style={{ width: 340, background: "rgba(17,12,32,.35)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 18, padding: 18, cursor: "pointer" }}
+              style={{ width: isMobile ? "100%" : 340, maxWidth: "100%", background: "rgba(17,12,32,.35)", border: "1px solid rgba(255,255,255,.2)", borderRadius: 18, padding: 18, cursor: "pointer" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF7A8A", animation: "umPulse 1.6s infinite" }} />
@@ -87,41 +103,41 @@ export function Home() {
       </div>
 
       {profile && (
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 0" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px 16px 0" : "20px 24px 0" }}>
           <div
             onClick={() => navigate("/dashboard")}
             style={{ background: theme.color.navy, color: "#fff", borderRadius: 16, padding: "16px 22px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer" }}
           >
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(120deg, ${theme.color.purple}, ${theme.color.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: theme.font.display, fontWeight: 800, fontSize: 17 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(120deg, ${theme.color.purple}, ${theme.color.blue})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, flexShrink: 0 }}>
               {profile.displayName.slice(0, 2).toUpperCase()}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>My Dashboard</div>
-              <div style={{ fontSize: 13.5, color: "#A79FC0" }}>Viewing as {profile.primaryRole}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>My Dashboard</div>
+              <div style={{ fontSize: 13.5, color: "#A79FC0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Viewing as {profile.primaryRole}</div>
             </div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, color: theme.color.gold, letterSpacing: 1 }}>OPEN →</div>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 17, color: theme.color.gold, letterSpacing: 1, flexShrink: 0 }}>OPEN →</div>
           </div>
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 48px", display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, alignItems: "start" }}>
+      <div className="page-shell grid-2">
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div>
             <SectionHeader title="UP NEXT TODAY" actionLabel="Full schedule →" onAction={() => navigate("/schedule")} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="grid-3">
               {upNext.map((g) => {
                 const home = teamById.get(g.homeTeamId);
                 const away = teamById.get(g.awayTeamId);
                 return (
                   <Card key={g.id} onClick={() => navigate(`/game/${g.id}`)}>
                     <div style={{ fontSize: 11.5, color: theme.color.textMuted, marginBottom: 8 }}>
-                      {home?.categoryId ?? g.categoryId} · {g.field}
+                      {CATEGORIES.find((c) => c.id === (home?.categoryId ?? g.categoryId))?.label ?? g.categoryId} · {g.field}
                     </div>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{home?.name ?? "TBD"}</div>
                     <div style={{ fontSize: 12, color: theme.color.textMuted, margin: "2px 0" }}>vs</div>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{away?.name ?? "TBD"}</div>
                     <div style={{ marginTop: 10, fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, color: theme.color.purple }}>
-                      {g.kickoffTime}
+                      {formatKickoffTime(g.kickoffTime)}
                     </div>
                   </Card>
                 );
@@ -131,11 +147,23 @@ export function Home() {
           </div>
           <div>
             <SectionHeader title="FRESH MOMENTS" actionLabel="See all →" onAction={() => navigate("/moments")} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="grid-3">
               {moments.slice(0, 3).map((m) => (
                 <Card key={m.id} style={{ padding: 0, overflow: "hidden" }} onClick={() => navigate("/moments")}>
-                  <div style={{ height: 110, background: theme.color.purple, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: theme.font.display, fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>
-                    {m.source.toUpperCase()}
+                  <div style={{ height: 110, background: "#211A33", position: "relative" }}>
+                    {m.mediaType === "video" ? (
+                      <video src={m.mediaUrl} muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <img src={m.mediaUrl} alt={m.caption} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    )}
+                    <div style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,.5)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 99 }}>
+                      {MOMENT_SOURCE_BADGE[m.source] ?? m.source.toUpperCase()}
+                    </div>
+                    {m.mediaType === "video" && (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,.5)" }}>
+                        ▶
+                      </div>
+                    )}
                   </div>
                   <div style={{ padding: "10px 12px" }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.caption}</div>
@@ -143,7 +171,18 @@ export function Home() {
                   </div>
                 </Card>
               ))}
-              {moments.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 14 }}>No moments yet — be the first to share one.</div>}
+              {moments.length === 0 &&
+                [0, 1, 2].map((i) => (
+                  <Card key={i} style={{ padding: 0, overflow: "hidden" }} onClick={() => navigate("/moments")}>
+                    <div style={{ height: 110, background: theme.color.purple, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, opacity: 0.6 }}>
+                      📷
+                    </div>
+                    <div style={{ padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: theme.color.textMuted }}>No moments yet</div>
+                      <div style={{ fontSize: 12, color: theme.color.textMuted, marginTop: 2 }}>Be the first to share one</div>
+                    </div>
+                  </Card>
+                ))}
             </div>
           </div>
         </div>
@@ -162,28 +201,47 @@ export function Home() {
             {announcements.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13 }}>No announcements yet.</div>}
           </Card>
           <div style={{ background: hunterGradient, color: "#fff", borderRadius: 16, padding: 18, cursor: "pointer" }} onClick={() => navigate("/hunt")}>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>JOIN THE HUNT</div>
-            <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>45 missions across 3 days. $500 grand prize at Sunday's ceremony.</div>
-            {topCrews.map((c, i) => (
-              <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)" }}>
-                <span>{i + 1}. {c.name}</span>
-                <span>{c.points} pts</span>
+            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 20, letterSpacing: 0.5 }}>
+              {!huntConfig?.started ? "🔒 THE HUNT" : myCrew ? myCrew.name : "JOIN THE HUNT"}
+            </div>
+            {huntConfig?.started ? (
+              <>
+                <div style={{ fontSize: 13.5, opacity: 0.92, margin: "6px 0 12px" }}>
+                  {myCrew
+                    ? `${myCrew.points} pts · ${myCrew.missionsCompleted.length} missions done →`
+                    : "45 missions across 3 days. $500 grand prize at Sunday's ceremony."}
+                </div>
+                {topCrews.map((c, i) => (
+                  <div key={c.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, padding: "8px 0", borderTop: "1px solid rgba(255,255,255,.3)", flexWrap: "wrap", gap: 6 }}>
+                    <span>{i + 1}. {c.name}{c.id === myCrew?.id ? " (you)" : ""}</span>
+                    <span>{c.points} pts</span>
+                  </div>
+                ))}
+                {topCrews.length === 0 && <div style={{ fontSize: 13, opacity: 0.85 }}>Be the first crew on the board.</div>}
+              </>
+            ) : (
+              <div style={{ fontSize: 13.5, opacity: 0.92, marginTop: 6 }}>
+                45 missions across 3 days, $500 grand prize — opens {HUNT_LAUNCH_LABEL}.
               </div>
-            ))}
-            {topCrews.length === 0 && <div style={{ fontSize: 13, opacity: 0.85 }}>Be the first crew on the board.</div>}
+            )}
           </div>
         </div>
       </div>
 
+      <div className="page-shell" style={{ paddingTop: 0 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
+
       {openAnnouncement && <AnnouncementModal announcement={openAnnouncement} onClose={() => setOpenAnnouncementId(null)} />}
       {volunteerOpen && <BecomeVolunteerModal onClose={() => setVolunteerOpen(false)} />}
+      {sponsorOpen && <SponsorshipCheckoutModal onClose={() => setSponsorOpen(false)} />}
     </div>
   );
 }
 
 function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel: string; onAction: () => void }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
       <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 24, letterSpacing: 0.5 }}>{title}</div>
       <div onClick={onAction} style={{ fontSize: 14, fontWeight: 600, color: theme.color.blue, cursor: "pointer" }}>{actionLabel}</div>
     </div>
@@ -193,8 +251,8 @@ function SectionHeader({ title, actionLabel, onAction }: { title: string; action
 function GameScoreRow({ game, teamById }: { game: import("@umoja/shared").Game; teamById: Map<string, import("@umoja/shared").Team> }) {
   const home = teamById.get(game.homeTeamId);
   const away = teamById.get(game.awayTeamId);
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 8, textAlign: "center", color: "#fff" }}>

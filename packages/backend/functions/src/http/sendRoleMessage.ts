@@ -2,11 +2,15 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue } from "firebase-admin/firestore";
 import { COLLECTIONS, type ChannelRole, type RoleChannelMessage, type UserProfile } from "@umoja/shared";
 import { db } from "../util/admin.js";
+import { resolveAuthorName } from "../util/authorName.js";
 import { notifyUsers } from "../util/notify.js";
+import { notificationBodyFor, validateMessageContent } from "../util/channelAttachment.js";
 
 interface SendRoleMessageRequest {
   role: ChannelRole;
-  text: string;
+  text?: string;
+  mediaUrl?: string;
+  mediaType?: "photo" | "video";
 }
 
 const ROLE_LABEL: Record<ChannelRole, string> = { volunteer: "Volunteers", referee: "Referees" };
@@ -21,9 +25,9 @@ export const sendRoleMessage = onCall<SendRoleMessageRequest>(async (request) =>
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
 
-  const { role, text } = request.data;
+  const { role, text, mediaUrl, mediaType } = request.data;
   if (role !== "volunteer" && role !== "referee") throw new HttpsError("invalid-argument", "Unknown channel role.");
-  if (!text?.trim()) throw new HttpsError("invalid-argument", "Message text is required.");
+  const content = validateMessageContent(text, { mediaUrl, mediaType });
 
   const userSnap = await db.collection(COLLECTIONS.users).doc(uid).get();
   const profile = userSnap.data() as UserProfile | undefined;
@@ -37,8 +41,8 @@ export const sendRoleMessage = onCall<SendRoleMessageRequest>(async (request) =>
     id: db.collection(COLLECTIONS.roleChannels).doc().id,
     from: isStaffCaller ? "admin" : "member",
     authorUid: uid,
-    authorName: profile?.displayName ?? "Someone",
-    text: text.trim(),
+    authorName: await resolveAuthorName(uid, profile?.displayName),
+    ...content,
     createdAt: Date.now(),
   };
 
@@ -53,10 +57,10 @@ export const sendRoleMessage = onCall<SendRoleMessageRequest>(async (request) =>
 
   if (isStaffCaller) {
     const roleSnap = await db.collection(COLLECTIONS.users).where("roles", "array-contains", role).get();
-    await notifyUsers(roleSnap.docs.map((d) => d.id), `Message for ${ROLE_LABEL[role]}`, message.text);
+    await notifyUsers(roleSnap.docs.map((d) => d.id), `Message for ${ROLE_LABEL[role]}`, notificationBodyFor(message));
   } else {
     const staffSnap = await db.collection(COLLECTIONS.users).where("roles", "array-contains-any", ["admin", "commissioner"]).get();
-    await notifyUsers(staffSnap.docs.map((d) => d.id), `${ROLE_LABEL[role]} channel reply`, message.text);
+    await notifyUsers(staffSnap.docs.map((d) => d.id), `${ROLE_LABEL[role]} channel reply`, notificationBodyFor(message));
   }
 
   return { message };

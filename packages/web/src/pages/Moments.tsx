@@ -4,10 +4,11 @@ import { COLLECTIONS, type Moment } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useMoments, useMyMoments } from "../hooks/useData";
+import { useMoments, useMyMoments, useSponsors } from "../hooks/useData";
 import { Card, PrimaryButton } from "../components/ui";
 import { MomentUploadModal } from "../components/MomentUploadModal";
 import { Lightbox } from "../components/Lightbox";
+import { SponsorStrip } from "../components/SponsorStrip";
 
 const SOURCE_BADGE: Record<string, string> = { game: "⚽ GAME", hunt: "🧭 HUNT", community: "🎉 COMMUNITY" };
 
@@ -15,6 +16,7 @@ export function Moments() {
   const { user } = useAuth();
   const { data: approvedMoments } = useMoments();
   const { data: myMoments } = useMyMoments(user?.uid);
+  const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; mediaType: "photo" | "video" } | null>(null);
 
@@ -39,8 +41,8 @@ export function Moments() {
   }
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "28px 24px 48px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+    <div className="page-shell" style={{ maxWidth: 1000 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
         <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 32 }}>MOMENTS</div>
         {user && <PrimaryButton onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>}
       </div>
@@ -48,14 +50,22 @@ export function Moments() {
         From the games, The Hunt, and the community — all in one feed.
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 220px), 1fr))", gap: 14 }}>
         {moments.map((m) => {
           const liked = user ? m.likeUids.includes(user.uid) : false;
           const isOwn = user?.uid === m.postedBy;
           return (
             <Card key={m.id} style={{ padding: 0, overflow: "hidden" }}>
               <div style={{ position: "relative", height: 150, background: "#211A33" }}>
-                {m.mediaType === "video" ? (
+                {m.mediaType === "embed" ? (
+                  <iframe
+                    src={m.mediaUrl}
+                    style={{ width: "100%", height: "100%", border: "none" }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={m.caption}
+                  />
+                ) : m.mediaType === "video" ? (
                   <>
                     <video src={m.mediaUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} controls />
                     <button
@@ -110,6 +120,10 @@ export function Moments() {
           );
         })}
         {moments.length === 0 && <div style={{ color: theme.color.textMuted, gridColumn: "1/-1", textAlign: "center", padding: 40 }}>No moments yet — be the first to share one.</div>}
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
       </div>
 
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} />}

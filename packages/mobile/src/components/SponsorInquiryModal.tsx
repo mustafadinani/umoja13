@@ -19,7 +19,7 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState(false);
 
   async function submit() {
-    if (!user || !orgName.trim() || !contactName.trim() || !email.trim()) return;
+    if (!orgName.trim() || !contactName.trim() || !email.trim()) return;
     setBusy(true);
     setError(null);
     try {
@@ -29,7 +29,7 @@ export function SponsorInquiryModal({ onClose }: { onClose: () => void }) {
         email: email.trim(),
         ...(phone.trim() ? { phone: phone.trim() } : {}),
         ...(message.trim() ? { message: message.trim() } : {}),
-        filedByUid: user.uid,
+        ...(user ? { filedByUid: user.uid } : {}),
         status: "new",
         createdAt: Date.now(),
       });

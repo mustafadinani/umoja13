@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, Image, TouchableOpacity } from "react-native";
-import type { RosterEntry, Category } from "@umoja/shared";
+import { checkInStatusLabel, suspensionReasonLabel, type PlayerSuspensionStatus, type RosterEntry, type Category } from "@umoja/shared";
 import { theme } from "../lib/theme";
 import { Modal, PrimaryButton } from "./ui";
 import { Lightbox } from "./Lightbox";
@@ -10,6 +10,7 @@ export function PlayerIdModal({
   teamName,
   category,
   cleared,
+  suspension,
   onToggleClear,
   onClose,
 }: {
@@ -17,6 +18,7 @@ export function PlayerIdModal({
   teamName: string;
   category?: Category;
   cleared: boolean;
+  suspension?: PlayerSuspensionStatus;
   onToggleClear: () => void;
   onClose: () => void;
 }) {
@@ -42,27 +44,38 @@ export function PlayerIdModal({
         >
           {player.selfieUrl && <Image source={{ uri: player.selfieUrl }} style={{ width: "100%", height: "100%" }} />}
         </TouchableOpacity>
-        <Text style={{ fontWeight: "800", fontSize: 20 }}>{player.displayName}</Text>
+        <Text style={{ fontWeight: "900", fontSize: 44, color: theme.color.purple, lineHeight: 48 }}>#{player.jerseyNumber ?? "—"}</Text>
+        <Text style={{ fontWeight: "800", fontSize: 28, marginTop: 6, textAlign: "center" }}>{player.displayName}</Text>
         <Text style={{ color: theme.color.textMuted, fontSize: 13, marginTop: 4, textAlign: "center" }}>
-          #{player.jerseyNumber ?? "—"} · {teamName} · {category?.label ?? ""}
+          {teamName} · {category?.label ?? ""}
         </Text>
+
+        {suspension?.suspended && (
+          <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginTop: 14, width: "100%" }}>
+            <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 13, textAlign: "center" }}>
+              🚫 Flagged suspended for this game{suspension.reason ? ` — ${suspensionReasonLabel(suspension.reason)}` : ""}. Referee's call whether to clear them anyway.
+            </Text>
+          </View>
+        )}
 
         {approved ? (
           <>
-            <View style={{ backgroundColor: theme.color.successBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
-              <Text style={{ color: theme.color.success, fontWeight: "700", fontSize: 13 }}>Tournament Pass approved ✓</Text>
+            <View style={{ backgroundColor: cleared ? theme.color.successBg : theme.color.warningBg, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginTop: 16 }}>
+              <Text style={{ color: cleared ? theme.color.success : theme.color.warning, fontWeight: "700", fontSize: 13 }}>
+                {cleared ? "VERIFIED · CLEARED BY REF ✓" : "VERIFIED · NOT CLEARED YET"}
+              </Text>
             </View>
             <PrimaryButton
               onPress={onToggleClear}
               style={{ marginTop: 16, width: "100%", backgroundColor: cleared ? theme.color.success : theme.color.navy }}
             >
-              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR TO PLAY"}
+              {cleared ? "CLEARED — TAP TO UNDO" : "PHOTO MATCHES — CLEAR PLAYER"}
             </PrimaryButton>
           </>
         ) : (
           <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginTop: 16, width: "100%" }}>
             <Text style={{ color: theme.color.danger, fontWeight: "700", fontSize: 13, textAlign: "center" }}>
-              NOT CLEARED — {player.checkInStatus === "not_started" ? "hasn't checked in" : "pending admin approval"}
+              NOT VERIFIED — {checkInStatusLabel(player.checkInStatus)}
             </Text>
           </View>
         )}

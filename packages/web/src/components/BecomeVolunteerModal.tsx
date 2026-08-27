@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { addDoc, collection } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { COLLECTIONS, VOLUNTEER_AVAILABILITY_DAYS } from "@umoja/shared";
-import { db, storage } from "../lib/firebase";
+import { db } from "../lib/firebase";
+import { uploadPickedPhoto } from "../lib/uploadPhoto";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
 import { useCategories, useTeams } from "../hooks/useData";
 import { Modal, PrimaryButton, Pill } from "./ui";
 
-export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmail = (v: string) => EMAIL_RE.test(v.trim());
+const isValidPhone = (v: string) => v.replace(/\D/g, "").length >= 7;
+
+export function BecomeVolunteerModal({ onClose, initialName }: { onClose: () => void; initialName?: string }) {
   const { user, profile } = useAuth();
   const { data: categories } = useCategories();
-  const [name, setName] = useState(profile?.displayName ?? "");
+  const [name, setName] = useState(initialName ?? profile?.displayName ?? "");
   const [email, setEmail] = useState(profile?.email ?? "");
   const [phone, setPhone] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [teamId, setTeamId] = useState("");
@@ -22,30 +25,36 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   function toggleDay(day: string) {
     setAvailability((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
   }
 
+  const formValid = !!name.trim() && isValidEmail(email) && isValidPhone(phone) && availability.length > 0;
+
   async function submit() {
-    if (!user || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0) return;
+    if (!user || !formValid) return;
     setBusy(true);
     setError(null);
     try {
+      // The photo is genuinely optional — a failed upload (bad connection,
+      // etc.) shouldn't block the whole application. Fall back to
+      // submitting without it instead of throwing.
       let selfieUrl: string | undefined;
       if (file) {
-        const path = `volunteers/${user.uid}/${Date.now()}-${file.name}`;
-        const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, file);
-        selfieUrl = await getDownloadURL(storageRef);
+        try {
+          selfieUrl = await uploadPickedPhoto(file, `volunteers/${user.uid}/${Date.now()}-${file.name}`);
+        } catch {
+          setPhotoWarning("Couldn't upload your photo, so we submitted your application without it.");
+        }
       }
 
       await addDoc(collection(db, COLLECTIONS.volunteerApplications), {
         name,
         email,
         phone,
-        emergencyContact,
         availability,
         ...(selfieUrl ? { selfieUrl } : {}),
         ...(categoryId ? { categoryId } : {}),
@@ -71,6 +80,7 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
           <div style={{ color: theme.color.textMuted, fontSize: 13.5, marginTop: 6 }}>
             An organizer will review your application and follow up with your shifts.
           </div>
+          {photoWarning && <div style={{ color: theme.color.warning, fontSize: 12.5, marginTop: 10 }}>{photoWarning}</div>}
           <PrimaryButton style={{ marginTop: 18, width: "100%" }} onClick={onClose}>DONE</PrimaryButton>
         </div>
       </Modal>
@@ -96,23 +106,22 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${email.trim() && !isValidEmail(email) ? theme.color.danger : theme.color.border}`, marginBottom: email.trim() && !isValidEmail(email) ? 4 : 12, fontSize: 13.5 }}
       />
+      {email.trim().length > 0 && !isValidEmail(email) && (
+        <div style={{ color: theme.color.danger, fontSize: 11.5, marginBottom: 12 }}>Enter a valid email address.</div>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Phone</div>
       <input
         type="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
+        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${phone.trim() && !isValidPhone(phone) ? theme.color.danger : theme.color.border}`, marginBottom: phone.trim() && !isValidPhone(phone) ? 4 : 12, fontSize: 13.5 }}
       />
-
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Emergency contact (name & phone)</div>
-      <input
-        value={emergencyContact}
-        onChange={(e) => setEmergencyContact(e.target.value)}
-        style={{ width: "100%", padding: "10px 12px", borderRadius: theme.radius.sm, border: `1px solid ${theme.color.border}`, marginBottom: 12, fontSize: 13.5 }}
-      />
+      {phone.trim().length > 0 && !isValidPhone(phone) && (
+        <div style={{ color: theme.color.danger, fontSize: 11.5, marginBottom: 12 }}>Enter a valid phone number.</div>
+      )}
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Available days</div>
       <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -156,11 +165,7 @@ export function BecomeVolunteerModal({ onClose }: { onClose: () => void }) {
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} style={{ marginBottom: 16 }} />
 
       {error && <div style={{ color: theme.color.danger, fontSize: 13, marginBottom: 10 }}>{error}</div>}
-      <PrimaryButton
-        disabled={busy || !name.trim() || !email.trim() || !phone.trim() || !emergencyContact.trim() || availability.length === 0}
-        onClick={submit}
-        style={{ width: "100%" }}
-      >
+      <PrimaryButton disabled={busy || !formValid} onClick={submit} style={{ width: "100%" }}>
         {busy ? "Submitting…" : "SUBMIT APPLICATION"}
       </PrimaryButton>
     </Modal>

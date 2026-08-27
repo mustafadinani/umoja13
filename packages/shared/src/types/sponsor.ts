@@ -18,11 +18,14 @@ export interface SponsorshipTierInfo {
   perks: string[];
 }
 
+/** Suggested starting point for the "Give What You Can" custom tier — donor can adjust it up or down. Kept modest on purpose: this is the tier an individual giving out of goodwill lands on, not just a business naming a sponsorship figure. */
+export const CUSTOM_TIER_SUGGESTED_CENTS = 5_000;
+
 export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "legacy_builder",
     label: "Legacy Builder",
-    priceCents: 2_500_000,
+    priceCents: 1_000_000,
     tagline: "Own the spotlight",
     perks: [
       "Press & social media interviews",
@@ -35,7 +38,7 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "impact_partner",
     label: "Impact Partner",
-    priceCents: 1_000_000,
+    priceCents: 500_000,
     tagline: "Lead the conversation",
     perks: [
       "Social media interviews & event shoutout",
@@ -47,7 +50,7 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   {
     id: "community_supporter",
     label: "Community Supporter",
-    priceCents: 500_000,
+    priceCents: 250_000,
     tagline: "Capitalize the moment",
     perks: [
       "Social media interviews & event shoutout",
@@ -58,16 +61,16 @@ export const SPONSORSHIP_TIERS: SponsorshipTierInfo[] = [
   },
   {
     id: "custom",
-    label: "Build Your Own",
+    label: "Give What You Can",
     priceCents: null,
     tagline: "Join the movement",
-    perks: ["Tell us what matters to you — we'll build a custom package together"],
+    perks: ["Any amount helps — from a token of support to a full sponsorship, it's entirely up to you"],
   },
 ];
 
 export type SponsorInquiryStatus = "new" | "contacted" | "closed";
 
-/** A lead from the public "Become a Sponsor" CTA — reviewed by staff, not auto-approved into a real Sponsor. */
+/** A lead from the public "Partner With Us" CTA — reviewed by staff, not auto-approved into a real Sponsor. */
 export interface SponsorInquiry {
   id: string;
   orgName: string;
@@ -75,7 +78,8 @@ export interface SponsorInquiry {
   email: string;
   phone?: string;
   message?: string;
-  filedByUid: string;
+  /** Absent for a guest inquiry — sending one doesn't require an account. */
+  filedByUid?: string;
   status: SponsorInquiryStatus;
   createdAt: number;
 }
@@ -84,10 +88,11 @@ export type SponsorshipDonorType = "business" | "individual";
 export type SponsorshipOrderStatus = "pending" | "paid" | "converted" | "cancelled";
 
 /**
- * A real-money sponsorship purchase made through Stripe Checkout (see
- * createSponsorshipCheckout). Created as "pending", flipped to "paid" by the
- * Stripe webhook, and later "converted" by an admin into a public Sponsor
- * entry (see SponsorshipOrdersAdminTab).
+ * A real-money sponsorship purchase made through an embedded Stripe Payment
+ * Element (see createSponsorshipIntent). Created as "pending", flipped to
+ * "paid" by confirmSponsorshipPayment once the PaymentIntent succeeds, and
+ * later "converted" by an admin into a public Sponsor entry (see
+ * SponsorshipOrdersAdminTab).
  */
 export interface SponsorshipOrder {
   id: string;
@@ -102,9 +107,15 @@ export interface SponsorshipOrder {
   companyLogoUrl?: string;
   /** Free-text notes for the "Build Your Own" custom tier. */
   customNote?: string;
+  /** Optional — carried onto the public Sponsor entry once converted. */
+  websiteUrl?: string;
+  instagramUrl?: string;
+  socialUrl?: string;
+  description?: string;
   status: SponsorshipOrderStatus;
   stripeCheckoutSessionId?: string;
-  filedByUid: string;
+  /** Absent for a guest checkout — sponsoring doesn't require an account. */
+  filedByUid?: string;
   createdAt: number;
   paidAt?: number;
   convertedSponsorId?: string;

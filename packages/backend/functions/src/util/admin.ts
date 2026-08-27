@@ -15,6 +15,9 @@ if (!getApps().length) {
 }
 
 export const db = getFirestore(FIRESTORE_DATABASE_ID);
+// The project's `(default)` database — Umoja Outreach's existing registration
+// data (uGames/{year}/playersRegistered etc.), read-only from this app's side.
+export const defaultDb = getFirestore("(default)");
 export const auth = getAuth();
 export const storage = getStorage();
 export const bucket: ReturnType<typeof storage.bucket> = storage.bucket(STORAGE_BUCKET_NAME);

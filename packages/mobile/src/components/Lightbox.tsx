@@ -28,7 +28,7 @@ export function Lightbox({
     <RNModal visible={visible && !!src} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onClose}>
         {src && isVideo ? (
-          <LoadingVideo player={player} style={[styles.media, styles.transparentBg]} nativeControls contentFit="contain" />
+          <LoadingVideo player={player} source={src} style={[styles.media, styles.transparentBg]} nativeControls contentFit="contain" />
         ) : (
           src && <LoadingImage source={{ uri: src }} style={[styles.media, styles.transparentBg]} resizeMode="contain" />
         )}

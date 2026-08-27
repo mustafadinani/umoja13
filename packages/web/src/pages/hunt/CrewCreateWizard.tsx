@@ -73,8 +73,8 @@ export function CrewCreateWizard() {
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Invite crew members ({invites.length}/3)</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
             {invites.map((i) => (
-              <div key={i.email} style={{ display: "flex", justifyContent: "space-between", background: "#F7F6F3", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>
-                <span>{i.name} · {i.email}</span>
+              <div key={i.email} style={{ display: "flex", justifyContent: "space-between", background: "#F7F6F3", borderRadius: 8, padding: "8px 12px", fontSize: 13, flexWrap: "wrap", gap: 8 }}>
+                <span style={{ minWidth: 120 }}>{i.name} · {i.email}</span>
                 <button onClick={() => setInvites((l) => l.filter((x) => x.email !== i.email))} style={{ background: "none", border: "none", color: theme.color.danger }}>✕</button>
               </div>
             ))}

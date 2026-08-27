@@ -7,8 +7,15 @@ export const COLLECTIONS = {
   categories: "categories",
   teams: "teams",
   games: "games",
+  gameScorers: "gameScorers",
+  /** One doc per category, id == categoryId — the Live Draw's persisted draw-position order (see types/draw.ts). Session-resumable, unlike the old CSV-shell tool. */
+  draws: "draws",
   checkIns: "checkIns",
   tournamentPasses: "tournamentPasses",
+  /** PII-free mirror of each check-in's status/selfie, keyed by team+player+category — the only
+   * check-in data captains/referees/fans ever see; the checkIns docs themselves (gov ID, DOB) stay
+   * restricted to the player and staff. Public read, same as teams/games. */
+  rosterCheckIns: "rosterCheckIns",
   moments: "moments",
   announcements: "announcements",
   sponsors: "sponsors",
@@ -17,7 +24,6 @@ export const COLLECTIONS = {
   huntCrews: "huntCrews",
   huntMissions: "huntMissions",
   huntSubmissions: "huntSubmissions",
-  chatEscalations: "chatEscalations",
   counters: "counters",
   uatScenarios: "uatScenarios",
   uatBugs: "uatBugs",
@@ -30,6 +36,18 @@ export const COLLECTIONS = {
   sponsorshipOrders: "sponsorshipOrders",
   teamChannels: "teamChannels",
   roleChannels: "roleChannels",
+  userChannels: "userChannels",
+  pods: "pods",
+  podChannels: "podChannels",
+  podTasks: "podTasks",
+  /** Account deletion requests (Apple Guideline 5.1.1(v)). Staff process; not auto-delete. */
+  accountDelete: "accountDelete",
+  /** One doc per category, id == categoryId — award-ceremony nominees/winners (see types/awards.ts). */
+  categoryAwards: "categoryAwards",
+  /** Single-doc-per-feature settings, Cloud-Function-only writes (see types/huntConfig.ts for the Hunt's doc). */
+  config: "config",
+  /** Anonymous-by-default "Umoja 13 Feedback" survey responses (see types/feedback.ts) — guest-writable, staff-only read. */
+  feedbackResponses: "feedbackResponses",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

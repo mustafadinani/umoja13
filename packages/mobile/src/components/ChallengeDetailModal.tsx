@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -24,6 +24,7 @@ export function ChallengeDetailModal({
 }) {
   const { user, profile } = useAuth();
   const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [mediaIsVideo, setMediaIsVideo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState(false);
@@ -61,7 +62,14 @@ export function ChallengeDetailModal({
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes, quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: 0.7 });
-    if (!result.canceled && result.assets[0]) setMediaUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setMediaUri(asset.uri);
+      // Picker's own `type` is the reliable signal — see MomentUploadModal.tsx's
+      // identical fix for why a bare file-extension check misses Android
+      // content:// picks (no extension at all) and oddly-cased iOS ones.
+      setMediaIsVideo(asset.type === "video" || /\.(mov|mp4|m4v)$/i.test(asset.uri));
+    }
   }
 
   async function submit() {
@@ -71,17 +79,16 @@ export function ChallengeDetailModal({
     try {
       const response = await fetch(mediaUri);
       const blob = await response.blob();
-      const isVideo = mediaUri.endsWith(".mov") || mediaUri.endsWith(".mp4");
-      const path = `challengeSubmissions/${challenge.id}/${user.uid}-${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+      const path = `challengeSubmissions/${challenge.id}/${user.uid}-${Date.now()}.${mediaIsVideo ? "mp4" : "jpg"}`;
       const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+      await uploadBytes(storageRef, blob, { contentType: mediaIsVideo ? "video/mp4" : "image/jpeg" });
       const mediaUrl = await getDownloadURL(storageRef);
       await addDoc(collection(db, COLLECTIONS.challengeSubmissions), {
         challengeId: challenge.id,
         crewId: crew.id,
         submittedBy: user.uid,
         submittedByName: profile.displayName,
-        mediaType: isVideo ? "video" : "photo",
+        mediaType: mediaIsVideo ? "video" : "photo",
         mediaUrl,
         status: "pending",
         createdAt: Date.now(),
@@ -135,11 +142,17 @@ export function ChallengeDetailModal({
               {mySubmission?.mediaUrl && renderMediaPreview(mySubmission.mediaUrl, mySubmission.mediaType)}
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 10, marginBottom: 12 }}>
                 <Text style={{ color: theme.color.danger, fontSize: 12.5, textAlign: "center" }}>Not approved — try submitting again.</Text>
+                {mySubmission.rejectionReason && (
+                  <Text style={{ color: theme.color.danger, fontWeight: "600", fontSize: 12.5, textAlign: "center", marginTop: 4 }}>{mySubmission.rejectionReason}</Text>
+                )}
               </View>
             </>
           )}
           {mediaUri ? (
-            <Image source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
+            // Previously an unconditional <Image>, which rendered blank for a
+            // picked video (no image decoder for video bytes) — the same bug
+            // fixed in MomentUploadModal.tsx/HuntScreen.tsx.
+            renderMediaPreview(mediaUri, mediaIsVideo ? "video" : "photo")
           ) : (
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
               <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>

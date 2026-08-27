@@ -1,4 +1,5 @@
 # CODING AGENTS: READ THIS FIRST
+# Test comment - 1
 
 This is a **handoff bundle** from Claude Design (claude.ai/design).
 

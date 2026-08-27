@@ -1,15 +1,20 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
-import { COLLECTIONS, type GameStatus } from "@umoja/shared";
+import { COLLECTIONS, computePlayerSuspension, formatKickoffTime, type Game as GameDoc, type GameStatus, type RosterEntry, type Team } from "@umoja/shared";
 import { db } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme } from "../lib/theme";
-import { useCategories, useGame, useMoments, useTeam } from "../hooks/useData";
+import { useCategories, useGame, useGames, useMoments, useSponsors, useTeam } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, StatusBadge } from "../components/ui";
+import { RosterTile } from "../components/RosterTile";
 import { MomentUploadModal } from "../components/MomentUploadModal";
+import { PlayerCardModal } from "../components/PlayerCardModal";
+import { SponsorStrip } from "../components/SponsorStrip";
 
-const EVENT_ICON: Record<string, string> = { goal: "⚽", yellow_card: "🟨", red_card: "🟥" };
+type OpenPlayer = { player: RosterEntry; teamId: string; teamName: string; rosterChecked?: boolean };
+
+const EVENT_ICON: Record<string, string> = { yellow_card: "🟨", red_card: "🟥" };
 
 export function Game() {
   const { gameId } = useParams();
@@ -19,36 +24,29 @@ export function Game() {
   const { data: home } = useTeam(game?.homeTeamId);
   const { data: away } = useTeam(game?.awayTeamId);
   const { data: categories } = useCategories();
+  const { data: allGames } = useGames();
   const { data: allMoments } = useMoments();
+  const { data: sponsors } = useSponsors();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [openPlayer, setOpenPlayer] = useState<OpenPlayer | null>(null);
 
   if (!game) return <div style={{ padding: 40, textAlign: "center", color: theme.color.textMuted }}>Loading…</div>;
 
   const isAdmin = profile?.roles.includes("admin") ?? false;
-  const homeGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.homeTeamId).length;
-  const awayGoals = game.events.filter((e) => e.type === "goal" && e.teamId === game.awayTeamId).length;
+  const homeGoals = game.homeScore ?? 0;
+  const awayGoals = game.awayScore ?? 0;
   const gameMoments = allMoments.filter((m) => m.gameId === game.id);
-  const roster = [...(home?.roster ?? []), ...(away?.roster ?? [])];
-  const myVote = profile ? game.potmVotes?.[profile.uid] ?? null : null;
 
   async function setStatus(status: GameStatus) {
     if (!gameId) return;
     await updateDoc(doc(db, COLLECTIONS.games, gameId), { status, updatedAt: Date.now() });
   }
 
-  async function votePotm(playerId: string) {
-    if (!profile || !gameId) return;
-    const same = myVote === playerId;
-    await updateDoc(doc(db, COLLECTIONS.games, gameId), {
-      [`potmVotes.${profile.uid}`]: same ? null : playerId,
-    });
-  }
-
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px" }}>
-      <div style={{ background: theme.color.navy, color: "#fff", padding: "24px" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 0 48px", width: "100%" }}>
+      <div style={{ background: theme.color.navy, color: "#fff", padding: "20px 16px" }}>
         <div onClick={() => navigate(-1)} style={{ fontSize: 13, color: "#A79FC0", cursor: "pointer", marginBottom: 10 }}>‹ Back</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <StatusBadge status={game.status} />
           <div style={{ fontSize: 12, color: "#A79FC0" }}>
             {categories.find((c) => c.id === game.categoryId)?.label ?? game.categoryId} · {game.field}
@@ -56,8 +54,8 @@ export function Game() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 10, textAlign: "center", marginTop: 18 }}>
           <TeamAvatar name={home?.name} color={home?.color} onClick={() => home && navigate(`/team/${home.id}`)} />
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 56, whiteSpace: "nowrap" }}>
-            {game.status === "scheduled" ? game.kickoffTime : `${homeGoals}–${awayGoals}`}
+          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: "clamp(36px, 10vw, 56px)", whiteSpace: "nowrap" }}>
+            {game.status === "scheduled" ? formatKickoffTime(game.kickoffTime) : `${homeGoals}–${awayGoals}`}
           </div>
           <TeamAvatar name={away?.name} color={away?.color} onClick={() => away && navigate(`/team/${away.id}`)} />
         </div>
@@ -71,61 +69,17 @@ export function Game() {
         )}
       </div>
 
-      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
         <PrimaryButton style={{ width: "100%" }} onClick={() => setUploadOpen(true)}>+ SHARE A MOMENT</PrimaryButton>
 
-        {roster.length > 0 && (
-          <div>
-            <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>PLAYER OF THE MATCH</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {roster.slice(0, 6).map((p) => {
-                const castVotes = Object.values(game.potmVotes ?? {}).filter((v): v is string => !!v);
-                const votes = castVotes.filter((v) => v === p.userId).length;
-                const total = castVotes.length || 1;
-                const pct = Math.round((votes / total) * 100);
-                const isMyVote = myVote === p.userId;
-                return (
-                  <div
-                    key={p.userId}
-                    onClick={() => votePotm(p.userId)}
-                    style={{
-                      cursor: "pointer", background: isMyVote ? theme.color.purpleLight + "22" : "#fff",
-                      border: `1px solid ${isMyVote ? theme.color.purple : theme.color.border}`,
-                      borderRadius: theme.radius.sm, padding: "8px 12px",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, fontWeight: 600 }}>
-                      <span>{isMyVote && "✓ "}#{p.jerseyNumber} {p.displayName}</span>
-                      <span>{pct}%</span>
-                    </div>
-                    <div style={{ height: 6, background: "#F1EFF5", borderRadius: 99, marginTop: 6 }}>
-                      <div style={{ height: 6, width: `${pct}%`, background: theme.color.purple, borderRadius: 99 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>WHAT'S HAPPENED</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {game.events.map((e) => (
-              <div key={e.id} style={{ display: "flex", gap: 10, fontSize: 13.5, alignItems: "center" }}>
-                <span style={{ color: theme.color.textMuted, width: 32 }}>{e.minute}'</span>
-                <span>{EVENT_ICON[e.type]}</span>
-                <span>#{e.playerNumber} — {e.type.replace("_", " ")}</span>
-              </div>
-            ))}
-            {game.events.length === 0 && <div style={{ color: theme.color.textMuted, fontSize: 13.5 }}>No events logged yet.</div>}
-          </div>
-        </div>
+        {(home?.roster.length || away?.roster.length) ? (
+          <RosterSection home={home} away={away} game={game} games={allGames} onSelectPlayer={setOpenPlayer} />
+        ) : null}
 
         {gameMoments.length > 0 && (
           <div>
             <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>MOMENTS FROM THIS GAME</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div className="grid-3">
               {gameMoments.map((m) => (
                 <Card key={m.id} style={{ padding: 0, overflow: "hidden" }}>
                   {m.mediaType === "video" ? (
@@ -140,7 +94,20 @@ export function Game() {
         )}
       </div>
 
+      <div style={{ marginTop: 32 }}>
+        <SponsorStrip sponsors={sponsors} />
+      </div>
+
       {uploadOpen && <MomentUploadModal onClose={() => setUploadOpen(false)} gameId={game.id} source="game" />}
+      {openPlayer && (
+        <PlayerCardModal
+          player={openPlayer.player}
+          teamId={openPlayer.teamId}
+          teamName={openPlayer.teamName}
+          rosterChecked={openPlayer.rosterChecked}
+          onClose={() => setOpenPlayer(null)}
+        />
+      )}
     </div>
   );
 }
@@ -152,7 +119,61 @@ function TeamAvatar({ name, color, onClick }: { name?: string; color?: string; o
         {(name ?? "TBD").slice(0, 2).toUpperCase()}
       </div>
       <div style={{ fontWeight: 600, fontSize: 13.5, textDecoration: "underline", textDecorationColor: "rgba(255,255,255,.5)" }}>{name ?? "TBD"}</div>
-      <div style={{ fontSize: 10, color: "#A79FC0", marginTop: 2 }}>View roster ›</div>
+      <div style={{ fontSize: 10, color: "#A79FC0", marginTop: 2 }}>View details ›</div>
     </div>
+  );
+}
+
+function RosterSection({
+  home, away, game, games, onSelectPlayer,
+}: { home?: Team | null; away?: Team | null; game: GameDoc; games: GameDoc[]; onSelectPlayer: (p: OpenPlayer) => void }) {
+  return (
+    <div>
+      <div style={{ fontFamily: theme.font.display, fontWeight: 800, fontSize: 18, marginBottom: 8 }}>ROSTER</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        {home && <RosterColumn team={home} game={game} games={games} onSelectPlayer={onSelectPlayer} />}
+        {away && <RosterColumn team={away} game={game} games={games} onSelectPlayer={onSelectPlayer} />}
+      </div>
+    </div>
+  );
+}
+
+function RosterColumn({ team, game, games, onSelectPlayer }: { team: Team; game: GameDoc; games: GameDoc[]; onSelectPlayer: (p: OpenPlayer) => void }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 800, color: theme.color.textMuted, letterSpacing: 0.5, marginBottom: 6 }}>
+        {team.name.toUpperCase()}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {team.roster.map((p) => (
+          <RosterRow key={p.playerKey ?? p.userId} player={p} team={team} game={game} games={games} onClick={(rosterChecked) => onSelectPlayer({ player: p, teamId: team.id, teamName: team.name, rosterChecked })} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RosterRow({ player, team, game, games, onClick }: { player: RosterEntry; team: Team; game: GameDoc; games: GameDoc[]; onClick: (rosterChecked: boolean) => void }) {
+  const playerKey = player.playerKey ?? player.userId;
+  const cardEvents = game.events.filter((e) => e.playerId === playerKey);
+  const isMotm = game.motmUserId === playerKey;
+  const clearedUids = team.id === game.homeTeamId ? game.gateCheck.homeClearedUids : game.gateCheck.awayClearedUids;
+  const rosterChecked = clearedUids.includes(playerKey);
+  const suspended = computePlayerSuspension(games, team.id, playerKey).suspended;
+  return (
+    <RosterTile
+      player={player}
+      onClick={() => onClick(rosterChecked)}
+      rosterChecked={rosterChecked}
+      suspended={suspended}
+      trailing={
+        <>
+          {isMotm && <span style={{ fontSize: 11, fontWeight: 700, color: theme.color.warning }}>★ Player of the Game</span>}
+          {cardEvents.map((e) => (
+            <span key={e.id} style={{ fontSize: 12 }}>{EVENT_ICON[e.type]}</span>
+          ))}
+        </>
+      }
+    />
   );
 }

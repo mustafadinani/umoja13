@@ -1,24 +1,20 @@
 import { useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../../../lib/firebase";
+import { uploadPickedPhoto } from "../../../lib/uploadPhoto";
 import { theme } from "../../../lib/theme";
 import { submitGameCard } from "../../../lib/callables";
 import { Modal, PrimaryButton } from "../../../components/ui";
 
 export function SubmitGameCardModal({ gameId, onClose, onSubmitted }: { gameId: string; onClose: () => void; onSubmitted: () => void }) {
   const [file, setFile] = useState<File | null>(null);
-  const [step, setStep] = useState<"capture" | "scanning" | "done">("capture");
+  const [step, setStep] = useState<"capture" | "uploading" | "done">("capture");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
     if (!file) return;
-    setStep("scanning");
+    setStep("uploading");
     setError(null);
     try {
-      const path = `gameCards/${gameId}/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, file);
-      const photoUrl = await getDownloadURL(storageRef);
+      const photoUrl = await uploadPickedPhoto(file, `gameCards/${gameId}/${Date.now()}-${file.name}`);
       await submitGameCard({ gameId, photoUrl });
       setStep("done");
       onSubmitted();
@@ -43,12 +39,12 @@ export function SubmitGameCardModal({ gameId, onClose, onSubmitted }: { gameId: 
     );
   }
 
-  if (step === "scanning") {
+  if (step === "uploading") {
     return (
       <Modal onClose={onClose}>
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <div className="um-spin" style={{ width: 40, height: 40, border: `4px solid ${theme.color.border}`, borderTopColor: theme.color.purple, borderRadius: "50%", margin: "0 auto 16px" }} />
-          <div style={{ fontWeight: 700 }}>Reading the card…</div>
+          <div style={{ fontWeight: 700 }}>Uploading…</div>
         </div>
       </Modal>
     );

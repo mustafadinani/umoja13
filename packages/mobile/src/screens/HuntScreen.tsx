@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, ScrollView, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { LoadingImage } from "../components/LoadingImage";
 import * as ImagePicker from "expo-image-picker";
 import { addDoc, collection, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { COLLECTIONS, huntMissionIsAutoScored, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
+import { COLLECTIONS, HUNT_LAUNCH_LABEL, huntMissionIsAutoScored, isHuntMissionVisible, type Challenge, type CrewMember, type HuntMission, type HuntMissionType } from "@umoja/shared";
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../auth/AuthProvider";
 import { theme, hunterGradient } from "../lib/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { useChallenges, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useMyInvites } from "../hooks/useData";
+import { useChallenges, useHuntConfig, useHuntCrews, useHuntMissions, useMyChallengeSubmissions, useMyCrew, useMyHuntSubmissions, useMyInvites } from "../hooks/useData";
 import { Card, Pill, PrimaryButton, Modal } from "../components/ui";
 import { ChallengeDetailModal } from "../components/ChallengeDetailModal";
 import { Lightbox } from "../components/Lightbox";
@@ -64,9 +65,15 @@ function ResultBadge({ status, wonPoints }: { status: "won" | "pending" | "rejec
 }
 
 export function HuntScreen() {
+  const navigation = useNavigation<any>();
   const { user, profile } = useAuth();
+  const { data: huntConfig, loading: huntConfigLoading } = useHuntConfig();
   const { data: crew } = useMyCrew(user?.uid);
-  const { data: missions } = useHuntMissions();
+  const { data: allMissions } = useHuntMissions();
+  // Future-day missions stay hidden entirely until their own day arrives —
+  // once a day arrives its missions stay visible for the rest of the
+  // weekend (a crew behind on Day 1 can still see and finish it on Day 2).
+  const missions = useMemo(() => allMissions.filter((m) => isHuntMissionVisible(m.day)), [allMissions]);
   const { data: challenges } = useChallenges();
   const { data: myChallengeSubmissions } = useMyChallengeSubmissions(crew?.id);
   const { data: myHuntSubmissions } = useMyHuntSubmissions(crew?.id);
@@ -84,6 +91,7 @@ export function HuntScreen() {
   const [openMissionId, setOpenMissionId] = useState<string | null>(null);
   const [triviaChoice, setTriviaChoice] = useState<number | null>(null);
   const [mediaUri, setMediaUri] = useState<string | null>(null);
+  const [mediaIsVideo, setMediaIsVideo] = useState(false);
   const [textAnswer, setTextAnswer] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [justSubmitted, setJustSubmitted] = useState<"pending" | "correct" | "wrong" | null>(null);
@@ -120,6 +128,7 @@ export function HuntScreen() {
     setOpenMissionId(id);
     setTriviaChoice(null);
     setMediaUri(null);
+    setMediaIsVideo(false);
     setTextAnswer("");
     setSubmitError(null);
     setJustSubmitted(null);
@@ -131,7 +140,14 @@ export function HuntScreen() {
     const result = fromCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images", "videos"], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images", "videos"], quality: 0.7 });
-    if (!result.canceled && result.assets[0]) setMediaUri(result.assets[0].uri);
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setMediaUri(asset.uri);
+      // Picker's own `type` is the reliable signal — see MomentUploadModal.tsx's
+      // identical fix for why a bare file-extension check misses Android
+      // content:// picks (no extension at all) and oddly-cased iOS ones.
+      setMediaIsVideo(asset.type === "video" || /\.(mov|mp4|m4v)$/i.test(asset.uri));
+    }
   }
 
   async function submitForReview() {
@@ -144,11 +160,10 @@ export function HuntScreen() {
       if (mediaUri) {
         const response = await fetch(mediaUri);
         const blob = await response.blob();
-        const isVideo = mediaUri.endsWith(".mov") || mediaUri.endsWith(".mp4");
-        mediaType = isVideo ? "video" : "photo";
-        const path = `huntSubmissions/${user.uid}/${Date.now()}.${isVideo ? "mp4" : "jpg"}`;
+        mediaType = mediaIsVideo ? "video" : "photo";
+        const path = `huntSubmissions/${user.uid}/${Date.now()}.${mediaIsVideo ? "mp4" : "jpg"}`;
         const storageRef = ref(storage, path);
-        await uploadBytes(storageRef, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+        await uploadBytes(storageRef, blob, { contentType: mediaIsVideo ? "video/mp4" : "image/jpeg" });
         mediaUrl = await getDownloadURL(storageRef);
       } else if (textAnswer.trim()) {
         mediaType = "text";
@@ -202,10 +217,25 @@ export function HuntScreen() {
 
   async function respondInvite(accept: boolean) {
     if (!pendingInvite || !user || !profile) return;
+    setBusy(true);
+    setCrewError(null);
+    // Omit userId rather than set it `undefined` on a decline for a member
+    // who never accepted before (no userId on file yet) — this array goes
+    // straight into updateDoc below, which rejects an explicit `undefined`
+    // value outright, so declining a never-accepted invite always failed.
     const members = pendingInvite.members.map((m) =>
-      m.email === profile.email.toLowerCase() ? { ...m, status: accept ? "accepted" : "declined", userId: accept ? user.uid : m.userId } : m
+      m.email === profile.email.toLowerCase()
+        ? { ...m, status: accept ? "accepted" : "declined", ...(accept ? { userId: user.uid } : {}) }
+        : m
     );
-    await updateDoc(doc(db, COLLECTIONS.huntCrews, pendingInvite.id), { members, ...(accept ? { memberUids: arrayUnion(user.uid) } : {}) });
+    try {
+      await updateDoc(doc(db, COLLECTIONS.huntCrews, pendingInvite.id), { members, ...(accept ? { memberUids: arrayUnion(user.uid) } : {}) });
+    } catch (e) {
+      // This used to fail silently — ACCEPT looked like it did nothing.
+      setCrewError(e instanceof Error ? e.message : "Couldn't respond to this invite. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function completeInstant(correct: boolean) {
@@ -216,19 +246,53 @@ export function HuntScreen() {
     setJustSubmitted(correct ? "correct" : "wrong");
   }
 
+  // Built and seeded well ahead of when it should be playable — hidden
+  // behind this admin-controlled switch (web Admin → The Hunt) until staff
+  // are ready. Wait for the config doc to actually load first, so a fresh
+  // screen mount doesn't flash the coming-soon view before it's known.
+  if (!huntConfigLoading && !huntConfig?.started) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
+        <LinearGradient colors={hunterGradient} style={styles.hero}>
+          <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
+          <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
+          <TouchableOpacity onPress={() => navigation.getParent()?.navigate("HuntRules")}>
+            <Text style={styles.rulesLink}>Official Rules</Text>
+          </TouchableOpacity>
+        </LinearGradient>
+        <View style={{ padding: 16 }}>
+          <Card style={{ alignItems: "center", paddingVertical: 40 }}>
+            <Text style={{ fontSize: 36, marginBottom: 10 }}>🔒</Text>
+            <Text style={{ fontWeight: "800", fontSize: 18, marginBottom: 8, textAlign: "center" }}>
+              Scavenger Hunt opens {HUNT_LAUNCH_LABEL}
+            </Text>
+            <Text style={{ color: theme.color.textMuted, fontSize: 13, lineHeight: 20, textAlign: "center" }}>
+              Crews, missions, challenges, and the leaderboard all go live once the weekend kicks off. Check back
+              then — or keep an eye on your notifications, we'll let you know.
+            </Text>
+          </Card>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.color.bg }}>
       <LinearGradient colors={hunterGradient} style={styles.hero}>
         <Text style={styles.heroTitle}>🧭 THE HUNT</Text>
         <Text style={styles.heroSub}>45 missions across 3 days, plus surprise challenges. $500 grand prize.</Text>
+        <TouchableOpacity onPress={() => navigation.getParent()?.navigate("HuntRules")}>
+          <Text style={styles.rulesLink}>Official Rules</Text>
+        </TouchableOpacity>
       </LinearGradient>
 
       <View style={{ padding: 16 }}>
         {pendingInvite && (
           <Card style={{ backgroundColor: theme.color.warningBg, borderWidth: 0, marginBottom: 16 }}>
             <Text style={{ fontWeight: "700" }}>You're invited to join "{pendingInvite.name}"</Text>
+            {crewError && <Text style={{ color: theme.color.danger, fontSize: 12, marginTop: 6 }}>{crewError}</Text>}
             <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-              <PrimaryButton onPress={() => respondInvite(true)}>ACCEPT</PrimaryButton>
+              <PrimaryButton disabled={busy} onPress={() => respondInvite(true)}>ACCEPT</PrimaryButton>
             </View>
           </Card>
         )}
@@ -313,7 +377,10 @@ export function HuntScreen() {
               </View>
               {(() => {
                 const totalDone = crew.missionsCompleted.length + (crew.challengesCompleted?.length ?? 0);
-                const totalAvailable = missions.length + challenges.length;
+                // Full mission count, not just what's visible today — hiding
+                // not-yet-open days shouldn't make the progress bar look
+                // artificially close to 100%, or jump backward once Day 2 opens.
+                const totalAvailable = allMissions.length + challenges.length;
                 const pct = totalAvailable > 0 ? Math.round((totalDone / totalAvailable) * 100) : 0;
                 return (
                   <>
@@ -468,7 +535,7 @@ export function HuntScreen() {
             )}
             {missionStatus === "pending" && (
               <>
-                {missionPreviewUri && mySubmission?.mediaType !== "text" && renderMediaPreview(missionPreviewUri, mySubmission?.mediaType ?? (mediaUri ? "photo" : null))}
+                {missionPreviewUri && mySubmission?.mediaType !== "text" && renderMediaPreview(missionPreviewUri, mySubmission?.mediaType ?? (mediaUri ? (mediaIsVideo ? "video" : "photo") : null))}
                 {mySubmission?.textAnswer && (
                   <View style={{ backgroundColor: "#F7F6F3", borderRadius: 8, padding: 12, marginBottom: 12 }}>
                     <Text style={{ fontSize: 13.5 }}>"{mySubmission.textAnswer}"</Text>
@@ -483,6 +550,9 @@ export function HuntScreen() {
             {missionStatus === "rejected" && (
               <View style={{ backgroundColor: theme.color.dangerBg, borderRadius: 8, padding: 12, marginBottom: 12 }}>
                 <Text style={{ color: theme.color.danger, fontWeight: "700", textAlign: "center" }}>Not approved — try submitting again.</Text>
+                {mySubmission?.rejectionReason && (
+                  <Text style={{ color: theme.color.danger, fontWeight: "600", fontSize: 12.5, textAlign: "center", marginTop: 6 }}>{mySubmission.rejectionReason}</Text>
+                )}
               </View>
             )}
 
@@ -504,9 +574,13 @@ export function HuntScreen() {
                 <>
                   {(openMission.type === "photo" || openMission.type === "video" || openMission.type === "mini_game") && (
                     mediaUri ? (
-                      <TouchableOpacity onPress={() => setLightbox({ uri: mediaUri, mediaType: openMission.type === "video" ? "video" : "photo" })}>
-                        <LoadingImage source={{ uri: mediaUri }} style={{ width: "100%", height: 160, borderRadius: 8, marginBottom: 12 }} />
-                      </TouchableOpacity>
+                      // Route through the actual picked type (mediaIsVideo), not
+                      // openMission.type's expected type — a photo picked for a
+                      // "mini_game" mission, or vice versa, still needs its real
+                      // preview. Previously always LoadingImage, which rendered
+                      // blank for any picked video (no image decoder for video
+                      // bytes) — this is the "adding a video blanks out" bug.
+                      renderMediaPreview(mediaUri, mediaIsVideo ? "video" : "photo")
                     ) : (
                       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
                         <PrimaryButton onPress={() => pickMedia(true)} style={{ flex: 1 }}>📷 Camera</PrimaryButton>
@@ -553,6 +627,7 @@ const styles = StyleSheet.create({
   hero: { paddingTop: 60, paddingBottom: 24, paddingHorizontal: 20 },
   heroTitle: { color: "#fff", fontWeight: "800", fontSize: 26 },
   heroSub: { color: "#fff", opacity: 0.9, fontSize: 13, marginTop: 6 },
+  rulesLink: { color: "#fff", opacity: 0.9, fontSize: 12, marginTop: 8, textDecorationLine: "underline" },
   textArea: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 70, textAlignVertical: "top" },
   input: { borderWidth: 1, borderColor: theme.color.border, borderRadius: 8, padding: 10, fontSize: 13.5 },
   inviteRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#F7F6F3", borderRadius: 8, padding: 10, marginBottom: 6 },

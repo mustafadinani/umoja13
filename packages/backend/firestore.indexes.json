@@ -10,14 +10,6 @@
       ]
     },
     {
-      "collectionGroup": "games",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "refereeUid", "order": "ASCENDING" },
-        { "fieldPath": "day", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "moments",
       "queryScope": "COLLECTION",
       "fields": [
@@ -30,6 +22,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "postedBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "moments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "moderationStatus", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -86,6 +87,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "podTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "podId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }

@@ -8,12 +8,34 @@ service firebase.storage {
     }
 
     function isStaff() {
-      return isSignedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.roles.hasAny(['admin', 'commissioner']);
+      // Storage rules' cross-service firestore.get() only ever reliably
+      // reaches the project's `(default)` Firestore database — this app's
+      // own `users` collection lives in the named `umoja13-app` database
+      // instead (see packages/backend/functions/src/util/admin.ts), and
+      // pointing the get() at `umoja13-app` explicitly still 403'd at
+      // runtime despite compiling fine, so a cross-database read here isn't
+      // usable at all. Use the `roles` custom claim instead — setUserRole
+      // already writes it via auth.setCustomUserClaims() specifically for
+      // "fast client-side gating" (its own doc comment), so no extra
+      // backend work is needed, just wiring storage.rules to actually read
+      // it. A signed-in user whose claims predate that write (or who's
+      // never had a role assigned) simply has no `roles` claim, which
+      // correctly denies rather than errors.
+      return isSignedIn() && request.auth.token.roles.hasAny(['admin', 'commissioner']);
     }
 
     // Selfies & government ID photos: only the owner can upload; only the
     // owner or staff can ever read them back (never publicly listable).
     match /checkins/{uid}/{checkInId}/{fileName} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Volunteer application photos: only the applicant can upload; only the
+    // applicant or staff (reviewing the application) can read them back.
+    match /volunteers/{uid}/{fileName} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isStaff());
       allow write: if isSignedIn() && request.auth.uid == uid &&
         request.resource.size < 10 * 1024 * 1024 &&
@@ -41,6 +63,45 @@ service firebase.storage {
         request.resource.size < 100 * 1024 * 1024 &&
         (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
     }
+    // Challenge submissions — same idea as Hunt submissions above, but the
+    // path is /challengeSubmissions/{challengeId}/{fileName} (uid lives in
+    // the filename, not its own path segment), so ownership can't be
+    // enforced via the path the way huntSubmissions' can. This match block
+    // never existed at all before, which meant every real upload here was
+    // silently denied by Storage's default-deny (no rule matched the path) —
+    // surfacing to participants as an opaque "Firebase error" the instant
+    // they tried to submit a Challenge, regardless of early-bird ranking.
+    match /challengeSubmissions/{challengeId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() &&
+        request.resource.size < 100 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
+    // Chat attachments (Pod/Team/Role/User channels): a message's mediaUrl is
+    // uploaded here by the sender BEFORE the send*Message callable ever runs,
+    // so this only gates the upload itself — the actual Firestore message
+    // doc stays gated by each channel's own read rule (staff + membership).
+    // Public read, like Moments/Hunt above: a getDownloadURL() link already
+    // carries its own access token and bypasses these rules on fetch either
+    // way, so a tighter read rule here wouldn't add real privacy.
+    match /channelAttachments/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        request.resource.size < 50 * 1024 * 1024 &&
+        (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
+
+    // PDF attached to a targeted alert (sendNotification's `link` field) —
+    // staff-only upload, public read (a recipient opening the link from a
+    // push notification, email fallback, or the in-app inbox is never
+    // guaranteed to be signed in to this specific browser/session).
+    match /notificationAttachments/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isStaff() &&
+        request.resource.size < 15 * 1024 * 1024 &&
+        request.resource.contentType == 'application/pdf';
+    }
 
     // Public reference assets (logo, sponsor logos) — admin-managed, world-readable.
     match /public/{fileName} {
@@ -55,12 +116,13 @@ service firebase.storage {
     }
 
     // Business-donor company logo uploaded during sponsorship checkout —
-    // self-serve, owner-scoped write; public read since it may become a
-    // public Sponsor logo once an admin converts the order.
-    match /sponsorshipLogos/{uid}/{fileName} {
+    // guest checkout, so this is deliberately not scoped to auth.uid
+    // (sponsoring shouldn't require an account); bounded by size/type
+    // only. Public read since it may become a public Sponsor logo once an
+    // admin converts the order.
+    match /sponsorshipLogos/{ownerId}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == uid &&
-        request.resource.size < 5 * 1024 * 1024 &&
+      allow write: if request.resource.size < 5 * 1024 * 1024 &&
         request.resource.contentType.matches('image/.*');
     }
   }

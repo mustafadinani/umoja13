@@ -11,12 +11,32 @@ export type IncidentStatus = "submitted" | "under_review" | "resolved" | "denied
 
 export type ComplaintType = "ineligible_player" | "game_related" | "other";
 
+/** The three issue types a captain/coach picks from when filing a paid report — shown as the first step of the flow. */
+export const COMPLAINT_TYPE_LABELS: Record<ComplaintType, string> = {
+  ineligible_player: "Player eligibility",
+  game_related: "Game incident",
+  other: "Other",
+};
+
 export interface IncidentMessage {
   id: string;
   from: "commissioner" | "filer";
   authorUid: string;
   text: string;
   createdAt: number;
+}
+
+/**
+ * Recorded once the commissioner closes the case — a resolve/deny always
+ * carries a response back to the filer, distinct from an ad-hoc thread
+ * message (though the same response also gets appended to `thread` so the
+ * filer sees it in-context alongside the rest of the conversation).
+ */
+export interface IncidentResolution {
+  resolvedBy: string;
+  resolvedByName: string;
+  resolvedAt: number;
+  response: string;
 }
 
 export interface Incident {
@@ -26,20 +46,60 @@ export interface Incident {
   filedByUid: string;
   filedByName: string;
   filedByRole: string; // e.g. "captain, Queens United"
-  complaintType?: ComplaintType; // captain_complaint only
-  gameId?: string;
-  /** fan_message only: links to the full chat transcript that led to this escalation. */
-  chatEscalationId?: string;
+  complaintType?: ComplaintType; // captain_complaint / fan_message (paid report) only
+  gameId?: string; // complaintType === "game_related"
+  /** complaintType === "ineligible_player" only — the single player being reported. */
+  playerKey?: string;
+  playerName?: string;
+  playerTeamId?: string;
+  playerCategoryId?: string;
   text: string;
   status: IncidentStatus;
   thread: IncidentMessage[];
-  /** Captain complaints only: $35 review fee, refunded if upheld. */
+  resolution?: IncidentResolution;
+  /** $35 review fee (captain complaints + report-to-commissioner). */
   fee?: {
     amountCents: number;
     stripeCheckoutSessionId?: string;
+    /** Stripe PaymentIntent id (`pi_…`) once Checkout completes — confirmation of payment. */
+    stripeConfirmationId?: string;
+    stripePaymentIntentId?: string;
     paid: boolean;
     refunded: boolean;
   };
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * The one status vocabulary shown anywhere a case's status renders — "Pending"
+ * (not "Submitted") is the label a filer/commissioner actually sees while a
+ * paid case is waiting on the commissioner's attention.
+ */
+export function incidentStatusLabel(status: IncidentStatus): string {
+  switch (status) {
+    case "submitted":
+      return "Pending";
+    case "under_review":
+      return "Under review";
+    case "resolved":
+      return "Resolved";
+    case "denied":
+      return "Denied";
+  }
+}
+
+export type IncidentStatusTone = "success" | "warning" | "muted" | "danger";
+
+export function incidentStatusTone(status: IncidentStatus): IncidentStatusTone {
+  switch (status) {
+    case "submitted":
+      return "warning";
+    case "under_review":
+      return "muted";
+    case "resolved":
+      return "success";
+    case "denied":
+      return "danger";
+  }
 }
